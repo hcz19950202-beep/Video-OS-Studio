@@ -6,11 +6,11 @@
 
 ## 1. 先给网页 GPT 的结论
 
-这是一个已经完成 Phase 0 Foundation、但还没有进入可用剪辑工作流的 Video OS Studio 项目。
+这是一个已经完成 Foundation、并已跑通 V1 主工作流的 Video OS Studio 项目：真实 MP4 导入、video-use 粗剪、字幕、时间线、Remotion/HyperFrames 动效、Visual Planner、Preset Library、最终 MP4 和 Overlay WebM 都已经在 Windows 浏览器中执行过。
 
-当前不要重新搭脚手架，也不要从 Phase 0 重做。请从现有代码继续，下一阶段从 **Phase 1 — Player / Media Import / Project UI** 开始，并在实现后继续按 PRD 的 Phase 2 到 Phase 10 推进。
+当前不要重新搭脚手架，也不要从 Phase 0 或 Phase 1 重做。先阅读 `LOCAL_VALIDATION_V1.md` 的真实证据和 LV follow-up，再处理播放器媒体时钟、原生 WebM alpha 解码验证以及尚未覆盖的 VTT/Minimal preset 等边界。
 
-用户希望网页 GPT 直接开发和验证，而不是只给一份方案。每个阶段都要实际改代码、跑测试、更新文档并提交 commit；只有遇到真正的外部依赖阻塞时才停下来说明。
+用户希望网页 GPT 直接开发和验证，而不是只给一份方案。每个后续修复都要实际改代码、跑测试、启动浏览器验证、更新文档并提交 commit；只有遇到真正的外部依赖阻塞时才停下来说明。
 
 ## 2. 仓库和 Git 状态
 
@@ -19,13 +19,15 @@
 - 默认分支：`main`
 - 当前开发分支：`feature/phase-0-foundation`
 - 当前 PR：<https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1>
-- Phase 0 代码基线：`5596bd3 Record public CI acceptance`；交接文档后续提交会继续追加在此基线之上。
+- 当前代码提交：`34e22fb`（本地 render/HyperFrames 修复）和 `30470f9`（记录最新云端 CI）；交接文档后续提交会继续追加在此基线之上。
 - 当前 PR 不要擅自合并到 `main`；继续在现有 feature 分支开发并推送即可。
 
 ### 最近的重要提交
 
 | Commit | 内容 |
 | --- | --- |
+| `30470f9` | 记录最新公开 CI 验收通过（lint/typecheck/tests/build） |
+| `34e22fb` | 修复 Remotion CLI、Webpack alias、HyperFrames Map Route，并记录真实 V1 本地验收 |
 | `5596bd3` | 记录公开仓库 CI 验收通过，`CLOUD VERIFIED` 更新为 `PASS` |
 | `86ddcc4` | 让内存文件系统在 Windows / Linux 下使用统一的路径规范化规则 |
 | `ee50820` | 修复 Linux runner 所需的跨平台可选依赖锁文件 |
@@ -33,15 +35,15 @@
 
 ## 3. 当前验收状态
 
-验收记录在 [`LOCAL_VALIDATION.md`](LOCAL_VALIDATION.md)。目前状态如下：
+验收记录在 [`LOCAL_VALIDATION_V1.md`](LOCAL_VALIDATION_V1.md)。目前状态如下：
 
 | Gate | 状态 | 证据 |
 | --- | --- | --- |
-| `CODE COMPLETE` | PASS FOR PHASE 0 | Phase 0 代码、测试和基础 UI 已完成 |
-| `CLOUD VERIFIED` | PASS | [PR checks](https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1/checks)；最近一次已观察到的公开 CI run 为 32278020843 |
-| `LOCAL VERIFIED` | PASS | Windows 10 + Node v24.19.0 + npm 11.6.2 |
-| `PRD ACCEPTED` | PASS FOR PHASE 0 | Phase 0 范围已对照 PRD 检查 |
-| `RENDER VERIFIED` | NOT APPLICABLE | 真实 MP4 / Overlay Render 尚未进入实现范围 |
+| `CODE COMPLETE` | PASS | V1 代码、真实渲染修复和回归已完成 |
+| `CLOUD VERIFIED` | PASS | [PR checks](https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1/checks)，run `32293131298` 成功 |
+| `LOCAL VERIFIED` | PARTIAL | Windows Node v24 真实链路完成；LV-005 Player media clock、LV-006 原生 WebM alpha 仍待收口 |
+| `PRD ACCEPTED` | PARTIAL | 主流程通过，环境与两项边界证据已明确记录 |
+| `RENDER VERIFIED` | PASS / PARTIAL | final MP4 PASS；Overlay WebM 有 `alpha_mode=1`、无音轨，外部 FFmpeg alpha 解码仍需复核 |
 
 已经通过的自动检查：
 
@@ -49,11 +51,11 @@
 npm ci --no-audit --no-fund
 npm run lint
 npm run typecheck
-npm run test       # 6 个测试文件，29 个测试全部通过
+npm run test       # 18 个测试文件，51 个测试全部通过
 npm run build      # Next.js 16.3.1 production build 通过
 ~~~
 
-公开 CI 同样已经通过安装、Lint、TypeScript、29 个测试和生产构建。Actions 日志里的 Node 20 deprecation annotation 是 GitHub action 自身的提示，不是项目失败；项目运行基线已经统一为 Node 24。
+公开 CI 同样已经通过安装、Lint、TypeScript、51 个测试和生产构建。Actions 日志里的 Node 20 deprecation annotation 是 GitHub action 自身的提示，不是项目失败；项目运行基线已经统一为 Node 24。
 
 ## 4. 已经完成了什么
 
@@ -106,10 +108,10 @@ npm run build      # Next.js 16.3.1 production build 通过
 
 ### 4.6 测试和验证
 
-- Schema、commands、migration、serialization、timeline、filesystem integration 都有测试。
-- 本地浏览器验证过：页面启动、Player 播放、暂停和 Seek。
-- 本地已经验证 FFmpeg / ffprobe 可用。
-- 真实 HyperFrames alpha、video-use、最终 MP4 Render、Overlay Render 尚未验证，不要把 mock 或 CI 通过说成真实视频验收。
+- Schema、commands、migration、serialization、timeline、filesystem integration、video-use、render、planner、asset-library 都有测试。
+- 本地浏览器已经真实执行：项目新建/打开、MP4/SRT 导入、比例、Player 控件、Timeline 拖动/resize/duplicate/delete、Inspector、字幕、HyperFrames、Preset、保存和重启恢复。
+- 本地已经验证 FFmpeg / ffprobe、Remotion CLI、HyperFrames CLI 和 video-use adapter 的真实边界。
+- 真实 MP4 和无声 Overlay WebM 已输出并保留；完整证据在 `LOCAL_VALIDATION_V1.md`，不要把 CI 通过说成替代 Windows 浏览器或渲染验收。
 
 ## 5. 与之前交接相比发生的变动
 
@@ -120,56 +122,49 @@ npm run build      # Next.js 16.3.1 production build 通过
 3. **锁文件已跨平台修复**：Linux runner 需要的 `@emnapi/core` / `@emnapi/runtime` 可选依赖已经写入正确层级。
 4. **内存路径已跨平台修复**：不能重新改回只调用宿主机 `path.normalize()` 的写法；需要把 `/` 和 `\` 统一后用 POSIX 规则规范化。
 5. **项目安全边界已加强**：Project ID 和资产相对路径不能允许路径穿越或机器绝对路径。
-6. **`LOCAL_VALIDATION.md` 已记录真实证据**：不要用“脚本存在”替代真实验证，也不要把 Phase 0 的 mock 当成 Render 完成。
-7. **当前 PR 保持打开**：网页 GPT 可以继续推送 feature 分支，但未经用户确认不要合并到 `main`。
+6. **`LOCAL_VALIDATION_V1.md` 已记录真实证据**：不要用“脚本存在”替代真实验证，也不要把 CI 通过当成 Windows 浏览器、HyperFrames 或视频渲染验收。
+7. **Remotion CLI 调用已修复**：使用 `npx --yes --package @remotion/cli@4.0.506 remotion render ...`，并由 `remotion.config.js` 提供 `@` alias。
+8. **HyperFrames Map Route 已修复**：GSAP `left` 改为 transform `x`，点位层级和可读性已调整；adapter 使用非弃用的 `check`。
+9. **Overlay WebM 默认无音轨**：render adapter 已传 `--muted`；输出应有 VP8、`alpha_mode=1` 且无 audio stream。
+10. **当前 PR 保持打开**：网页 GPT 可以继续推送 feature 分支，但未经用户确认不要合并到 `main`。
 
-## 6. 当前还没有完成的功能
+## 6. 当前还没有收口的边界
 
-现在的页面是 Foundation shell，不是可用剪辑器。以下功能尚未完成：
+主流程已经可用并且真实跑通，后续不要重做已验证部分，优先收口这些边界：
 
-- Media Import：MP4、MOV、WebM、WAV、MP3、图片、SRT、VTT 的真实导入和 metadata / thumbnail。
-- Project Manager UI：新建、打开、最近项目、重命名、保存、导入、导出和错误反馈。
-- Player 控件：比例切换、当前时间、总时长、frame 显示、Fit / 100%、安全区。
-- Interactive Timeline：5 轨、Playhead、clip 点击、拖动、resize、duplicate、删除、zoom、锁定和隐藏。
-- Effect Registry：统一 metadata、分类、thumbnail、Add to Timeline、Favorites。
-- Schema-driven Inspector：text、textarea、number、slider、color、select、boolean、file 控件自动映射。
-- Caption System：SRT / VTT 导入、字幕轨、preset、关键词和数字强调。
-- B-roll、CTA、Brand System、Global Controls。
-- Remotion 真正的多轨 Master Composition；目前只有 Phase 0 占位内容。
-- Remotion Final Render、Overlay WebM、导出 UI、进度、失败重试和 ffprobe 验证。
-- HyperFrames Adapter、HyperFrames Library、两个可渲染的 HyperFrames effect。
-- video-use Adapter、ffprobe / transcription / rough-cut / EDL / QA 的真实连接。
-- AI Visual Planner 和自动 Visual Slots。
-- Asset Registry、Save As Preset、Promote to Shared、模板系统。
-- Undo / Redo、debounced autosave、完整错误处理和 E2E 流程。
+- `LV-005`：Player 的 Remotion frame playhead 会移动，但本轮检查到的底层 `<video>` `currentTime` 没有同步推进；需要专门修复/回归 preview media clock。
+- `LV-006`：Overlay WebM 有 `alpha_mode=1`、无音轨，Remotion PNG 仍有真实 RGBA alpha；FFmpeg 8.1.1 解码为 `yuv420p` 且 `alphaextract` 不可用，需要用 Chromium/native decoder 再确认。
+- VTT 导入、Minimal caption preset、caption 经 EDL 保留范围重映射、track lock 的阻止拖动、render Retry 和完整 video-use timeline QA 尚未全部覆盖。
+- HyperFrames doctor 在当前机器是 `PARTIAL_ENV`：可用内存约 1.0 GB，Whisper/TTS/MusicGen/Docker 等可选依赖不可用；不要把这部分标成完整环境通过。
+- Visual Planner 对本次真实口播返回零 slots（“No strong visual moments were found”），这是有效的 explainable fallback 结果，不要强行伪造建议。
+- GitHub Actions 仍有两个已有 `<img>` warning 和 action 使用 Node 20 的 deprecation annotation；它们不是失败，但可以单独安排清理。
 
 ## 7. 下一步执行顺序
 
-严格按下面的顺序推进，不要一开始就做 AI Planner 或几十个动效：
+不要重新做 Phase 1，也不要先扩展几十个动效。先按下面顺序收口当前 V1：
 
-### Phase 1 — Player、Media Import、Project UI
+### V1 follow-up gate
 
-先完成这一阶段：
+1. 复现并修复 `LV-005`：在浏览器中确认 Remotion Player frame、底层 video `currentTime`、暂停/seek 三者一致；补一个真实回归证据。
+2. 用 Chromium 或另一套支持 alpha 的 WebM decoder 验证 `overlay-95c34b33-c29e-456e-916f-a451d0254653.webm` 的透明像素；不要只依赖 FFmpeg 8.1.1 的 `alphaextract`。
+3. 补 VTT、Minimal preset、EDL 后字幕重映射、track lock 阻止拖动和 Retry 的浏览器验证。
+4. 在内存充足且可选依赖齐全的环境重跑 HyperFrames doctor；将 `PARTIAL_ENV` 与真实功能 PASS 分开记录。
+5. 只有上述边界收口后，才把 `LOCAL VERIFIED` / `PRD ACCEPTED` 从 PARTIAL 提升为 PASS。
 
-1. 建立本地 project manager 的最小 UI：新建、加载、保存、重命名、最近项目。
-2. 增加 media import adapter 和 route / server boundary；UI 不直接执行 CLI。
-3. 支持导入至少 MP4 和 SRT，并写入项目相对路径和资产 metadata。
-4. 接入 ffprobe adapter，读取 duration、resolution、fps、audio。
-5. 让 Player 真实渲染导入的视频，而不是只显示文字占位 Composition。
-6. 加入 9:16、16:9、1:1 画布切换，以及当前时间、总时长和 frame 信息。
-7. 保存项目时继续走 `ProjectCommand` + `ProjectRepository`，保留 atomic save 和 backup。
-8. 对导入失败、文件不存在、格式异常显示原因、解决方案和 Retry。
-
-Phase 1 验收：
+当前完整执行链保持为：
 
 ~~~text
-新建项目
-→ 导入一个 MP4
-→ 读取 metadata
-→ 在 Remotion Player 播放 / Seek
-→ 保存 project.json
-→ 刷新或重新打开项目
-→ 项目、素材和播放器状态恢复
+真实 MP4
+→ video-use Transcribe + Pack
+→ 确认并 Apply EDL
+→ 字幕
+→ Visual Planner（允许零 slots）
+→ Timeline / Inspector
+→ Remotion + HyperFrames
+→ Save / Promote / Use preset
+→ final MP4 + Overlay WebM
+→ ffprobe + 帧检查
+→ 重启并 reopen
 ~~~
 
 ### Phase 2 — Timeline
@@ -240,7 +235,7 @@ Phase 1 验收：
 - 涉及真实 Render 必须保留输出文件、ffprobe 结果和必要的画面证据。
 - 不要提交 `.env.local`、token、API key、真实客户媒体或大体积缓存。
 - 不要把“CI 通过”写成“Windows、浏览器、Render、HyperFrames 或 video-use 已验收”。
-- 每完成一个 Phase，更新 `LOCAL_VALIDATION.md` 的 gate、证据、已知问题和下一步。
+- 每完成一个 Phase 或 follow-up，更新 `LOCAL_VALIDATION_V1.md` 的 gate、证据、已知问题和下一步。
 - 每完成一个 Phase，提交清晰 commit；继续在 `feature/phase-0-foundation` 或后续 feature 分支，不要未经确认合并 main。
 - 遇到一个外部引擎不可用时，先实现 adapter、mock、错误状态和其余可验证模块，不要停在空计划上。
 
@@ -272,7 +267,7 @@ RENDER VERIFIED（只有真实 render 时才填写）
 ## 10. 文档优先级和边界
 
 - 用户当前要求：把仓库公开，并提供一份让网页 GPT 能继续开发的真实交接说明。
-- 本文件：当前代码状态、执行上下文和下一步开发要求。
+- 本文件：当前代码状态、执行上下文和下一步开发要求；真实 Windows 证据以 `LOCAL_VALIDATION_V1.md` 为准。
 - `SYSTEM.md`：架构和数据边界的强约束。
 - `Video_OS_Studio_V1_Master_PRD.md`：产品需求和 Phase 1–10 的目标；它不是让网页 GPT 忽略当前代码、直接重写全部项目的命令。
 - `GPT_WEB_START.md`：早期 Phase 0 启动说明，原则仍可参考，但当前进度以本文件为准。
@@ -287,9 +282,9 @@ RENDER VERIFIED（只有真实 render 时才填写）
 
 请先完整阅读根目录的 GPT_WEB_HANDOFF.md、Video_OS_Studio_V1_Master_PRD.md、SYSTEM.md、README.md、AGENTS.md，然后检查当前分支 feature/phase-0-foundation、PR #1 和现有代码/测试。
 
-当前事实：Phase 0 Foundation 已完成；公开 CI、Windows Node 24 本地检查、29 个测试和 production build 都通过。不要重新搭脚手架，不要从 Phase 0 重做，也不要只输出计划。
+当前事实：V1 主工作流已经在 Windows 真实浏览器和真实 MP4 上执行过；公开 CI、Windows Node 24 检查、51 个测试和 production build 都通过。不要重新搭脚手架，不要从 Phase 0/1 重做，也不要只输出计划。
 
-现在开始执行 Phase 1：Player、Media Import、Project UI。实现真实的 MP4/SRT 导入、ffprobe metadata、项目新建/加载/保存、Remotion Player 播放和 Seek、比例/时间信息，并通过现有 Project Command、ProjectRepository 和 adapter 边界接入。
+现在先阅读 `LOCAL_VALIDATION_V1.md`，复现并处理 LV-005 Player media clock 和 LV-006 WebM alpha decoder follow-up，然后补完 VTT、Minimal preset、EDL 字幕重映射、track lock 和 Retry 的真实浏览器验证。保留已经通过的真实 MP4 / Remotion / HyperFrames / video-use 链路。
 
 要求：
 1. 先检查现有实现再改动，遵守 REUSE > MODIFY > CREATE；
@@ -297,9 +292,9 @@ RENDER VERIFIED（只有真实 render 时才填写）
 3. 每个可验证功能都补 unit / integration 测试；
 4. 涉及 UI 必须启动浏览器做真实点击验证；
 5. 保持 npm run lint、npm run typecheck、npm run test、npm run build 通过；
-6. 更新 LOCAL_VALIDATION.md，区分 CODE COMPLETE、CLOUD VERIFIED、LOCAL VERIFIED、PRD ACCEPTED、RENDER VERIFIED；
+6. 更新 LOCAL_VALIDATION_V1.md，区分 CODE COMPLETE、CLOUD VERIFIED、LOCAL VERIFIED、PRD ACCEPTED、RENDER VERIFIED；
 7. 提交清晰 commit 并推送当前 feature 分支，但不要未经确认合并 main；
-8. 完成 Phase 1 后，输出完成内容、修改文件、测试/浏览器证据、已知问题、commit、PR 状态和下一步，然后继续推进后续阶段，不要在只完成计划时停下。
+8. 每个 follow-up 完成后，输出完成内容、修改文件、测试/浏览器证据、已知问题、commit、PR 状态和下一步；不要把 PARTIAL 环境或未验证边界写成 PASS。
 ~~~
 
 ## 12. 重要链接
@@ -309,4 +304,4 @@ RENDER VERIFIED（只有真实 render 时才填写）
 - CI 状态（随 PR 更新）：<https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1/checks>
 - 产品 PRD：[`Video_OS_Studio_V1_Master_PRD.md`](Video_OS_Studio_V1_Master_PRD.md)
 - 系统契约：[`SYSTEM.md`](SYSTEM.md)
-- 本地验收：[`LOCAL_VALIDATION.md`](LOCAL_VALIDATION.md)
+- 本地验收：[`LOCAL_VALIDATION_V1.md`](LOCAL_VALIDATION_V1.md)
