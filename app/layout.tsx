@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./timeline.css";
 
 export const metadata: Metadata = {
   title: "Video OS Studio",
@@ -7,9 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <html lang="zh-CN">
-      <body>{children}</body>
-    </html>
-  );
+  return <html lang="zh-CN"><body>{children}</body></html>;
 }
