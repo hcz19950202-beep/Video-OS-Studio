@@ -9,6 +9,8 @@ import {ProjectRepository} from "@/lib/project/repository";
 import {RenderJobManager} from "@/lib/render/render-jobs";
 import {HyperFramesRenderService} from "@/lib/hyperframes/render-service";
 import {VideoUseService} from "@/lib/video-use/service";
+import {RulesVisualPlannerAdapter} from "@/lib/visual-planner/rules";
+import {VisualPlanService} from "@/lib/visual-planner/service";
 
 const dataRoot=process.env.VIDEO_OS_DATA_ROOT||join(process.cwd(),".video-os-data");
 export const fileSystem=new NodeFileSystemAdapter();
@@ -21,3 +23,5 @@ export const hyperFramesAdapter=new NodeHyperFramesAdapter();
 export const hyperFramesRenderService=new HyperFramesRenderService(fileSystem,hyperFramesAdapter,projectRepository);
 export const videoUseAdapter=new NodeVideoUseAdapter();
 export const videoUseService=new VideoUseService(fileSystem,videoUseAdapter,projectRepository);
+export const visualPlannerAdapter=new RulesVisualPlannerAdapter();
+export const visualPlanService=new VisualPlanService(fileSystem,projectRepository,visualPlannerAdapter,hyperFramesRenderService);
