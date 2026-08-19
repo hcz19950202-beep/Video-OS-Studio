@@ -5,6 +5,7 @@ import {EFFECT_REGISTRY} from "@/shared/effects/registry";
 import {usePlayerStore} from "@/store/player-store";
 import {VideoUsePanel} from "@/components/video-use/VideoUsePanel";
 import {VisualPlannerPanel} from "@/components/planner/VisualPlannerPanel";
+import {AssetLibraryPanel} from "@/components/assets/AssetLibraryPanel";
 import {HyperFramesLibrary} from "./HyperFramesLibrary";
 
 export const EffectLibrary=({project,onCommand,onProjectChange}:{project:Project;onCommand:(command:ProjectCommand,message:string)=>Promise<void>;onProjectChange:(project:Project)=>void})=>{
@@ -17,5 +18,6 @@ export const EffectLibrary=({project,onCommand,onProjectChange}:{project:Project
     <HyperFramesLibrary project={project} onProjectChange={onProjectChange}/>
     <VideoUsePanel project={project} onProjectChange={onProjectChange}/>
     <VisualPlannerPanel project={project} onProjectChange={onProjectChange}/>
+    <AssetLibraryPanel project={project} onProjectChange={onProjectChange}/>
   </>;
 };
