@@ -1,0 +1,49 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "id": "fixture-project",
+    "name": "Fixture Project",
+    "revision": 0,
+    "createdAt": "2026-08-19T00:00:00.000Z",
+    "updatedAt": "2026-08-19T00:00:00.000Z"
+  },
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "durationInFrames": 300
+  },
+  "assets": [
+    {
+      "id": "media_001",
+      "kind": "video",
+      "relativePath": "input/talking-head.mp4"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "video-main",
+      "type": "video",
+      "name": "Video",
+      "locked": false,
+      "hidden": false,
+      "clips": [
+        {
+          "id": "clip_001",
+          "type": "video",
+          "assetId": "media_001",
+          "sourceStartFrame": 0,
+          "volume": 1,
+          "startFrame": 0,
+          "durationInFrames": 300,
+          "enabled": true,
+          "layer": 0
+        }
+      ]
+    },
+    { "id": "captions-main", "type": "caption", "name": "Captions", "locked": false, "hidden": false, "clips": [] },
+    { "id": "motion-main", "type": "motion", "name": "Motion", "locked": false, "hidden": false, "clips": [] },
+    { "id": "broll-main", "type": "broll", "name": "B-roll", "locked": false, "hidden": false, "clips": [] },
+    { "id": "audio-main", "type": "audio", "name": "Audio", "locked": false, "hidden": false, "clips": [] }
+  ]
+}
