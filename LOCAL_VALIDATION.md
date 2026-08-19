@@ -99,6 +99,13 @@ The browser harness reports the page as hidden while controlled through CDP, so 
 - Fix: regenerate `package-lock.json` with optional dependencies for the Linux x64 target, retaining the platform variants needed by Windows as well.
 - Regression: Linux-targeted `npm ci --os=linux --cpu=x64`, Windows Node v24 `npm ci`, lint, typecheck, 29/29 tests, and production build all pass locally.
 
+### LV-006 — In-memory paths differed between Windows and Linux
+
+- Symptom: public Linux CI failed the serialization suite while Windows passed with a path containing backslashes.
+- Cause: the in-memory adapter delegated separator handling to the host-specific `path.normalize()` implementation.
+- Fix: normalize in-memory keys with POSIX rules after converting both slash styles to `/`.
+- Regression: the equivalent-separator test and the full 29-test suite pass on Windows; this is the same normalization path exercised by Linux CI.
+
 ## Known non-blocking notes
 
 - Remotion prints its standard license notice during development and build. Licensing must be reviewed before commercial distribution; it does not block Phase 0 technical acceptance.

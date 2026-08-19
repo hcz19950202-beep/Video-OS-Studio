@@ -1,5 +1,5 @@
 import { mkdir, readFile, rename, writeFile, copyFile } from "node:fs/promises";
-import { dirname, normalize } from "node:path";
+import { dirname, posix as posixPath } from "node:path";
 import type { FileSystemAdapter } from "@/adapters/contracts";
 
 export class NodeFileSystemAdapter implements FileSystemAdapter {
@@ -36,7 +36,7 @@ export class InMemoryFileSystemAdapter implements FileSystemAdapter {
   readonly files = new Map<string, string>();
 
   private key(path: string): string {
-    return normalize(path);
+    return posixPath.normalize(path.replaceAll("\\", "/"));
   }
 
   async exists(path: string): Promise<boolean> {
