@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { FileSystemAdapter } from "@/adapters/contracts";
 import { createProject, type CreateProjectInput } from "@/lib/project/factory";
 import { deserializeProject, serializeProject } from "@/lib/project/serialization";
-import type { Project } from "@/schemas/project";
+import { ProjectIdSchema, type Project } from "@/schemas/project";
 
 export class ProjectRepository {
   constructor(
@@ -11,7 +11,7 @@ export class ProjectRepository {
   ) {}
 
   private projectDir(projectId: string): string {
-    return join(this.dataRoot, "projects", projectId);
+    return join(this.dataRoot, "projects", ProjectIdSchema.parse(projectId));
   }
 
   private projectPath(projectId: string): string {

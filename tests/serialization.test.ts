@@ -27,4 +27,12 @@ describe("project serialization", () => {
     expect(deserializeProject(backup).project.name).toBe("Project");
     expect((await repository.load("p1")).project.name).toBe("Updated");
   });
+
+  it("treats equivalent path separators consistently in the in-memory adapter", async () => {
+    const fs = new InMemoryFileSystemAdapter();
+
+    await fs.writeTextAtomic("/data/projects/p1/project.json", "project");
+
+    expect(await fs.readText("/data\\projects\\p1\\project.json")).toBe("project");
+  });
 });

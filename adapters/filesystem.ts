@@ -1,5 +1,5 @@
 import { mkdir, readFile, rename, writeFile, copyFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, normalize } from "node:path";
 import type { FileSystemAdapter } from "@/adapters/contracts";
 
 export class NodeFileSystemAdapter implements FileSystemAdapter {
@@ -35,12 +35,16 @@ export class NodeFileSystemAdapter implements FileSystemAdapter {
 export class InMemoryFileSystemAdapter implements FileSystemAdapter {
   readonly files = new Map<string, string>();
 
+  private key(path: string): string {
+    return normalize(path);
+  }
+
   async exists(path: string): Promise<boolean> {
-    return this.files.has(path);
+    return this.files.has(this.key(path));
   }
 
   async readText(path: string): Promise<string> {
-    const content = this.files.get(path);
+    const content = this.files.get(this.key(path));
     if (content === undefined) throw new Error(`File not found: ${path}`);
     return content;
   }
@@ -48,9 +52,10 @@ export class InMemoryFileSystemAdapter implements FileSystemAdapter {
   async ensureDir(): Promise<void> {}
 
   async writeTextAtomic(path: string, content: string, backupPath?: string): Promise<void> {
-    if (backupPath && this.files.has(path)) {
-      this.files.set(backupPath, this.files.get(path)!);
+    const targetKey = this.key(path);
+    if (backupPath && this.files.has(targetKey)) {
+      this.files.set(this.key(backupPath), this.files.get(targetKey)!);
     }
-    this.files.set(path, content);
+    this.files.set(targetKey, content);
   }
 }

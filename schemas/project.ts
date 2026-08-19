@@ -4,6 +4,12 @@ import { ClipSchema, type ClipType } from "@/schemas/clip";
 
 export const CURRENT_PROJECT_VERSION = "1.0.0" as const;
 
+export const ProjectIdSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/, "Project IDs may contain only letters, numbers, underscores, and hyphens");
+
 export const CanvasSchema = z.object({
   width: z.number().int().positive(),
   height: z.number().int().positive(),
@@ -35,7 +41,7 @@ export const TrackSchema = z
 export const ProjectSchema = z.object({
   version: z.literal(CURRENT_PROJECT_VERSION),
   project: z.object({
-    id: z.string().min(1),
+    id: ProjectIdSchema,
     name: z.string().min(1),
     revision: z.number().int().nonnegative(),
     createdAt: z.string().datetime(),

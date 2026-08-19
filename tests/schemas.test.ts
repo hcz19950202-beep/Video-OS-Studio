@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fixture from "@/tests/fixtures/sample-project.json";
 import { ProjectRelativePathSchema } from "@/schemas/asset";
-import { ProjectSchema } from "@/schemas/project";
+import { ProjectIdSchema, ProjectSchema } from "@/schemas/project";
 
 
 describe("ProjectSchema", () => {
@@ -16,6 +16,17 @@ describe("ProjectSchema", () => {
     invalid.tracks[1]!.clips = [structuredClone(invalid.tracks[0]!.clips[0]!) as never];
     expect(() => ProjectSchema.parse(invalid)).toThrow();
   });
+});
+
+describe("ProjectIdSchema", () => {
+  it.each(["project-01", "Project_2026", "p1"])("accepts safe project ID %s", (id) => {
+    expect(ProjectIdSchema.parse(id)).toBe(id);
+  });
+
+  it.each(["../escape", "project/child", "project\\child", "E:drive", ".hidden"])(
+    "rejects unsafe project ID %s",
+    (id) => expect(() => ProjectIdSchema.parse(id)).toThrow(),
+  );
 });
 
 describe("ProjectRelativePathSchema", () => {
