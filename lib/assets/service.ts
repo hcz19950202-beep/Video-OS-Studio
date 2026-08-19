@@ -4,7 +4,7 @@ import type {FileSystemAdapter} from "@/adapters/contracts";
 import {applyProjectCommand} from "@/lib/project/commands";
 import type {ProjectRepository} from "@/lib/project/repository";
 import type {HyperFramesRenderService} from "@/lib/hyperframes/render-service";
-import {EFFECTS_BY_ID} from "@/shared/effects/registry";
+import {EFFECT_CATALOG_BY_ID} from "@/shared/effects/catalog";
 import {parseHyperFramesEffect} from "@/shared/hyperframes/registry";
 import {AssetPresetSchema,AssetRegistrySchema,type AssetPreset,type AssetRegistry} from "@/lib/assets/schema";
 import type {Project} from "@/schemas/project";
@@ -33,7 +33,14 @@ export class AssetLibraryService{
     const project=await this.projects.load(projectId);
     const clip=project.tracks.flatMap((track)=>track.clips).find((item)=>item.id===clipId);
     if(!clip||clip.type!=="motion")throw new Error("Select a Motion clip before saving a preset.");
-    const props=clip.engine==="remotion"?(EFFECTS_BY_ID[clip.effectId]?.schema.parse(clip.props)??(()=>{throw new Error(`Unknown Remotion effect ${clip.effectId}`)})()):parseHyperFramesEffect(clip.effectId,clip.props).props;
+    let props:Record<string,unknown>;
+    if(clip.engine==="remotion"){
+      const effect=EFFECT_CATALOG_BY_ID[clip.effectId];
+      if(!effect)throw new Error(`Unknown Remotion effect ${clip.effectId}`);
+      props=effect.schema.parse(clip.props);
+    }else{
+      props=parseHyperFramesEffect(clip.effectId,clip.props).props;
+    }
     const now=new Date().toISOString();
     const preset=AssetPresetSchema.parse({id:`preset-${randomUUID()}`,name:name.trim(),engine:clip.engine,effectId:clip.effectId,props,durationInFrames:clip.durationInFrames,favorite:false,status:"draft",sourceProjectId:projectId,createdAt:now,updatedAt:now});
     const registry=await this.load();registry.presets.push(preset);await this.save(registry);return preset;
@@ -50,7 +57,7 @@ export class AssetLibraryService{
     const registry=await this.load();const preset=registry.presets.find((item)=>item.id===presetId);if(!preset)throw new Error(`Preset ${presetId} not found.`);
     let project=await this.projects.load(projectId);const duration=Math.max(1,Math.min(preset.durationInFrames,project.canvas.durationInFrames-startFrame));
     if(preset.engine==="hyperframes")return this.hyperFrames.renderAndAdd({projectId,effectId:preset.effectId,props:preset.props,startFrame,durationInFrames:duration});
-    const effect=EFFECTS_BY_ID[preset.effectId];if(!effect)throw new Error(`Unknown Remotion effect ${preset.effectId}`);const props=effect.schema.parse(preset.props);
+    const effect=EFFECT_CATALOG_BY_ID[preset.effectId];if(!effect)throw new Error(`Unknown Remotion effect ${preset.effectId}`);const props=effect.schema.parse(preset.props);
     project=applyProjectCommand(project,{type:"add-clip",trackId:"motion-main",clip:{id:`preset-${preset.id}-${Date.now()}`,type:"motion",engine:"remotion",effectId:preset.effectId,props,startFrame,durationInFrames:duration,enabled:true,layer:10}});await this.projects.save(project);return project;
   }
 }
