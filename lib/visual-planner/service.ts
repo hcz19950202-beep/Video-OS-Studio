@@ -2,7 +2,7 @@ import type {FileSystemAdapter} from "@/adapters/contracts";
 import {applyProjectCommand} from "@/lib/project/commands";
 import type {ProjectRepository} from "@/lib/project/repository";
 import type {HyperFramesRenderService} from "@/lib/hyperframes/render-service";
-import {EFFECTS_BY_ID} from "@/shared/effects/registry";
+import {EFFECT_CATALOG_BY_ID} from "@/shared/effects/catalog";
 import {VisualPlanSchema,type VisualPlan} from "@/lib/visual-planner/schema";
 import type {VisualPlannerAdapter} from "@/lib/visual-planner/rules";
 import type {Project} from "@/schemas/project";
@@ -26,7 +26,7 @@ export class VisualPlanService{
     for(const slot of plan.slots.filter((item)=>selected.has(item.id)&&item.engine==="remotion")){
       const clipId=`visual-${slot.id}`;
       if(project.tracks.some((track)=>track.clips.some((clip)=>clip.id===clipId)))continue;
-      const effect=EFFECTS_BY_ID[slot.effectId];
+      const effect=EFFECT_CATALOG_BY_ID[slot.effectId];
       if(!effect)throw new Error(`Unknown Remotion effect ${slot.effectId}`);
       const props=effect.schema.parse(slot.props);
       project=applyProjectCommand(project,{type:"add-clip",trackId:"motion-main",clip:{id:clipId,type:"motion",engine:"remotion",effectId:slot.effectId,props,startFrame:slot.startFrame,durationInFrames:slot.durationInFrames,enabled:true,layer:10}});
