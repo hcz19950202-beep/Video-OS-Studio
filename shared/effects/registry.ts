@@ -1,1 +1,20 @@
-import type {EffectDefinition} from "./types";import {BigNumber} from "./remotion/BigNumber/Component";import {BigNumberDefaults} from "./remotion/BigNumber/defaults";import {BigNumberMetadata} from "./remotion/BigNumber/metadata";import {BigNumberFields,BigNumberPropsSchema} from "./remotion/BigNumber/schema";import {MetricFocus} from "./remotion/MetricFocus/Component";import {MetricFocusDefaults} from "./remotion/MetricFocus/defaults";import {MetricFocusMetadata} from "./remotion/MetricFocus/metadata";import {MetricFocusFields,MetricFocusPropsSchema} from "./remotion/MetricFocus/schema";import {KeywordImpact} from "./remotion/KeywordImpact/Component";import {KeywordImpactDefaults} from "./remotion/KeywordImpact/defaults";import {KeywordImpactMetadata} from "./remotion/KeywordImpact/metadata";import {KeywordImpactFields,KeywordImpactPropsSchema} from "./remotion/KeywordImpact/schema";import {LowerThird} from "./remotion/LowerThird/Component";import {LowerThirdDefaults} from "./remotion/LowerThird/defaults";import {LowerThirdMetadata} from "./remotion/LowerThird/metadata";import {LowerThirdFields,LowerThirdPropsSchema} from "./remotion/LowerThird/schema";export const EFFECT_REGISTRY:EffectDefinition[]=[{...BigNumberMetadata,schema:BigNumberPropsSchema,defaults:BigNumberDefaults,fields:BigNumberFields,component:BigNumber},{...MetricFocusMetadata,schema:MetricFocusPropsSchema,defaults:MetricFocusDefaults,fields:MetricFocusFields,component:MetricFocus},{...KeywordImpactMetadata,schema:KeywordImpactPropsSchema,defaults:KeywordImpactDefaults,fields:KeywordImpactFields,component:KeywordImpact},{...LowerThirdMetadata,schema:LowerThirdPropsSchema,defaults:LowerThirdDefaults,fields:LowerThirdFields,component:LowerThird}];export const EFFECTS_BY_ID=Object.fromEntries(EFFECT_REGISTRY.map(e=>[e.id,e])) as Record<string,EffectDefinition>;
+import type {EffectDefinition} from "./types";
+import {EFFECT_CATALOG} from "./catalog";
+import {BigNumber} from "./remotion/BigNumber/Component";
+import {MetricFocus} from "./remotion/MetricFocus/Component";
+import {KeywordImpact} from "./remotion/KeywordImpact/Component";
+import {LowerThird} from "./remotion/LowerThird/Component";
+
+const COMPONENTS={
+  "big-number":BigNumber,
+  "metric-focus":MetricFocus,
+  "keyword-impact":KeywordImpact,
+  "lower-third":LowerThird,
+} as const;
+
+export const EFFECT_REGISTRY:EffectDefinition[]=EFFECT_CATALOG.map((effect)=>({
+  ...effect,
+  component:COMPONENTS[effect.id as keyof typeof COMPONENTS],
+}));
+
+export const EFFECTS_BY_ID=Object.fromEntries(EFFECT_REGISTRY.map((effect)=>[effect.id,effect])) as Record<string,EffectDefinition>;
