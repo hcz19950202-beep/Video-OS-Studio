@@ -1,0 +1,1 @@
+import {z} from "zod";export const MetricFocusPropsSchema=z.object({title:z.string().default("COMPLETION"),value:z.string().default("90"),unit:z.string().default("%+"),accentColor:z.string().default("#55d187")});

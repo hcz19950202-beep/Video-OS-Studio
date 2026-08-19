@@ -1,0 +1,1 @@
+export const LowerThirdMetadata={id:"lower-third",name:"Lower Third",engine:"remotion" as const,category:"brand" as const,tags:["name","role","identity"],thumbnail:"/effects/lower-third.svg",defaultDurationInFrames:120};
