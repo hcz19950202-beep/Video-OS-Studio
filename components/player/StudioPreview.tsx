@@ -19,11 +19,6 @@ export const StudioPreview = ({ project }: { project: Project }) => {
   const [showSafeZone, setShowSafeZone] = useState(false);
 
   useEffect(() => {
-    setFrame(0);
-    playerRef.current?.seekTo(0);
-  }, [project.project.id, project.canvas.durationInFrames]);
-
-  useEffect(() => {
     const timer = window.setInterval(() => setFrame(playerRef.current?.getCurrentFrame() ?? 0), 100);
     return () => window.clearInterval(timer);
   }, []);
@@ -34,6 +29,7 @@ export const StudioPreview = ({ project }: { project: Project }) => {
   );
   const ratio = `${project.canvas.width} / ${project.canvas.height}`;
   const durationFrame = Math.max(0, project.canvas.durationInFrames - 1);
+  const playerKey = `${project.project.id}-${project.canvas.durationInFrames}-${project.canvas.width}x${project.canvas.height}`;
 
   return (
     <div className="player-workspace">
@@ -48,6 +44,7 @@ export const StudioPreview = ({ project }: { project: Project }) => {
       <div className={`player-scroll ${zoom === "100" ? "native-size" : ""}`}>
         <div className="player-shell" style={{ aspectRatio: ratio, width: zoom === "fit" ? "min(100%, 560px)" : `${Math.min(project.canvas.width, 960)}px` }}>
           <Player
+            key={playerKey}
             ref={playerRef}
             component={MasterComposition}
             inputProps={{ project, assetUrls }}

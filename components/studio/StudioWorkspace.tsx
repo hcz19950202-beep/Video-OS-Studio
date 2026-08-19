@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { StudioPreview } from "@/components/player/StudioPreview";
 import type { ProjectCommand } from "@/lib/project/commands";
 import type { ProjectSummary } from "@/lib/project/repository";
@@ -29,30 +29,22 @@ const toErrorState = (error: unknown): ErrorState => ({
 
 const formatUpdatedAt = (value: string) => new Date(value).toLocaleString();
 
-export const StudioWorkspace = () => {
+export const StudioWorkspace = ({ initialProjects }: { initialProjects: ProjectSummary[] }) => {
   const project = useProjectStore((state) => state.project);
   const setProject = useProjectStore((state) => state.setProject);
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>(initialProjects);
   const [newProjectName, setNewProjectName] = useState("Untitled Video");
-  const [renameValue, setRenameValue] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState("Phase 1 ready");
   const [error, setError] = useState<ErrorState>(null);
   const [lastUpload, setLastUpload] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   const refreshRecent = useCallback(async () => {
     const data = await requestJson<{ projects: ProjectSummary[] }>("/api/projects", { cache: "no-store" });
     setProjects(data.projects);
   }, []);
-
-  useEffect(() => {
-    refreshRecent().catch((caught) => setError(toErrorState(caught)));
-  }, [refreshRecent]);
-
-  useEffect(() => {
-    setRenameValue(project?.project.name ?? "");
-  }, [project?.project.name]);
 
   const run = async (label: string, operation: () => Promise<void>) => {
     setBusy(label);
@@ -100,6 +92,12 @@ export const StudioWorkspace = () => {
       setNotice(successMessage);
       await refreshRecent();
     });
+  };
+
+  const renameProject = () => {
+    const name = renameInputRef.current?.value.trim();
+    if (!project || !name || name === project.project.name) return Promise.resolve();
+    return persistCommand({ type: "rename-project", name }, "Project renamed");
   };
 
   const saveProject = () => {
@@ -165,8 +163,8 @@ export const StudioWorkspace = () => {
         <div className="field-group grow">
           <label htmlFor="rename-project">Project name</label>
           <div className="inline-controls">
-            <input id="rename-project" disabled={!project} value={renameValue} onChange={(event) => setRenameValue(event.target.value)} />
-            <button className="button secondary" disabled={!project || !renameValue.trim() || renameValue === project.project.name || Boolean(busy)} onClick={() => void persistCommand({ type: "rename-project", name: renameValue.trim() }, "Project renamed")}>Rename</button>
+            <input key={project?.project.id ?? "no-project"} ref={renameInputRef} id="rename-project" disabled={!project} defaultValue={project?.project.name ?? ""} />
+            <button className="button secondary" disabled={!project || Boolean(busy)} onClick={() => void renameProject()}>Rename</button>
           </div>
         </div>
         <div className="field-group">
