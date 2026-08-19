@@ -20,12 +20,12 @@ Validation date: 2026-08-20 (Asia/Shanghai)
 ## Phase 0 Foundation status
 
 - CODE COMPLETE: **PASS FOR PHASE 0**
-- CLOUD VERIFIED: **PENDING RERUN**
+- CLOUD VERIFIED: **PASS**
 - LOCAL VERIFIED: **PASS**
 - PRD ACCEPTED: **PASS FOR PHASE 0**
 - RENDER VERIFIED: **NOT APPLICABLE TO PHASE 0**
 
-The pre-public visibility run was blocked before GitHub allocated a runner because of the account's Actions billing gate. After the repository was made public, run `32275340699` allocated a runner and reached checkout/setup successfully, but `npm ci` failed because the lockfile did not contain Linux's optional `@emnapi` entries. That lockfile issue is fixed locally; the public CI rerun is the remaining cloud gate.
+The pre-public visibility run was blocked before GitHub allocated a runner because of the account's Actions billing gate. After the repository was made public, run `32277102434` allocated a runner and passed checkout, Node setup, dependency installation, lint, typecheck, unit tests, and production build.
 
 ## Automated Windows checks
 
@@ -97,7 +97,7 @@ The browser harness reports the page as hidden while controlled through CDP, so 
 - Symptom: after the public runner became available, `npm ci` failed with missing `@emnapi/core` / `@emnapi/runtime` entries.
 - Cause: the lockfile had been materialized on Windows and omitted the Linux-selected optional dependency placement.
 - Fix: regenerate `package-lock.json` with optional dependencies for the Linux x64 target, retaining the platform variants needed by Windows as well.
-- Regression: Linux-targeted `npm ci --os=linux --cpu=x64`, Windows Node v24 `npm ci`, lint, typecheck, 29/29 tests, and production build all pass locally.
+- Regression: public CI run `32277102434` passed Linux `npm ci`, lint, typecheck, 29/29 tests, and production build; the same checks also pass locally on Windows Node v24.
 
 ### LV-006 — In-memory paths differed between Windows and Linux
 
@@ -109,5 +109,5 @@ The browser harness reports the page as hidden while controlled through CDP, so 
 ## Known non-blocking notes
 
 - Remotion prints its standard license notice during development and build. Licensing must be reviewed before commercial distribution; it does not block Phase 0 technical acceptance.
-- The repository is now public, so the current CI path no longer depends on the paid private-repository billing gate; the final public rerun must still pass before `CLOUD VERIFIED` becomes PASS.
+- The repository is public, and the public CI path passed without the paid private-repository billing gate.
 - HyperFrames alpha, video-use, and final rendering are intentionally outside Phase 0 and remain unverified.
