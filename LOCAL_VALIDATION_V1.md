@@ -57,7 +57,7 @@ Status:
 
 ```text
 CODE COMPLETE: PASS
-CLOUD VERIFIED: PASS (baseline PR #1; post-fix CI pending until push)
+CLOUD VERIFIED: PASS (PR #1, post-fix run 32293022430 succeeded)
 LOCAL VERIFIED: PARTIAL (real chain completed; Player clock and native WebM alpha need follow-up)
 PRD ACCEPTED: PARTIAL
 ```
@@ -289,7 +289,7 @@ HyperFrames doctor result is `PARTIAL_ENV`: version, Node, CPU, disk, FFmpeg, FF
 
 ```text
 CODE COMPLETE: PASS (including the three local fixes above)
-CLOUD VERIFIED: PASS for the baseline PR/CI; post-fix branch CI must be observed after push
+CLOUD VERIFIED: PASS — post-fix run 32293022430 succeeded (lint, typecheck, unit tests, build)
 LOCAL VERIFIED: PARTIAL
 PRD ACCEPTED: PARTIAL — full chain is demonstrated, but LV-005 and LV-006 remain
 RENDER VERIFIED: PASS for final MP4; PARTIAL for native WebM alpha decoding
