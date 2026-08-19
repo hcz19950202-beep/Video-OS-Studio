@@ -11,7 +11,10 @@ export type MediaProbeResult = {
 export interface FileSystemAdapter {
   exists(path: string): Promise<boolean>;
   readText(path: string): Promise<string>;
+  readBinary(path: string): Promise<Uint8Array>;
   ensureDir(path: string): Promise<void>;
+  listDirectories(path: string): Promise<string[]>;
+  writeBinary(path: string, content: Uint8Array): Promise<void>;
   writeTextAtomic(path: string, content: string, backupPath?: string): Promise<void>;
 }
 

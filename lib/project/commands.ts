@@ -6,6 +6,11 @@ import { ProjectSchema, type Project } from "@/schemas/project";
 export const ProjectCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rename-project"), name: z.string().min(1) }),
   z.object({ type: z.literal("set-duration"), durationInFrames: z.number().int().positive() }),
+  z.object({
+    type: z.literal("set-canvas"),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
   z.object({ type: z.literal("add-asset"), asset: AssetSchema }),
   z.object({ type: z.literal("add-clip"), trackId: z.string().min(1), clip: ClipSchema }),
   z.object({
@@ -38,6 +43,10 @@ export const applyProjectCommand = (
       break;
     case "set-duration":
       next.canvas.durationInFrames = command.durationInFrames;
+      break;
+    case "set-canvas":
+      next.canvas.width = command.width;
+      next.canvas.height = command.height;
       break;
     case "add-asset":
       if (next.assets.some((asset) => asset.id === command.asset.id)) {

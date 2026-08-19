@@ -23,10 +23,14 @@ export const AssetSchema = z.object({
   kind: AssetKindSchema,
   relativePath: ProjectRelativePathSchema,
   label: z.string().min(1).optional(),
+  originalName: z.string().min(1).optional(),
   mimeType: z.string().min(1).optional(),
   durationInFrames: z.number().int().positive().optional(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
+  sourceFps: z.number().positive().optional(),
+  hasAudio: z.boolean().optional(),
+  sizeBytes: z.number().int().nonnegative().optional(),
 });
 
 export type Asset = z.infer<typeof AssetSchema>;
