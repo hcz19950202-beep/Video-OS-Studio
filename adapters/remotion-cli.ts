@@ -15,12 +15,12 @@ export class NodeRemotionCliAdapter implements RemotionRenderAdapter{
     const propsPath=`${outputPath}.props.json`;
     const assetUrls=Object.fromEntries(project.assets.map((asset)=>[asset.id,`${assetBaseUrl}/api/projects/${encodeURIComponent(project.project.id)}/assets/${encodeURIComponent(asset.id)}`]));
     await writeFile(propsPath,JSON.stringify({project,assetUrls,renderMode:mode}),"utf8");
-    const renderArgs=[this.entryPoint,"VideoOSMaster",outputPath,"--props",propsPath,"--width",String(project.canvas.width),"--height",String(project.canvas.height),"--fps",String(project.canvas.fps),"--duration",String(project.canvas.durationInFrames),"--overwrite"];
-    if(mode==="overlay")renderArgs.push("--image-format=png","--pixel-format=yuva420p","--codec=vp8");
+    const renderArgs=["render",this.entryPoint,"VideoOSMaster",outputPath,"--props",propsPath,"--width",String(project.canvas.width),"--height",String(project.canvas.height),"--fps",String(project.canvas.fps),"--duration",String(project.canvas.durationInFrames),"--overwrite"];
+    if(mode==="overlay")renderArgs.push("--image-format=png","--pixel-format=yuva420p","--codec=vp8","--muted");
     else renderArgs.push("--codec=h264");
 
     const launcher=this.cliPath||(process.platform==="win32"?"npx.cmd":"npx");
-    const args=this.cliPath?renderArgs:["--yes",REMOTION_CLI_PACKAGE,...renderArgs];
+    const args=this.cliPath?renderArgs:["--yes","--package",REMOTION_CLI_PACKAGE,"remotion",...renderArgs];
     try{
       await execFileAsync(launcher,args,{windowsHide:true,shell:!this.cliPath&&process.platform==="win32",maxBuffer:20*1024*1024,env:process.env});
     }catch(error){

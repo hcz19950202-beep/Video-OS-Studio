@@ -27,10 +27,10 @@ export class NodeHyperFramesAdapter implements HyperFramesAdapter {
     const run = async (args: string[]) => execFileAsync(launcher(), ["hyperframes", ...args], { cwd: workDir, windowsHide: true, shell: process.platform === "win32", maxBuffer: 20 * 1024 * 1024 });
     try {
       await run(["lint", "--json"]);
-      await run(["inspect", "--json"]);
+      await run(["check", "--json"]);
       await run(["render", "--output", input.outputPath, "--format", "webm", "--fps", String(input.fps), "--quality", "standard", "--strict"]);
     } catch (error) {
-      throw new Error(`HyperFrames render failed: ${error instanceof Error ? error.message : String(error)}. Run npx hyperframes doctor, then lint and inspect the generated workspace before retrying.`);
+      throw new Error(`HyperFrames render failed: ${error instanceof Error ? error.message : String(error)}. Run npx hyperframes doctor, then lint and check the generated workspace before retrying.`);
     }
     return { outputPath: input.outputPath };
   }

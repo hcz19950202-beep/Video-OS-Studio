@@ -1,9 +1,9 @@
 import React from "react";
 import {AbsoluteFill,OffthreadVideo,Sequence,useCurrentFrame} from "remotion";
-import type {Clip} from "@/schemas/clip";
-import type {Project} from "@/schemas/project";
-import {EFFECTS_BY_ID} from "@/shared/effects/registry";
-import {CaptionOverlay} from "@/components/captions/CaptionOverlay";
+import type {Clip} from "../schemas/clip";
+import type {Project} from "../schemas/project";
+import {EFFECTS_BY_ID} from "../shared/effects/registry";
+import {CaptionOverlay} from "../components/captions/CaptionOverlay";
 
 export type MasterCompositionProps={project:Project;assetUrls?:Record<string,string>;renderMode?:"preview"|"final"|"overlay"};
 type VideoClip=Extract<Clip,{type:"video"}>;type MotionClip=Extract<Clip,{type:"motion"}>;type CaptionClip=Extract<Clip,{type:"caption"}>;
