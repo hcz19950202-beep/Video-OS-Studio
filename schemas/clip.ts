@@ -1,0 +1,66 @@
+import { z } from "zod";
+
+const FrameTimingSchema = z.object({
+  startFrame: z.number().int().nonnegative(),
+  durationInFrames: z.number().int().positive(),
+});
+
+const BaseClipShape = {
+  id: z.string().min(1),
+  enabled: z.boolean().default(true),
+  layer: z.number().int().default(0),
+};
+
+export const VideoClipSchema = z.object({
+  ...BaseClipShape,
+  type: z.literal("video"),
+  assetId: z.string().min(1),
+  sourceStartFrame: z.number().int().nonnegative().default(0),
+  volume: z.number().min(0).max(2).default(1),
+  ...FrameTimingSchema.shape,
+});
+
+export const CaptionClipSchema = z.object({
+  ...BaseClipShape,
+  type: z.literal("caption"),
+  text: z.string().min(1),
+  ...FrameTimingSchema.shape,
+});
+
+export const MotionClipSchema = z.object({
+  ...BaseClipShape,
+  type: z.literal("motion"),
+  engine: z.enum(["remotion", "hyperframes"]),
+  effectId: z.string().min(1),
+  props: z.record(z.string(), z.unknown()).default({}),
+  ...FrameTimingSchema.shape,
+});
+
+export const BrollClipSchema = z.object({
+  ...BaseClipShape,
+  type: z.literal("broll"),
+  assetId: z.string().min(1),
+  fit: z.enum(["cover", "contain"]).default("cover"),
+  muted: z.boolean().default(true),
+  ...FrameTimingSchema.shape,
+});
+
+export const AudioClipSchema = z.object({
+  ...BaseClipShape,
+  type: z.literal("audio"),
+  assetId: z.string().min(1),
+  sourceStartFrame: z.number().int().nonnegative().default(0),
+  volume: z.number().min(0).max(2).default(1),
+  ...FrameTimingSchema.shape,
+});
+
+export const ClipSchema = z.discriminatedUnion("type", [
+  VideoClipSchema,
+  CaptionClipSchema,
+  MotionClipSchema,
+  BrollClipSchema,
+  AudioClipSchema,
+]);
+
+export type Clip = z.infer<typeof ClipSchema>;
+export type ClipType = Clip["type"];
