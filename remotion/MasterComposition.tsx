@@ -1,5 +1,6 @@
 import React from "react";
 import { AbsoluteFill, OffthreadVideo, Sequence, useCurrentFrame } from "remotion";
+import type { Clip } from "@/schemas/clip";
 import type { Project } from "@/schemas/project";
 
 export type MasterCompositionProps = {
@@ -7,11 +8,13 @@ export type MasterCompositionProps = {
   assetUrls?: Record<string, string>;
 };
 
+type VideoClip = Extract<Clip, { type: "video" }>;
+
+const isEnabledVideoClip = (clip: Clip): clip is VideoClip => clip.type === "video" && clip.enabled;
+
 export const MasterComposition: React.FC<MasterCompositionProps> = ({ project, assetUrls = {} }) => {
   const frame = useCurrentFrame();
-  const videoClips = project.tracks
-    .flatMap((track) => track.clips)
-    .filter((clip) => clip.type === "video" && clip.enabled);
+  const videoClips = project.tracks.flatMap((track) => track.clips).filter(isEnabledVideoClip);
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#080b0f", color: "#f5f7fa", fontFamily: "Arial, sans-serif" }}>
