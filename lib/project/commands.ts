@@ -19,6 +19,18 @@ export const ProjectCommandSchema = z.discriminatedUnion("type", [
     startFrame: z.number().int().nonnegative().optional(),
     durationInFrames: z.number().int().positive().optional(),
   }),
+  z.object({
+    type: z.literal("duplicate-clip"),
+    clipId: z.string().min(1),
+    newClipId: z.string().min(1),
+    startFrame: z.number().int().nonnegative().optional(),
+  }),
+  z.object({
+    type: z.literal("set-track-state"),
+    trackId: z.string().min(1),
+    locked: z.boolean().optional(),
+    hidden: z.boolean().optional(),
+  }),
   z.object({ type: z.literal("remove-clip"), clipId: z.string().min(1) }),
 ]);
 
@@ -71,6 +83,27 @@ export const applyProjectCommand = (
       if (!clip) throw new Error(`Clip ${command.clipId} not found`);
       if (command.startFrame !== undefined) clip.startFrame = command.startFrame;
       if (command.durationInFrames !== undefined) clip.durationInFrames = command.durationInFrames;
+      break;
+    }
+    case "duplicate-clip": {
+      if (next.tracks.some((item) => item.clips.some((clip) => clip.id === command.newClipId))) {
+        throw new Error(`Clip ${command.newClipId} already exists`);
+      }
+      const track = next.tracks.find((item) => item.clips.some((clip) => clip.id === command.clipId));
+      if (!track) throw new Error(`Clip ${command.clipId} not found`);
+      const source = track.clips.find((clip) => clip.id === command.clipId)!;
+      track.clips.push({
+        ...structuredClone(source),
+        id: command.newClipId,
+        startFrame: command.startFrame ?? source.startFrame + source.durationInFrames,
+      });
+      break;
+    }
+    case "set-track-state": {
+      const track = next.tracks.find((item) => item.id === command.trackId);
+      if (!track) throw new Error(`Track ${command.trackId} not found`);
+      if (command.locked !== undefined) track.locked = command.locked;
+      if (command.hidden !== undefined) track.hidden = command.hidden;
       break;
     }
     case "remove-clip": {

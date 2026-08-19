@@ -10,11 +10,12 @@ export type MasterCompositionProps = {
 
 type VideoClip = Extract<Clip, { type: "video" }>;
 
-const isEnabledVideoClip = (clip: Clip): clip is VideoClip => clip.type === "video" && clip.enabled;
-
 export const MasterComposition: React.FC<MasterCompositionProps> = ({ project, assetUrls = {} }) => {
   const frame = useCurrentFrame();
-  const videoClips = project.tracks.flatMap((track) => track.clips).filter(isEnabledVideoClip);
+  const videoClips = project.tracks
+    .filter((track) => track.type === "video" && !track.hidden)
+    .flatMap((track) => track.clips)
+    .filter((clip): clip is VideoClip => clip.type === "video" && clip.enabled);
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#080b0f", color: "#f5f7fa", fontFamily: "Arial, sans-serif" }}>
