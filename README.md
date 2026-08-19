@@ -21,15 +21,16 @@ The V1 architecture uses:
 
 Read before implementation:
 
-1. `Video_OS_Studio_V1_Master_PRD.md`
-2. `SYSTEM.md`
-3. `GPT_WEB_START.md`
+1. `GPT_WEB_HANDOFF.md`
+2. `Video_OS_Studio_V1_Master_PRD.md`
+3. `SYSTEM.md`
+4. `GPT_WEB_START.md` (early Phase 0 background)
 
 ## Phase 0 development
 
 Requirements:
 
-- Node.js 22+
+- Node.js 24
 - npm
 
 Install and run:
