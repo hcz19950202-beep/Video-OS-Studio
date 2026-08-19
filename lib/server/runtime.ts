@@ -1,1 +1,23 @@
-import {join} from "node:path";import {NodeFileSystemAdapter} from "@/adapters/filesystem";import {NodeFfmpegAdapter} from "@/adapters/ffmpeg";import {NodeRemotionCliAdapter} from "@/adapters/remotion-cli";import {NodeHyperFramesAdapter} from "@/adapters/hyperframes";import {MediaImportService} from "@/lib/media/import-service";import {ProjectRepository} from "@/lib/project/repository";import {RenderJobManager} from "@/lib/render/render-jobs";import {HyperFramesRenderService} from "@/lib/hyperframes/render-service";const dataRoot=process.env.VIDEO_OS_DATA_ROOT||join(process.cwd(),".video-os-data");export const fileSystem=new NodeFileSystemAdapter();export const projectRepository=new ProjectRepository(fileSystem,dataRoot);export const ffmpegAdapter=new NodeFfmpegAdapter();export const mediaImportService=new MediaImportService(fileSystem,ffmpegAdapter,projectRepository);export const remotionRenderAdapter=new NodeRemotionCliAdapter();export const renderJobs=new RenderJobManager(remotionRenderAdapter,projectRepository);export const hyperFramesAdapter=new NodeHyperFramesAdapter();export const hyperFramesRenderService=new HyperFramesRenderService(fileSystem,hyperFramesAdapter,projectRepository);
+import {join} from "node:path";
+import {NodeFileSystemAdapter} from "@/adapters/filesystem";
+import {NodeFfmpegAdapter} from "@/adapters/ffmpeg";
+import {NodeRemotionCliAdapter} from "@/adapters/remotion-cli";
+import {NodeHyperFramesAdapter} from "@/adapters/hyperframes";
+import {NodeVideoUseAdapter} from "@/adapters/video-use";
+import {MediaImportService} from "@/lib/media/import-service";
+import {ProjectRepository} from "@/lib/project/repository";
+import {RenderJobManager} from "@/lib/render/render-jobs";
+import {HyperFramesRenderService} from "@/lib/hyperframes/render-service";
+import {VideoUseService} from "@/lib/video-use/service";
+
+const dataRoot=process.env.VIDEO_OS_DATA_ROOT||join(process.cwd(),".video-os-data");
+export const fileSystem=new NodeFileSystemAdapter();
+export const projectRepository=new ProjectRepository(fileSystem,dataRoot);
+export const ffmpegAdapter=new NodeFfmpegAdapter();
+export const mediaImportService=new MediaImportService(fileSystem,ffmpegAdapter,projectRepository);
+export const remotionRenderAdapter=new NodeRemotionCliAdapter();
+export const renderJobs=new RenderJobManager(remotionRenderAdapter,projectRepository);
+export const hyperFramesAdapter=new NodeHyperFramesAdapter();
+export const hyperFramesRenderService=new HyperFramesRenderService(fileSystem,hyperFramesAdapter,projectRepository);
+export const videoUseAdapter=new NodeVideoUseAdapter();
+export const videoUseService=new VideoUseService(fileSystem,videoUseAdapter,projectRepository);
