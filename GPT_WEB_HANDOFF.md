@@ -19,7 +19,7 @@
 - 默认分支：`main`
 - 当前开发分支：`feature/phase-0-foundation`
 - 当前 PR：<https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1>
-- 当前 HEAD：`5596bd3 Record public CI acceptance`
+- Phase 0 代码基线：`5596bd3 Record public CI acceptance`；交接文档后续提交会继续追加在此基线之上。
 - 当前 PR 不要擅自合并到 `main`；继续在现有 feature 分支开发并推送即可。
 
 ### 最近的重要提交
@@ -38,7 +38,7 @@
 | Gate | 状态 | 证据 |
 | --- | --- | --- |
 | `CODE COMPLETE` | PASS FOR PHASE 0 | Phase 0 代码、测试和基础 UI 已完成 |
-| `CLOUD VERIFIED` | PASS | [公开 CI run 32277211452](https://github.com/hcz19950202-beep/Video-OS-Studio/actions/runs/32277211452) |
+| `CLOUD VERIFIED` | PASS | [PR checks](https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1/checks)；最近一次已观察到的公开 CI run 为 32278020843 |
 | `LOCAL VERIFIED` | PASS | Windows 10 + Node v24.19.0 + npm 11.6.2 |
 | `PRD ACCEPTED` | PASS FOR PHASE 0 | Phase 0 范围已对照 PRD 检查 |
 | `RENDER VERIFIED` | NOT APPLICABLE | 真实 MP4 / Overlay Render 尚未进入实现范围 |
@@ -306,7 +306,7 @@ RENDER VERIFIED（只有真实 render 时才填写）
 
 - 仓库：<https://github.com/hcz19950202-beep/Video-OS-Studio>
 - PR #1：<https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1>
-- 最新通过 CI：<https://github.com/hcz19950202-beep/Video-OS-Studio/actions/runs/32277211452>
+- CI 状态（随 PR 更新）：<https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1/checks>
 - 产品 PRD：[`Video_OS_Studio_V1_Master_PRD.md`](Video_OS_Studio_V1_Master_PRD.md)
 - 系统契约：[`SYSTEM.md`](SYSTEM.md)
 - 本地验收：[`LOCAL_VALIDATION.md`](LOCAL_VALIDATION.md)
