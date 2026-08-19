@@ -1,7 +1,7 @@
 # Video OS Studio — 网页 GPT 开发交接说明
 
-> 更新时间：2026-08-20（Asia/Shanghai）  
-> 用途：把当前仓库的真实进度、已经发生的改动、未完成事项和下一步执行要求交给网页 GPT。  
+> 更新时间：2026-08-20（Asia/Shanghai）
+> 用途：把当前仓库的真实进度、已经发生的改动、未完成事项和下一步执行要求交给网页 GPT。
 > 这份文件是当前执行交接，优先于旧的 `GPT_WEB_START.md`。
 
 ## 1. 先给网页 GPT 的结论
@@ -211,9 +211,9 @@ Phase 1 验收：
 
 按仓库中的 `Video_OS_Studio_V1_Master_PRD.md` 继续：
 
-7. HyperFrames Adapter 和透明 WebM asset；  
-8. video-use Adapter、transcription、rough-cut、EDL、QA；  
-9. AI Visual Planner 和 Visual Slots；  
+7. HyperFrames Adapter 和透明 WebM asset；
+8. video-use Adapter、transcription、rough-cut、EDL、QA；
+9. AI Visual Planner 和 Visual Slots；
 10. Asset Registry、Favorites、Preset promotion、模板。
 
 ## 8. 给网页 GPT 的执行规则
@@ -310,4 +310,3 @@ RENDER VERIFIED（只有真实 render 时才填写）
 - 产品 PRD：[`Video_OS_Studio_V1_Master_PRD.md`](Video_OS_Studio_V1_Master_PRD.md)
 - 系统契约：[`SYSTEM.md`](SYSTEM.md)
 - 本地验收：[`LOCAL_VALIDATION.md`](LOCAL_VALIDATION.md)
-
