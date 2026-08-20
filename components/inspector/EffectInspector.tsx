@@ -33,18 +33,21 @@ export const EffectInspector=({project,onCommand}:{project:Project;onCommand:(co
   const{locale,t}=useStudioPreferences();
   const clip=project.tracks.flatMap(track=>track.clips).find(item=>item.id===selected);
   if(clip?.type==="caption")return <CaptionInspector project={project} onCommand={onCommand}/>;
-  if(!clip||clip.type!=="motion"||clip.engine!=="remotion")return <div className="inspector-empty os-inspector-empty"><small>INSPECTOR</small><h2>{t("inspector.title")}</h2><p>{t("inspector.empty")}</p></div>;
-  const effect=EFFECTS_BY_ID[clip.effectId];
-  if(!effect)return <div className="inspector-empty"><h2>{t("inspector.title")}</h2><p>{t("inspector.missing")}</p></div>;
+  if(!clip||clip.type!=="motion")return <div className="inspector-empty os-inspector-empty"><small>INSPECTOR</small><h2>{t("inspector.title")}</h2><p>{t("inspector.empty")}</p></div>;
 
-  let props:Record<string,unknown>;
-  try{props=effect.schema.parse(clip.props);}catch{props=effect.defaults;}
+  const effect=clip.engine==="remotion"?EFFECTS_BY_ID[clip.effectId]:undefined;
+  if(clip.engine==="remotion"&&!effect)return <div className="inspector-empty"><h2>{t("inspector.title")}</h2><p>{t("inspector.missing")}</p></div>;
+  const displayName=translateEffectName(locale,clip.effectId,effect?.name??clip.effectId);
+  const category=effect?.category??"hyperframes";
+  let props:Record<string,unknown>=clip.props;
+  if(effect){try{props=effect.schema.parse(clip.props);}catch{props=effect.defaults;}}
   const transform={...DEFAULT_MOTION_TRANSFORM,...(clip.transform??{})};
 
   const update=(key:string,value:string|boolean,field:EffectField)=>{
+    if(!effect)return;
     const next={...props,[key]:coerce(field,value)};
     const parsed=effect.schema.safeParse(next);
-    if(parsed.success)void onCommand({type:"update-motion-props",clipId:clip.id,props:parsed.data},`${translateEffectName(locale,effect.id,effect.name)} · ${t("inspector.updated")}`);
+    if(parsed.success)void onCommand({type:"update-motion-props",clipId:clip.id,props:parsed.data},`${displayName} · ${t("inspector.updated")}`);
   };
 
   const updateTiming=(patch:{startFrame?:number;durationInFrames?:number})=>{
@@ -60,16 +63,16 @@ export const EffectInspector=({project,onCommand}:{project:Project;onCommand:(co
     return <label className="inspector-field" key={field.key}><span>{label}</span>{field.type==="switch"?<input type="checkbox" checked={Boolean(props[field.key])} onChange={event=>update(field.key,event.target.checked,field)}/>:field.type==="select"?<select value={String(props[field.key]??"")} onChange={event=>update(field.key,event.target.value,field)}>{field.options?.map(option=><option value={option.value} key={option.value}>{locale==="zh-CN"?(zhOptions[option.value]??option.label):option.label}</option>)}</select>:field.type==="slider"?<div className="slider-field"><input type="range" min={field.min} max={field.max} step={field.step} value={Number(props[field.key]??field.min??0)} onChange={event=>update(field.key,event.target.value,field)}/><output>{String(props[field.key])}</output></div>:<input type={field.type==="color"?"color":field.type==="number"?"number":"text"} min={field.min} max={field.max} step={field.step} value={String(props[field.key]??"")} onChange={event=>update(field.key,event.target.value,field)}/>}</label>;
   };
 
-  const grouped={content:effect.fields.filter(field=>groupForField(field)==="content"),timing:effect.fields.filter(field=>groupForField(field)==="timing"),style:effect.fields.filter(field=>groupForField(field)==="style")};
+  const grouped=effect?{content:effect.fields.filter(field=>groupForField(field)==="content"),timing:effect.fields.filter(field=>groupForField(field)==="timing"),style:effect.fields.filter(field=>groupForField(field)==="style")}:{content:[],timing:[],style:[]};
 
   return <div className="effect-inspector os-inspector">
-    <header className="inspector-card-head"><small>{t("inspector.title")} · {clip.id.slice(0,14)}</small><div><span className="inspector-dot"/><h2>{translateEffectName(locale,effect.id,effect.name)}</h2><em>{effect.category}</em></div></header>
+    <header className="inspector-card-head"><small>{t("inspector.title")} · {clip.id.slice(0,14)}</small><div><span className="inspector-dot"/><h2>{displayName}</h2><em>{category}</em></div></header>
 
     <EffectPresetControls project={project} clipId={clip.id} effectId={clip.effectId} engine={clip.engine} onCommand={onCommand}/>
 
     <section className="inspector-section"><div className="inspector-section-title"><strong>{t("inspector.timing")}</strong><small>TIMING</small></div><div className="timing-grid"><label><span>{t("inspector.start")}</span><input type="number" min={0} max={project.canvas.durationInFrames-1} defaultValue={clip.startFrame} key={`${clip.id}-start-${clip.startFrame}`} onBlur={event=>updateTiming({startFrame:Number(event.target.value)})}/></label><label><span>{t("inspector.duration")}</span><input type="number" min={1} max={project.canvas.durationInFrames} defaultValue={clip.durationInFrames} key={`${clip.id}-duration-${clip.durationInFrames}`} onBlur={event=>updateTiming({durationInFrames:Number(event.target.value)})}/></label></div></section>
 
-    {(["content","timing","style"] as const).map(group=>grouped[group].length?<section className="inspector-section" key={group}><div className="inspector-section-title"><strong>{t(`inspector.${group}`)}</strong><small>{group.toUpperCase()}</small></div>{grouped[group].map(renderField)}</section>:null)}
+    {effect?(["content","timing","style"] as const).map(group=>grouped[group].length?<section className="inspector-section" key={group}><div className="inspector-section-title"><strong>{t(`inspector.${group}`)}</strong><small>{group.toUpperCase()}</small></div>{grouped[group].map(renderField)}</section>:null):null}
 
     <section className="inspector-section motion-layout-section">
       <div className="inspector-section-title"><strong>{t("inspector.layout")}</strong><small>LAYOUT</small></div>
@@ -82,7 +85,7 @@ export const EffectInspector=({project,onCommand}:{project:Project;onCommand:(co
       <div className="anchor-control"><span>{t("layout.anchor")}</span><div className="anchor-grid">{anchorKeys.map(anchor=><button key={anchor} className={transform.anchor===anchor?"active":""} title={t(anchorI18n[anchor])} onClick={()=>updateTransform({anchor})}><i/></button>)}</div></div>
     </section>
 
-    <section className="inspector-meta"><div><span>{t("inspector.engine")}</span><strong>Remotion</strong></div><div><span>{t("inspector.category")}</span><strong>{effect.category}</strong></div></section>
+    <section className="inspector-meta"><div><span>{t("inspector.engine")}</span><strong>{clip.engine==="remotion"?"Remotion":"HyperFrames"}</strong></div><div><span>{t("inspector.category")}</span><strong>{category}</strong></div></section>
     <button className="inspector-delete" onClick={()=>void onCommand({type:"remove-clip",clipId:clip.id},t("timeline.deleted")).then(()=>selectClip(null))}>▱ {t("inspector.delete")}</button>
   </div>;
 };
