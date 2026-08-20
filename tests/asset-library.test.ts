@@ -16,17 +16,18 @@ describe("Phase 10 asset library",()=>{
     const assets=new AssetLibraryService(fs,"/data",repository,hyperFrames);
 
     let source=await repository.create({id:"source",name:"Source",durationInFrames:300});
-    source=applyProjectCommand(source,{type:"add-clip",trackId:"motion-main",clip:{id:"m1",type:"motion",engine:"remotion",effectId:"big-number",props:BigNumberDefaults,startFrame:20,durationInFrames:90,enabled:true,layer:10}});
+    source=applyProjectCommand(source,{type:"add-clip",trackId:"motion-main",clip:{id:"m1",type:"motion",engine:"remotion",effectId:"big-number",props:BigNumberDefaults,transform:{x:90,y:-40,scale:1.2,opacity:.8,anchor:"bottom-right"},startFrame:20,durationInFrames:90,enabled:true,layer:10}});
     await repository.save(source);
 
     const preset=await assets.saveFromMotionClip("source","m1","15 Day Metric");
     expect((await assets.load()).presets).toHaveLength(1);
+    expect(preset.transform).toEqual({x:90,y:-40,scale:1.2,opacity:.8,anchor:"bottom-right"});
     const promoted=await assets.update(preset.id,{favorite:true,status:"production-ready"});
     expect(promoted).toMatchObject({favorite:true,status:"production-ready"});
     await expect(fs.readText(`/data/library/promoted/${preset.id}.json`)).resolves.toContain("15 Day Metric");
 
     await repository.create({id:"target",name:"Target",durationInFrames:300});
     const target=await assets.applyToProject("target",preset.id,60);
-    expect(target.tracks.find((track)=>track.id==="motion-main")?.clips[0]).toMatchObject({type:"motion",engine:"remotion",effectId:"big-number",startFrame:60,durationInFrames:90});
+    expect(target.tracks.find(track=>track.id==="motion-main")?.clips[0]).toMatchObject({type:"motion",engine:"remotion",effectId:"big-number",startFrame:60,durationInFrames:90,transform:{x:90,y:-40,scale:1.2,opacity:.8,anchor:"bottom-right"}});
   });
 });
