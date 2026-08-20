@@ -191,6 +191,8 @@ Do not merge PR #2.
 ```text
 Branch: feature/v1.1-overlay-ui-i18n
 Baseline: 86f4c19f4c9315c17f13fa0af86e4e654b10eeab
+Final commit: 4e90517d7d2a210a61bcce012d47ec2db360a6d
+CI run: 32343720738 (success)
 Project: v1-rough-cut-validation-98c8f21e
 VIDEO_OS_DATA_ROOT: E:\Video-OS-Data
 Node: v25.2.1 (package engine requires 24.x; render was also verified with bundled Node v24.19.0)
@@ -267,7 +269,7 @@ All items in sections A–I are locally checked. The real project retained relat
 
 ```text
 CODE COMPLETE: PASS
-CLOUD VERIFIED: PASS (CI run pending for the final commit)
+CLOUD VERIFIED: PASS (CI run 32343720738)
 LOCAL UI VERIFIED: PASS
 MOTION TRANSFORM VERIFIED: PASS
 PRESET VERIFIED: PASS
