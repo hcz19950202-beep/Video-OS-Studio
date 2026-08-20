@@ -153,7 +153,7 @@ Final result:
 
 ```text
 CODE COMPLETE: PASS
-CLOUD VERIFIED: PENDING CI
+CLOUD VERIFIED: PASS
 LOCAL UI VERIFIED: PASS
 I18N VERIFIED: PASS
 V1 REGRESSION SMOKE: PASS
@@ -170,6 +170,7 @@ V1 REGRESSION SMOKE: PASS
 - Exported JSON: schema validation PASS; 6 assets, 5 tracks, 0 absolute asset paths.
 - Final render smoke: `f46caaac-0111-462c-b72c-c4d939b564d4` completed at 100%.
 - Alpha render smoke: `db29fc8b-c45c-4753-9736-38c56c2a0fc2` completed at 100%.
+- GitHub CI: run `32332028929` passed lint, typecheck, unit tests, and build.
 
 ### Issues
 
