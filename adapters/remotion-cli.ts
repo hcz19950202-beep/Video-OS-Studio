@@ -16,7 +16,7 @@ export class NodeRemotionCliAdapter implements RemotionRenderAdapter{
     const assetUrls=Object.fromEntries(project.assets.map((asset)=>[asset.id,`${assetBaseUrl}/api/projects/${encodeURIComponent(project.project.id)}/assets/${encodeURIComponent(asset.id)}`]));
     await writeFile(propsPath,JSON.stringify({project,assetUrls,renderMode:mode}),"utf8");
     const renderArgs=["render",this.entryPoint,"VideoOSMaster",outputPath,"--props",propsPath,"--width",String(project.canvas.width),"--height",String(project.canvas.height),"--fps",String(project.canvas.fps),"--duration",String(project.canvas.durationInFrames),"--overwrite"];
-    if(mode==="overlay")renderArgs.push("--image-format=png","--pixel-format=yuva420p","--codec=vp8","--muted");
+    if(mode==="overlay")renderArgs.push("--image-format=png","--pixel-format=yuva420p","--codec=vp9","--muted");
     else renderArgs.push("--codec=h264");
 
     const launcher=this.cliPath||(process.platform==="win32"?"npx.cmd":"npx");

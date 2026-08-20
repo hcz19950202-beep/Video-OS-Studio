@@ -6,9 +6,9 @@
 
 ## 1. 先给网页 GPT 的结论
 
-这是一个已经完成 Foundation、并已跑通 V1 主工作流的 Video OS Studio 项目：真实 MP4 导入、video-use 粗剪、字幕、时间线、Remotion/HyperFrames 动效、Visual Planner、Preset Library、最终 MP4 和 Overlay WebM 都已经在 Windows 浏览器中执行过。
+这是一个已经完成 Foundation 和 V1 Acceptance Closure 的 Video OS Studio 项目：真实 MP4 导入、video-use 粗剪、字幕、时间线、Remotion/HyperFrames 动效、Visual Planner、Preset Library、最终 MP4 和 Chromium 原生透明 Overlay WebM 都已经在 Windows 浏览器中执行并留存证据。
 
-当前不要重新搭脚手架，也不要从 Phase 0 或 Phase 1 重做。先阅读 `LOCAL_VALIDATION_V1.md` 的真实证据和 LV follow-up，再处理播放器媒体时钟、原生 WebM alpha 解码验证以及尚未覆盖的 VTT/Minimal preset 等边界。
+当前不要重新搭脚手架，也不要从 Phase 0 或 Phase 1 重做。`LV-005`、`LV-006`、`LV-007` 和此前未勾选的 V1 checklist 已经收口；先阅读 `LOCAL_VALIDATION_V1.md` 的 Acceptance Closure 证据，未经用户提出新需求不要扩展 V1 功能。
 
 用户希望网页 GPT 直接开发和验证，而不是只给一份方案。每个后续修复都要实际改代码、跑测试、启动浏览器验证、更新文档并提交 commit；只有遇到真正的外部依赖阻塞时才停下来说明。
 
@@ -19,7 +19,7 @@
 - 默认分支：`main`
 - 当前开发分支：`feature/phase-0-foundation`
 - 当前 PR：<https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1>
-- 当前代码提交：`34e22fb`（本地 render/HyperFrames 修复）和 `30470f9`（记录最新云端 CI）；交接文档后续提交会继续追加在此基线之上。
+- Acceptance Closure 基线：`c06a43f`；本轮代码/验收提交与最终 CI run 会在推送后写回本节。
 - 当前 PR 不要擅自合并到 `main`；继续在现有 feature 分支开发并推送即可。
 
 ### 最近的重要提交
@@ -40,10 +40,10 @@
 | Gate | 状态 | 证据 |
 | --- | --- | --- |
 | `CODE COMPLETE` | PASS | V1 代码、真实渲染修复和回归已完成 |
-| `CLOUD VERIFIED` | PASS | [PR checks](https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1/checks)，run `32293131298` 成功 |
-| `LOCAL VERIFIED` | PARTIAL | Windows Node v24 真实链路完成；LV-005 Player media clock、LV-006 原生 WebM alpha 仍待收口 |
-| `PRD ACCEPTED` | PARTIAL | 主流程通过，环境与两项边界证据已明确记录 |
-| `RENDER VERIFIED` | PASS / PARTIAL | final MP4 PASS；Overlay WebM 有 `alpha_mode=1`、无音轨，外部 FFmpeg alpha 解码仍需复核 |
+| `CLOUD VERIFIED` | PENDING | Acceptance Closure commit 推送后等待新的 GitHub Actions run |
+| `LOCAL VERIFIED` | PASS | `LV-005` 精确媒体同步、全部剩余 checklist 和最终真实渲染均通过 |
+| `PRD ACCEPTED` | PASS | V1 Acceptance Closure 的必要项全部通过 |
+| `RENDER VERIFIED` | PASS | final MP4 通过；VP9 Overlay WebM 已用 Chromium 原生 `<video>` 棋盘格验证透明度 |
 
 已经通过的自动检查：
 
@@ -51,11 +51,11 @@
 npm ci --no-audit --no-fund
 npm run lint
 npm run typecheck
-npm run test       # 18 个测试文件，51 个测试全部通过
+npm run test       # 19 个测试文件，54 个测试全部通过
 npm run build      # Next.js 16.3.1 production build 通过
 ~~~
 
-公开 CI 同样已经通过安装、Lint、TypeScript、51 个测试和生产构建。Actions 日志里的 Node 20 deprecation annotation 是 GitHub action 自身的提示，不是项目失败；项目运行基线已经统一为 Node 24。
+上一基线的公开 CI 已通过安装、Lint、TypeScript、测试和生产构建。本轮 Acceptance Closure 的 GitHub CI 在提交推送后等待并写回 run ID；项目运行基线仍为 Node 24。
 
 ## 4. 已经完成了什么
 
@@ -125,31 +125,23 @@ npm run build      # Next.js 16.3.1 production build 通过
 6. **`LOCAL_VALIDATION_V1.md` 已记录真实证据**：不要用“脚本存在”替代真实验证，也不要把 CI 通过当成 Windows 浏览器、HyperFrames 或视频渲染验收。
 7. **Remotion CLI 调用已修复**：使用 `npx --yes --package @remotion/cli@4.0.506 remotion render ...`，并由 `remotion.config.js` 提供 `@` alias。
 8. **HyperFrames Map Route 已修复**：GSAP `left` 改为 transform `x`，点位层级和可读性已调整；adapter 使用非弃用的 `check`。
-9. **Overlay WebM 默认无音轨**：render adapter 已传 `--muted`；输出应有 VP8、`alpha_mode=1` 且无 audio stream。
-10. **当前 PR 保持打开**：网页 GPT 可以继续推送 feature 分支，但未经用户确认不要合并到 `main`。
+9. **Overlay WebM 默认无音轨并使用 VP9**：render adapter 传 `--muted`、PNG 帧、`yuva420p` 和 `vp9`；Chromium 棋盘格实测透明区和实体区均正确。
+10. **资产接口支持标准单 Range**：A-roll 预览依赖 `206`、`Content-Range` 和 `Accept-Ranges`；不要退回只返回完整 `200` 的实现。
+11. **A-roll 使用 `<OffthreadVideo trimBefore>`**：`startFrom` 已移除；不要改回 deprecated API，也不要换成会让最终 CLI 渲染超时的 `<Video>`。
+12. **当前 PR 保持打开**：网页 GPT 可以继续推送 feature 分支，但未经用户确认不要合并到 `main`。
 
-## 6. 当前还没有收口的边界
+## 6. Acceptance Closure 结果与非阻塞边界
 
-主流程已经可用并且真实跑通，后续不要重做已验证部分，优先收口这些边界：
-
-- `LV-005`：Player 的 Remotion frame playhead 会移动，但本轮检查到的底层 `<video>` `currentTime` 没有同步推进；需要专门修复/回归 preview media clock。
-- `LV-006`：Overlay WebM 有 `alpha_mode=1`、无音轨，Remotion PNG 仍有真实 RGBA alpha；FFmpeg 8.1.1 解码为 `yuv420p` 且 `alphaextract` 不可用，需要用 Chromium/native decoder 再确认。
-- VTT 导入、Minimal caption preset、caption 经 EDL 保留范围重映射、track lock 的阻止拖动、render Retry 和完整 video-use timeline QA 尚未全部覆盖。
-- HyperFrames doctor 在当前机器是 `PARTIAL_ENV`：可用内存约 1.0 GB，Whisper/TTS/MusicGen/Docker 等可选依赖不可用；不要把这部分标成完整环境通过。
-- Visual Planner 对本次真实口播返回零 slots（“No strong visual moments were found”），这是有效的 explainable fallback 结果，不要强行伪造建议。
-- GitHub Actions 仍有两个已有 `<img>` warning 和 action 使用 Node 20 的 deprecation annotation；它们不是失败，但可以单独安排清理。
+- `LV-005` 已关闭：严格按原始 MP4 asset ID 选择 A-roll，排除 HyperFrames WebM；帧 75/149/150/300 的 native `currentTime` 与 EDL 公式误差小于 0.000001 秒。
+- `LV-006` 已关闭：历史 VP8 文件在当前 Chromium 无法进入 metadata-ready；产线改为 VP9 后，原生 `<video>` 在 3 秒帧返回 `readyState=4`、1080x1920、无错误，红绿棋盘格在透明区透出、实体动画正常覆盖。
+- `LV-007` 已关闭：`<Video trimBefore>` 导致最终 CLI 渲染超时；改为官方渲染安全的 `<OffthreadVideo trimBefore>` 后预览同步和最终 MP4 Retry 均通过。
+- VTT、Minimal、Caption EDL remap、锁轨、Failed render + Retry、video-use timeline QA、Planner review/uncheck/apply、两类 Visual Slot、Star persistence 均已真实验收。
+- HyperFrames doctor 的可选项仍是 `PARTIAL_ENV`（内存、Whisper/TTS/MusicGen/Docker）；required Process Flow/Map Route、lint/check/render、缓存复用均 PASS，所以不阻塞 V1 gate。
+- ESLint 仍有两个已有 `<img>` warning；0 error，不阻塞 V1。
 
 ## 7. 下一步执行顺序
 
-不要重新做 Phase 1，也不要先扩展几十个动效。先按下面顺序收口当前 V1：
-
-### V1 follow-up gate
-
-1. 复现并修复 `LV-005`：在浏览器中确认 Remotion Player frame、底层 video `currentTime`、暂停/seek 三者一致；补一个真实回归证据。
-2. 用 Chromium 或另一套支持 alpha 的 WebM decoder 验证 `overlay-95c34b33-c29e-456e-916f-a451d0254653.webm` 的透明像素；不要只依赖 FFmpeg 8.1.1 的 `alphaextract`。
-3. 补 VTT、Minimal preset、EDL 后字幕重映射、track lock 阻止拖动和 Retry 的浏览器验证。
-4. 在内存充足且可选依赖齐全的环境重跑 HyperFrames doctor；将 `PARTIAL_ENV` 与真实功能 PASS 分开记录。
-5. 只有上述边界收口后，才把 `LOCAL VERIFIED` / `PRD ACCEPTED` 从 PARTIAL 提升为 PASS。
+不要重新做 Phase 1，也不要扩展动效。V1 follow-up gate 已完成；下一步只做用户明确提出的新任务，或维护性缺陷修复。继续保持 `PARTIAL_ENV` 与 required feature PASS 分开记录。
 
 当前完整执行链保持为：
 
@@ -282,9 +274,9 @@ RENDER VERIFIED（只有真实 render 时才填写）
 
 请先完整阅读根目录的 GPT_WEB_HANDOFF.md、Video_OS_Studio_V1_Master_PRD.md、SYSTEM.md、README.md、AGENTS.md，然后检查当前分支 feature/phase-0-foundation、PR #1 和现有代码/测试。
 
-当前事实：V1 主工作流已经在 Windows 真实浏览器和真实 MP4 上执行过；公开 CI、Windows Node 24 检查、51 个测试和 production build 都通过。不要重新搭脚手架，不要从 Phase 0/1 重做，也不要只输出计划。
+当前事实：V1 Acceptance Closure 已在 Windows 真实浏览器和真实 MP4 上执行；Node 24 本地检查、19 个测试文件/54 个测试、production build、最终 MP4、Chromium 原生 VP9 alpha 棋盘格验证全部通过。不要重新搭脚手架，不要从 Phase 0/1 重做，也不要只输出计划。
 
-现在先阅读 `LOCAL_VALIDATION_V1.md`，复现并处理 LV-005 Player media clock 和 LV-006 WebM alpha decoder follow-up，然后补完 VTT、Minimal preset、EDL 字幕重映射、track lock 和 Retry 的真实浏览器验证。保留已经通过的真实 MP4 / Remotion / HyperFrames / video-use 链路。
+现在先阅读 `LOCAL_VALIDATION_V1.md` 的 Acceptance Closure。`LV-005`、`LV-006`、`LV-007`、VTT、Minimal preset、EDL 字幕重映射、track lock、Retry、Planner 和 Star persistence 已完成；不要重复执行或回退。保留已经通过的真实 MP4 / Remotion / HyperFrames / video-use 链路。
 
 要求：
 1. 先检查现有实现再改动，遵守 REUSE > MODIFY > CREATE；

@@ -46,7 +46,7 @@ ffprobe -version
 - [x] Confirm it is written under `VIDEO_OS_DATA_ROOT\projects`.
 - [x] Import a real MP4.
 - [x] Confirm ffprobe-derived duration, size and FPS metadata appear.
-- [ ] Player can play/pause/seek the real MP4 without critical console errors.
+- [x] Player can play/pause/seek the real MP4 without critical console errors.
 - [x] Fit / 100% / Safe controls work.
 - [x] Switch 9:16 / 16:9 / 1:1 and confirm Player updates.
 - [x] Save, refresh/restart the app, reopen the project and confirm state restores.
@@ -57,9 +57,9 @@ Status:
 
 ```text
 CODE COMPLETE: PASS
-CLOUD VERIFIED: PASS (PR #1, post-fix run 32293022430 succeeded)
-LOCAL VERIFIED: PARTIAL (real chain completed; Player clock and native WebM alpha need follow-up)
-PRD ACCEPTED: PARTIAL
+CLOUD VERIFIED: PENDING (Acceptance Closure changes await GitHub CI)
+LOCAL VERIFIED: PASS
+PRD ACCEPTED: PASS
 ```
 
 ## Phase 2 — Timeline
@@ -70,7 +70,7 @@ PRD ACCEPTED: PARTIAL
 - [x] Resize a clip and confirm duration persists.
 - [x] Duplicate and delete work.
 - [x] Timeline zoom works.
-- [ ] Track lock prevents dragging.
+- [x] Track lock prevents dragging.
 - [x] Track hide state persists and is restored.
 
 ## Phase 3 — Effect Registry
@@ -103,11 +103,11 @@ Verify:
 ## Phase 5 — Captions
 
 - [x] Import a Chinese SRT.
-- [ ] Import a VTT.
+- [x] Import a VTT.
 - [x] Cues become frame-based Caption clips.
 - [x] Caption timing is frame based and appears in the rendered output.
 - [x] Primary preset works.
-- [ ] Minimal preset works.
+- [x] Minimal preset works.
 - [x] Bold preset works.
 - [x] Number emphasis works.
 - [x] Keyword emphasis works.
@@ -120,10 +120,10 @@ The app defaults to the pinned `@remotion/cli@4.0.506` through `npx`. A matching
 
 - [x] Export a real final MP4.
 - [x] Export a transparent overlay WebM.
-- [ ] Failed render displays an actionable error and Retry works.
+- [x] Failed render displays an actionable error and Retry works.
 - [x] Download endpoint exposes the completed render.
 - [x] Run `ffprobe` on final MP4 and record codec, dimensions, duration and FPS.
-- [x] Run `ffprobe` on overlay WebM and confirm expected VP8/alpha-capable output.
+- [x] Run `ffprobe` on overlay WebM and confirm VP9, `alpha_mode=1`, and no audio stream.
 - [x] Extract beginning/middle/end frames and visually inspect them.
 - [x] Confirm final MP4 includes A-roll + Motion + Captions.
 - [x] Confirm overlay excludes A-roll/background at the Remotion PNG stage and carries WebM `alpha_mode=1`; see the decoder caveat below.
@@ -131,7 +131,7 @@ The app defaults to the pinned `@remotion/cli@4.0.506` through `npx`. A matching
 Status after all checks:
 
 ```text
-RENDER VERIFIED: PASS WITH ALPHA-DECODER CAVEAT
+RENDER VERIFIED: PASS
 ```
 
 ## Phase 7 — HyperFrames
@@ -158,33 +158,33 @@ Configure a real stable `VIDEO_USE_ROOT` containing `SKILL.md` and `helpers/` pl
 
 - [x] `Transcribe + Pack` runs on a real talking-head MP4.
 - [x] `takes_packed.md` is produced and shown in Studio.
-- [ ] Word-level timestamps are plausible (the tested adapter output is phrase-level).
+- [x] Word-level timestamps are plausible (337 monotonic faster-whisper words, 0.00–73.22 s for a 74.633333 s source).
 - [x] Create/review a confirmed EDL.
 - [x] Apply EDL before Motion/B-roll/Audio design.
 - [x] EDL seconds convert to frame-based Video clips.
 - [x] `sourceStartFrame` is persisted in the rough-cut Video clips.
-- [ ] Existing captions remap correctly through kept ranges.
+- [x] Existing captions remap correctly through kept ranges.
 - [x] Attempting rough cut after Motion/B-roll/Audio exist is blocked rather than silently corrupting timing.
-- [ ] Run video-use timeline QA on relevant boundaries where available.
+- [x] Run video-use timeline QA on relevant boundaries where available.
 
 ## Phase 9 — Visual Planner
 
 Use timed captions that include at least a percentage, a concrete number and a logistics/process statement.
 
 - [x] Generate Plan creates `edit/animation-slots.json`.
-- [ ] Suggestions show engine/effect/frame/confidence/reason.
+- [x] Suggestions show engine/effect/frame/confidence/reason.
 - [x] Generating does not mutate Timeline.
-- [ ] Uncheck at least one suggestion.
-- [ ] Apply Selected writes only checked slots.
-- [ ] Remotion suggestions render correctly.
-- [ ] HyperFrames suggestions invoke the normal HyperFrames pipeline.
-- [ ] Planner avoids excessive strong visual events.
+- [x] Uncheck at least one suggestion.
+- [x] Apply Selected writes only checked slots.
+- [x] Remotion suggestions render correctly.
+- [x] HyperFrames suggestions invoke the normal HyperFrames pipeline.
+- [x] Planner avoids excessive strong visual events.
 
 ## Phase 10 — Asset Library
 
 - [x] Select a customized Motion clip and Save selected.
 - [x] Preset appears in `VIDEO_OS_DATA_ROOT\library\asset-registry.json`.
-- [ ] Favorite/Star persists.
+- [x] Favorite/Star persists.
 - [x] Promote writes a `library\promoted\preset-*.json` manifest.
 - [x] Open/create a different project.
 - [x] Use the preset at current playhead.
@@ -282,15 +282,89 @@ HyperFrames doctor result is `PARTIAL_ENV`: version, Node, CPU, disk, FFmpeg, FF
 - `LV-002` (fixed): Remotion adapter invoked npx without an executable package entry and omitted the `render` subcommand. It now uses `npx --yes --package @remotion/cli@4.0.506 remotion render ...`.
 - `LV-003` (fixed): Remotion bundling could not resolve the project's `@/` aliases. Composition entry imports were made relative where appropriate and `remotion.config.js` now supplies the `@` webpack alias. `remotion compositions remotion/index.ts` and the real MP4 export pass.
 - `LV-004` (verified guard): Applying video-use EDL after Motion existed returns the intended 400/actionable message. Applying the same confirmed EDL in a clean project succeeds and writes frame-based clips.
-- `LV-005` (follow-up): Browser Player playhead controls moved the Remotion frame, but the inspected underlying media element did not advance its native `currentTime` during that run. Final Remotion export is correct; preview media-clock synchronization needs a dedicated follow-up.
-- `LV-006` (follow-up/environment): The WebM carries `alpha_mode=1` and no audio, while the installed FFmpeg decoder reports `yuv420p`. Verify with a native Chromium/WebM alpha probe or another decoder before calling the alpha gate fully closed.
+- `LV-005` (fixed/closed): the earlier check selected the wrong media element and the asset endpoint also lacked byte-range responses. The endpoint now returns correct `206`/`Content-Range`/`Accept-Ranges` responses, and A-roll is identified by the exact original MP4 asset ID while excluding HyperFrames WebM elements. With `<OffthreadVideo trimBefore>`, Player frame 75/149/150/300 mapped to media time 2.5/4.966666/7.2/12.2 seconds with absolute error below 0.000001 seconds; Play/Pause also kept the same formula, `readyState=4`, `seeking=false`, `playbackRate=1`.
+- `LV-006` (fixed/closed): the historical VP8 overlay advertised alpha but would not load in this Chromium build. Overlay render now uses VP9. Chromium's native `<video>` returned `canPlayType=probably`, `readyState=4`, 1080x1920, no media error, and at 3 seconds the red/green checkerboard remained visible through transparent pixels while animation/caption pixels covered it. Screenshot and browser recording are retained under `E:\Video-OS-Data\validation-evidence\v1-acceptance-closure` and `C:\Users\hcz\.config\browser-harness\agent-workspace\recordings\video-os-v1-acceptance-closure`.
+- `LV-007` (fixed/closed): changing A-roll to `<Video trimBefore>` fixed preview timing but made the final CLI render time out in `<Html5Video>`. Using the official render-safe `<OffthreadVideo trimBefore>` keeps the non-deprecated trim API, preserves exact browser synchronization, and completed the retried final MP4.
 
 ### Gate decision
 
 ```text
-CODE COMPLETE: PASS (including the three local fixes above)
-CLOUD VERIFIED: PASS — post-fix run 32293022430 succeeded (lint, typecheck, unit tests, build)
-LOCAL VERIFIED: PARTIAL
-PRD ACCEPTED: PARTIAL — full chain is demonstrated, but LV-005 and LV-006 remain
-RENDER VERIFIED: PASS for final MP4; PARTIAL for native WebM alpha decoding
+CODE COMPLETE: PASS
+CLOUD VERIFIED: PENDING — Acceptance Closure commit has not yet completed GitHub CI
+LOCAL VERIFIED: PASS
+PRD ACCEPTED: PASS
+RENDER VERIFIED: PASS
+```
+
+## Acceptance Closure — 2026-08-20
+
+The requested V1 closure was run against `v1-rough-cut-validation-98c8f21e` without redoing Phases 0–10 and without merging PR #1.
+
+### LV-005 media synchronization evidence
+
+The A-roll element was selected only when `currentSrc` contained `media-2f7b1965-7c1c-4e58-9e8d-056705bb6dee`; HyperFrames WebM elements were excluded. The two EDL clips are `(start=0, sourceStart=0, duration=150)` and `(start=150, sourceStart=216, duration=324)` at 30 fps.
+
+| Test | Player frame | Expected media time | Native `currentTime` | Error |
+| --- | ---: | ---: | ---: | ---: |
+| First clip middle | 75 | 2.500000 | 2.500000 | 0 |
+| First clip end boundary | 149 | 4.966667 | 4.966666 | -0.000001 |
+| Second clip boundary | 150 | 7.200000 | 7.200000 | 0 |
+| Second clip | 300 | 12.200000 | 12.200000 | 0 |
+| Play then Pause | 77 | 2.566667 | 2.566666 | -0.000001 |
+
+All samples used `expectedMediaTime = sourceStartFrame / fps + (playerFrame - clip.startFrame) / fps`. Paused samples reported `paused=true`, `readyState=4`, `seeking=false`, and `playbackRate=1`.
+
+### LV-006 Chromium alpha evidence
+
+- Historical input required by the acceptance request: `render/overlay-95c34b33-c29e-456e-916f-a451d0254653.webm` (VP8, `alpha_mode=1`) did not reach metadata-ready state in native Chromium.
+- Control HyperFrames VP9 alpha assets loaded in the same `<video>` and browser session.
+- The render adapter was therefore corrected to produce VP9 alpha output.
+- Successful retry job: `28ac3aa7-e299-4e3d-b457-5536e351a99c`.
+- Chromium checkerboard screenshot: `E:\Video-OS-Data\validation-evidence\v1-acceptance-closure\LV-006-chromium-vp9-checkerboard-frame-3s.png`.
+- Browser recording: `C:\Users\hcz\.config\browser-harness\agent-workspace\recordings\video-os-v1-acceptance-closure` (141 frames).
+- Page-origin media diagnostics: VP9 `canPlayType=probably`, `readyState=4`, `currentTime=3`, `paused=true`, `seeking=false`, 1080x1920, `video.error=null`. No page-origin console exception or media error was observed; extension-origin messages were excluded.
+
+### Remaining checklist evidence
+
+- VTT: imported a real `WEBVTT` file through the browser; three frame-based Caption clips were created.
+- Minimal preset: changed a selected VTT Caption from Primary to Minimal and verified the saved project returned `preset=minimal`.
+- Track lock: locked Video, attempted a 120 px clip drag, and confirmed revision/start/duration stayed `30/0/150`; the track was unlocked after the test.
+- Caption EDL remap: dedicated project `v1-caption-edl-acceptance-aa55b5bc` imported the real MP4 and captions before applying ranges 1–3 s and 4–6 s. Result: two 60-frame Video clips with source starts 30/120 and three clipped/remapped captions at output frames 0/30/60.
+- Failed render + Retry: failed overlay job `d9bcbe4d-815b-4425-b8d8-672620a087f6` displayed the actionable error and Retry; retry job `28ac3aa7-e299-4e3d-b457-5536e351a99c` completed. The later `LV-007` final failure was also retried successfully after the fix.
+- video-use timeline QA: `timeline_view.py` produced `E:\Video-OS-Data\validation-evidence\v1-acceptance-closure\timeline-qa-edl-boundary-5s.png`; 12 frames across 3.5–6.5 seconds showed stable A-roll, readable top-layer captions, aligned overlays, and no isolated flash at the 5-second boundary.
+- Visual Planner: generation preserved revision 37 and four existing Motion clips. It displayed three explainable suggestions; the first was unchecked, and Apply Selected added exactly the checked HyperFrames Process Flow at frame 180 and Remotion Big Number at frame 360.
+- Visual Slots: browser preview at frame 210 decoded the new HyperFrames VP9 asset at `currentTime=1`, and frame 390 displayed `KEY NUMBER / 30 DAYS`. Both also appear in final render evidence frames at 7 and 13 seconds.
+- Favorite persistence: `HF Map Route V1` was starred, the page was reloaded, the project reopened, and My Assets still displayed `★`/`Unstar`; the durable registry returned `favorite=true`.
+
+### Final real render regression
+
+Retry job `61a91e89-f448-44c0-b94b-d100ea5cb1a9` completed after the `LV-007` fix:
+
+```text
+E:\Video-OS-Data\projects\v1-rough-cut-validation-98c8f21e\render\final-61a91e89-f448-44c0-b94b-d100ea5cb1a9.mp4
+H.264 + AAC, 1080x1920, 30 fps, 15.850667 s, 8,648,599 bytes
+```
+
+Final evidence frames are stored as `final-regression-frame-7s.png` and `final-regression-frame-13s.png` in the acceptance evidence directory.
+
+### Final automated regression
+
+Executed in the required order under Node v24.19.0:
+
+```text
+npm ci: PASS (392 packages)
+npm run lint: PASS (0 errors; 2 existing no-img-element warnings)
+npm run typecheck: PASS
+npm run test: PASS (19 files, 54 tests)
+npm run build: PASS (Next.js 16.3.1 production build)
+```
+
+Final gate before the Acceptance Closure commit reaches GitHub CI:
+
+```text
+CODE COMPLETE: PASS
+CLOUD VERIFIED: PENDING
+LOCAL VERIFIED: PASS
+PRD ACCEPTED: PASS
+RENDER VERIFIED: PASS
 ```
