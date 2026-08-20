@@ -68,7 +68,7 @@ export const EffectInspector=({project,onCommand}:{project:Project;onCommand:(co
   return <div className="effect-inspector os-inspector">
     <header className="inspector-card-head"><small>{t("inspector.title")} · {clip.id.slice(0,14)}</small><div><span className="inspector-dot"/><h2>{displayName}</h2><em>{category}</em></div></header>
 
-    <EffectPresetControls project={project} clipId={clip.id} effectId={clip.effectId} engine={clip.engine} onCommand={onCommand}/>
+    <EffectPresetControls key={`${clip.engine}:${clip.effectId}`} project={project} clipId={clip.id} effectId={clip.effectId} engine={clip.engine} onCommand={onCommand}/>
 
     <section className="inspector-section"><div className="inspector-section-title"><strong>{t("inspector.timing")}</strong><small>TIMING</small></div><div className="timing-grid"><label><span>{t("inspector.start")}</span><input type="number" min={0} max={project.canvas.durationInFrames-1} defaultValue={clip.startFrame} key={`${clip.id}-start-${clip.startFrame}`} onBlur={event=>updateTiming({startFrame:Number(event.target.value)})}/></label><label><span>{t("inspector.duration")}</span><input type="number" min={1} max={project.canvas.durationInFrames} defaultValue={clip.durationInFrames} key={`${clip.id}-duration-${clip.durationInFrames}`} onBlur={event=>updateTiming({durationInFrames:Number(event.target.value)})}/></label></div></section>
 
