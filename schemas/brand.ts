@@ -1,22 +1,5 @@
 import {z} from "zod";
 
-export const DEFAULT_BRAND_CONFIG={
-  mode:"dark",
-  colors:{
-    background:"#080B0F",
-    surface:"#111820",
-    primary:"#FF4B20",
-    secondary:"#F5F7FA",
-    data:"#3B82F6",
-    success:"#55D187",
-    danger:"#FF6565",
-    text:"#F5F7FA",
-    muted:"#85868D",
-  },
-  typography:{headingFont:"system-ui",bodyFont:"system-ui",captionFont:"system-ui"},
-  motion:{speed:1,scale:1,intensity:"balanced"},
-} as const;
-
 const BrandColorsSchema=z.object({
   background:z.string().min(1),surface:z.string().min(1),primary:z.string().min(1),secondary:z.string().min(1),data:z.string().min(1),success:z.string().min(1),danger:z.string().min(1),text:z.string().min(1),muted:z.string().min(1),
 });
@@ -40,3 +23,20 @@ export const BrandConfigSchema=z.object({
 });
 
 export type BrandConfig=z.infer<typeof BrandConfigSchema>;
+
+export const DEFAULT_BRAND_CONFIG:BrandConfig={
+  mode:"dark",
+  colors:{
+    background:"#080B0F",
+    surface:"#111820",
+    primary:"#FF4B20",
+    secondary:"#F5F7FA",
+    data:"#3B82F6",
+    success:"#55D187",
+    danger:"#FF6565",
+    text:"#F5F7FA",
+    muted:"#85868D",
+  },
+  typography:{headingFont:"system-ui",bodyFont:"system-ui",captionFont:"system-ui"},
+  motion:{speed:1,scale:1,intensity:"balanced"},
+};
