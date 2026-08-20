@@ -17,16 +17,21 @@ const StudioPreferencesContext=createContext<StudioPreferencesValue|null>(null);
 const LOCALE_KEY="video-os-studio-locale";
 const THEME_KEY="video-os-studio-theme";
 
-export const StudioPreferencesProvider=({children}:{children:React.ReactNode})=>{
-  const[locale,setLocaleState]=useState<StudioLocale>("zh-CN");
-  const[theme,setThemeState]=useState<StudioTheme>("dark");
+const readLocale=():StudioLocale=>{
+  if(typeof window==="undefined")return"zh-CN";
+  const value=window.localStorage.getItem(LOCALE_KEY);
+  return value==="en-US"||value==="zh-CN"?value:"zh-CN";
+};
 
-  useEffect(()=>{
-    const savedLocale=window.localStorage.getItem(LOCALE_KEY);
-    const savedTheme=window.localStorage.getItem(THEME_KEY);
-    if(savedLocale==="zh-CN"||savedLocale==="en-US")setLocaleState(savedLocale);
-    if(savedTheme==="dark"||savedTheme==="light")setThemeState(savedTheme);
-  },[]);
+const readTheme=():StudioTheme=>{
+  if(typeof window==="undefined")return"dark";
+  const value=window.localStorage.getItem(THEME_KEY);
+  return value==="light"||value==="dark"?value:"dark";
+};
+
+export const StudioPreferencesProvider=({children}:{children:React.ReactNode})=>{
+  const[locale,setLocaleState]=useState<StudioLocale>(readLocale);
+  const[theme,setThemeState]=useState<StudioTheme>(readTheme);
 
   useEffect(()=>{
     document.documentElement.dataset.studioTheme=theme;
