@@ -1,0 +1,15 @@
+import type {Project} from "@/schemas/project";
+
+export type MediaProbeResult={durationSeconds:number;width?:number;height?:number;fps?:number;hasAudio:boolean};
+export interface FileSystemAdapter{exists(path:string):Promise<boolean>;readText(path:string):Promise<string>;readBinary(path:string):Promise<Uint8Array>;ensureDir(path:string):Promise<void>;listDirectories(path:string):Promise<string[]>;writeBinary(path:string,content:Uint8Array):Promise<void>;writeTextAtomic(path:string,content:string,backupPath?:string):Promise<void>;}
+export interface FfmpegAdapter{probe(inputPath:string):Promise<MediaProbeResult>;}
+export interface RemotionRenderAdapter{render(input:{project:Project;outputPath:string;mode:"final"|"overlay";assetBaseUrl:string}):Promise<{outputPath:string}>;}
+export interface HyperFramesAdapter{render(input:{effectId:string;props:Record<string,unknown>;width:number;height:number;fps:number;durationInFrames:number;outputPath:string}):Promise<{outputPath:string}>;}
+
+export type TranscriptWord={text:string;startSeconds:number;endSeconds:number;speakerId?:string;type?:"word"|"audio_event"};
+export type VideoUsePrepareResult={words:TranscriptWord[];text:string;packedText:string;transcriptPath:string;packedTranscriptPath:string};
+export interface VideoUseAdapter{
+  prepare(input:{inputPath:string;editDir:string}):Promise<VideoUsePrepareResult>;
+  renderEdl(input:{edlPath:string;outputPath:string;preview:boolean}):Promise<{outputPath:string}>;
+  timelineView(input:{videoPath:string;startSeconds:number;endSeconds:number;outputPath?:string}):Promise<{artifactPath?:string}>;
+}

@@ -1,0 +1,1 @@
+export const BigNumberMetadata={id:"big-number",name:"Big Number",engine:"remotion" as const,category:"number" as const,tags:["number","metric","days"],thumbnail:"/effects/big-number.svg",defaultDurationInFrames:90};

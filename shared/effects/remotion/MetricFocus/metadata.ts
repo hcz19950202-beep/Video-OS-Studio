@@ -1,0 +1,1 @@
+export const MetricFocusMetadata={id:"metric-focus",name:"Metric Focus",engine:"remotion" as const,category:"data" as const,tags:["percentage","metric","progress"],thumbnail:"/effects/metric-focus.svg",defaultDurationInFrames:120};

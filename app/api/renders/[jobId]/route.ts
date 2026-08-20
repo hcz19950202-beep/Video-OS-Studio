@@ -1,0 +1,1 @@
+import {renderJobs} from "@/lib/server/runtime";export const runtime="nodejs";type Context={params:Promise<{jobId:string}>};export async function GET(_request:Request,{params}:Context){const{jobId}=await params;const job=renderJobs.get(jobId);return job?Response.json({job}):Response.json({error:"Render job not found",retryable:false},{status:404});}

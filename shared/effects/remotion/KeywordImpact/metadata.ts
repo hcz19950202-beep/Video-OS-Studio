@@ -1,0 +1,1 @@
+export const KeywordImpactMetadata={id:"keyword-impact",name:"Keyword Impact",engine:"remotion" as const,category:"text" as const,tags:["keyword","hook","emphasis"],thumbnail:"/effects/keyword-impact.svg",defaultDurationInFrames:75};
