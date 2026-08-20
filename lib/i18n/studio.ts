@@ -19,6 +19,7 @@ const zhCN = {
   "metric.selected": "SEL",
   "metric.none": "无",
   "left.cards": "卡片",
+  "left.effects": "效果",
   "left.captions": "字幕",
   "left.project": "项目",
   "left.global": "全局",
@@ -42,6 +43,7 @@ const zhCN = {
   "preview.frame": "帧",
   "preview.emptyTitle": "新建或打开一个项目",
   "preview.emptyBody": "导入口播视频后，工作台会在这里显示真实 Remotion 预览。",
+  "preview.resizeTimeline": "拖动调整预览与时间轴高度",
   "library.title": "效果模板",
   "library.remotion": "Remotion",
   "library.hyperframes": "HyperFrames",
@@ -64,13 +66,34 @@ const zhCN = {
   "inspector.content": "内容",
   "inspector.timing": "节奏",
   "inspector.style": "样式",
-  "inspector.layout": "落位与大小",
+  "inspector.layout": "布局",
   "inspector.start": "出现帧",
   "inspector.duration": "持续帧数",
   "inspector.engine": "引擎",
   "inspector.category": "类型",
   "inspector.delete": "删除这张卡",
   "inspector.updated": "参数已更新",
+  "layout.x": "水平位置 X",
+  "layout.y": "垂直位置 Y",
+  "layout.scale": "缩放",
+  "layout.opacity": "透明度",
+  "layout.anchor": "锚点",
+  "layout.anchor.topLeft": "左上",
+  "layout.anchor.top": "顶部",
+  "layout.anchor.topRight": "右上",
+  "layout.anchor.left": "左侧",
+  "layout.anchor.center": "居中",
+  "layout.anchor.right": "右侧",
+  "layout.anchor.bottomLeft": "左下",
+  "layout.anchor.bottom": "底部",
+  "layout.anchor.bottomRight": "右下",
+  "preset.title": "预设",
+  "preset.load": "加载预设",
+  "preset.none": "暂无预设",
+  "preset.apply": "应用预设",
+  "preset.applied": "预设已应用",
+  "preset.saveCurrent": "保存当前",
+  "preset.namePlaceholder": "预设名称",
   "caption.title": "字幕参数",
   "caption.preset": "字幕预设",
   "caption.emphasis": "强调方式",
@@ -134,12 +157,17 @@ const zhCN = {
   "workspace.cards": "卡片",
   "workspace.subtitles": "字幕",
   "workspace.ai": "AI",
-  "workspace.assets": "资产"
+  "workspace.assets": "资产",
+  "selection.video": "视频",
+  "selection.caption": "字幕",
+  "selection.motion": "动效",
+  "selection.broll": "B-roll",
+  "selection.audio": "音频"
 } as const;
 
 export type StudioMessageKey = keyof typeof zhCN;
 
-const enUS: Record<StudioMessageKey, string> = {
+const enUS: Record<StudioMessageKey,string> = {
   "app.brand": "VIDEO OS / STUDIO",
   "app.edit": "Editor",
   "app.effects": "Effects",
@@ -157,6 +185,7 @@ const enUS: Record<StudioMessageKey, string> = {
   "metric.selected": "SEL",
   "metric.none": "none",
   "left.cards": "Cards",
+  "left.effects": "Effects",
   "left.captions": "Captions",
   "left.project": "Project",
   "left.global": "Global",
@@ -180,6 +209,7 @@ const enUS: Record<StudioMessageKey, string> = {
   "preview.frame": "frame",
   "preview.emptyTitle": "Create or open a project",
   "preview.emptyBody": "Import talking-head footage to start a real Remotion preview.",
+  "preview.resizeTimeline": "Drag to resize Preview and Timeline",
   "library.title": "Effect Templates",
   "library.remotion": "Remotion",
   "library.hyperframes": "HyperFrames",
@@ -202,13 +232,34 @@ const enUS: Record<StudioMessageKey, string> = {
   "inspector.content": "Content",
   "inspector.timing": "Timing",
   "inspector.style": "Style",
-  "inspector.layout": "Layout & Size",
+  "inspector.layout": "Layout",
   "inspector.start": "Start Frame",
   "inspector.duration": "Duration Frames",
   "inspector.engine": "Engine",
   "inspector.category": "Category",
   "inspector.delete": "Delete This Card",
   "inspector.updated": "Parameters updated",
+  "layout.x": "Position X",
+  "layout.y": "Position Y",
+  "layout.scale": "Scale",
+  "layout.opacity": "Opacity",
+  "layout.anchor": "Anchor",
+  "layout.anchor.topLeft": "Top Left",
+  "layout.anchor.top": "Top",
+  "layout.anchor.topRight": "Top Right",
+  "layout.anchor.left": "Left",
+  "layout.anchor.center": "Center",
+  "layout.anchor.right": "Right",
+  "layout.anchor.bottomLeft": "Bottom Left",
+  "layout.anchor.bottom": "Bottom",
+  "layout.anchor.bottomRight": "Bottom Right",
+  "preset.title": "Preset",
+  "preset.load": "Load Presets",
+  "preset.none": "No presets",
+  "preset.apply": "Apply Preset",
+  "preset.applied": "Preset applied",
+  "preset.saveCurrent": "Save Current",
+  "preset.namePlaceholder": "Preset name",
   "caption.title": "Caption Parameters",
   "caption.preset": "Preset",
   "caption.emphasis": "Emphasis",
@@ -272,24 +323,29 @@ const enUS: Record<StudioMessageKey, string> = {
   "workspace.cards": "Cards",
   "workspace.subtitles": "Captions",
   "workspace.ai": "AI",
-  "workspace.assets": "Assets"
+  "workspace.assets": "Assets",
+  "selection.video": "Video",
+  "selection.caption": "Caption",
+  "selection.motion": "Motion",
+  "selection.broll": "B-roll",
+  "selection.audio": "Audio"
 };
 
-const catalogs: Record<StudioLocale, Record<StudioMessageKey, string>> = {"zh-CN": zhCN, "en-US": enUS};
+const catalogs:Record<StudioLocale,Record<StudioMessageKey,string>>={"zh-CN":zhCN,"en-US":enUS};
 
-export const translateStudio = (locale: StudioLocale, key: StudioMessageKey, variables?: Record<string, string | number>) => {
-  let value = catalogs[locale][key] ?? enUS[key] ?? key;
-  if (variables) for (const [name, replacement] of Object.entries(variables)) value = value.replaceAll(`{${name}}`, String(replacement));
+export const translateStudio=(locale:StudioLocale,key:StudioMessageKey,variables?:Record<string,string|number>)=>{
+  let value=catalogs[locale][key]??enUS[key]??key;
+  if(variables)for(const[name,replacement]of Object.entries(variables))value=value.replaceAll(`{${name}}`,String(replacement));
   return value;
 };
 
-const effectNames: Record<string, {zh: string; en: string}> = {
-  "big-number": {zh: "核心大数字", en: "Big Number"},
-  "metric-focus": {zh: "指标聚焦", en: "Metric Focus"},
-  "keyword-impact": {zh: "关键词冲击", en: "Keyword Impact"},
-  "lower-third": {zh: "人物信息条", en: "Lower Third"},
-  "process-flow": {zh: "流程演示", en: "Process Flow"},
-  "map-route": {zh: "地图路线", en: "Map Route"}
+const effectNames:Record<string,{zh:string;en:string}>={
+  "big-number":{zh:"核心大数字",en:"Big Number"},
+  "metric-focus":{zh:"指标聚焦",en:"Metric Focus"},
+  "keyword-impact":{zh:"关键词冲击",en:"Keyword Impact"},
+  "lower-third":{zh:"人物信息条",en:"Lower Third"},
+  "process-flow":{zh:"流程演示",en:"Process Flow"},
+  "map-route":{zh:"地图路线",en:"Map Route"}
 };
 
-export const translateEffectName = (locale: StudioLocale, id: string, fallback: string) => effectNames[id]?.[locale === "zh-CN" ? "zh" : "en"] ?? fallback;
+export const translateEffectName=(locale:StudioLocale,id:string,fallback:string)=>effectNames[id]?.[locale==="zh-CN"?"zh":"en"]??fallback;
