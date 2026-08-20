@@ -25,20 +25,20 @@ Use one of the previously accepted real V1 projects, preferably the full-chain t
 
 At 1920x1080:
 
-- [ ] top status bar remains one compact row
-- [ ] left panel, center preview, right Inspector are all visible
-- [ ] bottom Timeline is visible without page-level scrolling
-- [ ] central preview is the largest visual region
-- [ ] right Inspector can scroll independently
-- [ ] left library can scroll independently
-- [ ] Timeline remains usable with multiple clips
-- [ ] no overlap between top actions and metrics
+- [x] top status bar remains one compact row
+- [x] left panel, center preview, right Inspector are all visible
+- [x] bottom Timeline is visible without page-level scrolling
+- [x] central preview is the largest visual region
+- [x] right Inspector can scroll independently
+- [x] left library can scroll independently
+- [x] Timeline remains usable with multiple clips
+- [x] no overlap between top actions and metrics
 
 At 1440x900:
 
-- [ ] core edit workflow is still usable
-- [ ] no critical controls are clipped
-- [ ] responsive hiding behavior is acceptable
+- [x] core edit workflow is still usable
+- [x] no critical controls are clipped
+- [x] responsive hiding behavior is acceptable
 
 Capture full-screen screenshots in both resolutions.
 
@@ -46,104 +46,104 @@ Capture full-screen screenshots in both resolutions.
 
 Compare against the supplied Overlay Studio references for structural feel, not pixel cloning:
 
-- [ ] near-black flat workstation surfaces
-- [ ] thin dividers and low-radius controls
-- [ ] orange-red active/focus state is clear
-- [ ] UI does not look like large SaaS dashboard cards
-- [ ] metric labels use compact mono treatment
-- [ ] parameter Inspector feels dense but readable
-- [ ] Timeline has professional editor density
-- [ ] light theme remains usable and does not reduce contrast below acceptable levels
+- [x] near-black flat workstation surfaces
+- [x] thin dividers and low-radius controls
+- [x] orange-red active/focus state is clear
+- [x] UI does not look like large SaaS dashboard cards
+- [x] metric labels use compact mono treatment
+- [x] parameter Inspector feels dense but readable
+- [x] Timeline has professional editor density
+- [x] light theme remains usable and does not reduce contrast below acceptable levels
 
 ## C. Chinese / English acceptance
 
 Default / Chinese:
 
-- [ ] top navigation Chinese labels
-- [ ] left project/global/assets labels Chinese
-- [ ] Effect Library labels and built-in effect names Chinese
-- [ ] Timeline controls and track names Chinese
-- [ ] right Inspector section labels Chinese
-- [ ] Caption Inspector Chinese
-- [ ] Render controls Chinese
-- [ ] video-use panel Chinese
-- [ ] AI Visual Planner Chinese
-- [ ] My Assets / preset operations Chinese
+- [x] top navigation Chinese labels
+- [x] left project/global/assets labels Chinese
+- [x] Effect Library labels and built-in effect names Chinese
+- [x] Timeline controls and track names Chinese
+- [x] right Inspector section labels Chinese
+- [x] Caption Inspector Chinese
+- [x] Render controls Chinese
+- [x] video-use panel Chinese
+- [x] AI Visual Planner Chinese
+- [x] My Assets / preset operations Chinese
 
 Switch to English:
 
-- [ ] the above primary operational surfaces switch to English immediately
-- [ ] Project content / user-authored video text is NOT translated or modified
-- [ ] selected clip and Project state are unchanged
-- [ ] language selection survives browser reload
-- [ ] `document.documentElement.lang` matches the selected locale
+- [x] the above primary operational surfaces switch to English immediately
+- [x] Project content / user-authored video text is NOT translated or modified
+- [x] selected clip and Project state are unchanged
+- [x] language selection survives browser reload
+- [x] `document.documentElement.lang` matches the selected locale
 
 ## D. Theme acceptance
 
-- [ ] Dark → Light updates the entire workstation shell
-- [ ] Light → Dark updates the entire workstation shell
-- [ ] theme survives reload
-- [ ] Project JSON is unchanged by theme switch
-- [ ] locale/theme preferences are stored outside Project JSON
+- [x] Dark → Light updates the entire workstation shell
+- [x] Light → Dark updates the entire workstation shell
+- [x] theme survives reload
+- [x] Project JSON is unchanged by theme switch
+- [x] locale/theme preferences are stored outside Project JSON
 
 ## E. Workstation metrics
 
 With a project containing Motion clips:
 
-- [ ] TIME follows current Remotion frame
-- [ ] CARDS equals enabled Motion clip count
-- [ ] DENSITY is Motion cards/minute
-- [ ] PEAK equals maximum concurrent Motion clips
-- [ ] SEL changes when a Timeline clip is selected
-- [ ] no metric mutates Project state
+- [x] TIME follows current Remotion frame
+- [x] CARDS equals enabled Motion clip count
+- [x] DENSITY is Motion cards/minute
+- [x] PEAK equals maximum concurrent Motion clips
+- [x] SEL changes when a Timeline clip is selected
+- [x] no metric mutates Project state
 
 ## F. Effect Library
 
-- [ ] Effect search filters by name / ID / category / bilingual built-in name
-- [ ] category chips filter correctly
-- [ ] clicking a Remotion effect inserts at the current playhead
-- [ ] Effects workspace shows a wider catalog grid
-- [ ] HyperFrames cards still render/add through the existing pipeline
-- [ ] no effect is silently duplicated by a single click
+- [x] Effect search filters by name / ID / category / bilingual built-in name
+- [x] category chips filter correctly
+- [x] clicking a Remotion effect inserts at the current playhead
+- [x] Effects workspace shows a wider catalog grid
+- [x] HyperFrames cards still render/add through the existing pipeline
+- [x] no effect is silently duplicated by a single click
 
 ## G. Inspector
 
 Select a Remotion Motion clip:
 
-- [ ] selected card identity is visible
-- [ ] Start Frame updates Timeline / Player through Project Command
-- [ ] Duration Frames updates Timeline / Player through Project Command
-- [ ] Content fields update preview
-- [ ] Style fields update preview
-- [ ] Timing fields render in the correct group
-- [ ] delete card works and clears selection
+- [x] selected card identity is visible
+- [x] Start Frame updates Timeline / Player through Project Command
+- [x] Duration Frames updates Timeline / Player through Project Command
+- [x] Content fields update preview
+- [x] Style fields update preview
+- [x] Timing fields render in the correct group
+- [x] delete card works and clears selection
 
 Select a Caption clip:
 
-- [ ] Caption timing controls work
-- [ ] Primary / Minimal / Bold work
-- [ ] emphasis selection works
-- [ ] keyword editing persists
-- [ ] delete works
+- [x] Caption timing controls work
+- [x] Primary / Minimal / Bold work
+- [x] emphasis selection works
+- [x] keyword editing persists
+- [x] delete works
 
 ## H. Existing V1 regression smoke
 
 Do not redo full V1 acceptance; verify no UI rewrite broke the chain:
 
-- [ ] real MP4 opens and Player plays/seeks
-- [ ] SRT/VTT project state still loads
-- [ ] Timeline drag/resize persists
-- [ ] video-use panel can still access existing workflow
-- [ ] AI Visual Plan still generates/reviews/applies
-- [ ] local preset list still loads/uses
-- [ ] final MP4 render can still be started
-- [ ] alpha WebM render can still be started
+- [x] real MP4 opens and Player plays/seeks
+- [x] SRT/VTT project state still loads
+- [x] Timeline drag/resize persists
+- [x] video-use panel can still access existing workflow
+- [x] AI Visual Plan still generates/reviews/applies
+- [x] local preset list still loads/uses
+- [x] final MP4 render can still be started
+- [x] alpha WebM render can still be started
 
 ## I. JSON export
 
-- [ ] Export JSON downloads the current Project JSON
-- [ ] exported file validates against current Project schema
-- [ ] exported JSON contains project-relative asset paths only
+- [x] Export JSON downloads the current Project JSON
+- [x] exported file validates against current Project schema
+- [x] exported JSON contains project-relative asset paths only
 
 ## Final gate
 
@@ -152,11 +152,27 @@ Record issues as `UI-001`, `UI-002`, ... and fix only real V1.1 UI/i18n regressi
 Final result:
 
 ```text
-CODE COMPLETE: PASS / FAIL
-CLOUD VERIFIED: PASS / FAIL
-LOCAL UI VERIFIED: PASS / FAIL
-I18N VERIFIED: PASS / FAIL
-V1 REGRESSION SMOKE: PASS / FAIL
+CODE COMPLETE: PASS
+CLOUD VERIFIED: PENDING CI
+LOCAL UI VERIFIED: PASS
+I18N VERIFIED: PASS
+V1 REGRESSION SMOKE: PASS
 ```
+
+## Acceptance record — 2026-08-20
+
+- Project: `v1-rough-cut-validation-98c8f21e` (`V1 Rough Cut Validation`)
+- Screenshots:
+  - `E:\Video-OS-Data\validation-evidence\v1.1-ui\01-1920x1080-zh-dark.png`
+  - `E:\Video-OS-Data\validation-evidence\v1.1-ui\02-1920x1080-en-dark.png`
+  - `E:\Video-OS-Data\validation-evidence\v1.1-ui\03-1920x1080-zh-light.png`
+  - `E:\Video-OS-Data\validation-evidence\v1.1-ui\04-1440x900-zh-dark.png`
+- Exported JSON: schema validation PASS; 6 assets, 5 tracks, 0 absolute asset paths.
+- Final render smoke: `f46caaac-0111-462c-b72c-c4d939b564d4` completed at 100%.
+- Alpha render smoke: `db29fc8b-c45c-4753-9736-38c56c2a0fc2` completed at 100%.
+
+### Issues
+
+- `UI-001` — Persisted locale/theme were read during the first client render, so non-default preferences disagreed with the server-rendered Chinese/dark shell and caused a React hydration mismatch. Fixed by using `useSyncExternalStore` with stable server snapshots, browser-storage snapshots, a same-window preference event, and a layout effect for `<html>` attributes. Reload regression in English/light and Chinese/dark no longer reports a hydration error.
 
 Do not merge PR #2 until these gates are PASS and the user approves the UI direction from screenshots.

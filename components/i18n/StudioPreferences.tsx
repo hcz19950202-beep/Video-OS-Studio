@@ -1,6 +1,6 @@
 "use client";
 
-import {createContext,useContext,useEffect,useMemo,useState} from "react";
+import {createContext,useContext,useLayoutEffect,useMemo,useSyncExternalStore} from "react";
 import {translateStudio,type StudioLocale,type StudioMessageKey,type StudioTheme} from "@/lib/i18n/studio";
 
 type StudioPreferencesValue={
@@ -16,6 +16,7 @@ type StudioPreferencesValue={
 const StudioPreferencesContext=createContext<StudioPreferencesValue|null>(null);
 const LOCALE_KEY="video-os-studio-locale";
 const THEME_KEY="video-os-studio-theme";
+const PREFERENCES_EVENT="video-os-studio-preferences";
 
 const readLocale=():StudioLocale=>{
   if(typeof window==="undefined")return"zh-CN";
@@ -29,24 +30,39 @@ const readTheme=():StudioTheme=>{
   return value==="light"||value==="dark"?value:"dark";
 };
 
-export const StudioPreferencesProvider=({children}:{children:React.ReactNode})=>{
-  const[locale,setLocaleState]=useState<StudioLocale>(readLocale);
-  const[theme,setThemeState]=useState<StudioTheme>(readTheme);
+const getServerLocale=():StudioLocale=>"zh-CN";
+const getServerTheme=():StudioTheme=>"dark";
 
-  useEffect(()=>{
+const subscribePreferences=(notify:()=>void)=>{
+  window.addEventListener("storage",notify);
+  window.addEventListener(PREFERENCES_EVENT,notify);
+  return()=>{
+    window.removeEventListener("storage",notify);
+    window.removeEventListener(PREFERENCES_EVENT,notify);
+  };
+};
+
+const persistPreference=(key:string,value:string)=>{
+  window.localStorage.setItem(key,value);
+  window.dispatchEvent(new Event(PREFERENCES_EVENT));
+};
+
+export const StudioPreferencesProvider=({children}:{children:React.ReactNode})=>{
+  const locale=useSyncExternalStore(subscribePreferences,readLocale,getServerLocale);
+  const theme=useSyncExternalStore(subscribePreferences,readTheme,getServerTheme);
+
+  useLayoutEffect(()=>{
     document.documentElement.dataset.studioTheme=theme;
     document.documentElement.lang=locale;
-    window.localStorage.setItem(LOCALE_KEY,locale);
-    window.localStorage.setItem(THEME_KEY,theme);
   },[locale,theme]);
 
   const value=useMemo<StudioPreferencesValue>(()=>({
     locale,
     theme,
-    setLocale:(next)=>setLocaleState(next),
-    toggleLocale:()=>setLocaleState(current=>current==="zh-CN"?"en-US":"zh-CN"),
-    setTheme:(next)=>setThemeState(next),
-    toggleTheme:()=>setThemeState(current=>current==="dark"?"light":"dark"),
+    setLocale:(next)=>persistPreference(LOCALE_KEY,next),
+    toggleLocale:()=>persistPreference(LOCALE_KEY,locale==="zh-CN"?"en-US":"zh-CN"),
+    setTheme:(next)=>persistPreference(THEME_KEY,next),
+    toggleTheme:()=>persistPreference(THEME_KEY,theme==="dark"?"light":"dark"),
     t:(key,variables)=>translateStudio(locale,key,variables)
   }),[locale,theme]);
 
