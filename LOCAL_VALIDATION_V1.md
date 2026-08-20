@@ -57,7 +57,7 @@ Status:
 
 ```text
 CODE COMPLETE: PASS
-CLOUD VERIFIED: PENDING (Acceptance Closure changes await GitHub CI)
+CLOUD VERIFIED: PASS (Acceptance Closure run 32325988463 succeeded)
 LOCAL VERIFIED: PASS
 PRD ACCEPTED: PASS
 ```
@@ -290,7 +290,7 @@ HyperFrames doctor result is `PARTIAL_ENV`: version, Node, CPU, disk, FFmpeg, FF
 
 ```text
 CODE COMPLETE: PASS
-CLOUD VERIFIED: PENDING — Acceptance Closure commit has not yet completed GitHub CI
+CLOUD VERIFIED: PASS — Acceptance Closure run 32325988463 succeeded (install, lint, typecheck, 54 tests, build)
 LOCAL VERIFIED: PASS
 PRD ACCEPTED: PASS
 RENDER VERIFIED: PASS
@@ -359,11 +359,11 @@ npm run test: PASS (19 files, 54 tests)
 npm run build: PASS (Next.js 16.3.1 production build)
 ```
 
-Final gate before the Acceptance Closure commit reaches GitHub CI:
+Final gate after the Acceptance Closure commit completed GitHub CI run `32325988463`:
 
 ```text
 CODE COMPLETE: PASS
-CLOUD VERIFIED: PENDING
+CLOUD VERIFIED: PASS
 LOCAL VERIFIED: PASS
 PRD ACCEPTED: PASS
 RENDER VERIFIED: PASS

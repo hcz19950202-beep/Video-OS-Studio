@@ -19,7 +19,7 @@
 - 默认分支：`main`
 - 当前开发分支：`feature/phase-0-foundation`
 - 当前 PR：<https://github.com/hcz19950202-beep/Video-OS-Studio/pull/1>
-- Acceptance Closure 基线：`c06a43f`；本轮代码/验收提交与最终 CI run 会在推送后写回本节。
+- Acceptance Closure 代码提交：`3ae1fc6`；GitHub CI run `32325988463` 已通过安装、Lint、TypeScript、54 tests 和 production build。
 - 当前 PR 不要擅自合并到 `main`；继续在现有 feature 分支开发并推送即可。
 
 ### 最近的重要提交
@@ -40,7 +40,7 @@
 | Gate | 状态 | 证据 |
 | --- | --- | --- |
 | `CODE COMPLETE` | PASS | V1 代码、真实渲染修复和回归已完成 |
-| `CLOUD VERIFIED` | PENDING | Acceptance Closure commit 推送后等待新的 GitHub Actions run |
+| `CLOUD VERIFIED` | PASS | Acceptance Closure run `32325988463` 成功 |
 | `LOCAL VERIFIED` | PASS | `LV-005` 精确媒体同步、全部剩余 checklist 和最终真实渲染均通过 |
 | `PRD ACCEPTED` | PASS | V1 Acceptance Closure 的必要项全部通过 |
 | `RENDER VERIFIED` | PASS | final MP4 通过；VP9 Overlay WebM 已用 Chromium 原生 `<video>` 棋盘格验证透明度 |
@@ -55,7 +55,7 @@ npm run test       # 19 个测试文件，54 个测试全部通过
 npm run build      # Next.js 16.3.1 production build 通过
 ~~~
 
-上一基线的公开 CI 已通过安装、Lint、TypeScript、测试和生产构建。本轮 Acceptance Closure 的 GitHub CI 在提交推送后等待并写回 run ID；项目运行基线仍为 Node 24。
+Acceptance Closure 的公开 CI run `32325988463` 已通过安装、Lint、TypeScript、54 tests 和 production build；项目运行基线为 Node 24。
 
 ## 4. 已经完成了什么
 
