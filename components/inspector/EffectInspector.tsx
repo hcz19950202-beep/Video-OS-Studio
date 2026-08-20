@@ -1,1 +1,66 @@
-"use client";import type {ProjectCommand} from "@/lib/project/commands";import type {Project} from "@/schemas/project";import {EFFECTS_BY_ID} from "@/shared/effects/registry";import type {EffectField} from "@/shared/effects/types";import {useSelectionStore} from "@/store/selection-store";import {CaptionInspector} from "./CaptionInspector";const coerce=(field:EffectField,value:string|boolean)=>field.type==="number"||field.type==="slider"?Number(value):value;export const EffectInspector=({project,onCommand}:{project:Project;onCommand:(c:ProjectCommand,m:string)=>Promise<void>})=>{const selected=useSelectionStore(s=>s.selectedClipId);const clip=project.tracks.flatMap(t=>t.clips).find(c=>c.id===selected);if(clip?.type==="caption")return <CaptionInspector project={project} onCommand={onCommand}/>;if(!clip||clip.type!=="motion"||clip.engine!=="remotion")return <div className="inspector-empty"><h2>Inspector</h2><p>Select a Remotion Motion or Caption clip.</p></div>;const effect=EFFECTS_BY_ID[clip.effectId];if(!effect)return <div className="inspector-empty"><h2>Inspector</h2><p>Effect definition not found.</p></div>;let props:Record<string,unknown>;try{props=effect.schema.parse(clip.props);}catch{props=effect.defaults;}const update=(key:string,value:string|boolean,field:EffectField)=>{const next={...props,[key]:coerce(field,value)};const parsed=effect.schema.safeParse(next);if(parsed.success)void onCommand({type:"update-motion-props",clipId:clip.id,props:parsed.data},`${effect.name} updated`);};return <div className="effect-inspector"><div className="panel-heading"><h2>{effect.name}</h2><span className="asset-kind">schema</span></div>{effect.fields.map(field=><label className="inspector-field" key={field.key}><span>{field.label}</span>{field.type==="switch"?<input type="checkbox" checked={Boolean(props[field.key])} onChange={e=>update(field.key,e.target.checked,field)}/>:field.type==="select"?<select value={String(props[field.key]??"")} onChange={e=>update(field.key,e.target.value,field)}>{field.options?.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}</select>:field.type==="slider"?<div className="slider-field"><input type="range" min={field.min} max={field.max} step={field.step} value={Number(props[field.key]??field.min??0)} onChange={e=>update(field.key,e.target.value,field)}/><output>{String(props[field.key])}</output></div>:<input type={field.type==="color"?"color":field.type==="number"?"number":"text"} min={field.min} max={field.max} step={field.step} value={String(props[field.key]??"")} onChange={e=>update(field.key,e.target.value,field)}/>}</label>)}</div>};
+"use client";
+
+import type {ProjectCommand} from "@/lib/project/commands";
+import type {Project} from "@/schemas/project";
+import {EFFECTS_BY_ID} from "@/shared/effects/registry";
+import type {EffectField} from "@/shared/effects/types";
+import {useSelectionStore} from "@/store/selection-store";
+import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
+import {translateEffectName} from "@/lib/i18n/studio";
+import {CaptionInspector} from "./CaptionInspector";
+
+const coerce=(field:EffectField,value:string|boolean)=>field.type==="number"||field.type==="slider"?Number(value):value;
+const zhFieldLabels:Record<string,string>={label:"标签",value:"核心数值",suffix:"单位",accentColor:"强调色",fontSize:"字号",animationStyle:"动画方式",title:"标题",subtitle:"副标题",keyword:"关键词",name:"名称",role:"身份",color:"颜色",background:"背景",progress:"进度",size:"大小",scale:"缩放"};
+const zhOptions:Record<string,string>={scale:"缩放",slide:"滑入",left:"左",right:"右",center:"居中"};
+
+const groupForField=(field:EffectField):"content"|"timing"|"style"|"layout"=>{
+  const key=field.key.toLowerCase();
+  if(key.includes("animation")||key.includes("speed")||key.includes("delay")||key.includes("interval"))return"timing";
+  if(key.includes("scale")||key.includes("position")||key==="x"||key==="y"||key.includes("width")||key.includes("height"))return"layout";
+  if(field.type==="color"||key.includes("color")||key.includes("font")||key.includes("background")||key.includes("shadow")||key.includes("glow"))return"style";
+  return"content";
+};
+
+export const EffectInspector=({project,onCommand}:{project:Project;onCommand:(c:ProjectCommand,m:string)=>Promise<void>})=>{
+  const selected=useSelectionStore(state=>state.selectedClipId);
+  const selectClip=useSelectionStore(state=>state.selectClip);
+  const{locale,t}=useStudioPreferences();
+  const clip=project.tracks.flatMap(track=>track.clips).find(item=>item.id===selected);
+  if(clip?.type==="caption")return <CaptionInspector project={project} onCommand={onCommand}/>;
+  if(!clip||clip.type!=="motion"||clip.engine!=="remotion")return <div className="inspector-empty os-inspector-empty"><small>INSPECTOR</small><h2>{t("inspector.title")}</h2><p>{t("inspector.empty")}</p></div>;
+  const effect=EFFECTS_BY_ID[clip.effectId];
+  if(!effect)return <div className="inspector-empty"><h2>{t("inspector.title")}</h2><p>{t("inspector.missing")}</p></div>;
+
+  let props:Record<string,unknown>;
+  try{props=effect.schema.parse(clip.props);}catch{props=effect.defaults;}
+
+  const update=(key:string,value:string|boolean,field:EffectField)=>{
+    const next={...props,[key]:coerce(field,value)};
+    const parsed=effect.schema.safeParse(next);
+    if(parsed.success)void onCommand({type:"update-motion-props",clipId:clip.id,props:parsed.data},`${translateEffectName(locale,effect.id,effect.name)} · ${t("inspector.updated")}`);
+  };
+
+  const updateTiming=(patch:{startFrame?:number;durationInFrames?:number})=>{
+    const startFrame=Math.max(0,Math.min(project.canvas.durationInFrames-1,patch.startFrame??clip.startFrame));
+    const durationInFrames=Math.max(1,Math.min(project.canvas.durationInFrames-startFrame,patch.durationInFrames??clip.durationInFrames));
+    void onCommand({type:"update-clip-timing",clipId:clip.id,startFrame,durationInFrames},t("timeline.updated"));
+  };
+
+  const renderField=(field:EffectField)=>{
+    const label=locale==="zh-CN"?(zhFieldLabels[field.key]??field.label):field.label;
+    return <label className="inspector-field" key={field.key}><span>{label}</span>{field.type==="switch"?<input type="checkbox" checked={Boolean(props[field.key])} onChange={event=>update(field.key,event.target.checked,field)}/>:field.type==="select"?<select value={String(props[field.key]??"")} onChange={event=>update(field.key,event.target.value,field)}>{field.options?.map(option=><option value={option.value} key={option.value}>{locale==="zh-CN"?(zhOptions[option.value]??option.label):option.label}</option>)}</select>:field.type==="slider"?<div className="slider-field"><input type="range" min={field.min} max={field.max} step={field.step} value={Number(props[field.key]??field.min??0)} onChange={event=>update(field.key,event.target.value,field)}/><output>{String(props[field.key])}</output></div>:<input type={field.type==="color"?"color":field.type==="number"?"number":"text"} min={field.min} max={field.max} step={field.step} value={String(props[field.key]??"")} onChange={event=>update(field.key,event.target.value,field)}/>}</label>;
+  };
+
+  const grouped={content:effect.fields.filter(field=>groupForField(field)==="content"),timing:effect.fields.filter(field=>groupForField(field)==="timing"),style:effect.fields.filter(field=>groupForField(field)==="style"),layout:effect.fields.filter(field=>groupForField(field)==="layout")};
+
+  return <div className="effect-inspector os-inspector">
+    <header className="inspector-card-head"><small>{t("inspector.title")} · {clip.id.slice(0,14)}</small><div><span className="inspector-dot"/><h2>{translateEffectName(locale,effect.id,effect.name)}</h2><em>{effect.category}</em></div></header>
+
+    <section className="inspector-section"><div className="inspector-section-title"><strong>{t("inspector.timing")}</strong><small>TIMING</small></div><div className="timing-grid"><label><span>{t("inspector.start")}</span><input type="number" min={0} max={project.canvas.durationInFrames-1} defaultValue={clip.startFrame} key={`${clip.id}-start-${clip.startFrame}`} onBlur={event=>updateTiming({startFrame:Number(event.target.value)})}/></label><label><span>{t("inspector.duration")}</span><input type="number" min={1} max={project.canvas.durationInFrames} defaultValue={clip.durationInFrames} key={`${clip.id}-duration-${clip.durationInFrames}`} onBlur={event=>updateTiming({durationInFrames:Number(event.target.value)})}/></label></div></section>
+
+    {(["content","timing","style","layout"] as const).map(group=>grouped[group].length?<section className="inspector-section" key={group}><div className="inspector-section-title"><strong>{t(`inspector.${group}`)}</strong><small>{group.toUpperCase()}</small></div>{grouped[group].map(renderField)}</section>:null)}
+
+    <section className="inspector-meta"><div><span>{t("inspector.engine")}</span><strong>Remotion</strong></div><div><span>{t("inspector.category")}</span><strong>{effect.category}</strong></div></section>
+    <button className="inspector-delete" onClick={()=>void onCommand({type:"remove-clip",clipId:clip.id},t("timeline.deleted")).then(()=>selectClip(null))}>▱ {t("inspector.delete")}</button>
+  </div>;
+};
