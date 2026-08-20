@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {MotionTransformSchema} from "@/schemas/clip";
 
 export const AssetPresetSchema=z.object({
   id:z.string().min(1),
@@ -6,6 +7,7 @@ export const AssetPresetSchema=z.object({
   engine:z.enum(["remotion","hyperframes"]),
   effectId:z.string().min(1),
   props:z.record(z.string(),z.unknown()),
+  transform:MotionTransformSchema.optional(),
   durationInFrames:z.number().int().positive(),
   favorite:z.boolean().default(false),
   status:z.enum(["draft","production-ready"]).default("draft"),
