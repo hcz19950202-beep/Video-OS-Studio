@@ -57,7 +57,7 @@ export const StudioPreview=({project}:{project:Project})=>{
   const ratio=`${project.canvas.width} / ${project.canvas.height}`;
   const end=Math.max(0,project.canvas.durationInFrames-1);
   const key=`${project.project.id}-${project.canvas.durationInFrames}-${project.canvas.width}x${project.canvas.height}`;
-  const fitStyle=zoom==="fit"&&fitSize?{width:`${fitSize.width}px`,height:`${fitSize.height}px`}:{width:`${Math.min(project.canvas.width,1080)}px`,height:`${Math.min(project.canvas.height,1920)}px`};
+  const fitStyle=zoom==="fit"&&fitSize?{width:`${fitSize.width}px`,height:`${fitSize.height}px`}:{width:`${project.canvas.width}px`,height:`${project.canvas.height}px`};
 
   return <div className="player-workspace">
     <div className="player-toolbar"><div className="time-readout"><strong>{formatStudioTime(currentFrame,project.canvas.fps)}</strong><span>/ {formatStudioTime(end,project.canvas.fps)} · {t("preview.frame")} {currentFrame}/{end}</span></div><div className="segmented compact preview-view-controls"><button className={zoom==="fit"?"active":""} onClick={()=>setZoom("fit")}>{t("preview.fit")}</button><button className={zoom==="100"?"active":""} onClick={()=>setZoom("100")}>{t("preview.actual")}</button><button className={showSafeZone?"active":""} onClick={()=>setShowSafeZone(value=>!value)}>{t("preview.safe")}</button></div></div>
