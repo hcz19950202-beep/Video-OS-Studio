@@ -10,7 +10,10 @@ export const LanguageConfigSchema=z.object({
   captionTracks:z.array(CaptionLanguageTrackSchema).default([]),
 });
 
-export const DEFAULT_LANGUAGE_CONFIG={sourceLanguage:"unknown",captionTracks:[]} as const;
-
 export type CaptionLanguageTrack=z.infer<typeof CaptionLanguageTrackSchema>;
 export type LanguageConfig=z.infer<typeof LanguageConfigSchema>;
+
+export const DEFAULT_LANGUAGE_CONFIG:LanguageConfig={
+  sourceLanguage:"unknown",
+  captionTracks:[],
+};
