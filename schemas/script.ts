@@ -1,5 +1,12 @@
 import {z} from "zod";
 
+export const ScriptSourceRangeSchema=z.object({
+  startFrame:z.number().int().nonnegative(),
+  endFrame:z.number().int().positive(),
+}).superRefine((range,ctx)=>{
+  if(range.endFrame<=range.startFrame)ctx.addIssue({code:"custom",path:["endFrame"],message:"endFrame must be greater than startFrame"});
+});
+
 export const TranscriptWordSchema=z.object({
   id:z.string().min(1),
   text:z.string(),
@@ -21,9 +28,11 @@ export const ScriptSegmentSchema=z.object({
 
 export const ScriptDocumentSchema=z.object({
   transcriptAssetId:z.string().min(1).optional(),
+  baseSourceRanges:z.array(ScriptSourceRangeSchema).default([]),
   segments:z.array(ScriptSegmentSchema).default([]),
 });
 
+export type ScriptSourceRange=z.infer<typeof ScriptSourceRangeSchema>;
 export type TranscriptWord=z.infer<typeof TranscriptWordSchema>;
 export type ScriptSegment=z.infer<typeof ScriptSegmentSchema>;
 export type ScriptDocument=z.infer<typeof ScriptDocumentSchema>;
