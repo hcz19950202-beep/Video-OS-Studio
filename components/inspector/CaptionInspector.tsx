@@ -11,7 +11,7 @@ export const CaptionInspector=({project,onCommand}:{project:Project;onCommand:(c
   const id=useSelectionStore(state=>state.selectedClipId);const selectClip=useSelectionStore(state=>state.selectClip);const{t}=useStudioPreferences();const clip=project.tracks.flatMap(track=>track.clips).find(item=>item.id===id);if(!clip||clip.type!=="caption")return null;
   const update=(patch:{preset?:"primary"|"minimal"|"bold";emphasis?:"none"|"numbers"|"keywords"|"both";keywords?:string[];style?:CaptionVisualStyle})=>void onCommand({type:"update-caption-style",clipId:clip.id,...patch},t("inspector.updated"));
   const updateTiming=(patch:{startFrame?:number;durationInFrames?:number})=>{const startFrame=Math.max(0,Math.min(project.canvas.durationInFrames-1,patch.startFrame??clip.startFrame));const durationInFrames=Math.max(1,Math.min(project.canvas.durationInFrames-startFrame,patch.durationInFrames??clip.durationInFrames));void onCommand({type:"update-clip-timing",clipId:clip.id,startFrame,durationInFrames},t("timeline.updated"));};
-  const style=clip.style;
+  const style=clip.style??{};
   return <div className="effect-inspector os-inspector">
     <header className="inspector-card-head"><small>{t("inspector.title")} · {clip.id.slice(0,14)}</small><div><span className="inspector-dot caption"/><h2>{t("caption.title")}</h2><em>{clip.preset}</em></div></header>
     <LinkedStyleControls project={project} clip={clip} onCommand={onCommand}/>
