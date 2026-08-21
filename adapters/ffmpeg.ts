@@ -1,57 +1,15 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import type { FfmpegAdapter, MediaProbeResult } from "@/adapters/contracts";
+import {execFile,spawn} from "node:child_process";
+import {promisify} from "node:util";
+import type {FfmpegAdapter,MediaProbeResult} from "@/adapters/contracts";
+const execFileAsync=promisify(execFile);
+type FfprobeStream={codec_type?:string;width?:number;height?:number;avg_frame_rate?:string;r_frame_rate?:string};type FfprobePayload={streams?:FfprobeStream[];format?:{duration?:string|number}};
+const parseFraction=(value?:string):number|undefined=>{if(!value||value==="0/0")return undefined;const[numeratorText,denominatorText]=value.split("/");const numerator=Number(numeratorText);const denominator=denominatorText===undefined?1:Number(denominatorText);if(!Number.isFinite(numerator)||!Number.isFinite(denominator)||denominator===0)return undefined;const result=numerator/denominator;return Number.isFinite(result)&&result>0?result:undefined;};
+export const parseFfprobeJson=(payload:FfprobePayload):MediaProbeResult=>{const streams=payload.streams??[];const video=streams.find(stream=>stream.codec_type==="video");const durationSeconds=Number(payload.format?.duration??0);if(!Number.isFinite(durationSeconds)||durationSeconds<=0)throw new Error("ffprobe did not return a valid positive media duration");return{durationSeconds,width:video?.width,height:video?.height,fps:parseFraction(video?.avg_frame_rate)??parseFraction(video?.r_frame_rate),hasAudio:streams.some(stream=>stream.codec_type==="audio")};};
 
-const execFileAsync = promisify(execFile);
+const rawWaveformToPeaks=(bytes:Uint8Array,points:number,height:number)=>{if(bytes.length<points*height)throw new Error(`ffmpeg waveform returned ${bytes.length} bytes, expected at least ${points*height}`);const center=(height-1)/2;const half=Math.max(1,center);const peaks:number[]=[];for(let x=0;x<points;x++){let distance=0;for(let y=0;y<height;y++){const value=bytes[y*points+x]??0;if(value>16)distance=Math.max(distance,Math.abs(y-center));}peaks.push(Math.max(.02,Math.min(1,distance/half)));}return peaks;};
 
-type FfprobeStream = {
-  codec_type?: string;
-  width?: number;
-  height?: number;
-  avg_frame_rate?: string;
-  r_frame_rate?: string;
-};
-
-type FfprobePayload = {
-  streams?: FfprobeStream[];
-  format?: { duration?: string | number };
-};
-
-const parseFraction = (value?: string): number | undefined => {
-  if (!value || value === "0/0") return undefined;
-  const [numeratorText, denominatorText] = value.split("/");
-  const numerator = Number(numeratorText);
-  const denominator = denominatorText === undefined ? 1 : Number(denominatorText);
-  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) return undefined;
-  const result = numerator / denominator;
-  return Number.isFinite(result) && result > 0 ? result : undefined;
-};
-
-export const parseFfprobeJson = (payload: FfprobePayload): MediaProbeResult => {
-  const streams = payload.streams ?? [];
-  const video = streams.find((stream) => stream.codec_type === "video");
-  const durationSeconds = Number(payload.format?.duration ?? 0);
-  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
-    throw new Error("ffprobe did not return a valid positive media duration");
-  }
-  return {
-    durationSeconds,
-    width: video?.width,
-    height: video?.height,
-    fps: parseFraction(video?.avg_frame_rate) ?? parseFraction(video?.r_frame_rate),
-    hasAudio: streams.some((stream) => stream.codec_type === "audio"),
-  };
-};
-
-export class NodeFfmpegAdapter implements FfmpegAdapter {
-  constructor(private readonly ffprobePath = process.env.FFPROBE_PATH || "ffprobe") {}
-
-  async probe(inputPath: string): Promise<MediaProbeResult> {
-    const { stdout } = await execFileAsync(
-      this.ffprobePath,
-      ["-v", "error", "-print_format", "json", "-show_streams", "-show_format", inputPath],
-      { windowsHide: true, maxBuffer: 10 * 1024 * 1024 },
-    );
-    return parseFfprobeJson(JSON.parse(stdout) as FfprobePayload);
-  }
+export class NodeFfmpegAdapter implements FfmpegAdapter{
+  constructor(private readonly ffprobePath=process.env.FFPROBE_PATH||"ffprobe",private readonly ffmpegPath=process.env.FFMPEG_PATH||"ffmpeg"){}
+  async probe(inputPath:string):Promise<MediaProbeResult>{const{stdout}=await execFileAsync(this.ffprobePath,["-v","error","-print_format","json","-show_streams","-show_format",inputPath],{windowsHide:true,maxBuffer:10*1024*1024});return parseFfprobeJson(JSON.parse(stdout) as FfprobePayload);}
+  async waveformPeaks(inputPath:string,points:number):Promise<number[]>{const width=Math.max(32,Math.min(1024,Math.round(points)));const height=64;const args=["-v","error","-i",inputPath,"-filter_complex",`aformat=channel_layouts=mono,showwavespic=s=${width}x${height}:colors=white`,"-frames:v","1","-f","rawvideo","-pix_fmt","gray","pipe:1"];const bytes=await new Promise<Uint8Array>((resolve,reject)=>{const child=spawn(this.ffmpegPath,args,{windowsHide:true,stdio:["ignore","pipe","pipe"]});const output:Buffer[]=[];const errors:Buffer[]=[];child.stdout.on("data",chunk=>output.push(Buffer.from(chunk)));child.stderr.on("data",chunk=>errors.push(Buffer.from(chunk)));child.on("error",reject);child.on("close",code=>code===0?resolve(new Uint8Array(Buffer.concat(output))):reject(new Error(`ffmpeg waveform generation failed (${code}): ${Buffer.concat(errors).toString("utf8").slice(-1200)}`)));});return rawWaveformToPeaks(bytes,width,height);}
 }
