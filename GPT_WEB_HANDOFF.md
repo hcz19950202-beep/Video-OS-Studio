@@ -1,199 +1,199 @@
 # Video OS Studio — GPT Web / Local Codex Handoff
 
 > Updated: 2026-08-21 (Asia/Shanghai)  
-> This is the current execution handoff. It supersedes old V1/Phase-0 branch instructions.
+> This is the current execution handoff.
 
 ## 1. Current truth
 
 Repository: `hcz19950202-beep/Video-OS-Studio`
 
-Accepted/merged:
+Accepted and merged:
 
-- V1 core PR #1 — MERGED
-- V1.1 workstation UI/i18n PR #2 — MERGED
-- V2 M0 baseline PR #3 — MERGED
-- V2 M1 Project 2.0/migration PR #4 — MERGED
+- V1 core PR #1
+- V1.1 workstation UI/i18n PR #2
+- V2 M0 baseline PR #3
+- V2 M1 Project 2.0/migration PR #4
+- V2 M2 Script + Scene PR #5
 
-V2 M1 merge commit on `main`:
+Accepted M2 merge commit on `main`:
 
-`cbed17c179c8fb6ace4ba35301f6be17aa232704`
+`80070a792cc2cffb9fd5e71c5f74431a6b142d73`
 
-M1 passed real Windows migration/browser/render acceptance before merge.
+M2 passed real Windows Script/Scene/render/visual acceptance before merge.
 
 Current active milestone:
 
 ```text
-M2 — Text-native Editing
-branch: feature/v2-text-editing
-PR: #5
+M3 — Editor V2
+branch: feature/v2-editor-context
+PR: #6
 ```
 
-Do not restart V1 or M1.
+Do not restart earlier milestones.
 
 ## 2. Non-negotiable architecture
 
 - Node 24 baseline.
-- Durable Project version is `2.0.0`.
-- Internal timing is canonical frames; external seconds only at adapters.
+- Project version `2.0.0`.
+- Internal timing is canonical frames.
+- Durable Project changes use validated Commands / Transactions / bounded services.
 - UI/AI do not mutate Project JSON directly.
-- Durable changes use validated Project Commands / transactions / bounded services.
-- Remotion is master compositor.
-- HyperFrames, video-use and FFmpeg remain behind adapters.
+- Remotion remains master compositor.
+- HyperFrames / video-use / FFmpeg remain behind adapters.
 - repository code and `VIDEO_OS_DATA_ROOT` user/media data stay separate.
-- project paths remain project-relative POSIX paths.
-- Studio UI theme/locale are preferences, not generated-video Brand state.
-- preserve all accepted V1.1 Preview/Timeline/Effect/Render behavior.
+- Studio UI theme/locale are local preferences, distinct from generated-video Brand.
+- preserve V1.1 and accepted M1/M2 behavior.
 - `REUSE > MODIFY > CREATE`.
 
-## 3. V2 product abstraction
+## 3. Product abstraction
 
 Authoritative PRD:
 
 `Video_OS_Studio_V2_AI_Native_Editor_Master_PRD_Rev2.md`
 
-Product direction:
-
 ```text
-Words
-↓
-Meaning
-↓
-Scenes
-↓
-Visual Decisions
-↓
-Clips
-↓
-Render
+Words → Meaning → Scenes → Visual Decisions → Clips → Render
 ```
 
-## 4. Accepted M1 foundation
+## 4. Accepted M2 baseline
 
-Project V2 already contains:
+M2 now provides:
 
-- Script / Transcript Word schema
-- Scene schema
-- Marker schema
-- generated-video Brand schema
-- Linked Style schema
-- Content Language schema
-- V1 → V2 migration
-- multi-context Selection foundation
-- Project Command Transaction / History foundation
+- real video-use word timestamps persisted into editable Script;
+- reversible Script sentence cut/restore;
+- canonical A-roll rebuild;
+- confirmed EDL / Script baseline safety;
+- Script ↔ Player synchronization;
+- semantic tags;
+- auto Scene generation;
+- Scene selection / rename / type / split / merge;
+- Scene Strip above five media tracks;
+- save/restart/reopen persistence;
+- zh-CN/en-US workstation.
 
-Do not redesign these in M2.
+M3 must extend this baseline, not rebuild it.
 
-## 5. M2 cloud implementation
+## 5. M3 cloud implementation
 
-Current branch `feature/v2-text-editing` implements:
+PR #6 implements:
 
-### Script source model
+### Context Inspector
 
-`project.script` now contains stable `baseSourceRanges` plus transcript segments.
-
-This exists so delete/restore is reversible without restoring footage that a confirmed EDL intentionally removed.
-
-`lib/script/model.ts` provides:
-
-- video source-range extraction/merge/subtraction
-- real video-use word seconds → frame-based Script
-- Script sentence grouping
-- source-frame ↔ output-timeline-frame mapping
-- Script segment timeline ranges
-
-### video-use → Script
-
-`VideoUseService.prepare()` now persists a real editable Script from video-use word timestamps.
-
-Confirmed EDL application:
-
-- updates the Script source baseline to the EDL ranges;
-- filters Script words outside the EDL;
-- refuses a new EDL after Script cuts already exist;
-- refuses EDL changes after Scene design begins.
-
-### Reversible spoken-content cuts
-
-`lib/script/editing.ts` rebuilds the canonical Video Track from the Script baseline in one transaction.
-
-A Script sentence can be:
+Right panel now dispatches by active selection:
 
 ```text
-active → removed → active
+Nothing     → Project / Generated Video Brand
+Video       → Video Inspector
+Caption     → Caption Inspector
+Motion      → Remotion/HyperFrames Motion Inspector
+B-roll      → B-roll Inspector
+Audio       → Audio Inspector
+Scene       → Scene Inspector
+Multi       → Common Properties
 ```
 
-Delete/restore is deliberately refused after timing-dependent downstream design exists:
+### Contextual media properties
 
-- Scene
-- Caption
-- Motion
-- B-roll
-- Audio
+Video:
 
-This avoids silently corrupting downstream timing.
+- Fit
+- Volume / Mute
+- Timing
+- X / Y / Scale / Opacity transform
 
-### Script Editor UI
+Caption:
 
-- Script left workspace
-- segment/word counts
-- word click → Player seek
-- Player frame → current-word highlight
-- show/hide removed
-- Remove Sentence / Restore Sentence
-- semantic tags: Keep / Motion / B-roll / Quote / CTA
-- zh-CN / en-US labels
+- existing preset/emphasis/keywords
+- font family / size / weight
+- line height
+- max width
+- position / alignment
+- fill / stroke / shadow / background
+- timing
+- Linked Style
 
-### Scene System
+B-roll:
 
-- automatic semantic Scene generation from active Script
-- Hook/Pain/Solution/Reframe/Proof/Process/Comparison/CTA/Custom types
-- Scene name/type editing
-- Scene selection → Player seek
-- Scene split at Script segment boundary
-- merge with next Scene
-- Script `sceneId` assignments updated atomically
-- Scene Strip above the existing five media tracks
-- Scene is semantic metadata, **not a sixth media track**
+- Fit
+- Volume / Mute
+- Fade In / Out
+- Timing
+- transform
 
-### Existing workstation reused
+Audio:
 
-M2 extends the V1.1 shell:
+- Voice / BGM / SFX role
+- Volume / Mute
+- Fade In / Out
+- Timing
+
+All new fields are additive/optional so accepted V1/M2 clips remain loadable without mass rewriting historical project data.
+
+### Generated Video Brand
+
+Generated-video Brand is separate from Studio UI theme.
+
+Master Composition now consumes Brand for:
+
+- video background/text/body font;
+- caption font/text fallback;
+- Motion primary accent fallback;
+- global Effect Scale;
+- Remotion Motion Speed.
+
+The four built-in Remotion Effects receive `motionSpeed` and scale their animation frame progression by Brand speed.
+
+### Linked Style
+
+Motion and Caption clips can reference `linkedStyleId`.
+
+Resolver order for selecting a linked style reference:
 
 ```text
-Script / Scenes / Assets / Effects / Captions / Project
+direct clip linkedStyleId
+→ Scene styleId fallback
+→ no linked style
 ```
 
-Preview, Effect Library, Motion Inspector and base Timeline remain reused rather than rebuilt.
+A Linked Style is a live reference: updating the shared style changes all bound clips at render time instead of copying edits into every clip.
 
-Right-side Scene Inspector is intentionally **not** part of M2; it belongs to M3.
+### Multi-select
 
-## 6. Cloud verification
+Existing V2 Selection Store is now exposed in Timeline:
 
-PR #5 latest cloud-success run before handoff documentation:
+- Shift+Click toggles clip selection;
+- Shift+drag an empty Timeline lane selects clips intersecting that frame range on that track;
+- 2+ selected clips enter Multi Inspector;
+- Motion Common Properties support Scale / Opacity / Linked Style;
+- bulk edit uses the existing `/transactions` API so one user bulk action = one Project revision.
 
-`32443336571`
+### Rendering
 
-Results:
+Master Composition now also renders accepted contextual B-roll and Audio properties so Inspector state is not fake UI.
 
-- install PASS
-- lint PASS — 0 errors, two existing `<img>` warnings only
-- typecheck PASS
-- tests PASS — **25 files / 74 tests**
-- production build PASS
+## 6. Cloud tests
 
-Cloud CI caught and closed during M2 development:
+New M3 unit coverage proves:
 
-1. Script default/test fixtures missing new `baseSourceRanges`;
-2. old migration assertion not expecting `baseSourceRanges: []`;
-3. Chinese CTA classification missing natural phrase `发给我们`;
-4. video-use Prepare did not previously have a regression proving Script persistence — regression added.
+- Video/B-roll/Audio contextual property persistence;
+- live Motion Linked Style resolution;
+- generated Brand Effect Scale;
+- Caption Brand + Linked Style resolution;
+- bulk multi-edit = one revision.
 
-After the documentation commits, use the newest PR #5 head/CI as the actual handoff baseline.
+The latest successful cloud run before final handoff documentation passed:
+
+- lint;
+- typecheck;
+- 26 test files / 78 tests;
+- production build.
+
+Because the validation/handoff documentation commits advance the branch, Local Codex must use the newest PR #6 head and newest successful CI as the real handoff baseline.
 
 ## 7. Current gates
 
 ```text
-CODE COMPLETE: PASS for M2 cloud scope
+CODE COMPLETE: PASS for M3 cloud scope
 CLOUD VERIFIED: PASS before final docs; newest head must also be green
 LOCAL VERIFIED: PENDING
 PRD ACCEPTED: PENDING
@@ -201,73 +201,63 @@ RENDER VERIFIED: PENDING
 VISUAL ACCEPTED: PENDING
 ```
 
-Do not merge PR #5 yet.
+Do not merge PR #6.
 
 ## 8. Local Codex ownership now
 
-Local Codex should now own this branch until M2 validation returns.
+Local Codex owns `feature/v2-editor-context` after final cloud CI.
 
 Read and execute:
 
-`LOCAL_VALIDATION_V2_M2.md`
+`LOCAL_VALIDATION_V2_M3.md`
 
 Required real-Windows proof includes:
 
-- real talking-head MP4
-- real video-use Transcribe + Pack
-- populated Script
-- Script ↔ Player sync
-- real sentence remove
-- shorter A-roll/final MP4
-- sentence restore
-- downstream timing guard
-- confirmed EDL baseline safety
-- real Scene generation
-- Scene Strip
-- rename/type/split/merge
-- save/restart/reopen
-- V1.1 regression smoke
-- bilingual UI screenshots
+- every Context Inspector type;
+- Studio theme vs generated-video Brand isolation;
+- Brand primary/font/Motion Speed/Effect Scale in Preview + final render;
+- live Linked Style across at least four Motion cards;
+- Scene style fallback;
+- Shift+Click and Shift+drag multi-select;
+- bulk Scale/Opacity/Linked Style = one revision each;
+- real Caption styling;
+- real B-roll;
+- real Audio;
+- save/restart/reopen;
+- M2/V1.1 regression;
+- real H.264/AAC final render;
+- visual screenshots/recording.
 
 Local defects use:
 
 ```text
-V2-M2-LV-001
-V2-M2-LV-002
+V2-M3-LV-001
+V2-M3-LV-002
 ...
 ```
 
-Fix M2-only defects on the same branch and push back to PR #5. Rerun full CI.
+Fix only M3 defects on the same branch, push to PR #6, and rerun full CI.
 
-## 9. Phase ownership rule
-
-Do not let GPT Web and Local Codex concurrently modify the M2 branch.
+## 9. Phase ownership
 
 ```text
-GPT Web development ✅
-→ Cloud CI ✅
-→ Local Codex validation ← NOW
-→ local fixes to same PR
+GPT Web M3 development ✅
+→ GitHub CI ✅
+→ Local Codex M3 validation ← NEXT
+→ local fixes to PR #6
 → final CI
 → GPT Web review
-→ merge only after all M2 gates PASS
+→ merge only after all M3 gates PASS
 ```
 
-Do not start M3 during M2 local validation.
+Do not start M4 while M3 local validation is in progress.
 
-## 10. Next milestone after accepted M2
+## 10. After accepted M3
 
-Only after PR #5 is accepted and merged:
+Only after PR #6 passes all local/render/visual gates and is merged:
 
 ```text
-M3 — Editor V2
+M4 — Canvas + Timeline V2
 ```
 
-M3 scope:
-
-- context-aware Inspector for Video / Caption / Motion / HyperFrames / B-roll / Audio / Scene
-- multi-select common properties
-- generated-video Brand UI/inheritance
-- Linked Styles
-
-Canvas direct manipulation and Timeline V2 remain M4. AI Director remains M5.
+M4 includes direct Canvas manipulation, rotation/snap, Timeline markers/shortcuts/waveform and related interaction upgrades. AI Director remains M5.

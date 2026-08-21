@@ -1,0 +1,16 @@
+"use client";
+
+import type {ProjectCommandTransaction} from "@/lib/project/history";
+import {DEFAULT_MOTION_TRANSFORM,type MotionTransform} from "@/schemas/clip";
+import type {Project} from "@/schemas/project";
+import {useSelectionStore} from "@/store/selection-store";
+import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
+import {m3Label as label} from "./m3-i18n";
+
+export const MultiInspector=({project,onTransaction}:{project:Project;onTransaction:(transaction:ProjectCommandTransaction,message:string)=>Promise<void>})=>{
+  const{locale}=useStudioPreferences();const l=(key:Parameters<typeof label>[1])=>label(locale,key);const ids=useSelectionStore(state=>state.selectedClipIds);const clips=project.tracks.flatMap(track=>track.clips).filter(clip=>ids.includes(clip.id));const motions=clips.filter(clip=>clip.type==="motion");const allMotion=clips.length>1&&motions.length===clips.length;
+  const scales=motions.map(clip=>({...DEFAULT_MOTION_TRANSFORM,...(clip.transform??{})}).scale);const opacities=motions.map(clip=>({...DEFAULT_MOTION_TRANSFORM,...(clip.transform??{})}).opacity);const commonScale=scales.length&&scales.every(value=>value===scales[0])?scales[0]:null;const commonOpacity=opacities.length&&opacities.every(value=>value===opacities[0])?opacities[0]:null;
+  const bulkTransform=(patch:Partial<MotionTransform>)=>{if(!allMotion)return;void onTransaction({id:`bulk-transform-${Date.now()}`,label:"Bulk update motion clips",commands:motions.map(clip=>({type:"update-motion-transform" as const,clipId:clip.id,transform:patch}))},locale==="zh-CN"?"批量更新已应用":"Bulk update applied")};
+  const bulkStyle=(styleId:string|null)=>{if(!allMotion)return;void onTransaction({id:`bulk-style-${Date.now()}`,label:"Assign linked style",commands:motions.map(clip=>({type:"assign-linked-style" as const,clipId:clip.id,styleId}))},locale==="zh-CN"?"联动样式已应用":"Linked style assigned")};
+  return <div className="os-inspector"><header className="inspector-card-head"><small>{l("multiSelect").toUpperCase()}</small><div><h2>{clips.length} {l("clips")}</h2><em>{l("commonProperties")}</em></div></header>{allMotion?<section className="inspector-section"><div className="inspector-section-title"><strong>{l("motionCommon")}</strong><small>{motions.length}</small></div><div className="layout-number-grid"><label><span>{l("scale")}</span><input placeholder={commonScale===null?l("mixed"):String(commonScale)} defaultValue={commonScale??undefined} onBlur={event=>event.target.value&&bulkTransform({scale:Number(event.target.value)})}/></label><label><span>{l("opacity")}</span><input placeholder={commonOpacity===null?l("mixed"):String(commonOpacity)} defaultValue={commonOpacity??undefined} onBlur={event=>event.target.value&&bulkTransform({opacity:Number(event.target.value)})}/></label></div><label className="inspector-field"><span>{l("linkedStyle")}</span><select defaultValue="" onChange={event=>bulkStyle(event.target.value||null)}><option value="">{l("mixedNone")}</option>{project.linkedStyles.filter(style=>style.target==="motion"||style.target==="cta").map(style=><option key={style.id} value={style.id}>{style.name}</option>)}</select></label><small className="inspector-help">{l("bulkHint")}</small></section>:<section className="inspector-section"><p>{l("mixedTypes")}</p></section>}</div>;
+};
