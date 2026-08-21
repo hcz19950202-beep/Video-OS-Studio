@@ -10,8 +10,8 @@ export const MultiInspector=({project,onTransaction}:{project:Project;onTransact
   const clips=project.tracks.flatMap(track=>track.clips).filter(clip=>ids.includes(clip.id));
   const motions=clips.filter(clip=>clip.type==="motion");
   const allMotion=clips.length>1&&motions.length===clips.length;
-  const scales=motions.map(clip=>({...DEFAULT_MOTION_TRANSFORM,...(clip.transform??{})}.scale);
-  const opacities=motions.map(clip=>({...DEFAULT_MOTION_TRANSFORM,...(clip.transform??{})}.opacity);
+  const scales=motions.map(clip=>({...DEFAULT_MOTION_TRANSFORM,...(clip.transform??{})}).scale);
+  const opacities=motions.map(clip=>({...DEFAULT_MOTION_TRANSFORM,...(clip.transform??{})}).opacity);
   const commonScale=scales.length&&scales.every(value=>value===scales[0])?scales[0]:null;
   const commonOpacity=opacities.length&&opacities.every(value=>value===opacities[0])?opacities[0]:null;
   const bulkTransform=(patch:Partial<MotionTransform>)=>{
