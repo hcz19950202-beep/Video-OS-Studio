@@ -789,7 +789,7 @@ No other `V2-M3-LV-xxx` defects were found.
 
 ```text
 CODE COMPLETE: PASS for cloud M3 scope; one M3 i18n fix committed locally
-CLOUD VERIFIED: PENDING final CI for the local fix commit
+CLOUD VERIFIED: PASS (CI run 32463104100 on validation/documentation head a67a1b7e3305bc1687bde10ff1c64a33c8ba862b)
 LOCAL VERIFIED: PASS
 PRD ACCEPTED: PASS for M3 scope; M4/M5 excluded
 RENDER VERIFIED: PASS after accepted-alpha HyperFrames asset replacement; first fresh-output compatibility failure recorded as V2-M3-LV-001
@@ -797,3 +797,5 @@ VISUAL ACCEPTED: PASS
 ```
 
 PR #6 was not merged. M4 was not started.
+
+Cloud handoff commit and CI were independently verified after the M3 fix. The final documentation metadata commit is reported in the GPT Web handoff together with the newest CI run; PR #6 remains unmerged.
