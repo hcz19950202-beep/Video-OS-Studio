@@ -478,4 +478,4 @@ No M2 defect requiring a code fix was found. `V2-M2-LV-xxx`: `NONE`.
 
 The render output file is retained and passed `ffprobe`; the browser render-output registry is in-memory and therefore does not survive the intentional dev-server restart, while the exported MP4 and project state do survive and were independently verified.
 
-Final CI run ID and final handoff commit are recorded in the GPT Web handoff after the documentation push. PR #5 was not merged and no M3 work was started.
+Validation-record commit: `7955b38bea797b92e65030a5ce57f115921209d5`. Cloud CI run `32449520494` completed successfully for that commit; Lint, Typecheck, Unit tests and Build were all green. PR #5 was not merged and no M3 work was started.
