@@ -667,3 +667,92 @@ VISUAL ACCEPTED: PASS / FAIL
 ```
 
 Do not merge PR #7 and do not start M5. Stop and hand the result back to GPT Web.
+
+## 30. Actual Windows Validation Results — 2026-08-21
+
+### 30.1 Isolation and baseline
+
+- Validation worktree: `E:\Video-OS-Studio-v2-m4-validation`
+- Branch: `feature/v2-canvas-timeline`
+- Handoff head: `afd41517e0449836861ee748b31c00928d4bd849`
+- Isolated data root: `E:\Video-OS-Data\v2-m4-validation-20260821-181100`
+- Validation project: `m2-script-scene-e19978c4`
+- Project path: `E:\Video-OS-Data\v2-m4-validation-20260821-181100\projects\m2-script-scene-e19978c4`
+- Accepted M3 source hash before copy: `B335173EBD32A5E149A0630786CD4C51246B4D70F81ABDACE313CCA5606DA24E`
+- Final isolated project revision: `140`; final project hash: `54F848393BA3A6C41FCCAF5259CEBF33A1E2F1E9D20C04117CC7303A5498BE1E`
+- Original `E:\Video-OS-Studio` worktree and accepted M3 data root were preserved.
+- Node `v24.19.0`; npm `11.6.2`.
+
+The baseline retained real A-roll, styled Captions, four Motion clips (three Remotion and one accepted HyperFrames asset), B-roll, Audio, 20 Script segments, 10 Scenes, five tracks, Generated Video Brand, Motion/Caption Linked Styles, and both locale/theme paths.
+
+### 30.2 Automatic gates
+
+- `npm ci`: PASS
+- `npm run lint`: PASS; two pre-existing `@next/next/no-img-element` warnings in the library panels, zero errors.
+- `npm run typecheck`: PASS
+- `npm test`: PASS — 28 test files, 89 tests.
+- `npm run build`: PASS — Next.js `16.3.1`.
+- LV targeted regression: `tests/filesystem.integration.test.ts` PASS — 3/3.
+
+### 30.3 Canvas acceptance
+
+- Canvas mode: PASS. Player controls disappear in Canvas Edit and return when disabled.
+- Canvas selection: Video, B-roll, Remotion Motion, and HyperFrames Motion all selected from the visual Canvas; Timeline and Context Inspector followed the selected clip. Evidence: `01`, `03`, `04`, `15`.
+- Live drag: Video revision `94 → 95`; B-roll revision `95 → 96`. During pointer-down the actual Preview media transform changed; pointer-up produced one durable command/revision per gesture. Evidence: `02`, `03`.
+- Unlinked resize: B-roll started at scale `0.72`, live-resized, and persisted at `0.7670100565`; Inspector/Preview matched. Evidence: `03`, `07`.
+- Linked Motion resize: revision `96 → 97`; Linked Style `style-motion-1787295119353` changed to scale `1.2776294918`, opacity `0.85`. Affected clips: `motion-big-number-6762ed69-1f38-43eb-9ae8-0e6e5714b473`, `motion-metric-focus-6488ee53-bed9-4e28-a590-37a0a583386d`, `motion-keyword-impact-f062be70-6912-437a-9c04-62357d5b5097`, `motion-hf-process-flow-d31e50f048a245f6-1787294258662`. Evidence: `04`, `05`.
+- Rotation: live rotation was visible at `15°`; Inspector edit to `30°` updated Canvas/Preview, and final persisted Video Rotation is `30°`. Evidence: `06`, final frame `17`.
+- Nudge: Arrow changed X by `1`; Shift+Arrow changed X by `10`; Canvas retained focus and Timeline did not scrub. Center returned X/Y to `0` through a command.
+- Snap: Center guides appeared; Safe guide appeared with `canvas-guide x safe`; Object guides appeared on both X/Y alignment; Alt produced no guide and bypassed snap. Evidence: `23`, `24`.
+- Layer order: B-roll Back/Front commands changed durable layer relative to Video; final B-roll layer is `1`, Video layer is `0`. Evidence: `07`.
+- Inspector round-trip: Canvas transforms updated Inspector; Inspector Rotation updated Canvas/Preview.
+
+### 30.4 Timeline, split, history, and waveform
+
+- Timeline snap: Playhead target resolved to frame `180`; Caption edge target resolved to frame `150` (Caption 1 end); Scene boundary moved B-roll start to frame `482`; Marker target moved B-roll start to frame `550`; Alt bypass moved it without a guide. The final accepted B-roll start was restored to frame `500`. Evidence: `25`, `26`, `27`, `08`.
+- Marker workflow: `marker-1787310502048` (`M1`, frame `550`) remained after adding, seeking, removing the second marker, save, stop, restart, and reopen.
+- Shortcut matrix: Space Play/Pause; Arrow ±1; Shift+Arrow ±10; M Marker; S Split; Ctrl+D duplicate; Ctrl+Z undo; Ctrl+Shift+Z redo; Esc clear selection. Inspector input guard passed: Arrow in the X input did not move the Player frame.
+- Multi-select: Shift+Click selected Caption 1 + Caption 2 and reported `SEL 字幕 · 4.0秒`; Scene Strip selection opened Scene Inspector and sought frame `30`.
+- Video Split: left `script-video-1` is `f0+702`, right `script-video-1-split-1787310884670` is `f702+1573`, right `sourceStartFrame=702`.
+- B-roll Split: left `m3-broll-clip` is `f500+202`, right `m3-broll-clip-split-1787310785260` is `f702+38`, right `sourceStartFrame=202`; left fade-out `0`, right fade-in `0`.
+- Audio Split: left `m3-audio-clip` is `f0+702`, right `m3-audio-clip-split-1787310910242` is `f702+1572`, right `sourceStartFrame=702`; left fade-out `0`, right fade-in `0`.
+- Undo/Redo: durable revisions advanced through marker add/undo/redo and duplicate/undo/redo sequences; project ID remained unchanged. A new edit after Undo cleared the obsolete Redo branch.
+- Waveform: real FFmpeg API calls generated Video and Audio `192`-point caches. Files:
+  - `E:\Video-OS-Data\v2-m4-validation-20260821-181100\projects\m2-script-scene-e19978c4\cache\waveforms\media-96b4871d-26c4-4085-b493-7f887c5d9c3c-192.json`
+  - `E:\Video-OS-Data\v2-m4-validation-20260821-181100\projects\m2-script-scene-e19978c4\cache\waveforms\m3-audio-asset-192.json`
+  Both contain matching asset IDs, `points=192`, `peaks.length=192`, numeric normalized peaks with observed min `0.02` and max `0.1111111111`. Evidence: `09`, `10`.
+
+### 30.5 M2/M3, locale, restart, and render
+
+- M2 Script word click seek: clicked `现在`, Player moved to frame `40`. Evidence: `14`.
+- M3 Scene Inspector, Multi-select, Linked Motion, HyperFrames, five-track structure, and Caption styling remained available. Evidence: `13`, `15`, `16`.
+- zh-CN/en-US and Dark/Light: both locale labels and both themes were exercised; Generated Video Brand was not mutated. Evidence: `12`.
+- Save → stop server → restart with the same isolated root → Recent Project reopen: PASS. Reopen showed the durable project state, split structure, marker, linked style, and revision `140`.
+- Final render job: `30b32598-4e3c-49c1-989d-aaaeba17068a`, status `completed · 100%`.
+- Final MP4: `E:\Video-OS-Data\v2-m4-validation-20260821-181100\projects\m2-script-scene-e19978c4\render\final-30b32598-4e3c-49c1-989d-aaaeba17068a.mp4`
+- ffprobe: H.264 video, AAC audio, `1080×1920`, `30/1` fps, `2275` frames, video duration `75.833333s`, format duration `75.882667s`, size `86462831` bytes.
+- Final render props and reopened final project match on all visual/timing/source fields; only the project revision/timestamp advanced during the subsequent snap cleanup checks. Extracted frames are content-equivalent evidence: `17` rotated/caption, `18` Remotion Motion, `19` B-roll, `20` HyperFrames + split B-roll, `21` styled Caption.
+
+### 30.6 M4 defect log
+
+`V2-M4-LV-001` — concurrent local project persistence collision.
+
+- Reproduction: during rapid successive real Canvas/Inspector command activity, the server logged a `400` and `ENOENT` while renaming the shared `project.json.tmp`.
+- Expected: every accepted command persists without a filesystem race.
+- Root cause: all `writeTextAtomic` calls used the same temporary path; on Windows concurrent `rename` calls also conflict when replacing an existing target.
+- Fix: unique `randomUUID()` temp paths, per-target write chaining, and cleanup of each writer's temp file in `adapters/filesystem.ts`.
+- Regression: concurrent real-filesystem writes are covered by `tests/filesystem.integration.test.ts`; targeted and full test gates pass.
+- No M4 renderer rewrite was made. The known M3 `V2-M3-LV-001` HyperFrames alpha compatibility follow-up remains unchanged.
+
+### 30.7 Final gates at local handoff
+
+```text
+CODE COMPLETE: PASS
+CLOUD VERIFIED: PENDING final push CI
+LOCAL VERIFIED: PASS
+PRD ACCEPTED: PASS
+RENDER VERIFIED: PASS
+VISUAL ACCEPTED: PASS
+```
+
+Final branch head and PR #7 CI run are recorded in the handoff message after push. PR #7 remains unmerged and M5 was not started.
