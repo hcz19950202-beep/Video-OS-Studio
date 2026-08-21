@@ -13,6 +13,7 @@ import type {ProjectCommand} from "@/lib/project/commands";
 import type {ProjectSummary} from "@/lib/project/repository";
 import type {Project} from "@/schemas/project";
 import {useProjectStore} from "@/store/project-store";
+import {useHistoryStore} from "@/store/history-store";
 import {usePlayerStore} from "@/store/player-store";
 import {useSelectionStore} from "@/store/selection-store";
 import {formatStudioTime,getStudioMetrics} from "@/lib/studio/metrics";
@@ -45,6 +46,7 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
   const{locale,theme,t,toggleLocale,toggleTheme,timelineHeight,setTimelineHeight}=useStudioPreferences();
   const project=useProjectStore(state=>state.project);
   const setProject=useProjectStore(state=>state.setProject);
+  const pushHistory=useHistoryStore(state=>state.push);
   const currentFrame=usePlayerStore(state=>state.currentFrame);
   const selectedClipId=useSelectionStore(state=>state.selectedClipId);
   const selectedSceneId=useSelectionStore(state=>state.selectedSceneId);
@@ -104,8 +106,10 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
   const persistCommand=(command:ProjectCommand,message:string)=>{
     if(!project)return Promise.resolve();
     return run(t("status.saving"),async()=>{
+      const before=useProjectStore.getState().project??project;
       const data=await requestJson<{project:Project}>(`/api/projects/${encodeURIComponent(project.project.id)}/commands`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(command)});
       setProject(data.project);setNotice(message);await refreshRecent();
+      if(before.project.revision!==data.project.project.revision)pushHistory({projectId:project.project.id,label:message,before,after:data.project});
     });
   };
 

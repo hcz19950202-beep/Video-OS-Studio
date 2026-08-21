@@ -751,3 +751,110 @@ Stop after the report.
 
 Do not merge PR #8.
 Do not start AI Command Bar or post-Core work.
+
+## 26. Actual Windows Validation Results — 2026-08-21
+
+### 26.1 Environment and isolation
+
+- Worktree: `E:\Video-OS-Studio-v2-m5-validation`
+- Branch: `feature/v2-ai-director`
+- Handoff head validated: `ac4b95588de8eabb1f8e58ba69401a457f25839d`
+- Isolated `VIDEO_OS_DATA_ROOT`: `E:\Video-OS-Data\v2-m5-validation-20260821-221858`
+- Validation project: `m2-script-scene-e19978c4`
+- Project path: `E:\Video-OS-Data\v2-m5-validation-20260821-221858\projects\m2-script-scene-e19978c4`
+- Accepted M4 source and M5 copy both contained 24 files and `364360760` bytes; project hash was identical at copy time: `54F848393BA3A6C41FCCAF5259CEBF33A1E2F1E9D20C04117CC7303A5498BE1E`.
+- Node `v24.19.0` (bundled runtime); npm `11.6.2`.
+- Original `E:\Video-OS-Studio` worktree and accepted M4 root were not modified.
+
+### 26.2 Automatic gates
+
+- `npm ci`: PASS
+- `npm run lint`: PASS; 0 errors and two pre-existing `<img>` warnings in the library panels.
+- `npm run typecheck`: PASS
+- `npm test`: PASS — 28 test files / 93 tests.
+- `npm run build`: PASS — Next.js `16.3.1`.
+
+### 26.3 Analyze and real Scene-grounded plan
+
+- Initial Project revision: `140`.
+- First real Analyze: revision `140 → 140`; no Motion/B-roll/Project mutation.
+- Artifact: `E:\Video-OS-Data\v2-m5-validation-20260821-221858\projects\m2-script-scene-e19978c4\edit\ai-director-plan.json`.
+- First plan: `version=2`, `projectId=m2-script-scene-e19978c4`, `source=rules`, `suggestionCount=4`.
+- Initial density: `motionCards=4`, `cardsPerMinute=3.164835`, `peakConcurrency=1`, `averageGapFrames=170`, `minimumGapFrames=150`.
+- The real accepted M4 content naturally produced four Density Hold / `none` suggestions. Each had a content-grounded reason, confidence, and alternatives; no fake suggestion was added.
+
+To exercise the transactional Apply path without editing `project.json`, the isolated project used the supported Timeline `set-track-state` command to temporarily hide `motion-main` (`revision 140 → 141`). Re-analyze remained read-only (`141 → 141`) and returned three actionable suggestions plus one Density Hold:
+
+1. `suggest-scene-01-...caption-1` — Scene `scene-01` / `HOOK 01` / `hook`, f30–105, spoken text `如果你现在为了让项目继续推进已经`, Remotion `keyword-impact`, confidence `72%`, alternative `NONE`.
+2. `suggest-scene-01-...caption-2` — Scene `scene-01` / `HOOK 01` / `hook`, f153–228, spoken text `工和分包商哥哥更高的价格那么`, Remotion `keyword-impact`, confidence `72%`, alternative `NONE`.
+3. `suggest-scene-02-...caption-3` — Scene `scene-02` / `PROCESS 02` / `process`, f273–393, spoken text `算一下人工还能涨多少然后就会开始把整个项目利润`, Density Hold / `none`, confidence `82%`.
+4. `suggest-scene-02-...caption-4` — Scene `scene-02` / `PROCESS 02` / `process`, f408–482, spoken text `因为提供润高价格并不一定`, HyperFrames `process-flow`, confidence `90%`.
+
+The reasons explicitly referred to Scene meaning or the density guard. The real plan source remained `rules`; no cloud LLM was claimed.
+
+### 26.4 Review, deselection, Apply, idempotency
+
+- Before deselection: 3 actionable selected, Add `3`, density `0.0 → 2.4/min`, peak `0 → 1`, cards `0 → 3`.
+- Deselected: `suggest-scene-01-...caption-1`.
+- After deselection: 2 selected, Add `2`, density `0.0 → 1.6/min`, peak `0 → 1`, cards `0 → 2`; Project revision stayed `141`.
+- UI Apply selected exactly two suggestions from different Scenes: Hook Remotion + Process HyperFrames.
+- First complete UI Apply transaction: `ai-director-a8a303c0-bf4a-44a6-93dd-585e98fd2a41`, revision `141 → 142`.
+- Created clips:
+  - `visual-suggest-scene-01-media-a3e9e24c-9c0a-4300-97f8-b1dd2ba83991-caption-2` — Remotion `keyword-impact`, f153–228.
+  - `visual-suggest-scene-02-media-a3e9e24c-9c0a-4300-97f8-b1dd2ba83991-caption-4` — HyperFrames `process-flow`, f408–482, asset `hf-process-flow-2bba3f80f545cdce`.
+- Deselected Caption 1 and Density Hold Caption 3 did not create clips.
+- Idempotent re-apply: revision `143 → 143`, `transactionId=null`, `appliedIds=[]`, `diff.add=0`; no duplicate `visual-*` clip.
+
+### 26.5 Undo, Redo, and branch invalidation
+
+- Fresh UI Apply retest: `145 → 146`.
+- One `Ctrl+Z`: `146 → 147`; both AI clips and the prepared HyperFrames asset disappeared together.
+- One `Ctrl+Shift+Z`: `147 → 148`; both AI clips and the asset returned together.
+- Post-fix regression sequence: Apply `158 → 159`, Undo `159 → 160`, normal Timeline track edit `160 → 161`, Redo attempt stayed at `161` with zero AI clips. The old AI redo branch was cleared.
+- Project ID remained unchanged and revisions never rewound.
+
+### 26.6 Re-analyze after Apply
+
+- Final reviewed AI state Re-analyze: revision `156 → 156`.
+- Density reflected six Motion cards, `4.747252/min`, peak `2`, average gap `102` frames, minimum gap `12` frames.
+- Existing deterministic `visual-*` IDs were not offered as pending Add changes; all four new plan suggestions were Density Hold / `none` under the denser timeline.
+
+### 26.7 Save, restart, render, and regression
+
+- Final durable project revision after supported restore/review cleanup: `162`.
+- Stop → restart with the same M5 data root → Recent Project reopen: PASS.
+- Reopened state retained both AI clips, `hf-process-flow-2bba3f80f545cdce`, Script 20, Scenes 10, Brand, Linked Styles, Marker f550, M4 rotation/layer/split/B-roll/Audio state, and six Motion cards.
+- zh-CN / en-US: PASS. Dark / Light: PASS; Generated Video Brand remained byte-equivalent to the accepted M4 brand.
+- Focused M2/M3/M4 smoke: Script/Scene structure, Canvas selection of AI Remotion and AI HyperFrames, Timeline/Marker/Waveform, split structure, five media tracks, Effects/HyperFrames library, JSON export, and existing Caption/Brand/Linked Style path remained usable.
+- Project JSON export produced `C:\Users\hcz\Downloads\m2-script-scene-e19978c4 (2).json`.
+
+Final render:
+
+- Job: `f69a22e2-b780-4103-9537-117a5a437f06`, completed 100%.
+- MP4: `E:\Video-OS-Data\v2-m5-validation-20260821-221858\projects\m2-script-scene-e19978c4\render\final-f69a22e2-b780-4103-9537-117a5a437f06.mp4`
+- ffprobe: H.264 video + AAC audio, `1080×1920`, `30/1` fps, `2275` frames, video duration `75.833333s`, format duration `75.882667s`, size `86285117` bytes.
+- Final frame evidence proves AI Remotion, AI HyperFrames, existing Caption/Brand, and M4 transformed/layered B-roll. Fresh HyperFrames rendered successfully; `V2-M3-LV-001` did not reproduce.
+
+### 26.8 M5 defect log
+
+`V2-M5-LV-001` — normal Project edits did not clear the AI Redo branch.
+
+- Reproduction: Apply AI batch, Undo once, toggle Timeline `H` track state, then Ctrl+Shift+Z; the old AI batch returned.
+- Expected: any supported normal Project edit clears the obsolete Redo branch.
+- Root cause: `StudioWorkspace.persistCommand` updated the Project but did not push a History entry, so `history-store.push()` never cleared `redoStack` for Inspector/track-state commands.
+- Fix: record the pre-command Project snapshot and push the successful normal command through the accepted History Store in `components/studio/StudioWorkspace.tsx`.
+- Retest: Apply → Undo → H edit → Redo stayed on the new branch and did not restore AI clips; revision sequence `158,159,160,161`.
+- M5-only fix; no renderer or post-Core work changed.
+
+### 26.9 Final handoff gates
+
+```text
+CODE COMPLETE: PASS
+CLOUD VERIFIED: PENDING final M5 fix push CI
+LOCAL VERIFIED: PASS
+PRD ACCEPTED: PASS
+RENDER VERIFIED: PASS
+VISUAL ACCEPTED: PASS
+```
+
+PR #8 remains Draft and unmerged. AI Command Bar, Project Package, multi-language tracks, new Effect Packs, and other post-Core work were not started.
