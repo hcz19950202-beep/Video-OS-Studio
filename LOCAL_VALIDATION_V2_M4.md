@@ -748,11 +748,12 @@ The baseline retained real A-roll, styled Captions, four Motion clips (three Rem
 
 ```text
 CODE COMPLETE: PASS
-CLOUD VERIFIED: PENDING final push CI
+CLOUD VERIFIED: PASS — GitHub Actions run 32487450172 (#176), verify job success
 LOCAL VERIFIED: PASS
 PRD ACCEPTED: PASS
 RENDER VERIFIED: PASS
 VISUAL ACCEPTED: PASS
 ```
 
-Final branch head and PR #7 CI run are recorded in the handoff message after push. PR #7 remains unmerged and M5 was not started.
+Final branch head: `1fe813ed7d073ff48dcb87870f7eb495d07d3dc8`.
+Final PR #7 CI: run `32487450172` / workflow run `176`, `verify` job success for Install dependencies, Lint, Typecheck, Unit tests, and Build. PR #7 remains unmerged and M5 was not started.
