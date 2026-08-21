@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "project": {
     "id": "fixture-project",
     "name": "Fixture Project",
@@ -14,11 +14,7 @@
     "durationInFrames": 300
   },
   "assets": [
-    {
-      "id": "media_001",
-      "kind": "video",
-      "relativePath": "input/talking-head.mp4"
-    }
+    {"id": "media_001", "kind": "video", "relativePath": "input/talking-head.mp4"}
   ],
   "tracks": [
     {
@@ -41,9 +37,30 @@
         }
       ]
     },
-    { "id": "captions-main", "type": "caption", "name": "Captions", "locked": false, "hidden": false, "clips": [] },
-    { "id": "motion-main", "type": "motion", "name": "Motion", "locked": false, "hidden": false, "clips": [] },
-    { "id": "broll-main", "type": "broll", "name": "B-roll", "locked": false, "hidden": false, "clips": [] },
-    { "id": "audio-main", "type": "audio", "name": "Audio", "locked": false, "hidden": false, "clips": [] }
-  ]
+    {"id":"captions-main","type":"caption","name":"Captions","locked":false,"hidden":false,"clips":[]},
+    {"id":"motion-main","type":"motion","name":"Motion","locked":false,"hidden":false,"clips":[]},
+    {"id":"broll-main","type":"broll","name":"B-roll","locked":false,"hidden":false,"clips":[]},
+    {"id":"audio-main","type":"audio","name":"Audio","locked":false,"hidden":false,"clips":[]}
+  ],
+  "script": {"segments": []},
+  "scenes": [],
+  "markers": [],
+  "brand": {
+    "mode": "dark",
+    "colors": {
+      "background": "#080B0F",
+      "surface": "#111820",
+      "primary": "#FF4B20",
+      "secondary": "#F5F7FA",
+      "data": "#3B82F6",
+      "success": "#55D187",
+      "danger": "#FF6565",
+      "text": "#F5F7FA",
+      "muted": "#85868D"
+    },
+    "typography": {"headingFont":"system-ui","bodyFont":"system-ui","captionFont":"system-ui"},
+    "motion": {"speed":1,"scale":1,"intensity":"balanced"}
+  },
+  "linkedStyles": [],
+  "language": {"sourceLanguage":"unknown","captionTracks":[]}
 }
