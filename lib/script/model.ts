@@ -45,7 +45,8 @@ export const buildScriptDocument=(words:AdapterTranscriptWord[],fps:number,baseS
   const flush=()=>{
     if(!bucket.length)return;
     const speaker=bucket.every(word=>word.speaker===bucket[0]?.speaker)?bucket[0]?.speaker:undefined;
-    const segment:ScriptSegment={id:`segment-${String(segments.length+1).padStart(3,"0")}`,words:bucket.map(({speaker:_speaker,...word})=>word),status:"active",semanticTags:[]};
+    const scriptWords:TranscriptWord[]=bucket.map(word=>({id:word.id,text:word.text,startFrame:word.startFrame,endFrame:word.endFrame,...(word.confidence===undefined?{}:{confidence:word.confidence})}));
+    const segment:ScriptSegment={id:`segment-${String(segments.length+1).padStart(3,"0")}`,words:scriptWords,status:"active",semanticTags:[]};
     if(speaker)segment.speaker=speaker;
     segments.push(segment);
     bucket=[];
