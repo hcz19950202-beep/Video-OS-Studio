@@ -1,11 +1,15 @@
 # Video OS Studio — GPT Web / Local Codex Handoff
 
 > Updated: 2026-08-21 (Asia/Shanghai)  
-> Current execution handoff: **V2 M4 Windows Local Validation**.
+> Current execution handoff: **V2 M5 AI Director Windows Local Validation**.
 
-## 1. Current truth
+## 1. Current Truth
 
-Repository: `hcz19950202-beep/Video-OS-Studio`
+Repository:
+
+```text
+hcz19950202-beep/Video-OS-Studio
+```
 
 Accepted and merged:
 
@@ -15,43 +19,56 @@ Accepted and merged:
 - V2 M1 Project 2.0/migration PR #4
 - V2 M2 Script + Scene PR #5
 - V2 M3 Editor Core PR #6
+- V2 M4 Canvas + Timeline V2 PR #7
 
-Accepted M3 merge commit on `main`:
+Accepted M4 merge commit on `main`:
 
 ```text
-b93f4774100404aa6a4626e62d049f734de3924b
+70277477c961c1401f79adeb52a5aebb84308d3c
 ```
 
-M3 passed real Windows local/render/visual acceptance before merge.
+M4 passed Windows local/render/visual acceptance before merge.
 
 Current active milestone:
 
 ```text
-M4 — Canvas + Timeline V2
-branch: feature/v2-canvas-timeline
-PR: #7
+M5 — AI Director V2
+branch: feature/v2-ai-director
+PR: #8 (Draft)
 ```
 
-Do not restart earlier milestones and do not start M5 while M4 validation is in progress.
+Do not restart earlier milestones.
+Do not merge PR #8 before Windows M5 acceptance.
+Do not start AI Command Bar or other post-Core work.
 
-## 2. Non-negotiable architecture
+## 2. Non-negotiable Architecture
 
 - Node 24 baseline.
 - Project version `2.0.0`.
 - Canonical internal time = frames.
 - Durable Project changes use validated Commands / Transactions / bounded services.
-- Canvas pointer-move draft is ephemeral Preview state; durable mutation happens at the command boundary.
-- UI/AI do not hand-edit Project JSON.
-- Remotion remains Master Composition engine.
+- AI does not directly mutate Project JSON.
+- M5 canonical flow is:
+
+```text
+Analyze → Suggest → Explain → Preview Diff → User Confirm → Command Transaction
+```
+
+- Analyze / Preview are read-only with respect to Project revision.
+- One AI Apply = one Project Command Transaction = one durable revision.
+- One AI Apply must be one Undo / Redo unit.
+- Remotion remains Master Composition.
 - HyperFrames / video-use / FFmpeg remain behind adapters/services.
-- repository code and `VIDEO_OS_DATA_ROOT` runtime data stay separate.
-- Studio UI theme/locale remain local preferences and are distinct from Generated Video Brand.
-- preserve accepted M1–M3 and V1.1 behavior.
+- repository code and `VIDEO_OS_DATA_ROOT` remain separate.
+- Studio Theme/Locale remain distinct from Generated Video Brand.
+- preserve M1–M4 and V1.1 accepted behavior.
 - `REUSE > MODIFY > CREATE`.
 
 Authoritative PRD:
 
-`Video_OS_Studio_V2_AI_Native_Editor_Master_PRD_Rev2.md`
+```text
+Video_OS_Studio_V2_AI_Native_Editor_Master_PRD_Rev2.md
+```
 
 Product abstraction:
 
@@ -59,286 +76,325 @@ Product abstraction:
 Words → Meaning → Scenes → Visual Decisions → Clips → Render
 ```
 
-## 3. Accepted M3 baseline
+## 3. M5 Scope Boundary
 
-M3 provides the editor core that M4 extends:
+M5 delivers AI Director V2 only:
 
-- Context Inspector for Project / Video / Caption / Motion / HyperFrames / B-roll / Audio / Scene / Multi-select;
-- Generated Video Brand separate from Studio Theme;
-- Motion Speed / Effect Scale;
-- Motion + Caption Linked Styles;
-- Scene style fallback with direct clip precedence;
-- Shift+Click / Shift+drag multi-select;
-- one bulk action = one transaction = one revision;
-- B-roll / Audio rendering;
-- zh-CN / en-US;
-- save/restart/reopen persistence.
+- Scene-aware visual suggestions;
+- Spoken Text grounding;
+- semantic type;
+- Recommendation;
+- Reason;
+- Confidence;
+- Alternatives;
+- density-aware restraint;
+- Change Preview;
+- per-suggestion deselection;
+- one transactional Apply;
+- Undo / Redo as one batch;
+- idempotent re-apply protection.
 
-Known accepted follow-up from M3:
+M5 does **not** include:
 
-`V2-M3-LV-001` — a freshly generated HyperFrames VP9 alpha WebM can fail the Windows Remotion compositor with `No frame found`. M3 final render passed with the previously accepted real alpha WebM. M4 does not silently rewrite this renderer path; the accepted alpha asset may be reused for M4 final render.
+- AI Command Bar;
+- multi-language content tracks;
+- Project Package ZIP;
+- more Effect Packs;
+- unrelated HyperFrames renderer rewrite.
 
-## 4. M4 cloud implementation
+## 4. Current Director Source
 
-PR #7 upgrades the accepted M3 editor with direct visual manipulation and Timeline V2.
-
-### Canvas Edit
-
-Canvas supports active Video / B-roll / Remotion Motion / HyperFrames Motion objects:
-
-- direct selection;
-- live Drag;
-- uniform Resize;
-- Rotate;
-- Arrow nudge;
-- Shift+Arrow 10-unit nudge;
-- Center action;
-- Layer Forward / Backward;
-- Center / Safe-zone / other-object alignment snap;
-- visible alignment guides;
-- Alt bypass for Canvas snap.
-
-Canvas Edit temporarily disables normal Player controls so pointer gestures do not fight Remotion Player controls.
-
-### Live Preview and durable mutation
-
-Canvas interaction is deliberately split:
+At this handoff the active runtime source is:
 
 ```text
-pointer move
-→ ephemeral Canvas draft
-→ actual Remotion Preview follows live
-
-pointer up
-→ validated Project Command
-→ one durable revision
+source = rules
 ```
 
-The selection frame and actual video content move/resize/rotate together during the gesture.
+This is a deterministic Scene-aware Director adapter.
 
-### Rotation and layout
-
-`MotionTransform` was additively extended with optional `rotation`.
-
-Preview and Final Render consume rotation for:
-
-- Video;
-- B-roll;
-- Remotion Motion;
-- HyperFrames Motion.
-
-Video/B-roll/Motion Inspectors expose Rotation, preserving Canvas ↔ Inspector round-trip.
-
-### Linked Motion behavior
-
-M3 Linked Style remains a live reference.
-
-For Motion:
-
-- X / Y / Anchor / Rotation are clip-local layout;
-- shared Linked Style Scale / Opacity remain live-reference style values;
-- Brand Motion Scale still multiplies resolved Motion scale.
-
-When a linked Motion is resized in Canvas, M4 updates the resolved Linked Style scale path instead of writing a hidden per-clip Scale that would be ignored by the resolver.
-
-### Layer ordering
-
-Master Composition now uses one cross-type visual ordering rule for Video / B-roll / Motion / Caption based on durable `layer`, with deterministic type rank for ties.
-
-Canvas hit-order for transformable objects follows the same visual intent.
-
-### Timeline V2
-
-Timeline keeps the accepted five tracks, M2 Scene Strip and M3 multi-select while adding high-frequency editing controls.
-
-Snap targets:
-
-- Playhead;
-- Clip start;
-- Clip end;
-- Scene boundary;
-- Marker;
-- Caption boundary.
-
-Alt bypasses Timeline snap.
-
-Markers:
-
-- `M` creates at current frame;
-- click seeks;
-- current UI supports context/right-click removal;
-- markers persist in Project 2.0.
-
-Shortcuts:
+The V2 schema and adapter boundary support:
 
 ```text
-Space               Play/Pause
-Left / Right        ±1 frame
-Shift+Left/Right    ±10 frames
-M                   Marker
-S                   Split selected clip
-Delete/Backspace    Delete selected clip(s)
-Ctrl/Cmd + D        Duplicate
-Ctrl/Cmd + Z        Undo
-Ctrl/Cmd+Shift+Z    Redo
-Esc                 Clear selection
+rules | provider
 ```
 
-Global Timeline shortcuts ignore text/number/select/textarea/contenteditable input contexts.
+but a cloud LLM provider is not being falsely claimed as connected in M5.
 
-### Source-aware Split
+M5 acceptance proves the product contract—Scene semantics, explainability, density discipline, reviewable Diff, transactional Apply—not a specific AI vendor.
 
-Split preserves source continuity:
+## 5. M5 Cloud Implementation
 
-- Video right side advances `sourceStartFrame`;
-- Audio right side advances `sourceStartFrame`;
-- B-roll now has additive optional `sourceStartFrame`, Inspector exposure and Remotion `trimBefore` support;
-- B-roll right side advances source offset.
+### VisualSuggestion V2
 
-For Audio/B-roll with fades, Split preserves only the outer clip fades:
+`VisualPlan` is now version 2 and contains:
 
 ```text
-left  keeps original Fade In, internal Fade Out = 0
-right internal Fade In = 0, keeps original Fade Out
+sceneId
+startFrame / endFrame
+spokenText
+semanticType
+recommendation
+reason
+confidence
+alternatives
+densityBefore
 ```
 
-This avoids introducing an artificial dip/flash at the internal split boundary.
+Supported recommendation engine values:
+
+```text
+remotion
+hyperframes
+broll
+none
+```
+
+### Scene-aware planning priority
+
+Director decision priority is intentionally:
+
+```text
+strong factual evidence (percentage / concrete number)
+→ explicit Scene meaning
+→ ambiguous content keywords
+→ density guard
+```
+
+Examples covered by tests:
+
+- 90% inside a PROCESS Scene still recommends Metric Focus;
+- PROCESS Scene meaning outranks incidental `shipping/logistics` wording when there is no stronger numeric fact.
+
+### Density Guard
+
+Director reads current/proposed:
+
+- Motion card count;
+- cards/min;
+- peak concurrency;
+- average/minimum visual-event gap;
+- Scene intensity.
+
+Default minimum start-gap policy:
+
+```text
+high intensity    3s
+medium intensity  5s
+low intensity     7s
+```
+
+Guard also blocks additions when projected concurrency/density is excessive.
+
+A blocked but meaningful moment is returned as an explicit visible recommendation:
+
+```text
+engine = none
+reason = Density guard: ...
+```
+
+with the original content-driven recommendation retained as an Alternative.
+
+### Change Preview
+
+Pure deterministic Diff shows:
+
+```text
+Add
+Remove
+Shorten
+Style Changes
+Density before → after
+Peak before → after
+Card count before → after
+```
+
+Current rules may legitimately produce zero Remove / Shorten / Style changes; those categories remain visible in the UI contract.
+
+Deselecting a suggestion recalculates pending Add and density without mutating Project state.
+
+### Transactional Apply
+
+Selected recommendations are prepared first.
+
+For Remotion:
+
+- effect schema/defaults are validated before transaction.
+
+For HyperFrames:
+
+```text
+prepare asset externally
+→ do not mutate Project
+→ if preparation succeeds, add asset + clip commands to the final transaction
+```
+
+If preparation fails before the transaction, Project revision does not advance.
+
+All selected Project mutations are committed through one:
+
+```text
+ProjectCommandTransaction
+```
+
+Therefore:
+
+```text
+one Apply = +1 Project revision
+```
+
+regardless of selected suggestion count.
+
+### Deterministic IDs / idempotency
+
+AI-applied clips use:
+
+```text
+visual-<suggestionId>
+```
+
+Re-applying an already-applied identical plan does not add duplicates or create another revision.
 
 ### Undo / Redo
 
-M4 adds bounded client-session history backed by validated server snapshot restore.
+The AI Director panel pushes the whole successful Apply into the accepted M4 History Store as one History entry.
 
-Rules:
-
-- Project ID cannot change during restore;
-- successful Undo/Redo creates a new durable revision rather than rewinding revision numbers;
-- failed restore rolls history-stack movement back;
-- a new normal edit after Undo clears obsolete Redo history;
-- history itself is session-bounded and is not required to survive a browser/dev-server restart; Project state is durable.
-
-### Real Waveform
-
-Waveform is not decorative/random UI.
+Expected:
 
 ```text
-real Video / Audio asset
-→ FFmpeg mono analysis
-→ normalized peaks
-→ project cache
-→ Timeline bars
+Ctrl+Z once
+→ undo whole AI batch
+
+Ctrl+Shift+Z once
+→ redo whole AI batch
 ```
 
-Cache:
+Validated snapshot restore continues to advance revision rather than rewinding it.
+
+### Review UI
+
+AI Director V2 UI is grouped by Scene and shows for every suggestion:
+
+- semantic type;
+- Recommendation;
+- Spoken Text;
+- frame range;
+- Reason;
+- Confidence;
+- Alternatives;
+- Density Hold status;
+- applied status.
+
+Users can deselect actionable suggestions before Apply.
+
+## 6. Cloud Verification
+
+Final M5 code baseline before handoff documentation:
 
 ```text
-cache/waveforms/<assetId>-<points>.json
+8ae8f713d72f4767c849a5661e4d7533890b41e9
 ```
 
-Waveform request size is bounded to 32–512 points; invalid/non-finite requests fall back safely.
-
-No-audio Video does not crash Timeline.
-
-## 5. Cloud verification
-
-Final M4 code baseline before this handoff-document commit:
+Successful GitHub Actions run:
 
 ```text
-551df4dcc6f516312507d5a626fd16b2c4571a4e
+32490394830 — SUCCESS
 ```
 
-GitHub Actions:
-
-```text
-32467767792 — SUCCESS
-```
-
-Cloud checks:
+Checks:
 
 ```text
 Install dependencies  PASS
-Lint                  PASS — 0 errors, two pre-existing <img> warnings
+Lint                  PASS — 0 errors, 2 pre-existing <img> warnings
 Typecheck              PASS
-Unit tests             PASS — 28 files / 88 tests
+Unit tests             PASS — 28 files / 93 tests
 Production build       PASS — Next.js 16.3.1
 ```
 
-This handoff documentation commit advances the PR head. Local Codex must use the **newest PR #7 head whose CI is successful**, not the older code-baseline SHA above.
+M5 unit coverage includes:
 
-## 6. Windows validation contract
+- Scene-aware explainable suggestions;
+- strong numeric evidence vs Scene template priority;
+- explicit Density Hold / `none` recommendation;
+- reviewed-selection Change Preview;
+- density before → after;
+- mixed Remotion + HyperFrames Apply = one revision;
+- idempotent second Apply = no new revision.
 
-Authoritative local acceptance file:
+This handoff/docs commit advances the branch. Local Codex must use the **newest PR #8 head whose CI is successful**, not an older SHA.
 
-`LOCAL_VALIDATION_V2_M4.md`
+## 7. Windows Validation Contract
+
+Authoritative file:
+
+```text
+LOCAL_VALIDATION_V2_M5.md
+```
 
 Use an isolated worktree and data root.
 
-Accepted M3 project to copy, not modify in place:
+Accepted M4 source project to copy, never modify in place:
 
 ```text
 Project ID:
 m2-script-scene-e19978c4
 
-Source project path:
-E:\Video-OS-Data\v2-m3-validation-20260821-142900\projects\m2-script-scene-e19978c4
+Source path:
+E:\Video-OS-Data\v2-m4-validation-20260821-181100\projects\m2-script-scene-e19978c4
 ```
 
-Recommended M4 worktree:
+Recommended worktree:
 
 ```text
-E:\Video-OS-Studio-v2-m4-validation
+E:\Video-OS-Studio-v2-m5-validation
 ```
 
-Recommended isolated data root:
+Recommended isolated root:
 
 ```text
-E:\Video-OS-Data\v2-m4-validation-YYYYMMDD-HHMMSS
+E:\Video-OS-Data\v2-m5-validation-YYYYMMDD-HHMMSS
 ```
 
-The entire M3 project directory must be copied so project-relative assets remain valid.
+Copy the complete project directory so all project-relative assets remain valid.
 
-## 7. Local Codex ownership now
+## 8. Local Codex Ownership Now
 
-Local Codex now owns **M4 Windows acceptance and M4-only fixes** on:
+Local Codex owns **M5 Windows acceptance and M5-only fixes** on:
 
 ```text
-feature/v2-canvas-timeline
-PR #7
+feature/v2-ai-director
+PR #8
 ```
 
-Required proof is defined in `LOCAL_VALIDATION_V2_M4.md`, including:
+Required proof is fully defined in `LOCAL_VALIDATION_V2_M5.md`.
 
-- Canvas Video/B-roll/Remotion/HyperFrames direct selection;
-- actual live Preview during Drag/Resize/Rotate;
-- pointer-up = one durable mutation/revision;
-- Canvas ↔ Inspector round-trip;
-- linked Motion Canvas Resize preserving live Linked Style semantics;
-- Nudge 1/10;
-- Center/Safe/Object snap + Alt bypass;
-- real Layer Forward/Backward render ordering;
-- Timeline snap target classes;
-- Marker workflow;
-- shortcut matrix;
-- M3 multi-select regression;
-- Video/B-roll source-aware Split continuity;
-- Audio/B-roll internal split has no artificial fade seam;
-- Undo/Redo revision behavior;
-- real Video/Audio FFmpeg waveform + cache;
-- Scene Strip regression;
+Critical acceptance points:
+
+- Analyze does not change Project revision;
+- real Scene-grouped suggestions;
+- real Spoken Text / Reason / Confidence / Alternatives;
+- Density Hold / restraint;
+- Change Preview is read-only;
+- deselection changes Diff before Apply;
+- selected Apply = exactly +1 revision;
+- deselected and `none` suggestions do not apply;
+- idempotent re-apply creates no duplicate/revision;
+- Ctrl+Z once undoes whole AI batch;
+- Ctrl+Shift+Z once restores whole batch;
+- Re-analyze reflects new density;
 - Save/Stop/Restart/Reopen;
-- real H.264/AAC final render;
-- Preview/final evidence;
-- zh-CN/en-US and Dark/Light regression;
-- focused M2/M3 regression smoke.
+- real final H.264/AAC render;
+- zh-CN/en-US;
+- focused M2/M3/M4 regression.
 
 Local defects:
 
 ```text
-V2-M4-LV-001
-V2-M4-LV-002
+V2-M5-LV-001
+V2-M5-LV-002
 ...
 ```
 
-Fix only M4 defects on the same branch, push to PR #7, and rerun:
+Fix only M5 defects on the same branch and rerun:
 
 ```text
 npm run lint
@@ -347,31 +403,39 @@ npm run test
 npm run build
 ```
 
-## 8. Current gates
+## 9. Known Existing Follow-up
+
+`V2-M3-LV-001` remains a separate known issue:
+
+fresh HyperFrames VP9 alpha output can fail Windows Remotion composition with `No frame found`.
+
+M5 HyperFrames preparation must not be confused with rewriting that renderer path.
+
+For final M5 render, the accepted Windows-compatible HyperFrames path may be used if needed, while still validating M5 transactional behavior separately.
+
+## 10. Current Gates
 
 ```text
-CODE COMPLETE: PASS for M4 cloud scope
-CLOUD VERIFIED: PASS for code baseline; final docs head must also be green
+CODE COMPLETE: PASS for M5 cloud scope
+CLOUD VERIFIED: PASS for code baseline; final handoff-doc head must also be green
 LOCAL VERIFIED: PENDING Local Codex
 PRD ACCEPTED: PENDING Local Codex
-RENDER VERIFIED: PENDING real Windows final render
+RENDER VERIFIED: PENDING real Windows render
 VISUAL ACCEPTED: PENDING browser acceptance
 ```
 
-PR #7 must remain unmerged.
+PR #8 remains Draft and unmerged.
 
-M5 AI Director must not start.
-
-## 9. Phase ownership
+## 11. Phase Ownership
 
 ```text
-GPT Web M4 development       ✅
-Cloud code CI                ✅
-Final handoff-doc CI         ← verify newest head
-Windows Local Codex M4       ← NEXT
-M4-only local fixes to PR #7
+GPT Web M5 development        ✅
+Cloud code CI                 ✅ 28 files / 93 tests
+Final handoff-doc CI          ← verify newest head
+Windows Local Codex M5        ← NEXT
+M5-only local fixes to PR #8
 Final CI
 GPT Web review
-Merge PR #7 only after all six M4 gates PASS
-M5 starts only after M4 merge
+Merge PR #8 only after all six M5 gates PASS
+Post-Core work starts only after M5 acceptance
 ```
