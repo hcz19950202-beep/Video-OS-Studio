@@ -7,7 +7,7 @@ import type {ScriptDocument,ScriptSegment} from "@/schemas/script";
 const classify=(text:string,index:number):SceneSemanticType=>{
   const lower=text.toLowerCase();
   if(index===0)return "hook";
-  if(/(私信|联系|咨询|留言|发送|send|contact|dm\b|message)/iu.test(lower))return "cta";
+  if(/(私信|联系|咨询|留言|发送|发给|发来|发我|联系我们|找我们|send|contact|dm\b|message)/iu.test(lower))return "cta";
   if(/(%|％|\d|数据|证明|案例|proof|result|case)/iu.test(lower))return "proof";
   if(/(首先|然后|接着|最后|步骤|流程|first|second|then|step|process)/iu.test(lower))return "process";
   if(/(问题|痛点|成本|延期|太贵|困难|problem|pain|cost|delay|expensive)/iu.test(lower))return "pain";
