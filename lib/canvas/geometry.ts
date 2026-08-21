@@ -21,7 +21,7 @@ export const snapCanvasTransform=(transform:MotionTransform,{width,height,thresh
 };
 
 export const resizeScaleFromPointer=(initialScale:number,deltaX:number,deltaY:number,baseWidth:number,baseHeight:number)=>{
-  const xFactor=1+deltaX/Math.max(1,baseWidth);const yFactor=1+deltaY/Math.max(1,baseHeight);const factor=Math.max(.1,(xFactor+yFactor)/2);return Math.max(.1,Math.min(5,initialScale*factor));
+  const xDelta=deltaX/Math.max(1,baseWidth);const yDelta=deltaY/Math.max(1,baseHeight);const next=initialScale+(xDelta+yDelta)/2;return Math.max(.1,Math.min(5,next));
 };
 
 export const rotationFromPointer=(centerX:number,centerY:number,pointerX:number,pointerY:number)=>Math.round(Math.atan2(pointerY-centerY,pointerX-centerX)*180/Math.PI+90);
