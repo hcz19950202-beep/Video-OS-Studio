@@ -2,6 +2,7 @@ import {dirname} from "node:path";
 import type {FileSystemAdapter,VideoUseAdapter} from "@/adapters/contracts";
 import {applyProjectCommand} from "@/lib/project/commands";
 import type {ProjectRepository} from "@/lib/project/repository";
+import {buildScriptDocument,getProjectVideoSourceRanges} from "@/lib/script/model";
 import {secondsToFrames} from "@/lib/timeline/frames";
 import {VideoUseEdlSchema,type VideoUseEdl} from "@/lib/video-use/edl";
 import type {Clip} from "@/schemas/clip";
@@ -19,13 +20,18 @@ export class VideoUseService{
   }
 
   async prepare(projectId:string){
-    const project=await this.repository.load(projectId);
+    let project=await this.repository.load(projectId);
     const asset=this.primaryVideo(project);
     const inputPath=this.repository.resolveProjectFile(projectId,asset.relativePath);
     const editDir=dirname(this.repository.resolveProjectFile(projectId,"edit/takes_packed.md"));
     const result=await this.adapter.prepare({inputPath,editDir});
+    const script=buildScriptDocument(result.words,project.canvas.fps,getProjectVideoSourceRanges(project));
+    project=applyProjectCommand(project,{type:"set-script-document",script});
+    await this.repository.save(project);
     return {
+      project,
       wordCount:result.words.length,
+      scriptSegmentCount:script.segments.length,
       text:result.text,
       packedText:result.packedText,
       transcriptRelativePath:`edit/transcripts/${result.transcriptPath.split(/[\\/]/).pop()}`,
