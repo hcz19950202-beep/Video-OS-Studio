@@ -6,7 +6,7 @@ describe("V2 semantic project commands",()=>{
   it("manages scenes and clears script references when a scene is removed",()=>{
     let project=createProject({id:"semantic",name:"Semantic",durationInFrames:300,now:"2026-08-20T00:00:00.000Z"});
     project=applyProjectCommand(project,{type:"add-scene",scene:{id:"s1",name:"Hook",semanticType:"hook",startFrame:0,endFrame:90}},{now:"2026-08-20T00:01:00.000Z"});
-    project=applyProjectCommand(project,{type:"set-script-document",script:{segments:[{id:"seg1",sceneId:"s1",words:[],status:"active",semanticTags:[]}]}},{now:"2026-08-20T00:02:00.000Z"});
+    project=applyProjectCommand(project,{type:"set-script-document",script:{baseSourceRanges:[],segments:[{id:"seg1",sceneId:"s1",words:[],status:"active",semanticTags:[]}]}},{now:"2026-08-20T00:02:00.000Z"});
     project=applyProjectCommand(project,{type:"update-scene",sceneId:"s1",patch:{name:"Opening Hook",summary:"Opening"}},{now:"2026-08-20T00:03:00.000Z"});
     expect(project.scenes[0]?.name).toBe("Opening Hook");
     project=applyProjectCommand(project,{type:"remove-scene",sceneId:"s1"},{now:"2026-08-20T00:04:00.000Z"});

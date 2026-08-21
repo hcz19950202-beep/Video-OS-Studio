@@ -1,266 +1,273 @@
 # Video OS Studio — GPT Web / Local Codex Handoff
 
-> Updated: 2026-08-20 (Asia/Shanghai)
-> This file is the current execution handoff. It supersedes old branch/PR instructions in `GPT_WEB_START.md` and historical V1 handoff sections.
+> Updated: 2026-08-21 (Asia/Shanghai)  
+> This is the current execution handoff. It supersedes old V1/Phase-0 branch instructions.
 
 ## 1. Current truth
 
-Video OS Studio **V1.1 is complete and merged to `main`**.
+Repository: `hcz19950202-beep/Video-OS-Studio`
 
-- Repository: `hcz19950202-beep/Video-OS-Studio`
-- Visibility: PUBLIC
-- Default branch: `main`
-- V1 core PR #1: MERGED
-- V1.1 workstation UI/i18n PR #2: MERGED
-- V1.1 production baseline: `c3c026cd256d6ebfdced28b433112c1839347666`
+Accepted/merged:
 
-Do not restart V1 Phase 0–10 and do not treat `feature/phase-0-foundation` as the current development branch.
+- V1 core PR #1 — MERGED
+- V1.1 workstation UI/i18n PR #2 — MERGED
+- V2 M0 baseline PR #3 — MERGED
+- V2 M1 Project 2.0/migration PR #4 — MERGED
 
-## 2. Accepted V1/V1.1 gates
+V2 M1 merge commit on `main`:
 
-V1 acceptance and V1.1 UI polish have real Windows evidence.
+`cbed17c179c8fb6ace4ba35301f6be17aa232704`
+
+M1 passed real Windows migration/browser/render acceptance before merge.
+
+Current active milestone:
 
 ```text
-CODE COMPLETE: PASS
-CLOUD VERIFIED: PASS
-LOCAL VERIFIED: PASS
-PRD ACCEPTED: PASS
-RENDER VERIFIED: PASS
-V1.1 LOCAL UI VERIFIED: PASS
-MOTION TRANSFORM VERIFIED: PASS
-PRESET VERIFIED: PASS
-I18N VERIFIED: PASS
-V1 REGRESSION SMOKE: PASS
-USER VISUAL APPROVAL: PASS
+M2 — Text-native Editing
+branch: feature/v2-text-editing
+PR: #5
 ```
 
-Authoritative evidence:
+Do not restart V1 or M1.
 
-- `LOCAL_VALIDATION_V1.md`
-- `LOCAL_VALIDATION_V1_1_UI.md`
-- `LOCAL_VALIDATION_V1_1_POLISH.md`
+## 2. Non-negotiable architecture
 
-## 3. Baseline capabilities — preserve them
-
-### Media / rendering
-
-- MP4 import + ffprobe metadata
-- frame-based five-track Timeline
-- SRT/VTT captions
-- Remotion Player + master composition
-- final H.264/AAC MP4
-- VP9 alpha WebM validated with Chromium checkerboard
-- standard single Range asset responses for browser video playback
-- A-roll uses `<OffthreadVideo trimBefore>`
-
-### Engines
-
-- video-use transcription / packed transcript / confirmed EDL boundary
-- HyperFrames Process Flow / Map Route and transparent overlay cache
-- Remotion Effect Registry
-- review-before-apply Visual Planner
-
-### V1.1 workstation
-
-- high-density professional workstation shell
-- Dark primary + Light UI theme
-- persisted zh-CN / en-US switching
-- adaptive 9:16 / 16:9 / 1:1 Preview
-- resizable Preview / Timeline splitter
-- left workspaces: Assets / Effects / Captions / Project
-- top TIME / CARDS / DENSITY / PEAK / SEL metrics
-- shared Motion transform for Remotion + HyperFrames: X / Y / Scale / Opacity / 9-point Anchor
-- schema-driven Inspector
-- Inspector Preset workflow using the existing local Asset/Preset Library
-- Project JSON export
-
-V2 must **REUSE / EXTEND**, never rebuild, this baseline.
-
-## 4. Non-negotiable architecture rules
-
-- Node 24 remains the runtime baseline.
-- Project timing is canonical **frames**. Convert external seconds only at adapter seams.
-- UI and AI do not directly mutate durable Project JSON.
-- Durable changes go through validated Project Commands or bounded services.
-- External engines remain behind adapters.
-- Remotion remains the master composition engine.
-- Repository code and `VIDEO_OS_DATA_ROOT` media/user data remain separate.
-- Project files contain logical IDs/project-relative POSIX paths, not machine absolute paths.
-- Project ID/path traversal protections must not regress.
-- UI locale/theme are local preferences, distinct from generated-video Brand state.
+- Node 24 baseline.
+- Durable Project version is `2.0.0`.
+- Internal timing is canonical frames; external seconds only at adapters.
+- UI/AI do not mutate Project JSON directly.
+- Durable changes use validated Project Commands / transactions / bounded services.
+- Remotion is master compositor.
+- HyperFrames, video-use and FFmpeg remain behind adapters.
+- repository code and `VIDEO_OS_DATA_ROOT` user/media data stay separate.
+- project paths remain project-relative POSIX paths.
+- Studio UI theme/locale are preferences, not generated-video Brand state.
+- preserve all accepted V1.1 Preview/Timeline/Effect/Render behavior.
 - `REUSE > MODIFY > CREATE`.
 
-## 5. Current next product line
+## 3. V2 product abstraction
 
-The authoritative next PRD is:
+Authoritative PRD:
 
 `Video_OS_Studio_V2_AI_Native_Editor_Master_PRD_Rev2.md`
 
-V2 changes the abstraction from:
+Product direction:
 
 ```text
-Clip → Track → Timeline → Effect
+Words
+↓
+Meaning
+↓
+Scenes
+↓
+Visual Decisions
+↓
+Clips
+↓
+Render
 ```
 
-to:
+## 4. Accepted M1 foundation
 
-```text
-Words → Meaning → Scene → Visual Decision → Clip → Render
-```
+Project V2 already contains:
 
-## 6. V2 milestone order
-
-Do not skip the order.
-
-### M0 — Baseline Freeze
-
-Branch: `chore/v2-baseline`
-
-- sync README / HANDOFF / SYSTEM with V1.1 reality
-- commit V2 Rev.2 Master PRD
-- no product code changes
-
-### M1 — Project Schema 2.0 + Migration
-
-Branch after M0 merge: `feature/v2-foundation`
-
-Cloud/Web GPT owns initial implementation:
-
-- Project version `2.0.0`
 - Script / Transcript Word schema
 - Scene schema
 - Marker schema
-- Brand schema
+- generated-video Brand schema
 - Linked Style schema
-- Content-language config
-- real `1.0.0 → 2.0.0` migration
-- multi-select-capable Selection foundation
-- History Transaction foundation
-- validated commands and unit/integration tests
+- Content Language schema
+- V1 → V2 migration
+- multi-context Selection foundation
+- Project Command Transaction / History foundation
 
-Do **not** build Script UI, Scene UI, Canvas UI, Timeline V2 or AI Director during M1.
+Do not redesign these in M2.
 
-Local Codex then validates a real historical V1.1 project on Windows before merge.
+## 5. M2 cloud implementation
 
-### M2 — Text-native Editing
+Current branch `feature/v2-text-editing` implements:
 
-- Script Editor
-- delete/restore text ↔ canonical video edit
-- Player/Script/Timeline synchronization
-- Scene System + Scene Strip
+### Script source model
 
-### M3 — Editor V2
+`project.script` now contains stable `baseSourceRanges` plus transcript segments.
 
-- context-aware Inspector for all clip types / Scene
+This exists so delete/restore is reversible without restoring footage that a confirmed EDL intentionally removed.
+
+`lib/script/model.ts` provides:
+
+- video source-range extraction/merge/subtraction
+- real video-use word seconds → frame-based Script
+- Script sentence grouping
+- source-frame ↔ output-timeline-frame mapping
+- Script segment timeline ranges
+
+### video-use → Script
+
+`VideoUseService.prepare()` now persists a real editable Script from video-use word timestamps.
+
+Confirmed EDL application:
+
+- updates the Script source baseline to the EDL ranges;
+- filters Script words outside the EDL;
+- refuses a new EDL after Script cuts already exist;
+- refuses EDL changes after Scene design begins.
+
+### Reversible spoken-content cuts
+
+`lib/script/editing.ts` rebuilds the canonical Video Track from the Script baseline in one transaction.
+
+A Script sentence can be:
+
+```text
+active → removed → active
+```
+
+Delete/restore is deliberately refused after timing-dependent downstream design exists:
+
+- Scene
+- Caption
+- Motion
+- B-roll
+- Audio
+
+This avoids silently corrupting downstream timing.
+
+### Script Editor UI
+
+- Script left workspace
+- segment/word counts
+- word click → Player seek
+- Player frame → current-word highlight
+- show/hide removed
+- Remove Sentence / Restore Sentence
+- semantic tags: Keep / Motion / B-roll / Quote / CTA
+- zh-CN / en-US labels
+
+### Scene System
+
+- automatic semantic Scene generation from active Script
+- Hook/Pain/Solution/Reframe/Proof/Process/Comparison/CTA/Custom types
+- Scene name/type editing
+- Scene selection → Player seek
+- Scene split at Script segment boundary
+- merge with next Scene
+- Script `sceneId` assignments updated atomically
+- Scene Strip above the existing five media tracks
+- Scene is semantic metadata, **not a sixth media track**
+
+### Existing workstation reused
+
+M2 extends the V1.1 shell:
+
+```text
+Script / Scenes / Assets / Effects / Captions / Project
+```
+
+Preview, Effect Library, Motion Inspector and base Timeline remain reused rather than rebuilt.
+
+Right-side Scene Inspector is intentionally **not** part of M2; it belongs to M3.
+
+## 6. Cloud verification
+
+PR #5 latest cloud-success run before handoff documentation:
+
+`32443336571`
+
+Results:
+
+- install PASS
+- lint PASS — 0 errors, two existing `<img>` warnings only
+- typecheck PASS
+- tests PASS — **25 files / 74 tests**
+- production build PASS
+
+Cloud CI caught and closed during M2 development:
+
+1. Script default/test fixtures missing new `baseSourceRanges`;
+2. old migration assertion not expecting `baseSourceRanges: []`;
+3. Chinese CTA classification missing natural phrase `发给我们`;
+4. video-use Prepare did not previously have a regression proving Script persistence — regression added.
+
+After the documentation commits, use the newest PR #5 head/CI as the actual handoff baseline.
+
+## 7. Current gates
+
+```text
+CODE COMPLETE: PASS for M2 cloud scope
+CLOUD VERIFIED: PASS before final docs; newest head must also be green
+LOCAL VERIFIED: PENDING
+PRD ACCEPTED: PENDING
+RENDER VERIFIED: PENDING
+VISUAL ACCEPTED: PENDING
+```
+
+Do not merge PR #5 yet.
+
+## 8. Local Codex ownership now
+
+Local Codex should now own this branch until M2 validation returns.
+
+Read and execute:
+
+`LOCAL_VALIDATION_V2_M2.md`
+
+Required real-Windows proof includes:
+
+- real talking-head MP4
+- real video-use Transcribe + Pack
+- populated Script
+- Script ↔ Player sync
+- real sentence remove
+- shorter A-roll/final MP4
+- sentence restore
+- downstream timing guard
+- confirmed EDL baseline safety
+- real Scene generation
+- Scene Strip
+- rename/type/split/merge
+- save/restart/reopen
+- V1.1 regression smoke
+- bilingual UI screenshots
+
+Local defects use:
+
+```text
+V2-M2-LV-001
+V2-M2-LV-002
+...
+```
+
+Fix M2-only defects on the same branch and push back to PR #5. Rerun full CI.
+
+## 9. Phase ownership rule
+
+Do not let GPT Web and Local Codex concurrently modify the M2 branch.
+
+```text
+GPT Web development ✅
+→ Cloud CI ✅
+→ Local Codex validation ← NOW
+→ local fixes to same PR
+→ final CI
+→ GPT Web review
+→ merge only after all M2 gates PASS
+```
+
+Do not start M3 during M2 local validation.
+
+## 10. Next milestone after accepted M2
+
+Only after PR #5 is accepted and merged:
+
+```text
+M3 — Editor V2
+```
+
+M3 scope:
+
+- context-aware Inspector for Video / Caption / Motion / HyperFrames / B-roll / Audio / Scene
 - multi-select common properties
-- generated-video Brand
+- generated-video Brand UI/inheritance
 - Linked Styles
 
-### M4 — Canvas + Timeline V2
-
-- direct Canvas drag/resize/rotate/snap reusing existing Motion transform
-- Timeline snap/marker/multi-select/shortcuts/waveform/Scene Strip
-
-### M5 — AI Director V2
-
-- Scene-aware recommendations
-- reason / confidence / alternatives
-- visual density
-- Change Preview
-- one undoable Apply transaction
-
-## 7. GPT Web vs Local Codex ownership
-
-### GPT Web + GitHub
-
-Primary owner of:
-
-- product architecture
-- schema/migration
-- React/TypeScript implementation
-- commands/services
-- cloud-safe integration tests
-- PR creation
-- GitHub Actions CI
-
-### Local Codex
-
-Primary owner of things cloud CI cannot prove:
-
-- Windows paths/filesystem
-- migration of real `E:\Video-OS-Data` projects
-- real MP4/video-use/FFmpeg/Remotion/HyperFrames
-- browser mouse/drag/keyboard interaction
-- fonts/waveforms/media performance
-- final MP4/alpha WebM regression
-
-Local defects use milestone-scoped IDs such as:
-
-```text
-V2-M1-LV-001
-V2-M2-LV-001
-```
-
-All local fixes must return to the same GitHub PR and pass CI again.
-
-## 8. Phase ownership rule
-
-Do not let GPT Web and Local Codex concurrently modify the same milestone branch.
-
-```text
-GPT Web development
-→ CODE COMPLETE / CLOUD VERIFIED
-→ handoff
-→ Local Codex validation/fixes
-→ push same PR
-→ final CI/review
-→ merge
-```
-
-## 9. Verification gates
-
-Always report separately:
-
-- `CODE COMPLETE`
-- `CLOUD VERIFIED`
-- `LOCAL VERIFIED`
-- `PRD ACCEPTED`
-- `RENDER VERIFIED` when rendering is involved
-- `VISUAL ACCEPTED` for major UI work
-- `MIGRATION VERIFIED` for project-version changes
-
-Do not describe CI as proof of Windows/browser/render behavior.
-
-## 10. Start-of-work reading order
-
-Before V2 implementation, read:
-
-1. `Video_OS_Studio_V2_AI_Native_Editor_Master_PRD_Rev2.md`
-2. `SYSTEM.md`
-3. `DESIGN.md`
-4. this file
-5. `LOCAL_VALIDATION_V1.md`
-6. `LOCAL_VALIDATION_V1_1_POLISH.md`
-7. relevant code/tests
-
-## 11. Immediate execution state
-
-At the time of this handoff update, the intended sequence is:
-
-```text
-main (accepted V1.1)
-↓
-chore/v2-baseline
-↓
-CI + merge
-↓
-feature/v2-foundation
-↓
-cloud M1 implementation
-↓
-CI
-↓
-Windows Local Codex M1 migration validation
-```
-
-Do not merge a V2 milestone until its required local gates are satisfied unless the user explicitly changes that policy.
+Canvas direct manipulation and Timeline V2 remain M4. AI Director remains M5.

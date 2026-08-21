@@ -16,7 +16,7 @@ describe("project migrations",()=>{
     expect(migrated.canvas).toEqual(legacyFixture.canvas);
     expect(migrated.assets).toEqual(legacyFixture.assets);
     expect(migrated.tracks).toEqual(legacyFixture.tracks);
-    expect(migrated.script).toEqual({segments:[]});
+    expect(migrated.script).toEqual({baseSourceRanges:[],segments:[]});
     expect(migrated.scenes).toEqual([]);
     expect(migrated.markers).toEqual([]);
     expect(migrated.linkedStyles).toEqual([]);

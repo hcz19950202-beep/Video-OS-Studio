@@ -11,6 +11,36 @@ describe("Phase 8 video-use",()=>{
     expect(parseScribePayload({text:"Hello",words:[{type:"word",text:"Hello",start:1,end:1.4,speaker_id:"speaker_0"},{type:"spacing",text:" ",start:1.4,end:1.5}]})).toEqual({text:"Hello",words:[{text:"Hello",startSeconds:1,endSeconds:1.4,speakerId:"speaker_0",type:"word"}]});
   });
 
+  it("persists an editable frame-based Script when preparing a transcript",async()=>{
+    const fs=new InMemoryFileSystemAdapter();
+    const repo=new ProjectRepository(fs,"/data");
+    let project=await repo.create({id:"script-prepare",name:"Script Prepare",fps:30,durationInFrames:300});
+    project=applyProjectCommand(project,{type:"add-asset",asset:{id:"v1",kind:"video",relativePath:"input/a.mp4",durationInFrames:300}});
+    project=applyProjectCommand(project,{type:"add-clip",trackId:"video-main",clip:{id:"v",type:"video",assetId:"v1",startFrame:0,durationInFrames:300,sourceStartFrame:0,volume:1,enabled:true,layer:0}});
+    await repo.save(project);
+    const adapter:VideoUseAdapter={
+      prepare:async()=>({
+        words:[
+          {text:"Hello",startSeconds:0,endSeconds:.4,speakerId:"speaker_0",type:"word"},
+          {text:" world.",startSeconds:.45,endSeconds:.9,speakerId:"speaker_0",type:"word"},
+          {text:"Second line",startSeconds:1.2,endSeconds:1.8,speakerId:"speaker_0",type:"word"},
+        ],
+        text:"Hello world. Second line",
+        packedText:"# packed",
+        transcriptPath:"/data/projects/script-prepare/edit/transcripts/a.json",
+        packedTranscriptPath:"/data/projects/script-prepare/edit/takes_packed.md",
+      }),
+      renderEdl:async(input)=>({outputPath:input.outputPath}),
+      timelineView:async()=>({}),
+    };
+    const service=new VideoUseService(fs,adapter,repo);
+    const result=await service.prepare("script-prepare");
+    expect(result.scriptSegmentCount).toBe(2);
+    expect(result.project.script.baseSourceRanges).toEqual([{startFrame:0,endFrame:300}]);
+    expect(result.project.script.segments[0]?.words[0]).toMatchObject({text:"Hello",startFrame:0,endFrame:12});
+    expect((await repo.load("script-prepare")).script).toEqual(result.project.script);
+  });
+
   it("applies a confirmed seconds-based EDL as frame-based source trims",async()=>{
     const fs=new InMemoryFileSystemAdapter();
     const repo=new ProjectRepository(fs,"/data");

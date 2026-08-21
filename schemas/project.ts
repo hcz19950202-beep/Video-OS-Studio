@@ -42,7 +42,7 @@ export const ProjectSchema=z.object({
   canvas:CanvasSchema,
   assets:z.array(AssetSchema).default([]),
   tracks:z.array(TrackSchema).default([]),
-  script:ScriptDocumentSchema.default({segments:[]}),
+  script:ScriptDocumentSchema.default({baseSourceRanges:[],segments:[]}),
   scenes:z.array(SceneSchema).default([]),
   markers:z.array(MarkerSchema).default([]),
   brand:BrandConfigSchema.default(DEFAULT_BRAND_CONFIG),
