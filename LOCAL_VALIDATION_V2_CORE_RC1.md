@@ -744,3 +744,87 @@ If all eight RC gates pass, GPT Web will perform the release closeout:
 4. decide whether to bump package metadata to `2.0.0`;
 5. create the V2 release/tag only after final repository state is green;
 6. open the next Post-Core product milestone deliberately rather than continuing ad hoc development.
+
+## 29. RC1 Local Validation Result — 2026-08-22
+
+This validation used a brand-new Project and the exact new source supplied in `E:\外贸预制房\2026.08.20`.
+
+```text
+Project: RC1 文件夹素材口播验收
+Project ID: rc1-5a342e14
+Data root: E:\Video-OS-Data\v2-core-rc1-20260822-002610
+Final durable revision: 83
+Canvas: 1080x1920, 30 fps, 2169 frames
+Initial revision: 0
+Import revision: 0 -> 3
+```
+
+Raw source and import adaptation:
+
+```text
+Raw MOV: E:\外贸预制房\2026.08.20\2026_08_19_10_13_06_IMG_0948.MOV
+Raw SHA256: 14B2F9A3D84B35FDDD6F512B38A7821C9D583ECF906DBAE3547E0F8F3A1BF5EB
+Raw size: 127047659 bytes
+Raw media: HEVC video, AAC stereo audio, 1920x1080 with -90 degree display rotation, 59.94 fps, 75.901700 s
+Imported adaptation: folder-source-IMG_0948.mp4, H.264/AAC, 1080x1920, 30 fps, 75.966667 s
+Adapted SHA256: 13721972D0CFB33106840AE5613AF0844F94648968C3485D0CFC6F70C0FDA5BA
+```
+
+The product import boundary currently accepts MP4/SRT/VTT and rejects MOV. The supplied MOV was converted without changing its content, then imported through the normal UI. This is a P2 Polish observation, not a release blocker for the accepted MP4 import contract.
+
+Workflow result:
+
+```text
+video-use: 341 words, 19 segments, 35.1 s server elapsed
+Script: removed segment-009 f1034-f1144, restored once, removed again; 2279 -> 2169 frames; segment-018 tagged CTA
+Scenes: 10; renamed the hook scene, split the hook, changed PROCESS 02 semantic type to pain
+Captions: 38; first caption bold/both/Arial/58px/top/left, cyan fill, dark stroke/shadow/background
+AI Director: analyze 61 -> 61; 28 suggestions; 19 Density Hold; 8 applied Remotion clips; apply 61 -> 62
+Brand: custom dark blue/cyan brand, Arial typography, strong motion, speed .9, scale 1.05
+Linked style: RC1 Blue Motion, bound to 8 motion clips; shared scale updated to .60 and persisted
+Canvas: select, drag, resize, rotate, nudge, snap toggle, layer change; durable revisions incremented monotonically
+B-roll: 2 clips from the real imported factory video; source continuity verified 300 + 126 = 426
+Audio: 1 real MP3 BGM asset, role bgm, volume .08, fades, waveform and playback audition verified
+Timeline: marker M1, S split, Undo, Redo, shift multi-select, duplicate/delete, waveform
+Restart: stopped server, restarted, reopened from Recent Projects; durable state recovered
+```
+
+Render result:
+
+```text
+First render job: 607eb29f-b05a-4679-bf81-4878cc82b983
+First output: projects/rc1-5a342e14/render/final-607eb29f-b05a-4679-bf81-4878cc82b983.mp4
+First render time: 11m17s
+
+Final corrected second-edit render job: 0803639f-9334-49a1-957b-ada20b885dac
+Final output: projects/rc1-5a342e14/render/final-0803639f-9334-49a1-957b-ada20b885dac.mp4
+Final render time: 13m30s
+Final SHA256: C8AE52B120ADC3FEADA3ACAC60EDACE6CAA8CACB1DAE5D4D6C781B03A69F2D85
+Final size: 89499252 bytes
+Final ffprobe: H.264 High, AAC LC stereo, 1080x1920, 30 fps, 2169 frames, 72.362667 s
+Full video/audio decode: PASS
+```
+
+The second edit constrained the shared motion style so the opening AI keyword card stayed inside the 9:16 canvas; the final corrected second render contains that change and the persisted Arial caption style. The intermediate second-edit render was superseded by the corrected final render above.
+
+Known observations:
+
+```text
+P2: MOV requires MP4 adaptation at the current import boundary.
+P2: a stale UI Save can overwrite a caption font field; final state was corrected through the supported command boundary and re-rendered.
+No V2-RC1 release-blocking code defect found.
+```
+
+Evidence: `E:\Video-OS-Data\v2-core-rc1-20260822-002610\evidence`.
+Browser recording: `C:\Users\hcz\.config\browser-harness\agent-workspace\recordings\video-os-v2-core-rc1`.
+
+```text
+CODE HEALTH: PASS
+END-TO-END LOCAL: PASS
+DURABILITY: PASS
+FIRST RENDER: PASS
+SECOND-EDIT RENDER: PASS
+VISUAL ACCEPTED: PASS
+USABILITY ACCEPTED: PASS with P2 observations
+REGRESSION ACCEPTED: PASS
+```
