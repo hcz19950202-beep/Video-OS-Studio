@@ -45,4 +45,20 @@ describe("NodeFileSystemAdapter project persistence", () => {
 
     await expect(repository.load("../escape")).rejects.toThrow();
   });
+
+  it("keeps concurrent atomic writes isolated", async () => {
+    const dataRoot = await getDataRoot();
+    const fs = new NodeFileSystemAdapter();
+    const path = join(dataRoot, "projects", "concurrent", "project.json");
+
+    await Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        fs.writeTextAtomic(path, JSON.stringify({ index })),
+      ),
+    );
+
+    const result = JSON.parse(await readFile(path, "utf8")) as { index: number };
+    expect(result.index).toBeGreaterThanOrEqual(0);
+    expect(result.index).toBeLessThan(8);
+  });
 });

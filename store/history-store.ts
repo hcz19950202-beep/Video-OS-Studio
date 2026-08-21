@@ -1,0 +1,7 @@
+import {create} from "zustand";
+import type {Project} from "@/schemas/project";
+
+type HistoryEntry={projectId:string;label:string;before:Project;after:Project};
+type HistoryState={undoStack:HistoryEntry[];redoStack:HistoryEntry[];push:(entry:HistoryEntry)=>void;takeUndo:(projectId:string)=>HistoryEntry|undefined;takeRedo:(projectId:string)=>HistoryEntry|undefined;clear:()=>void};
+const MAX_HISTORY=100;
+export const useHistoryStore=create<HistoryState>((set,get)=>({undoStack:[],redoStack:[],push:(entry)=>set(state=>({undoStack:[...state.undoStack,structuredClone(entry)].slice(-MAX_HISTORY),redoStack:[]})),takeUndo:(projectId)=>{const stack=get().undoStack;const index=[...stack].reverse().findIndex(entry=>entry.projectId===projectId);if(index<0)return undefined;const actual=stack.length-1-index;const entry=stack[actual]!;set(state=>({undoStack:state.undoStack.filter((_,i)=>i!==actual),redoStack:[...state.redoStack,entry].slice(-MAX_HISTORY)}));return structuredClone(entry);},takeRedo:(projectId)=>{const stack=get().redoStack;const index=[...stack].reverse().findIndex(entry=>entry.projectId===projectId);if(index<0)return undefined;const actual=stack.length-1-index;const entry=stack[actual]!;set(state=>({redoStack:state.redoStack.filter((_,i)=>i!==actual),undoStack:[...state.undoStack,entry].slice(-MAX_HISTORY)}));return structuredClone(entry);},clear:()=>set({undoStack:[],redoStack:[]})}));

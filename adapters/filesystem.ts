@@ -1,8 +1,11 @@
-import { access, copyFile, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { dirname, posix as posixPath } from "node:path";
 import type { FileSystemAdapter } from "@/adapters/contracts";
 
 export class NodeFileSystemAdapter implements FileSystemAdapter {
+  private readonly writeChains = new Map<string, Promise<void>>();
+
   async exists(path: string): Promise<boolean> {
     try {
       await access(path);
@@ -36,14 +39,36 @@ export class NodeFileSystemAdapter implements FileSystemAdapter {
   }
 
   async writeTextAtomic(path: string, content: string, backupPath?: string): Promise<void> {
-    await this.ensureDir(dirname(path));
-    if (backupPath && (await this.exists(path))) {
-      await this.ensureDir(dirname(backupPath));
-      await copyFile(path, backupPath);
+    const previous = this.writeChains.get(path) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.writeChains.set(path, current);
+
+    try {
+      await previous.catch(() => undefined);
+      await this.ensureDir(dirname(path));
+      if (backupPath && (await this.exists(path))) {
+        await this.ensureDir(dirname(backupPath));
+        await copyFile(path, backupPath);
+      }
+      // A shared `<path>.tmp` collides when two local commands persist close
+      // together: one rename removes the temp file while the other is still
+      // trying to rename it. Keep each atomic write isolated and clean up only
+      // its own temp file. The per-path chain also avoids Windows rename
+      // conflicts when replacing an existing target.
+      const tempPath = `${path}.${randomUUID()}.tmp`;
+      try {
+        await writeFile(tempPath, content, "utf8");
+        await rename(tempPath, path);
+      } finally {
+        await rm(tempPath, { force: true });
+      }
+    } finally {
+      release();
+      if (this.writeChains.get(path) === current) this.writeChains.delete(path);
     }
-    const tempPath = `${path}.tmp`;
-    await writeFile(tempPath, content, "utf8");
-    await rename(tempPath, path);
   }
 }
 

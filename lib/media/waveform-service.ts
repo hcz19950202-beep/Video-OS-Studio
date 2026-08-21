@@ -1,0 +1,8 @@
+import type {FileSystemAdapter,FfmpegAdapter} from "@/adapters/contracts";
+import type {ProjectRepository} from "@/lib/project/repository";
+
+export type WaveformPayload={assetId:string;points:number;peaks:number[];cached:boolean};
+export class WaveformService{
+  constructor(private readonly fs:FileSystemAdapter,private readonly ffmpeg:FfmpegAdapter,private readonly repository:ProjectRepository){}
+  async get(projectId:string,assetId:string,points=160):Promise<WaveformPayload>{const project=await this.repository.load(projectId);const asset=project.assets.find(item=>item.id===assetId);if(!asset)throw new Error(`Asset ${assetId} not found`);if(!(asset.kind==="video"||asset.kind==="audio"))throw new Error(`Asset ${assetId} does not support waveform analysis`);const requested=Number.isFinite(points)?Math.round(points):160;const safePoints=Math.max(32,Math.min(512,requested));if(asset.kind==="video"&&asset.hasAudio===false)return{assetId,points:safePoints,peaks:Array(safePoints).fill(.02),cached:true};const relative=`cache/waveforms/${assetId}-${safePoints}.json`;const cachePath=this.repository.resolveProjectFile(projectId,relative);if(await this.fs.exists(cachePath)){try{const parsed=JSON.parse(await this.fs.readText(cachePath)) as{peaks?:number[]};if(Array.isArray(parsed.peaks)&&parsed.peaks.length===safePoints)return{assetId,points:safePoints,peaks:parsed.peaks,cached:true};}catch{/* regenerate corrupt cache */}}const source=this.repository.resolveProjectFile(projectId,asset.relativePath);const peaks=await this.ffmpeg.waveformPeaks(source,safePoints);await this.fs.writeTextAtomic(cachePath,JSON.stringify({assetId,points:safePoints,peaks}));return{assetId,points:safePoints,peaks,cached:false};}
+}
