@@ -12,15 +12,7 @@ const BaseClipShape={
 };
 
 export const MotionAnchorSchema=z.enum([
-  "top-left",
-  "top",
-  "top-right",
-  "left",
-  "center",
-  "right",
-  "bottom-left",
-  "bottom",
-  "bottom-right",
+  "top-left","top","top-right","left","center","right","bottom-left","bottom","bottom-right",
 ]);
 
 export const MotionTransformSchema=z.object({
@@ -34,11 +26,50 @@ export const MotionTransformSchema=z.object({
 export type MotionTransform=z.infer<typeof MotionTransformSchema>;
 export const DEFAULT_MOTION_TRANSFORM:MotionTransform={x:0,y:0,scale:1,opacity:1,anchor:"center"};
 
-export const VideoClipSchema=z.object({...BaseClipShape,type:z.literal("video"),assetId:z.string().min(1),sourceStartFrame:z.number().int().nonnegative().default(0),volume:z.number().min(0).max(2).default(1),...FrameTimingSchema.shape});
-export const CaptionClipSchema=z.object({...BaseClipShape,type:z.literal("caption"),text:z.string().min(1),preset:z.enum(["primary","minimal","bold"]).default("primary"),emphasis:z.enum(["none","numbers","keywords","both"]).default("numbers"),keywords:z.array(z.string()).default([]),...FrameTimingSchema.shape});
-export const MotionClipSchema=z.object({...BaseClipShape,type:z.literal("motion"),engine:z.enum(["remotion","hyperframes"]),effectId:z.string().min(1),assetId:z.string().min(1).optional(),props:z.record(z.string(),z.unknown()).default({}),transform:MotionTransformSchema.optional(),...FrameTimingSchema.shape});
-export const BrollClipSchema=z.object({...BaseClipShape,type:z.literal("broll"),assetId:z.string().min(1),fit:z.enum(["cover","contain"]).default("cover"),muted:z.boolean().default(true),...FrameTimingSchema.shape});
-export const AudioClipSchema=z.object({...BaseClipShape,type:z.literal("audio"),assetId:z.string().min(1),sourceStartFrame:z.number().int().nonnegative().default(0),volume:z.number().min(0).max(2).default(1),...FrameTimingSchema.shape});
+export const CaptionVisualStyleSchema=z.object({
+  fontFamily:z.string().min(1).optional(),
+  fontSize:z.number().min(12).max(240).optional(),
+  fontWeight:z.number().int().min(100).max(1000).optional(),
+  lineHeight:z.number().min(.7).max(3).optional(),
+  position:z.enum(["top","center","bottom"]).optional(),
+  maxWidth:z.number().min(20).max(100).optional(),
+  alignment:z.enum(["left","center","right"]).optional(),
+  fill:z.string().min(1).optional(),
+  stroke:z.string().min(1).optional(),
+  shadow:z.string().min(1).optional(),
+  background:z.string().min(1).optional(),
+}).default({});
+export type CaptionVisualStyle=z.infer<typeof CaptionVisualStyleSchema>;
+
+export const VideoClipSchema=z.object({...BaseClipShape,
+  type:z.literal("video"),assetId:z.string().min(1),sourceStartFrame:z.number().int().nonnegative().default(0),
+  volume:z.number().min(0).max(2).default(1),muted:z.boolean().default(false),fit:z.enum(["contain","cover"]).default("contain"),
+  transform:MotionTransformSchema.optional(),...FrameTimingSchema.shape,
+});
+
+export const CaptionClipSchema=z.object({...BaseClipShape,
+  type:z.literal("caption"),text:z.string().min(1),preset:z.enum(["primary","minimal","bold"]).default("primary"),
+  emphasis:z.enum(["none","numbers","keywords","both"]).default("numbers"),keywords:z.array(z.string()).default([]),
+  style:CaptionVisualStyleSchema,linkedStyleId:z.string().min(1).optional(),...FrameTimingSchema.shape,
+});
+
+export const MotionClipSchema=z.object({...BaseClipShape,
+  type:z.literal("motion"),engine:z.enum(["remotion","hyperframes"]),effectId:z.string().min(1),assetId:z.string().min(1).optional(),
+  props:z.record(z.string(),z.unknown()).default({}),transform:MotionTransformSchema.optional(),linkedStyleId:z.string().min(1).optional(),...FrameTimingSchema.shape,
+});
+
+export const BrollClipSchema=z.object({...BaseClipShape,
+  type:z.literal("broll"),assetId:z.string().min(1),fit:z.enum(["cover","contain"]).default("cover"),muted:z.boolean().default(true),
+  volume:z.number().min(0).max(2).default(1),fadeInFrames:z.number().int().nonnegative().default(0),fadeOutFrames:z.number().int().nonnegative().default(0),
+  transform:MotionTransformSchema.optional(),...FrameTimingSchema.shape,
+});
+
+export const AudioClipSchema=z.object({...BaseClipShape,
+  type:z.literal("audio"),assetId:z.string().min(1),sourceStartFrame:z.number().int().nonnegative().default(0),volume:z.number().min(0).max(2).default(1),
+  muted:z.boolean().default(false),fadeInFrames:z.number().int().nonnegative().default(0),fadeOutFrames:z.number().int().nonnegative().default(0),
+  role:z.enum(["voice","bgm","sfx"]).default("bgm"),...FrameTimingSchema.shape,
+});
+
 export const ClipSchema=z.discriminatedUnion("type",[VideoClipSchema,CaptionClipSchema,MotionClipSchema,BrollClipSchema,AudioClipSchema]);
 export type Clip=z.infer<typeof ClipSchema>;
 export type ClipType=Clip["type"];
