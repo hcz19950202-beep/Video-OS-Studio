@@ -9,7 +9,7 @@ import {BrandConfigSchema} from "@/schemas/brand";
 import {LinkedStyleSchema} from "@/schemas/linked-style";
 import {LanguageConfigSchema} from "@/schemas/language";
 
-const MotionTransformPatchSchema=z.object({x:z.number().finite().optional(),y:z.number().finite().optional(),scale:z.number().min(0.1).max(5).optional(),opacity:z.number().min(0).max(1).optional(),anchor:MotionAnchorSchema.optional()});
+const MotionTransformPatchSchema=z.object({x:z.number().finite().optional(),y:z.number().finite().optional(),scale:z.number().min(0.1).max(5).optional(),opacity:z.number().min(0).max(1).optional(),anchor:MotionAnchorSchema.optional(),rotation:z.number().finite().optional()});
 const ScenePatchSchema=z.object({name:z.string().min(1).optional(),semanticType:SceneSemanticTypeSchema.optional(),startFrame:z.number().int().nonnegative().optional(),endFrame:z.number().int().positive().optional(),summary:z.string().nullable().optional(),styleId:z.string().min(1).nullable().optional(),visualStrategy:SceneVisualStrategySchema.nullable().optional()});
 const MarkerPatchSchema=z.object({frame:z.number().int().nonnegative().optional(),label:z.string().nullable().optional(),color:z.string().min(1).nullable().optional(),type:z.enum(["note","beat","cta","visual"]).optional()});
 
@@ -20,6 +20,8 @@ export const ProjectCommandSchema=z.discriminatedUnion("type",[
   z.object({type:z.literal("add-asset"),asset:AssetSchema}),
   z.object({type:z.literal("add-clip"),trackId:z.string().min(1),clip:ClipSchema}),
   z.object({type:z.literal("update-clip-timing"),clipId:z.string().min(1),startFrame:z.number().int().nonnegative().optional(),durationInFrames:z.number().int().positive().optional()}),
+  z.object({type:z.literal("set-clip-layer"),clipId:z.string().min(1),layer:z.number().int()}),
+  z.object({type:z.literal("split-clip"),clipId:z.string().min(1),frame:z.number().int().nonnegative(),newClipId:z.string().min(1)}),
   z.object({type:z.literal("update-video-properties"),clipId:z.string().min(1),fit:z.enum(["contain","cover"]).optional(),volume:z.number().min(0).max(2).optional(),muted:z.boolean().optional(),transform:MotionTransformPatchSchema.optional()}),
   z.object({type:z.literal("update-motion-props"),clipId:z.string().min(1),props:z.record(z.string(),z.unknown())}),
   z.object({type:z.literal("update-motion-transform"),clipId:z.string().min(1),transform:MotionTransformPatchSchema}),
@@ -42,6 +44,7 @@ export const ProjectCommandSchema=z.discriminatedUnion("type",[
   z.object({type:z.literal("update-linked-style"),style:LinkedStyleSchema}),
   z.object({type:z.literal("remove-linked-style"),styleId:z.string().min(1)}),
   z.object({type:z.literal("set-language-config"),language:LanguageConfigSchema}),
+  z.object({type:z.literal("restore-project-snapshot"),snapshot:ProjectSchema}),
 ]);
 
 export type ProjectCommand=z.infer<typeof ProjectCommandSchema>;
@@ -62,6 +65,8 @@ export const applyProjectCommand=(projectInput:Project,commandInput:ProjectComma
     case"add-asset":if(next.assets.some(asset=>asset.id===command.asset.id))throw new Error(`Asset ${command.asset.id} already exists`);next.assets.push(command.asset);break;
     case"add-clip":{const track=next.tracks.find(item=>item.id===command.trackId);if(!track)throw new Error(`Track ${command.trackId} not found`);if(track.type!==command.clip.type)throw new Error(`Clip type ${command.clip.type} cannot be added to ${track.type} track`);if(next.tracks.some(item=>item.clips.some(clip=>clip.id===command.clip.id)))throw new Error(`Clip ${command.clip.id} already exists`);track.clips.push(command.clip);break;}
     case"update-clip-timing":{const clip=findClip(next,command.clipId);if(!clip)throw new Error(`Clip ${command.clipId} not found`);if(command.startFrame!==undefined)clip.startFrame=command.startFrame;if(command.durationInFrames!==undefined)clip.durationInFrames=command.durationInFrames;break;}
+    case"set-clip-layer":{const clip=findClip(next,command.clipId);if(!clip)throw new Error(`Clip ${command.clipId} not found`);clip.layer=command.layer;break;}
+    case"split-clip":{if(findClip(next,command.newClipId))throw new Error(`Clip ${command.newClipId} already exists`);const track=next.tracks.find(item=>item.clips.some(clip=>clip.id===command.clipId));if(!track)throw new Error(`Clip ${command.clipId} not found`);const clip=track.clips.find(item=>item.id===command.clipId)!;const end=clip.startFrame+clip.durationInFrames;if(command.frame<=clip.startFrame||command.frame>=end)throw new Error("Split frame must be inside the selected clip");const leftDuration=command.frame-clip.startFrame;const right=structuredClone(clip);right.id=command.newClipId;right.startFrame=command.frame;right.durationInFrames=end-command.frame;if(right.type==="video"||right.type==="audio")right.sourceStartFrame+=leftDuration;clip.durationInFrames=leftDuration;track.clips.push(right);break;}
     case"update-video-properties":{const clip=findClip(next,command.clipId);if(!clip||clip.type!=="video")throw new Error(`Clip ${command.clipId} is not a video clip`);if(command.fit!==undefined)clip.fit=command.fit;if(command.volume!==undefined)clip.volume=command.volume;if(command.muted!==undefined)clip.muted=command.muted;if(command.transform)clip.transform=applyTransform(clip.transform,command.transform);break;}
     case"update-motion-props":{const clip=findClip(next,command.clipId);if(!clip||clip.type!=="motion")throw new Error(`Clip ${command.clipId} is not a motion clip`);clip.props=command.props;break;}
     case"update-motion-transform":{const clip=findClip(next,command.clipId);if(!clip||clip.type!=="motion")throw new Error(`Clip ${command.clipId} is not a motion clip`);clip.transform=applyTransform(clip.transform,command.transform);break;}
@@ -84,6 +89,7 @@ export const applyProjectCommand=(projectInput:Project,commandInput:ProjectComma
     case"update-linked-style":{const index=next.linkedStyles.findIndex(style=>style.id===command.style.id);if(index<0)throw new Error(`Linked style ${command.style.id} not found`);next.linkedStyles[index]=command.style;break;}
     case"remove-linked-style":{const before=next.linkedStyles.length;next.linkedStyles=next.linkedStyles.filter(style=>style.id!==command.styleId);if(before===next.linkedStyles.length)throw new Error(`Linked style ${command.styleId} not found`);for(const track of next.tracks)for(const clip of track.clips)if((clip.type==="motion"||clip.type==="caption")&&clip.linkedStyleId===command.styleId)delete clip.linkedStyleId;for(const scene of next.scenes)if(scene.styleId===command.styleId)delete scene.styleId;break;}
     case"set-language-config":next.language=command.language;break;
+    case"restore-project-snapshot":{if(command.snapshot.project.id!==next.project.id)throw new Error("Cannot restore a snapshot from another project");const revision=next.project.revision;const createdAt=next.project.createdAt;const restored=structuredClone(command.snapshot);next.version=restored.version;next.project={...restored.project,id:next.project.id,createdAt,revision};next.canvas=restored.canvas;next.assets=restored.assets;next.tracks=restored.tracks;next.script=restored.script;next.scenes=restored.scenes;next.markers=restored.markers;next.brand=restored.brand;next.linkedStyles=restored.linkedStyles;next.language=restored.language;break;}
   }
 
   if(!skipRevision){next.project.revision+=1;next.project.updatedAt=now;}
