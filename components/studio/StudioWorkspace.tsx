@@ -6,6 +6,9 @@ import {Timeline} from "@/components/timeline/Timeline";
 import {EffectLibrary} from "@/components/library/EffectLibrary";
 import {EffectInspector} from "@/components/inspector/EffectInspector";
 import {StudioPreferencesProvider,useStudioPreferences} from "@/components/i18n/StudioPreferences";
+import {ScriptEditor} from "@/components/script/ScriptEditor";
+import {ScenePanel} from "@/components/scenes/ScenePanel";
+import {VideoUsePanel} from "@/components/video-use/VideoUsePanel";
 import type {ProjectCommand} from "@/lib/project/commands";
 import type {ProjectSummary} from "@/lib/project/repository";
 import type {Project} from "@/schemas/project";
@@ -17,9 +20,8 @@ import {translateEffectName} from "@/lib/i18n/studio";
 
 type ApiError={error?:string;action?:string;retryable?:boolean};
 type ErrorState={message:string;action?:string;retryable:boolean}|null;
-type WorkspaceTab="edit"|"effects";
-type LeftTab="assets"|"effects"|"captions"|"project";
-
+type WorkspaceTab="script"|"edit"|"effects";
+type LeftTab="script"|"scenes"|"assets"|"effects"|"captions"|"project";
 type ResizeState={pointerId:number;startY:number;startHeight:number}|null;
 
 const requestJson=async<T,>(url:string,init?:RequestInit):Promise<T>=>{
@@ -45,6 +47,7 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
   const setProject=useProjectStore(state=>state.setProject);
   const currentFrame=usePlayerStore(state=>state.currentFrame);
   const selectedClipId=useSelectionStore(state=>state.selectedClipId);
+  const selectedSceneId=useSelectionStore(state=>state.selectedSceneId);
   const[projects,setProjects]=useState(initialProjects);
   const[newProjectName,setNewProjectName]=useState("Untitled Video");
   const[busy,setBusy]=useState<string|null>(null);
@@ -59,20 +62,24 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
 
   const metrics=useMemo(()=>project?getStudioMetrics(project):null,[project]);
   const selectedClip=project?.tracks.flatMap(track=>track.clips).find(clip=>clip.id===selectedClipId);
+  const selectedScene=project?.scenes.find(scene=>scene.id===selectedSceneId);
   const totalFrame=project?Math.max(0,project.canvas.durationInFrames-1):0;
   const motionClips=project?.tracks.flatMap(track=>track.clips).filter(clip=>clip.type==="motion")??[];
   const captionClips=project?.tracks.flatMap(track=>track.clips).filter(clip=>clip.type==="caption")??[];
+  const scriptSegments=project?.script.segments.length??0;
+  const sceneCount=project?.scenes.length??0;
 
   const selectedName=useMemo(()=>{
+    if(selectedScene)return selectedScene.name;
     if(!selectedClip)return t("metric.none");
     if(selectedClip.type==="motion")return translateEffectName(locale,selectedClip.effectId,selectedClip.effectId);
     if(selectedClip.type==="caption")return t("selection.caption");
     if(selectedClip.type==="video")return t("selection.video");
     if(selectedClip.type==="broll")return t("selection.broll");
     return t("selection.audio");
-  },[locale,selectedClip,t]);
-  const selectedDuration=selectedClip&&project?selectedClip.durationInFrames/project.canvas.fps:null;
-  const selectedMetric=selectedClip&&selectedDuration!==null?`${selectedName} · ${selectedDuration.toFixed(1)}${locale==="zh-CN"?"秒":"s"}`:selectedName;
+  },[locale,selectedClip,selectedScene,t]);
+  const selectedDuration=selectedScene&&project?(selectedScene.endFrame-selectedScene.startFrame)/project.canvas.fps:selectedClip&&project?selectedClip.durationInFrames/project.canvas.fps:null;
+  const selectedMetric=(selectedClip||selectedScene)&&selectedDuration!==null?`${selectedName} · ${selectedDuration.toFixed(1)}${locale==="zh-CN"?"秒":"s"}`:selectedName;
 
   const refreshRecent=useCallback(async()=>{
     const data=await requestJson<{projects:ProjectSummary[]}>("/api/projects",{cache:"no-store"});
@@ -155,8 +162,9 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
     <input ref={fileInputRef} className="sr-only" type="file" accept="video/mp4,.mp4,application/x-subrip,.srt,text/vtt,.vtt" onChange={event=>{const file=event.target.files?.[0];event.currentTarget.value="";if(file)void uploadFile(file);}}/>
 
     <header className="os-topbar">
-      <div className="os-brand"><strong>{t("app.brand")}</strong><span>v1.1</span></div>
+      <div className="os-brand"><strong>{t("app.brand")}</strong><span>v2</span></div>
       <nav className="os-workspace-tabs">
+        <button className={workspaceTab==="script"?"active":""} onClick={()=>{setWorkspaceTab("script");setLeftTab("script");}}>{locale==="zh-CN"?"脚本":"Script"}</button>
         <button className={workspaceTab==="edit"?"active":""} onClick={()=>setWorkspaceTab("edit")}>{t("app.edit")}</button>
         <button className={workspaceTab==="effects"?"active":""} onClick={()=>{setWorkspaceTab("effects");setLeftTab("effects");}}>{t("app.effects")}</button>
       </nav>
@@ -165,7 +173,7 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
         <div><small>{t("metric.cards")}</small><strong>{metrics?.motionCards??0}<em>/ 50</em></strong></div>
         <div><small>{t("metric.density")}</small><strong className="accent-metric">{metrics?metrics.densityPerMinute.toFixed(1):"0.0"}<em>/ min</em></strong></div>
         <div><small>{t("metric.peak")}</small><strong>{metrics?.peakConcurrency??0}</strong></div>
-        <div className="metric-selection"><small>{t("metric.selected")}</small><strong title={selectedClip?.id}>{selectedMetric}</strong></div>
+        <div className="metric-selection"><small>{t("metric.selected")}</small><strong title={selectedClip?.id??selectedScene?.id}>{selectedMetric}</strong></div>
       </div>
       <div className="os-top-actions">
         <button className="os-ghost" onClick={toggleLocale}>{locale==="zh-CN"?"EN":"中文"}</button>
@@ -180,7 +188,9 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
 
     <div className="os-shell">
       <aside className="os-left-panel">
-        <div className="os-left-tabs os-left-tabs-four">
+        <div className="os-left-tabs os-left-tabs-six">
+          <button className={leftTab==="script"?"active":""} onClick={()=>{setLeftTab("script");setWorkspaceTab("script");}}>{locale==="zh-CN"?"脚本":"Script"} <span>{scriptSegments}</span></button>
+          <button className={leftTab==="scenes"?"active":""} onClick={()=>setLeftTab("scenes")}>{locale==="zh-CN"?"场景":"Scenes"} <span>{sceneCount}</span></button>
           <button className={leftTab==="assets"?"active":""} onClick={()=>setLeftTab("assets")}>{t("left.assets")} <span>{project?.assets.length??0}</span></button>
           <button className={leftTab==="effects"?"active":""} onClick={()=>setLeftTab("effects")}>{t("left.effects")} <span>{motionClips.length}</span></button>
           <button className={leftTab==="captions"?"active":""} onClick={()=>setLeftTab("captions")}>{t("left.captions")} <span>{captionClips.length}</span></button>
@@ -188,6 +198,9 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
         </div>
 
         <div className="os-left-scroll">
+          {leftTab==="script"&&project?<ScriptEditor project={project} onProjectChange={setProject} onCommand={persistCommand}/>:null}
+          {leftTab==="scenes"&&project?<ScenePanel project={project} onProjectChange={setProject} onCommand={persistCommand}/>:null}
+
           {leftTab==="project"?<>
             <section className="os-section">
               <div className="os-section-title"><span>{t("left.global")}</span><small>GLOBAL</small></div>
@@ -201,12 +214,11 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
               <div className="os-recent-header"><span>{t("left.projects")}</span><button onClick={()=>void refreshRecent()}>{t("left.refresh")}</button></div>
               <div className="os-recent-list">{projects.slice(0,8).map(item=><button key={item.id} className={item.id===project?.project.id?"selected":""} onClick={()=>void openProject(item.id)}><strong>{item.name}</strong><small>rev {item.revision}</small></button>)}</div>
             </section>
+            {project?<section className="os-section"><VideoUsePanel project={project} onProjectChange={setProject}/></section>:null}
           </>:null}
 
           {leftTab==="assets"?<section className="os-section os-assets-workspace"><div className="os-section-title"><span>{t("left.assets")}</span><button className="os-section-action" disabled={!project} onClick={()=>fileInputRef.current?.click()}>{t("left.import")}</button></div><div className="os-asset-list">{project?.assets.length?project.assets.map(asset=><div key={asset.id}><span>{asset.kind}</span><strong title={asset.relativePath}>{asset.label??asset.originalName??asset.id}</strong></div>):<p>{t("left.noAssets")}</p>}</div></section>:null}
-
           {leftTab==="effects"&&project?<EffectLibrary project={project} onCommand={persistCommand} onProjectChange={setProject} mode="sidebar"/>:null}
-
           {leftTab==="captions"?<section className="os-section caption-browser"><div className="os-section-title"><span>{t("left.captions")}</span><small>{captionClips.length}</small></div>{captionClips.length?captionClips.slice(0,60).map(clip=><button key={clip.id} onClick={()=>useSelectionStore.getState().selectClip(clip.id)}><small>f{clip.startFrame}</small><span>{clip.text}</span></button>):<p>{t("left.noAssets")}</p>}</section>:null}
         </div>
       </aside>
