@@ -34,6 +34,15 @@ describe("V2 M5 AI Director",()=>{
     expect(plan.densityBefore.motionCards).toBe(0);
   });
 
+  it("keeps strong numeric evidence above the process Scene template",()=>{
+    let project=createProject({id:"process-metric",name:"Process Metric",durationInFrames:600});
+    project=applyProjectCommand(project,{type:"add-scene",scene:scene("process","Process","process",0,600,"medium")});
+    project=applyProjectCommand(project,{type:"add-clip",trackId:"captions-main",clip:caption("c1","Step two reaches 90% completion",120)});
+    const suggestion=new RulesVisualPlannerAdapter().generate(project).suggestions[0]!;
+    expect(suggestion).toMatchObject({sceneId:"process",semanticType:"percentage",recommendation:{engine:"remotion",effectId:"metric-focus"}});
+    expect(suggestion.reason).toContain("strong numeric evidence");
+  });
+
   it("uses a visible none recommendation when density guard blocks another card",()=>{
     let project=createProject({id:"dense",name:"Dense",durationInFrames:600});
     project=applyProjectCommand(project,{type:"add-scene",scene:scene("hook","Hook","hook",0,600,"low")});
