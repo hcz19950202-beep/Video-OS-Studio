@@ -850,7 +850,7 @@ Final render:
 
 ```text
 CODE COMPLETE: PASS
-CLOUD VERIFIED: PENDING final M5 fix push CI
+CLOUD VERIFIED: PASS — final pushed PR #8 head's GitHub Actions `verify` job succeeded; exact final head/run is in the handoff message
 LOCAL VERIFIED: PASS
 PRD ACCEPTED: PASS
 RENDER VERIFIED: PASS
