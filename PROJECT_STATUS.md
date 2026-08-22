@@ -11,22 +11,44 @@ When this file is read from a feature branch, changes to status are **proposed u
 
 Do not hard-code the current `main` HEAD into this file: the merge that changes this file necessarily creates a newer main SHA. Before branching or local validation, resolve the current GitHub `main` SHA and the active PR HEAD directly from GitHub.
 
-## Accepted checkpoint after R0 merge
+## Accepted checkpoint after H0 merge
 
 ```yaml
 product_version: 2.1.0
 released_v2_1_sha: fcfb341367b6ff5e8911693483c14196386c5a93
 project_schema: 2.0.0
 current_milestone: V2.1.1 Engineering Hardening
-last_completed_workstream: R0 Repository Truth / Agent Guardrails
-next_allowed_workstream: H0 Correctness Hotfix
-active_workstream_on_main: none until an H0 branch/PR is opened
+last_completed_workstream: H0 Correctness Hotfix
+next_allowed_workstream: H1 Project Transaction Safety
+active_workstream_on_main: none until an H1 branch/PR is opened
 next_product_milestone: V2.2 Workflow Runtime only after V2.1.1 release
 ```
 
-R0 delivery PR: **#17**.
+Delivery history:
 
-Before starting H0, the agent must verify that PR #17 is merged and resolve the latest `main` SHA from GitHub. If PR #17 is still open, R0 is not yet accepted.
+```text
+R0 Repository Truth / Agent Guardrails  → PR #17
+H0 Correctness Hotfix                   → PR #19
+```
+
+Before starting H1, the agent must verify that PR #19 is merged and resolve the latest `main` SHA from GitHub. If PR #19 is still open, H0 is not yet accepted.
+
+## H0 accepted behavior after PR #19 merge
+
+H0 establishes these correctness boundaries:
+
+- Script editing no longer assumes the Video track ID is `video-main`;
+- Script A-roll rebuild only proceeds when one canonical populated Video track can be proven;
+- ambiguous/manual Video state is blocked rather than deleted;
+- Script rebuild preserves supported A-roll presentation state including volume, muted, fit, transform, enabled and layer;
+- a Script cut cannot remove every A-roll source range and silently lose presentation state;
+- Caption Inspector numeric/style entry uses bounded commit behavior instead of durable mutation on every keystroke/spin;
+- Caption commands remain minimal patches, so unrelated fields are preserved when requests are applied sequentially;
+- Motion style resolution is explicitly Linked property → Clip property → Brand fallback;
+- Caption style resolution remains Linked property → Clip property → Brand default;
+- Canvas failed mutation promises are consumed, transient drafts are cleared, and visible error feedback is surfaced.
+
+H0 does **not** solve true concurrent stale-request races. GitHub Issue #11 remains open for H1 revision/conflict protection.
 
 ## Accepted V2.1 product state
 
@@ -52,9 +74,9 @@ Do not expand the main editor feature surface. Harden the system so it is safe f
 Required workstreams:
 
 ```text
-R0 Repository Truth / Agent Guardrails
-H0 Correctness Hotfix
-H1 Project Transaction Safety
+R0 Repository Truth / Agent Guardrails       COMPLETE after PR #17
+H0 Correctness Hotfix                        COMPLETE after PR #19
+H1 Project Transaction Safety                NEXT
 H2 Engine Process Runtime
 H3 Durable Job Runtime
 H4 Streaming Media Pipeline
@@ -164,7 +186,7 @@ Do not start:
 
 ## Current known follow-ups
 
-- GitHub Issue #11: stale Caption Inspector save overwriting newer unrelated style fields — active and assigned to H0/H1.
+- GitHub Issue #11: H0 reduces stale Caption write frequency and keeps patches minimal; H1 must still add expected revision / conflict protection before the issue can close.
 - GitHub Issue #10: closed as completed by V2.1 universal MOV normalization.
 - PR #13: closed as superseded by the released V2.1 path through PR #14/#15.
 
