@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { projectRepository } from "@/lib/server/runtime";
+import {ScenarioIdSchema} from "@/schemas/workflow";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,7 @@ const CreateProjectRequestSchema = z.object({
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
   fps: z.number().int().positive().max(120).optional(),
+  scenario:ScenarioIdSchema.optional(),
 });
 
 const slugify = (value: string): string =>
@@ -43,6 +45,7 @@ export async function POST(request: Request) {
       width: input.width,
       height: input.height,
       fps: input.fps,
+      scenario:input.scenario,
     });
     return Response.json({ project }, { status: 201 });
   } catch (error) {
