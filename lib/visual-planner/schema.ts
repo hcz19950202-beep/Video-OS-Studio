@@ -2,6 +2,26 @@ import {z} from "zod";
 
 export const VisualSemanticTypeSchema=z.enum(["number","percentage","comparison","process","map","proof","cta","keyword"]);
 export const VisualEngineSchema=z.enum(["remotion","hyperframes","broll","none"]);
+export const VisualAnchorSchema=z.enum(["top-left","top","top-right","left","center","right","bottom-left","bottom","bottom-right"]);
+
+export const VisualPlannerContextSchema=z.object({
+  intent:z.string().max(2000).default(""),
+  safeArea:z.object({
+    profileId:z.string().min(1).default("generic"),
+    top:z.number().min(0).max(.45),
+    right:z.number().min(0).max(.45),
+    bottom:z.number().min(0).max(.45),
+    left:z.number().min(0).max(.45),
+  }).optional(),
+}).default({intent:""});
+
+export const VisualPlacementSchema=z.object({
+  x:z.number().min(-.5).max(.5).default(0),
+  y:z.number().min(-.5).max(.5).default(0),
+  scale:z.number().min(.1).max(2).default(1),
+  anchor:VisualAnchorSchema.default("center"),
+  rationale:z.string().optional(),
+});
 
 export const VisualAlternativeSchema=z.object({
   engine:VisualEngineSchema,
@@ -20,6 +40,7 @@ export const VisualSuggestionSchema=z.object({
     engine:VisualEngineSchema,
     effectId:z.string().min(1).optional(),
     props:z.record(z.string(),z.unknown()).optional(),
+    placement:VisualPlacementSchema.optional(),
   }),
   reason:z.string().min(1),
   confidence:z.number().min(0).max(1),
@@ -41,6 +62,7 @@ export const VisualPlanSchema=z.object({
   projectId:z.string().min(1),
   generatedAt:z.string().datetime(),
   source:z.enum(["rules","provider"]).default("rules"),
+  context:VisualPlannerContextSchema.optional(),
   suggestions:z.array(VisualSuggestionSchema),
   densityBefore:VisualDensitySchema,
 });
@@ -63,6 +85,8 @@ export const VisualPlanDiffSchema=z.object({
   densityAfter:VisualDensitySchema,
 });
 
+export type VisualPlannerContext=z.infer<typeof VisualPlannerContextSchema>;
+export type VisualPlacement=z.infer<typeof VisualPlacementSchema>;
 export type VisualSuggestion=z.infer<typeof VisualSuggestionSchema>;
 export type VisualPlan=z.infer<typeof VisualPlanSchema>;
 export type VisualPlanDiff=z.infer<typeof VisualPlanDiffSchema>;
