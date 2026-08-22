@@ -1,4 +1,5 @@
 import type {ProjectCommand} from "@/lib/project/commands";
+import type {ProjectCommandTransaction} from "@/lib/project/history";
 import type {Project} from "@/schemas/project";
 
 export type ProjectApiError={
@@ -36,6 +37,15 @@ export const postProjectCommand=async(base:Project,command:ProjectCommand,comman
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({expectedRevision:base.project.revision,commandId,command}),
+  });
+  return parseProjectResponse<{project:Project;operationId:string;appliedRevision:number;alreadyApplied:boolean}>(response);
+};
+
+export const postProjectTransaction=async(base:Project,transaction:Omit<ProjectCommandTransaction,"id">,transactionId=createOperationId("tx"))=>{
+  const response=await fetch(`/api/projects/${encodeURIComponent(base.project.id)}/transactions`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({expectedRevision:base.project.revision,transactionId,transaction}),
   });
   return parseProjectResponse<{project:Project;operationId:string;appliedRevision:number;alreadyApplied:boolean}>(response);
 };

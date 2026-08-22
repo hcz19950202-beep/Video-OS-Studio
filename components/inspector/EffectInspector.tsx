@@ -2,6 +2,7 @@
 
 import type {ProjectCommand} from "@/lib/project/commands";
 import type {ProjectCommandTransaction} from "@/lib/project/history";
+import {ProjectRequestError,postProjectTransaction,reloadProject} from "@/lib/client/project-mutations";
 import type {Project} from "@/schemas/project";
 import {useProjectStore} from "@/store/project-store";
 import {ContextInspector} from "./ContextInspector";
@@ -10,10 +11,17 @@ import {InspectorRegistryShell} from "./InspectorRegistryShell";
 export const EffectInspector=({project,onCommand}:{project:Project;onCommand:(command:ProjectCommand,message:string)=>Promise<void>})=>{
   const setProject=useProjectStore(state=>state.setProject);
   const onTransaction=async(transaction:ProjectCommandTransaction,message:string)=>{
-    const response=await fetch(`/api/projects/${encodeURIComponent(project.project.id)}/transactions`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(transaction)});
-    const payload=await response.json() as {project?:Project;error?:string};
-    if(!response.ok||!payload.project)throw new Error(payload.error||`${message}: project transaction failed`);
-    setProject(payload.project);
+    const base=useProjectStore.getState().project??project;
+    try{
+      const response=await postProjectTransaction(base,{label:transaction.label,commands:transaction.commands},transaction.id);
+      setProject(response.project);
+    }catch(error){
+      if(error instanceof ProjectRequestError&&error.code==="PROJECT_REVISION_CONFLICT"){
+        const latest=await reloadProject(base.project.id);
+        setProject(latest.project);
+      }
+      throw error instanceof Error?error:new Error(`${message}: project transaction failed`);
+    }
   };
   return <InspectorRegistryShell project={project}><ContextInspector project={project} onCommand={onCommand} onTransaction={onTransaction}/></InspectorRegistryShell>;
 };
