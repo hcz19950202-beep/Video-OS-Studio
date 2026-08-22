@@ -30,7 +30,7 @@ describe("H3 durable job runtime",()=>{
     const{store}=await makeStore();
     let activeRender=0,maxRender=0,activeNormalize=0,maxNormalize=0;
     let releaseRender!:()=>void;const renderGate=new Promise<void>(resolve=>{releaseRender=resolve;});
-    let normalizeReleases:Array<()=>void>=[];
+    const normalizeReleases:Array<()=>void>=[];
     const render:JobExecutor=async()=>{activeRender++;maxRender=Math.max(maxRender,activeRender);await renderGate;activeRender--;return{};};
     const normalize:JobExecutor=async()=>{activeNormalize++;maxNormalize=Math.max(maxNormalize,activeNormalize);await new Promise<void>(resolve=>normalizeReleases.push(resolve));activeNormalize--;return{};};
     const runtime=new DurableJobRuntime(store,{"render-final":render,"render-overlay":render,"media-normalize":normalize});
@@ -52,6 +52,29 @@ describe("H3 durable job runtime",()=>{
     const cancelled=await waitFor(()=>runtime.get(job.id),current=>current?.status==="cancelled");
     expect(cancelled?.error?.code).toBe("TOOL_ABORTED");
     expect(cancelled?.finishedAt).toBeTruthy();
+  });
+
+  it("does not start an executor when cancellation wins during preparing",async()=>{
+    const root=await mkdtemp(join(tmpdir(),"video-os-h3-race-"));roots.push(root);
+    let preparingSeen!:()=>void;const preparingReached=new Promise<void>(resolve=>{preparingSeen=resolve;});
+    let releasePreparing!:()=>void;const preparingGate=new Promise<void>(resolve=>{releasePreparing=resolve;});
+    class PreparingGateStore extends FileJobStore{
+      private gated=false;
+      override async save(record:JobRecord){
+        if(record.status==="preparing"&&!this.gated){this.gated=true;preparingSeen();await preparingGate;}
+        return super.save(record);
+      }
+    }
+    const store=new PreparingGateStore(root);let calls=0;
+    const runtime=new DurableJobRuntime(store,{"render-final":async()=>{calls++;return{};}});
+    const job=await runtime.create({type:"render-final",projectId:"demo",input:{}});
+    await preparingReached;
+    const cancelling=runtime.cancel(job.id);
+    releasePreparing();
+    await cancelling;
+    const cancelled=await waitFor(()=>runtime.get(job.id),current=>current?.status==="cancelled");
+    expect(cancelled?.cancellationRequestedAt).toBeTruthy();
+    expect(calls).toBe(0);
   });
 
   it("retries failed jobs with the same durable id and incremented attempt",async()=>{
