@@ -338,7 +338,87 @@ UNHANDLED CONSOLE ERRORS:
 MERGE RECOMMENDATION: YES/NO
 ```
 
-## 13. Completion boundary
+## 13. Actual Results — 2026-08-22 local Windows validation
+
+### Entry gate and environment
+
+- `git fetch origin`: PASS.
+- Isolated worktree: `E:\Video-OS-Studio-H1-Validation`.
+- Branch: `hardening/v2.1.1-h1-transaction-safety`.
+- Frozen input HEAD: `5c2eede8db744464c2f0ccafaca9df024a8ebaec`.
+- Entry `git rev-parse HEAD`: exact match with the frozen input HEAD.
+- Isolated data root: `E:\Video-OS-Data\v2.1.1-h1-validation-20260822-5c2eede8`.
+- Windows: Microsoft Windows 10 Home `10.0.19045`, build `19045`.
+- Node/npm: `v25.2.1 / 11.6.2`; `npm ci` passed with the declared Node `24.x` `EBADENGINE` warning.
+- Browser: local Chrome through CDP/browser-use, `1920×929`, app served at `http://127.0.0.1:3000`.
+- Real H1 import fixture: generated isolated `h1-long-race.MOV`, 45 seconds, `1280×720`, 27,889,595 bytes; FFmpeg/ffprobe available and no residual process remained after the race.
+
+### Code checks
+
+- `npm run lint`: PASS — 0 errors, 2 existing `@next/next/no-img-element` warnings.
+- `npm run typecheck`: PASS.
+- `npm run test`: PASS — 38 test files, 150 tests.
+- `npm run build`: PASS.
+- H1 mutation/coordinator and active-caller regression tests: PASS.
+
+### H1 actual results
+
+- **REVISION RACE: PASS.** At revision `N=2`, two concurrent rename envelopes used `expectedRevision=2` with distinct command IDs. One returned 200 and advanced to revision 3; the other returned 409 `PROJECT_REVISION_CONFLICT`. Final Project revision was exactly 3 and only the winning name remained.
+- **IDEMPOTENCY: PASS.** `h1-idempotent-1` first applied revision `3→4`; the exact duplicate returned 200 with `alreadyApplied=true` and did not advance revision. Reusing the same ID with a different payload returned 409 `PROJECT_OPERATION_ID_REUSED`, `retryable=false`; Project remained unchanged at revision 4.
+- **CAPTION ISSUE #11: PASS.** Browser Project revision 4 was held stale while a separate `fontFamily=Inter` command advanced the durable Project to revision 5. The normal Inspector stale `fontSize=72` request carried `expectedRevision=4`, showed visible conflict feedback, reloaded latest durable state, and produced no unhandled Promise rejection. Retrying only `fontSize=72` as a minimal patch at revision 5 succeeded to revision 6. Restart/reopen retained `Inter / 72`.
+- **SAVE NO-WHOLE-PUT: PASS.** Browser network instrumentation observed no non-GET request when Save was clicked after queued mutations. A direct legacy raw whole-project PUT was rejected with 400 `INVALID_MUTATION_REQUEST`; revision and fields remained unchanged.
+- **CANVAS CONFLICT: PASS.** A Canvas draft based on revision 6 was released after a rename advanced the Project to revision 7. The stale Canvas request returned 409 `PROJECT_REVISION_CONFLICT`; the latest name/state loaded, draft/guides cleared, visible error appeared, and the next gesture based on revision 7 succeeded with exactly one command.
+- **LONG-TASK STALE RESULT: PASS.** A real browser FormData import was started at expected revision 13 while a 250 ms local harness timer submitted a rename. Rename succeeded to revision 14; the still-running Import later returned 409 with expected 13/current 14. Final Project name and existing assets were preserved, with no stale asset attachment. Two orphan original/working media pairs remain as the explicitly allowed H5 cleanup follow-up.
+- **OPERATIONS LOG: PASS.** Final isolated `operations.jsonl` contained 40 records for 20 operations: every applied operation had `pending → applied`, with stable operation IDs, expected revisions, and applied revisions; no manual edits were made and no aborted records were present.
+- **SAVE/REOPEN: PASS.** Save, dev-server restart, and Project reopen preserved revision/state, Caption `Inter / 72`, marker state, assets, and Canvas/Motion state.
+- **UNDO/REDO: PASS.** Timeline-supported restore commands used H1 envelopes; browser state followed rename → Undo → Redo with expected revisions and no unhandled errors.
+- **PREVIEW PLAYBACK: PASS.** Real Remotion Player advanced from frame 0 to frame 40/1349 and paused without browser errors.
+- **FINAL RENDER SMOKE: NOT REQUIRED.** No local `@remotion/cli` or `.bin/remotion.cmd` is installed. Installing/pinning it would enter H2 Engine Runtime and was not done.
+
+### Defect fixed
+
+**V2.1.1-H1-LV-001 — active UI mutation callers bypassed the H1 envelope**
+
+- Reproduction: Timeline “Add Marker” posted raw `{type, marker}` to `/commands`, returned 400, and caused an unhandled Promise rejection. Active Inspector/Scene transaction callers had the same raw transaction pattern.
+- Root cause: `useTimelineProjectActions`, `EffectInspector`, and `ScenePanel` used direct `fetch` instead of the H1 mutation client helpers.
+- Fix: added `postProjectTransaction`; routed Timeline commands/transactions and active Inspector/Scene transactions through revision-safe helpers with operation IDs and latest-project reload on conflict.
+- Regression test: `tests/timeline-h1-mutation.test.ts` covers Timeline, Inspector, and Scene active caller boundaries.
+- Code/test commit pushed: `eaef277` (`fix: route active timeline mutations through H1 coordinator`).
+- Post-fix browser evidence: Timeline markers M1/M2/M3 each used `expectedRevision + commandId`, succeeded, and produced no unhandled errors.
+
+### Final H1 report
+
+```text
+BRANCH: hardening/v2.1.1-h1-transaction-safety
+FINAL HEAD: eaef277 at code-fix push; this Actual Results record is the following documentation commit
+FROZEN INPUT HEAD: 5c2eede8db744464c2f0ccafaca9df024a8ebaec
+LOCAL WORKTREE: E:\Video-OS-Studio-H1-Validation
+LOCAL DATA ROOT: E:\Video-OS-Data\v2.1.1-h1-validation-20260822-5c2eede8
+NODE/NPM: v25.2.1 / 11.6.2
+BROWSER: local Chrome CDP/browser-use, 1920×929
+
+CODE CHECKS: PASS
+REVISION RACE: PASS
+IDEMPOTENCY: PASS
+CAPTION ISSUE #11: PASS
+SAVE NO-WHOLE-PUT: PASS
+CANVAS CONFLICT: PASS
+LONG-TASK STALE RESULT: PASS
+OPERATIONS LOG: PASS
+SAVE/REOPEN: PASS
+UNDO/REDO: PASS
+PREVIEW PLAYBACK: PASS
+FINAL RENDER SMOKE: NOT REQUIRED
+
+DEFECTS FIXED: V2.1.1-H1-LV-001
+COMMITS PUSHED: eaef277; validation record commit follows
+REMAINING FAILURES: Node 24.x declaration vs local Node 25.2.1 warning; two existing lint warnings; local Remotion CLI absent so Final Render is NOT REQUIRED; two orphan media pairs are H5 cleanup follow-up
+UNHANDLED CONSOLE ERRORS: none observed after the H1 fix; one pre-fix Timeline rejection is recorded above as defect evidence
+
+MERGE RECOMMENDATION: YES, conditional on GPT Web reviewing eaef277 and its GitHub CI; do not merge PR #20 locally and do not start H2
+```
+
+## 14. Completion boundary
 
 H1 is not accepted merely because local checks pass. Local Codex must not merge PR #20 and must not start H2.
 
