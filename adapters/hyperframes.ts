@@ -24,17 +24,12 @@ export class NodeHyperFramesAdapter implements HyperFramesAdapter{
     const propsB64=Buffer.from(JSON.stringify(input.props),"utf8").toString("base64");
     const html=template.replaceAll("__WIDTH__",String(input.width)).replaceAll("__HEIGHT__",String(input.height)).replaceAll("__DURATION__",String(durationSeconds)).replaceAll("__PROPS_B64__",propsB64);
     await Promise.all([writeFile(join(workDir,"index.html"),html,"utf8"),writeFile(join(workDir,"DESIGN.md"),design,"utf8")]);
-
     const command=await requireProjectBin("hyperframes",this.cliPath);
     const timeoutMs=options.timeoutMs??parseToolTimeout(process.env.HYPERFRAMES_TIMEOUT_MS,DEFAULT_HYPERFRAMES_TIMEOUT_MS);
     const run=(tool:string,args:string[])=>this.runner.run({tool,command,args,cwd:workDir,timeoutMs,signal:options.signal,onLog:options.onLog,env:{HYPERFRAMES_NO_UPDATE_CHECK:"1",CI:process.env.CI||"1"}});
-    try{
-      await run("hyperframes-lint",buildHyperFramesLintArgs());
-      await run("hyperframes-check",buildHyperFramesCheckArgs());
-      await run("hyperframes-render",buildHyperFramesRenderArgs(input.outputPath,input.fps));
-    }catch(error){
-      throw new Error(`HyperFrames render failed: ${error instanceof Error?error.message:String(error)}. Verify the project-local pinned HyperFrames CLI, Chrome and FFmpeg, then retry.`);
-    }
+    await run("hyperframes-lint",buildHyperFramesLintArgs());
+    await run("hyperframes-check",buildHyperFramesCheckArgs());
+    await run("hyperframes-render",buildHyperFramesRenderArgs(input.outputPath,input.fps));
     return{outputPath:input.outputPath};
   }
 }
