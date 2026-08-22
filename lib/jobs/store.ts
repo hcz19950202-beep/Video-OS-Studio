@@ -1,10 +1,9 @@
 import {randomUUID} from "node:crypto";
 import {appendFile,mkdir,readFile,readdir,rename,writeFile} from "node:fs/promises";
-import {join} from "node:path";
+import {dirname,join} from "node:path";
 import {JobArtifactsSchema,JobIdSchema,JobRecordSchema,type JobArtifact,type JobRecord} from "@/lib/jobs/schema";
 
 export type JobLogStream="stdout"|"stderr";
-
 const parseJson=<T>(text:string,parser:(value:unknown)=>T)=>parser(JSON.parse(text));
 
 export class FileJobStore{
@@ -14,7 +13,7 @@ export class FileJobStore{
   private dir(jobId:string){return join(this.jobsRoot,JobIdSchema.parse(jobId));}
   private path(jobId:string,name:"job.json"|"stdout.log"|"stderr.log"|"artifacts.json"){return join(this.dir(jobId),name);}
   private async atomicWrite(path:string,content:string){
-    await mkdir(join(path,".."),{recursive:true}).catch(()=>undefined);
+    await mkdir(dirname(path),{recursive:true});
     const temp=`${path}.${randomUUID()}.tmp`;
     await writeFile(temp,content,"utf8");
     await rename(temp,path);
@@ -48,30 +47,18 @@ export class FileJobStore{
   async list():Promise<JobRecord[]>{
     await this.ensure();
     const entries=await readdir(this.jobsRoot,{withFileTypes:true});
-    const jobs=await Promise.all(entries.filter(entry=>entry.isDirectory()).map(async entry=>{
-      try{return await this.get(entry.name);}catch{return null;}
-    }));
+    const jobs=await Promise.all(entries.filter(entry=>entry.isDirectory()).map(async entry=>{try{return await this.get(entry.name);}catch{return null;}}));
     return jobs.filter((job):job is JobRecord=>job!==null).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   }
 
-  async appendLog(jobId:string,stream:JobLogStream,chunk:string){
-    if(!chunk)return;
-    await appendFile(this.path(jobId,stream==="stdout"?"stdout.log":"stderr.log"),chunk,"utf8");
-  }
-
+  async appendLog(jobId:string,stream:JobLogStream,chunk:string){if(chunk)await appendFile(this.path(jobId,stream==="stdout"?"stdout.log":"stderr.log"),chunk,"utf8");}
   async readLog(jobId:string,stream:JobLogStream){
     try{return await readFile(this.path(jobId,stream==="stdout"?"stdout.log":"stderr.log"),"utf8");}
     catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return "";throw error;}
   }
-
   async getArtifacts(jobId:string):Promise<JobArtifact[]>{
     try{return parseJson(await readFile(this.path(jobId,"artifacts.json"),"utf8"),value=>JobArtifactsSchema.parse(value));}
     catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return [];throw error;}
   }
-
-  async saveArtifacts(jobId:string,artifacts:JobArtifact[]){
-    const parsed=JobArtifactsSchema.parse(artifacts);
-    await this.atomicWrite(this.path(jobId,"artifacts.json"),JSON.stringify(parsed,null,2));
-    return parsed;
-  }
+  async saveArtifacts(jobId:string,artifacts:JobArtifact[]){const parsed=JobArtifactsSchema.parse(artifacts);await this.atomicWrite(this.path(jobId,"artifacts.json"),JSON.stringify(parsed,null,2));return parsed;}
 }
