@@ -96,7 +96,15 @@ export class DurableJobRuntime{
   }
 
   private async patchUnlocked(jobId:string,patch:Partial<JobRecord>){const current=await this.store.get(jobId);if(!current)throw new JobNotFoundError(jobId);const next=JobRecordSchema.parse({...current,...patch,updatedAt:nowIso()});return this.store.save(next);}
-  private patch(jobId:string,patch:Partial<JobRecord>){return this.withJobLock(jobId,()=>this.patchUnlocked(jobId,patch));}
+
+  private async enterRunning(jobId:string,controller:AbortController){
+    return this.withJobLock(jobId,async()=>{
+      const latest=await this.store.get(jobId);if(!latest)throw new JobNotFoundError(jobId);
+      if(latest.cancellationRequestedAt||controller.signal.aborted)throw new ToolAbortedError(latest.type,"job-runtime",[],null,"","");
+      if(latest.status!=="preparing")throw new JobStateError(`Job ${jobId} cannot enter running from status ${latest.status}.`,latest.status);
+      return this.store.save(JobRecordSchema.parse({...latest,status:"running",stage:"running",progress:Math.max(latest.progress,.05),updatedAt:nowIso()}));
+    });
+  }
 
   private async execute(jobId:string,group:JobConcurrencyGroup){
     const controller=new AbortController();
@@ -112,13 +120,14 @@ export class DurableJobRuntime{
       if(!current)return;
       const executor=this.executors.get(current.type);
       if(!executor)throw new Error(`No executor is registered for job type ${current.type}.`);
-      const running=await this.patch(jobId,{status:"running",stage:"running",progress:Math.max(current.progress,.05)});
+      const running=await this.enterRunning(jobId,controller);
       artifacts=await this.store.getArtifacts(jobId);
       const context:JobExecutionContext={
         signal:controller.signal,
         update:async(stage,progress,outputPatch)=>this.withJobLock(jobId,async()=>{
           const latest=await this.store.get(jobId);if(!latest)throw new JobNotFoundError(jobId);
           if(latest.status!=="running"&&latest.status!=="preparing")return latest;
+          if(latest.cancellationRequestedAt||controller.signal.aborted)return latest;
           return this.store.save(JobRecordSchema.parse({...latest,stage,progress:clampProgress(progress),output:outputPatch?{...(latest.output??{}),...outputPatch}:latest.output,updatedAt:nowIso()}));
         }),
         log:(stream,chunk)=>this.store.appendLog(jobId,stream,chunk),
