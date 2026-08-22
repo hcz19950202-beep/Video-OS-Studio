@@ -38,7 +38,7 @@ export type ToolRunResult={
 };
 
 export class ToolRunError extends Error{
-  readonly code="TOOL_RUN_FAILED";
+  readonly code:string="TOOL_RUN_FAILED";
   constructor(
     message:string,
     readonly tool:string,
@@ -56,7 +56,7 @@ export class ToolRunError extends Error{
 }
 
 export class ToolTimeoutError extends ToolRunError{
-  readonly code="TOOL_TIMEOUT" as const;
+  override readonly code="TOOL_TIMEOUT";
   constructor(tool:string,command:string,args:string[],pid:number|null,readonly timeoutMs:number,stdoutTail:string,stderrTail:string){
     super(`${tool} exceeded its ${timeoutMs} ms timeout.`,tool,command,args,pid,null,null,stdoutTail,stderrTail);
     this.name="ToolTimeoutError";
@@ -64,7 +64,7 @@ export class ToolTimeoutError extends ToolRunError{
 }
 
 export class ToolAbortedError extends ToolRunError{
-  readonly code="TOOL_ABORTED" as const;
+  override readonly code="TOOL_ABORTED";
   constructor(tool:string,command:string,args:string[],pid:number|null,stdoutTail:string,stderrTail:string){
     super(`${tool} was cancelled.`,tool,command,args,pid,null,null,stdoutTail,stderrTail);
     this.name="ToolAbortedError";
@@ -141,6 +141,7 @@ export class NodeToolRunner implements ToolRunner{
       let settled=false;
       let terminationReason:"timeout"|"abort"|null=null;
       let terminating:Promise<void>|null=null;
+      let timer:ReturnType<typeof setTimeout>|null=null;
 
       const child=spawn(input.command,input.args,{
         cwd:input.cwd,
@@ -169,7 +170,7 @@ export class NodeToolRunner implements ToolRunner{
       };
       const onAbort=()=>requestTerminate("abort");
       input.signal?.addEventListener("abort",onAbort,{once:true});
-      const timer=timeoutMs>0?setTimeout(()=>requestTerminate("timeout"),timeoutMs):null;
+      timer=timeoutMs>0?setTimeout(()=>requestTerminate("timeout"),timeoutMs):null;
 
       child.stdout?.on("data",chunk=>{
         const bytes=Buffer.from(chunk);
