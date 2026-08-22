@@ -95,8 +95,6 @@ export class DurableJobRuntime{
     }
   }
 
-  private async patchUnlocked(jobId:string,patch:Partial<JobRecord>){const current=await this.store.get(jobId);if(!current)throw new JobNotFoundError(jobId);const next=JobRecordSchema.parse({...current,...patch,updatedAt:nowIso()});return this.store.save(next);}
-
   private async enterRunning(jobId:string,controller:AbortController){
     return this.withJobLock(jobId,async()=>{
       const latest=await this.store.get(jobId);if(!latest)throw new JobNotFoundError(jobId);
@@ -178,8 +176,7 @@ export class DurableJobRuntime{
       const job=await this.store.get(jobId);if(!job)throw new JobNotFoundError(jobId);
       if(!["failed","cancelled","interrupted"].includes(job.status))throw new JobStateError(`Job ${jobId} cannot be retried from status ${job.status}.`,job.status);
       const at=nowIso();
-      const{error:_error,output:_output,finishedAt:_finishedAt,startedAt:_startedAt,cancellationRequestedAt:_cancel,...base}=job;
-      return this.store.save(JobRecordSchema.parse({...base,status:"queued",stage:"queued",progress:0,attempt:job.attempt+1,updatedAt:at}));
+      return this.store.save(JobRecordSchema.parse({...job,status:"queued",stage:"queued",progress:0,attempt:job.attempt+1,error:undefined,output:undefined,finishedAt:undefined,startedAt:undefined,cancellationRequestedAt:undefined,updatedAt:at}));
     });
     await this.store.appendLog(jobId,"stdout",`\n[video-os] retry attempt ${retried.attempt}\n`);
     this.enqueue(retried);
