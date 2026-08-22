@@ -1,6 +1,8 @@
 import {randomUUID} from "node:crypto";
+import {ZodError} from "zod";
 import {CreateJobSchema,JobRecordSchema,isTerminalJobStatus,type CreateJobInput,type JobArtifact,type JobError,type JobRecord,type JobType} from "@/lib/jobs/schema";
 import {FileJobStore,type JobLogStream} from "@/lib/jobs/store";
+import {ProjectOperationIdReuseError,ProjectRevisionConflictError} from "@/lib/project/mutation-coordinator";
 import {ToolAbortedError,ToolRunError,ToolTimeoutError,type ToolLogEvent} from "@/lib/process/tool-runner";
 
 export type JobConcurrencyGroup="render"|"hyperframes"|"normalize"|"transcribe";
@@ -19,6 +21,9 @@ const normalizedError=(error:unknown):JobError=>{
   if(error instanceof ToolTimeoutError)return{code:error.code,message:error.message,retryable:true};
   if(error instanceof ToolAbortedError)return{code:error.code,message:error.message,retryable:true};
   if(error instanceof ToolRunError)return{code:error.code,message:error.message,retryable:true,details:{tool:error.tool,exitCode:error.exitCode,exitSignal:error.exitSignal}};
+  if(error instanceof ProjectRevisionConflictError)return{code:error.code,message:error.message,retryable:false,details:{expectedRevision:error.expectedRevision,currentRevision:error.currentRevision}};
+  if(error instanceof ProjectOperationIdReuseError)return{code:error.code,message:error.message,retryable:false,details:{operationId:error.operationId}};
+  if(error instanceof ZodError)return{code:"JOB_INPUT_INVALID",message:"The durable job input is invalid.",retryable:false,details:{issues:error.issues}};
   return{code:"JOB_EXECUTION_FAILED",message:error instanceof Error?error.message:String(error),retryable:true};
 };
 
@@ -108,6 +113,13 @@ export class DurableJobRuntime{
     const controller=new AbortController();
     this.activeControllers.set(jobId,controller);
     let artifacts:JobArtifact[]=[];
+    let logTail:Promise<void>=Promise.resolve();
+    let logFailure:unknown;
+    const queueLog=(stream:JobLogStream,chunk:string)=>{
+      const write=logTail.then(()=>this.store.appendLog(jobId,stream,chunk));
+      logTail=write.catch(error=>{logFailure??=error;});
+      return write;
+    };
     try{
       const current=await this.withJobLock(jobId,async()=>{
         const queued=await this.store.get(jobId);
@@ -128,11 +140,13 @@ export class DurableJobRuntime{
           if(latest.cancellationRequestedAt||controller.signal.aborted)return latest;
           return this.store.save(JobRecordSchema.parse({...latest,stage,progress:clampProgress(progress),output:outputPatch?{...(latest.output??{}),...outputPatch}:latest.output,updatedAt:nowIso()}));
         }),
-        log:(stream,chunk)=>this.store.appendLog(jobId,stream,chunk),
-        onToolLog:event=>{void this.store.appendLog(jobId,event.stream,event.chunk).catch(()=>undefined);},
+        log:queueLog,
+        onToolLog:event=>{void queueLog(event.stream,event.chunk).catch(()=>undefined);},
         addArtifact:async artifact=>{artifacts=[...artifacts.filter(item=>item.id!==artifact.id),artifact];await this.store.saveArtifacts(jobId,artifacts);},
       };
       const output=await executor(running,context);
+      await logTail;
+      if(logFailure)throw logFailure;
       await this.withJobLock(jobId,async()=>{
         const latest=await this.store.get(jobId);if(!latest)throw new JobNotFoundError(jobId);
         if(latest.cancellationRequestedAt||controller.signal.aborted)throw new ToolAbortedError(latest.type,"job-runtime",[],null,"","");
@@ -140,6 +154,7 @@ export class DurableJobRuntime{
         await this.store.save(JobRecordSchema.parse({...latest,status:"completed",stage:"completed",progress:1,output:{...(latest.output??{}),...(output??{})},error:undefined,cancellationRequestedAt:undefined,finishedAt,updatedAt:finishedAt}));
       });
     }catch(error){
+      await logTail;
       await this.withJobLock(jobId,async()=>{
         const latest=await this.store.get(jobId);if(!latest)return;
         if(isTerminalJobStatus(latest.status))return;
@@ -175,7 +190,9 @@ export class DurableJobRuntime{
     const retried=await this.withJobLock(jobId,async()=>{
       const job=await this.store.get(jobId);if(!job)throw new JobNotFoundError(jobId);
       if(!["failed","cancelled","interrupted"].includes(job.status))throw new JobStateError(`Job ${jobId} cannot be retried from status ${job.status}.`,job.status);
+      if(job.error?.retryable===false)throw new JobStateError(`Job ${jobId} failed with a non-retryable error (${job.error.code}). Create a new job with corrected input/state.`,job.status);
       const at=nowIso();
+      await this.store.saveArtifacts(jobId,[]);
       return this.store.save(JobRecordSchema.parse({...job,status:"queued",stage:"queued",progress:0,attempt:job.attempt+1,error:undefined,output:undefined,finishedAt:undefined,startedAt:undefined,cancellationRequestedAt:undefined,updatedAt:at}));
     });
     await this.store.appendLog(jobId,"stdout",`\n[video-os] retry attempt ${retried.attempt}\n`);
