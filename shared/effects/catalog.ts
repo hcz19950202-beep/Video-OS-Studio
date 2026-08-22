@@ -11,6 +11,7 @@ import {KeywordImpactFields,KeywordImpactPropsSchema} from "./remotion/KeywordIm
 import {LowerThirdDefaults} from "./remotion/LowerThird/defaults";
 import {LowerThirdMetadata} from "./remotion/LowerThird/metadata";
 import {LowerThirdFields,LowerThirdPropsSchema} from "./remotion/LowerThird/schema";
+import {getEffectCapability,type EffectCapability} from "./capabilities";
 import type {EffectCategory,EffectField} from "./types";
 
 export type EffectCatalogEntry={
@@ -24,13 +25,16 @@ export type EffectCatalogEntry={
   schema:z.ZodType<Record<string,unknown>>;
   defaults:Record<string,unknown>;
   fields:EffectField[];
+  capability:EffectCapability;
 };
 
+const withCapability=<T extends Omit<EffectCatalogEntry,"capability">>(effect:T):EffectCatalogEntry=>({...effect,capability:getEffectCapability(effect.id)});
+
 export const EFFECT_CATALOG:EffectCatalogEntry[]=[
-  {...BigNumberMetadata,schema:BigNumberPropsSchema,defaults:BigNumberDefaults,fields:BigNumberFields},
-  {...MetricFocusMetadata,schema:MetricFocusPropsSchema,defaults:MetricFocusDefaults,fields:MetricFocusFields},
-  {...KeywordImpactMetadata,schema:KeywordImpactPropsSchema,defaults:KeywordImpactDefaults,fields:KeywordImpactFields},
-  {...LowerThirdMetadata,schema:LowerThirdPropsSchema,defaults:LowerThirdDefaults,fields:LowerThirdFields},
+  withCapability({...BigNumberMetadata,schema:BigNumberPropsSchema,defaults:BigNumberDefaults,fields:BigNumberFields}),
+  withCapability({...MetricFocusMetadata,schema:MetricFocusPropsSchema,defaults:MetricFocusDefaults,fields:MetricFocusFields}),
+  withCapability({...KeywordImpactMetadata,schema:KeywordImpactPropsSchema,defaults:KeywordImpactDefaults,fields:KeywordImpactFields}),
+  withCapability({...LowerThirdMetadata,schema:LowerThirdPropsSchema,defaults:LowerThirdDefaults,fields:LowerThirdFields}),
 ];
 
 export const EFFECT_CATALOG_BY_ID=Object.fromEntries(EFFECT_CATALOG.map((effect)=>[effect.id,effect])) as Record<string,EffectCatalogEntry>;

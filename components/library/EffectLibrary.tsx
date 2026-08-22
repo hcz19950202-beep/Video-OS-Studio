@@ -4,6 +4,7 @@ import {useMemo,useState} from "react";
 import type {ProjectCommand} from "@/lib/project/commands";
 import type {Project} from "@/schemas/project";
 import {EFFECT_REGISTRY} from "@/shared/effects/registry";
+import {evaluateEffectCompatibility} from "@/shared/effects/capabilities";
 import {usePlayerStore} from "@/store/player-store";
 import {VideoUsePanel} from "@/components/video-use/VideoUsePanel";
 import {VisualPlannerPanel} from "@/components/planner/VisualPlannerPanel";
@@ -34,6 +35,8 @@ export const EffectLibrary=({project,onCommand,onProjectChange,mode="sidebar"}:{
   };
 
   const addEffect=(effect:typeof EFFECT_REGISTRY[number],clipId:string)=>{
+    const compatibility=evaluateEffectCompatibility(effect.id,project.canvas.width,project.canvas.height);
+    if(compatibility.status==="unsupported"){window.alert(compatibility.message);return;}
     const duration=Math.min(effect.defaultDurationInFrames,Math.max(1,project.canvas.durationInFrames-frame));
     void onCommand({type:"add-clip",trackId:"motion-main",clip:{id:clipId,type:"motion",engine:"remotion",effectId:effect.id,props:effect.defaults,startFrame:frame,durationInFrames:duration,enabled:true,layer:10}},`${translateEffectName(locale,effect.id,effect.name)} · ${t("status.effectAdded")}`);
   };
@@ -42,7 +45,7 @@ export const EffectLibrary=({project,onCommand,onProjectChange,mode="sidebar"}:{
     <div className="effect-library-head"><div><small>{t("library.remotion")}</small><h2>{t("library.title")}</h2></div><span>{filtered.length}</span></div>
     <div className="effect-search"><span>⌕</span><input value={query} onChange={event=>setQuery(event.target.value)} placeholder={t("library.search")}/></div>
     <div className="effect-filters">{categories.map(value=><button key={value} className={category===value?"active":""} onClick={()=>setCategory(value)}>{categoryLabel(value)}</button>)}</div>
-    <div className={`effect-list ${mode==="catalog"?"catalog-grid":""}`}>{filtered.length?filtered.map(effect=><button className="effect-card" key={effect.id} onClick={()=>{const clipId=`motion-${effect.id}-${window.crypto.randomUUID()}`;addEffect(effect,clipId);}} title={t("library.add")}><div className="effect-thumb"><img alt="" src={effect.thumbnail}/><span>＋</span></div><span><strong>{translateEffectName(locale,effect.id,effect.name)}</strong><small>{categoryLabel(effect.category)} · {effect.defaultDurationInFrames}f</small></span></button>):<p className="effect-empty">{t("library.empty")}</p>}</div>
+    <div className={`effect-list ${mode==="catalog"?"catalog-grid":""}`}>{filtered.length?filtered.map(effect=>{const compatibility=evaluateEffectCompatibility(effect.id,project.canvas.width,project.canvas.height);return <button className={`effect-card compatibility-${compatibility.status}`} key={effect.id} onClick={()=>{const clipId=`motion-${effect.id}-${window.crypto.randomUUID()}`;addEffect(effect,clipId);}} title={compatibility.message} disabled={compatibility.status==="unsupported"}><div className="effect-thumb"><img alt="" src={effect.thumbnail}/><span>＋</span></div><span><strong>{translateEffectName(locale,effect.id,effect.name)}</strong><small>{categoryLabel(effect.category)} · {effect.defaultDurationInFrames}f</small><small>{effect.capability.layoutMode.toUpperCase()} · {compatibility.status.toUpperCase()} · {compatibility.family}</small></span></button>}):<p className="effect-empty">{t("library.empty")}</p>}</div>
     <HyperFramesLibrary project={project} onProjectChange={onProjectChange} mode={mode}/>
     {mode==="sidebar"?<div className="studio-tool-stack"><VideoUsePanel project={project} onProjectChange={onProjectChange}/><VisualPlannerPanel project={project} onProjectChange={onProjectChange}/><AssetLibraryPanel project={project} onProjectChange={onProjectChange}/></div>:null}
   </div>;

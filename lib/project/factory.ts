@@ -1,6 +1,7 @@
 import {CURRENT_PROJECT_VERSION,ProjectSchema,type Project} from "@/schemas/project";
 import {DEFAULT_BRAND_CONFIG} from "@/schemas/brand";
 import {DEFAULT_LANGUAGE_CONFIG} from "@/schemas/language";
+import {getScenarioStarter,type ScenarioId} from "@/schemas/workflow";
 
 export type CreateProjectInput={
   id:string;
@@ -10,6 +11,7 @@ export type CreateProjectInput={
   height?:number;
   fps?:number;
   durationInFrames?:number;
+  scenario?:ScenarioId;
 };
 
 export const createProject=({
@@ -20,6 +22,7 @@ export const createProject=({
   height=1920,
   fps=30,
   durationInFrames=300,
+  scenario="blank",
 }:CreateProjectInput):Project=>ProjectSchema.parse({
   version:CURRENT_PROJECT_VERSION,
   project:{id,name,revision:0,createdAt:now,updatedAt:now},
@@ -38,4 +41,5 @@ export const createProject=({
   brand:DEFAULT_BRAND_CONFIG,
   linkedStyles:[],
   language:DEFAULT_LANGUAGE_CONFIG,
+  workflow:getScenarioStarter(scenario),
 });

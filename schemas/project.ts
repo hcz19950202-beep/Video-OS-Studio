@@ -7,6 +7,7 @@ import {MarkerSchema} from "@/schemas/marker";
 import {BrandConfigSchema,DEFAULT_BRAND_CONFIG} from "@/schemas/brand";
 import {LinkedStyleSchema} from "@/schemas/linked-style";
 import {LanguageConfigSchema,DEFAULT_LANGUAGE_CONFIG} from "@/schemas/language";
+import {WorkflowStarterSchema,DEFAULT_WORKFLOW_STARTER} from "@/schemas/workflow";
 
 export const CURRENT_PROJECT_VERSION="2.0.0" as const;
 
@@ -48,6 +49,7 @@ export const ProjectSchema=z.object({
   brand:BrandConfigSchema.default(DEFAULT_BRAND_CONFIG),
   linkedStyles:z.array(LinkedStyleSchema).default([]),
   language:LanguageConfigSchema.default(DEFAULT_LANGUAGE_CONFIG),
+  workflow:WorkflowStarterSchema.default(DEFAULT_WORKFLOW_STARTER),
 }).superRefine((project,ctx)=>{
   for(const[index,scene]of project.scenes.entries())if(scene.endFrame>project.canvas.durationInFrames)ctx.addIssue({code:"custom",path:["scenes",index,"endFrame"],message:"Scene cannot extend beyond project duration"});
   for(const[index,marker]of project.markers.entries())if(marker.frame>=project.canvas.durationInFrames)ctx.addIssue({code:"custom",path:["markers",index,"frame"],message:"Marker must be inside project duration"});

@@ -5,7 +5,7 @@ export type VideoNormalizationInput={inputPath:string;outputPath:string};
 export type AudioNormalizationInput={inputPath:string;outputPath:string};
 export interface FileSystemAdapter{exists(path:string):Promise<boolean>;readText(path:string):Promise<string>;readBinary(path:string):Promise<Uint8Array>;ensureDir(path:string):Promise<void>;listDirectories(path:string):Promise<string[]>;writeBinary(path:string,content:Uint8Array):Promise<void>;writeTextAtomic(path:string,content:string,backupPath?:string):Promise<void>;}
 export interface FfmpegAdapter{probe(inputPath:string):Promise<MediaProbeResult>;waveformPeaks(inputPath:string,points:number):Promise<number[]>;normalizeVideo(input:VideoNormalizationInput):Promise<{outputPath:string}>;normalizeAudio(input:AudioNormalizationInput):Promise<{outputPath:string}>;}
-export interface RemotionRenderAdapter{render(input:{project:Project;outputPath:string;mode:"final"|"overlay";assetBaseUrl:string}):Promise<{outputPath:string}>;}
+export interface RemotionRenderAdapter{render(input:{project:Project;outputPath:string;mode:"final"|"overlay";assetBaseUrl:string;quality?:"draft"|"standard"|"high";includeAudio?:boolean}):Promise<{outputPath:string}>;}
 export interface HyperFramesAdapter{render(input:{effectId:string;props:Record<string,unknown>;width:number;height:number;fps:number;durationInFrames:number;outputPath:string}):Promise<{outputPath:string}>;}
 
 export type TranscriptWord={text:string;startSeconds:number;endSeconds:number;speakerId?:string;type?:"word"|"audio_event"};

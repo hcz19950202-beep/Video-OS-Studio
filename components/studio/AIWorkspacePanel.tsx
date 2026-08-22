@@ -22,6 +22,7 @@ export const AIWorkspacePanel=({project,onProjectChange}:{project:Project;onProj
     <section className="v21-ai-context">
       <header><small>AI COMPOSER · CONTEXT</small><strong>{zh?"导演上下文":"Director Context"}</strong></header>
       <div className="v21-ai-context-project"><strong>{project.project.name}</strong><span>{project.canvas.width}×{project.canvas.height} · {canvas.aspectLabel} · {project.canvas.fps} fps</span></div>
+      <div className="scenario-starter-detail"><strong>{zh?"工作流起点":"Workflow Starter"} · {project.workflow.scenario}</strong><small>{zh?"导演意图":"Director intent"}: {project.workflow.starterPrompt||"—"}</small><small>{zh?"场景结构":"Scene taxonomy"}: {project.workflow.sceneTaxonomy.length?project.workflow.sceneTaxonomy.join(" → "):"—"}</small><small>{zh?"字幕建议":"Caption hint"}: {project.workflow.captionHint}</small><small>{zh?"视觉强度":"Visual intensity"}: {project.workflow.visualIntensity}</small></div>
       <div className="v21-reference-row">
         {selectedScene?<span>@Scene · {selectedScene.name}</span>:null}
         {selectedClip?<span>@{selectedClip.type} · {selectedClip.id}</span>:null}
@@ -33,8 +34,8 @@ export const AIWorkspacePanel=({project,onProjectChange}:{project:Project;onProj
         <div><small>{zh?"密度":"Density"}</small><strong>{metrics.densityPerMinute.toFixed(1)}/min</strong></div>
         <div><small>{zh?"峰值":"Peak"}</small><strong>{metrics.peakConcurrency}</strong></div>
       </div>
-      <p className="v21-ai-note">{zh?"V2.1 复用已验收的 AI Director：分析、建议、解释、变更预览、确认、事务与撤销。此版本不引入新的 AI Provider 或广义命令代理。":"V2.1 reuses the accepted AI Director analyze/review/diff/apply transaction flow. No new AI provider or general-purpose command agent is introduced here."}</p>
+      <p className="v21-ai-note">{zh?"V2.1 复用已验收的 AI Director：Prompt/Plan/Activity 只给既有 rules Director 提供上下文和可见执行状态；Review / Diff / Apply / Transaction / Undo 安全链不变。":"V2.1 keeps the accepted AI Director safety chain. Prompt/Plan/Activity provide context and visible execution state to the existing rules Director; Review / Diff / Apply / Transaction / Undo remain unchanged."}</p>
     </section>
-    <VisualPlannerPanel project={project} onProjectChange={onProjectChange}/>
+    <VisualPlannerPanel key={project.project.id} project={project} onProjectChange={onProjectChange}/>
   </div>;
 };

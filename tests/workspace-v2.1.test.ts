@@ -77,4 +77,11 @@ describe("V2.1 workspace layout",()=>{
     expect(source).toContain('trackId:"broll-main"');
     expect(source).toContain('type:"broll"');
   });
+
+  it("exposes a normal-user Audio placement action for imported audio assets",()=>{
+    const source=readFileSync(resolve(process.cwd(),"components/studio/StudioWorkspaceV21.tsx"),"utf8");
+    expect(source).toContain('trackId:"audio-main"');
+    expect(source).toContain('type:"audio"');
+    expect(source).toContain("Add Audio");
+  });
 });
