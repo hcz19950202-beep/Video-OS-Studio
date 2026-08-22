@@ -1,5 +1,5 @@
 import {randomUUID} from "node:crypto";
-import {appendFile,mkdir,readFile,readdir,rename,writeFile} from "node:fs/promises";
+import {appendFile,mkdir,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {JobArtifactsSchema,JobIdSchema,JobRecordSchema,type JobArtifact,type JobRecord} from "@/lib/jobs/schema";
 
@@ -8,15 +8,28 @@ const parseJson=<T>(text:string,parser:(value:unknown)=>T)=>parser(JSON.parse(te
 
 export class FileJobStore{
   readonly jobsRoot:string;
+  private readonly writeChains=new Map<string,Promise<void>>();
   constructor(dataRoot:string){this.jobsRoot=join(dataRoot,"jobs");}
 
   private dir(jobId:string){return join(this.jobsRoot,JobIdSchema.parse(jobId));}
   private path(jobId:string,name:"job.json"|"stdout.log"|"stderr.log"|"artifacts.json"){return join(this.dir(jobId),name);}
+
   private async atomicWrite(path:string,content:string){
-    await mkdir(dirname(path),{recursive:true});
+    const previous=this.writeChains.get(path)??Promise.resolve();
+    let release!:()=>void;
+    const current=new Promise<void>(resolve=>{release=resolve;});
+    this.writeChains.set(path,current);
+    await previous.catch(()=>undefined);
     const temp=`${path}.${randomUUID()}.tmp`;
-    await writeFile(temp,content,"utf8");
-    await rename(temp,path);
+    try{
+      await mkdir(dirname(path),{recursive:true});
+      await writeFile(temp,content,"utf8");
+      await rename(temp,path);
+    }finally{
+      await rm(temp,{force:true});
+      release();
+      if(this.writeChains.get(path)===current)this.writeChains.delete(path);
+    }
   }
 
   async ensure(){await mkdir(this.jobsRoot,{recursive:true});}
