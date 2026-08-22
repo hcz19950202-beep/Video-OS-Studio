@@ -1,46 +1,102 @@
 # Video OS Studio
 
-Video OS Studio is a local-first AI-native video production workspace for talking-head videos.
+Video OS Studio is a local-first AI-native universal video production workspace.
 
 ## Current product baseline
 
-**Video OS Studio V2.0 Core is complete and accepted.**
+**Video OS Studio v2.1.0 is released and accepted.**
 
-Accepted delivery sequence:
-
-- PR #1 — V1 core workflow: MERGED
-- PR #2 — V1.1 workstation UI / i18n: MERGED
-- PR #3 — V2 baseline/document freeze: MERGED
-- PR #4 — Project Schema 2.0 + V1→V2 migration: MERGED
-- PR #5 — Script Editor + Scene System: MERGED
-- PR #6 — Context Inspector + multi-select + Brand + Linked Style: MERGED
-- PR #7 — Canvas direct manipulation + Timeline V2: MERGED
-- PR #8 — AI Director V2: MERGED
-- PR #9 — V2 Core Final Acceptance / RC1: MERGED
-
-Accepted RC1 merge baseline:
+Milestone baseline:
 
 ```text
-d1f45777d8e70f366f665a4dae7ba534096dda9e
+Product version: 2.1.0
+Release commit: fcfb341367b6ff5e8911693483c14196386c5a93
+Project Schema: 2.0.0
 ```
 
-Release metadata target:
+V2.1 completed the universal AI-first editor layer over the accepted V2 Core:
+
+- universal landscape / portrait / square / ultrawide / custom Canvas;
+- resizable Edit / AI / Script / Motion workspaces;
+- deterministic rules-based AI Composer / Director;
+- canvas-aware placement, density restraint and Safe Area;
+- responsive effect capability metadata;
+- Scenario Starter;
+- universal media ingest with automatic local normalization for supported non-working formats;
+- Export Profile with custom resolution / FPS / quality / audio;
+- semantic Inspector taxonomy;
+- Timeline V2 and Canvas direct manipulation;
+- real Windows validation across eight required canvas classes.
+
+V2.1 release closeout recorded 34 test files / 125 tests passing plus Windows durability, cross-aspect and real-final-render acceptance.
+
+## Current development milestone
+
+The repository is now in:
 
 ```text
-2.0.0
+V2.1.1 Engineering Hardening & Agent-Ready Foundation
 ```
 
-V2 was accepted through both milestone-level validation and a final end-to-end RC1 run on a brand-new Project created from a new real talking-head source.
+Current state and active branch are defined only in:
 
-## V2 product model
+[`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 
-V2 changes the primary editing abstraction from:
+The active hardening PRD is:
+
+[`docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`](docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md)
+
+V2.1.1 does **not** expand the primary editor feature surface. It focuses on:
 
 ```text
-Clip → Track → Timeline → Effect
+zero silent data loss
+project revision/concurrency safety
+deterministic engine runtime
+durable/cancellable jobs
+streaming large-media IO
+project/data integrity
+automated Windows/cloud acceptance
+safe GPT Web ↔ local Codex development handoff
 ```
 
-to:
+A real external AI Provider and V2.2 Workflow Runtime remain blocked until V2.1.1 is accepted.
+
+## Development model
+
+Video OS Studio uses a two-environment development workflow.
+
+### GPT Web + GitHub
+
+Owns:
+
+- architecture and PRDs;
+- cloud-safe implementation;
+- GitHub branches / PRs / CI;
+- unit/API/contract tests;
+- review of local changes;
+- final merge decisions;
+- current project status.
+
+### Local Codex on Windows
+
+Owns:
+
+- real browser interaction;
+- real media outside Git;
+- FFmpeg / ffprobe;
+- Remotion / Chrome runtime;
+- HyperFrames;
+- video-use / Python;
+- memory/performance checks;
+- local end-to-end acceptance and in-scope local defect fixes.
+
+The environments hand work through exact GitHub branch/commit SHAs. They do not keep competing parallel implementations of the same workstream.
+
+Read [`AGENTS.md`](AGENTS.md) before making changes.
+
+## Product model
+
+The primary editing abstraction is:
 
 ```text
 Words → Meaning → Scenes → Visual Decisions → Clips → Render
@@ -50,8 +106,8 @@ A normal production flow is:
 
 ```text
 New Project
-→ Import talking-head video
-→ video-use transcript
+→ Import source media
+→ video-use transcript when needed
 → Script editing
 → Scenes
 → Captions
@@ -60,11 +116,12 @@ New Project
 → Canvas refinement
 → Timeline refinement
 → B-roll / Audio
+→ Export Profile
 → Final Render
 → Reopen / continue editing
 ```
 
-## V2 Core capabilities
+## Core capabilities
 
 ### Project / durability
 
@@ -74,6 +131,7 @@ New Project
 - bounded Undo / Redo history
 - atomic save / reopen
 - project-relative asset paths
+- `VIDEO_OS_DATA_ROOT` runtime-media separation
 
 ### Text-native editing
 
@@ -92,8 +150,9 @@ New Project
 - multi-select + common-property editing
 - B-roll and Audio media paths
 
-### Canvas / Timeline V2
+### Universal Canvas / Timeline V2
 
+- landscape / portrait / square / ultrawide / arbitrary custom Canvas
 - direct select / drag / resize / rotate
 - live Preview during pointer gesture
 - nudge / snap / alignment guides
@@ -103,85 +162,98 @@ New Project
 - real FFmpeg waveform cache
 - Timeline shortcuts
 - Undo / Redo
+- Safe Area profiles
 
-### AI Director V2
+### AI Director / Composer
 
 - Scene-grounded visual suggestions
+- selected Scene / Clip / transcript references
 - Spoken Text grounding
 - Recommendation / Reason / Confidence / Alternatives
 - Density Hold / restraint
+- canvas-aware placement guidance
 - Change Preview before Apply
 - per-suggestion deselection
 - one Apply = one validated Project Transaction
 - whole-batch Undo / Redo
-- idempotent re-apply
+- idempotent re-apply behavior
 
-Current Director runtime source is intentionally reported as:
+Current Director runtime source intentionally remains:
 
 ```text
 rules
 ```
 
-The adapter/schema boundary is ready for a future provider integration, but V2.0 does not claim a cloud LLM provider is already connected.
+A real external LLM provider is future work.
+
+### Universal media ingest
+
+User-facing inputs include:
+
+```text
+Video: MP4 / MOV / M4V / WebM / MKV / AVI
+Audio: MP3 / WAV / M4A / AAC / FLAC
+Image: PNG / JPEG / WebP
+Subtitle: SRT / VTT
+```
+
+Non-working video/audio formats are normalized through the local media layer where required while preserving source semantics.
+
+### Export Profile
+
+- Project Canvas is the default output;
+- custom width / height / FPS;
+- quality selection;
+- audio / muted output;
+- aspect mismatch warning;
+- export settings do not mutate the Project Canvas;
+- render-only FPS conversion preserves timeline duration in seconds.
 
 ## Engines
 
-- **video-use** — transcript preparation, packed transcript, confirmed EDL and QA helpers
-- **HyperFrames** — deterministic parameterized complex motion assets
-- **Remotion** — interactive Player preview and master composition/render
-- **FFmpeg / ffprobe** — local media probing, waveform analysis and processing
-- **Project JSON** — durable source of truth
+- **video-use** — transcription / rough-cut / QA helpers behind adapters/services
+- **HyperFrames** — deterministic parameterized complex-motion assets
+- **Remotion** — embedded Player preview and master composition/render
+- **FFmpeg / ffprobe** — local media probing, waveform, normalization and processing
+- **Project JSON** — durable project source of truth
 
 ## Core architecture rules
+
+Always preserve:
+
+```text
+Source Media != Project Canvas != Export Profile
+```
+
+And:
 
 - UI and AI mutate durable project state only through validated Project Commands / Transactions / bounded services.
 - Canonical timeline timing is frame-based.
 - External engines remain behind adapters; UI components never spawn CLIs directly.
+- Agents do not hand-edit runtime `project.json`.
 - Project JSON stores logical asset IDs and project-relative POSIX paths, not machine-specific absolute paths.
 - Repository code and runtime media/user data are separated through `VIDEO_OS_DATA_ROOT`.
 - Remotion remains the master composition engine.
-- Studio UI theme/locale are local preferences and are separate from generated-video Brand.
+- Studio UI theme/locale are local preferences and remain separate from generated-video Brand.
 - `REUSE > MODIFY > CREATE`.
 
-## RC1 acceptance
-
-The V2 Core release candidate was validated end to end on a new real project:
-
-- real raw talking-head source
-- real video-use transcription
-- Script cut + Restore + final cut
-- 10 Scenes
-- 38 Captions
-- AI Director Analyze / Review / Deselect / Apply
-- Generated Video Brand
-- Linked Style shared across Motion clips
-- Canvas editing
-- real B-roll
-- real BGM
-- Timeline Marker / Split / Undo / Redo / Waveform
-- Save / Stop / Restart / Recent Project reopen
-- first final render
-- second edit after reopen
-- second final render
-
-Final RC output passed H.264/AAC, 1080×1920, 30fps, full video/audio decode, visual comparison and regression acceptance.
-
-Known non-blocking polish observations are tracked separately from the V2.0 Core release.
-
 ## Local requirements
+
+Baseline:
 
 - Node.js 24
 - npm
 - FFmpeg / ffprobe
 - Chromium/Chrome for browser/media/render validation
+- additional engine/runtime requirements as listed in `.env.example` and the active validation contract
 
-Copy `.env.example` to `.env.local` and set at least:
+Copy `.env.example` to `.env.local` and set a data root outside the repository, for example:
 
 ```env
 VIDEO_OS_DATA_ROOT=E:\Video-OS-Data
 ```
 
-Install and run:
+Install and verify:
 
 ```bash
 npm ci
@@ -194,19 +266,36 @@ npm run dev
 
 ## Verification discipline
 
-Cloud CI proves repository code health, not local media behavior.
+Cloud CI proves repository code health, not Windows runtime/media behavior.
 
-Windows release acceptance separately verifies real browser interaction, MP4 playback, FFmpeg behavior, Remotion rendering, HyperFrames media, video-use transcription, fonts, persistence and real-media performance.
+Windows/local acceptance separately verifies the workstreams that require:
+
+- real browser interaction;
+- media codecs and normalization;
+- FFmpeg / ffprobe;
+- Remotion rendering and Chrome behavior;
+- HyperFrames;
+- video-use;
+- persistence / restart recovery;
+- real-media memory/performance.
+
+GPT Web freezes an exact branch/SHA before local Codex starts such validation. Local Codex pushes fixes back to that branch; GPT Web reviews and merges after evidence and CI are accepted.
 
 ## Product documents
 
-Read before starting follow-up work:
+Read before new work:
 
-1. `GPT_WEB_HANDOFF.md`
-2. `RELEASE_NOTES_V2.0.0.md`
-3. `Video_OS_Studio_V2_AI_Native_Editor_Master_PRD_Rev2.md`
-4. `LOCAL_VALIDATION_V2_CORE_RC1.md`
-5. `SYSTEM.md`
-6. `DESIGN.md`
+1. `PROJECT_STATUS.md`
+2. `AGENTS.md`
+3. `SYSTEM.md`
+4. `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`
+5. active validation contract if required
 
-Post-Core work must be opened deliberately as a new milestone rather than mixed into the V2.0 release branch.
+Historical release/validation evidence includes:
+
+- `RELEASE_NOTES_V2_1_0.md`
+- `Video_OS_Studio_V2_1_AI_First_Universal_UI_Redesign_Master_PRD_Rev2.md`
+- `LOCAL_VALIDATION_V2_1.md`
+- `LOCAL_VALIDATION_V2_1_PRD_COMPLETION.md`
+
+Historical documents do not override `PROJECT_STATUS.md` for current branch/milestone state.
