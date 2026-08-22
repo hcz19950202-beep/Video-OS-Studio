@@ -1,8 +1,82 @@
 import {applyProjectCommandTransaction,type ProjectCommandTransaction} from "@/lib/project/history";
-import {getProjectVideoSourceRanges,getScriptKeepSourceRanges} from "@/lib/script/model";
+import {getScriptKeepSourceRanges,mergeSourceRanges} from "@/lib/script/model";
 import type {Project} from "@/schemas/project";
+import type {ScriptDocument,ScriptSourceRange} from "@/schemas/script";
 
 export type ScriptSegmentStatus="active"|"removed";
+type VideoClip=Extract<Project["tracks"][number]["clips"][number],{type:"video"}>;
+type VideoPresentation=Pick<VideoClip,"volume"|"enabled"|"layer">&Pick<Partial<VideoClip>,"muted"|"fit"|"transform">;
+
+type ScriptVideoContext={
+  trackId:string;
+  assetId:string;
+  clips:VideoClip[];
+  presentation:VideoPresentation;
+  baseSourceRanges:ScriptSourceRange[];
+};
+
+const videoClipsFor=(track:Project["tracks"][number])=>track.clips.filter((clip):clip is VideoClip=>clip.type==="video");
+const sourceRangeFor=(clip:VideoClip):ScriptSourceRange=>({startFrame:clip.sourceStartFrame,endFrame:clip.sourceStartFrame+clip.durationInFrames});
+const sameRange=(clip:VideoClip,range:ScriptSourceRange)=>clip.sourceStartFrame===range.startFrame&&clip.durationInFrames===range.endFrame-range.startFrame;
+const presentationFor=(clip:VideoClip):VideoPresentation=>({
+  volume:clip.volume,
+  enabled:clip.enabled,
+  layer:clip.layer,
+  ...(clip.muted===undefined?{}:{muted:clip.muted}),
+  ...(clip.fit===undefined?{}:{fit:clip.fit}),
+  ...(clip.transform===undefined?{}:{transform:structuredClone(clip.transform)}),
+});
+const samePresentation=(left:VideoPresentation,right:VideoPresentation)=>JSON.stringify(left)===JSON.stringify(right);
+
+const canonicalCurrentRanges=(script:ScriptDocument,clips:VideoClip[]):ScriptSourceRange[]=>{
+  if(script.baseSourceRanges.length)return getScriptKeepSourceRanges(script);
+  if(clips.length!==1)throw new Error("Script editing cannot safely infer its A-roll from multiple Video clips before the Script source range is initialized.");
+  return mergeSourceRanges(clips.map(sourceRangeFor));
+};
+
+export const resolveScriptVideoContext=(project:Project,script:ScriptDocument=project.script):ScriptVideoContext=>{
+  const populatedVideoTracks=project.tracks
+    .filter(track=>track.type==="video")
+    .map(track=>({track,clips:videoClipsFor(track)}))
+    .filter(item=>item.clips.length>0);
+
+  if(populatedVideoTracks.length!==1){
+    throw new Error(populatedVideoTracks.length===0
+      ?"Script editing requires one active A-roll Video track."
+      :"Script editing is blocked because multiple populated Video tracks make the canonical A-roll ambiguous.");
+  }
+
+  const {track,clips:unsorted}=populatedVideoTracks[0]!;
+  const clips=[...unsorted].sort((a,b)=>a.startFrame-b.startFrame||a.sourceStartFrame-b.sourceStartFrame);
+  const assetIds=new Set(clips.map(clip=>clip.assetId));
+  if(assetIds.size!==1)throw new Error("Script editing is blocked because the A-roll Video track contains clips from multiple source assets.");
+
+  const expectedRanges=canonicalCurrentRanges(script,clips);
+  if(expectedRanges.length!==clips.length)throw new Error("Script editing is blocked because the Video track contains clips that are not the canonical Script A-roll.");
+
+  let cursor=0;
+  for(let index=0;index<clips.length;index+=1){
+    const clip=clips[index]!;
+    const expected=expectedRanges[index]!;
+    if(clip.startFrame!==cursor||!sameRange(clip,expected)){
+      throw new Error("Script editing is blocked because the Video track timeline/source ranges no longer match the canonical Script A-roll.");
+    }
+    cursor+=clip.durationInFrames;
+  }
+
+  const presentation=presentationFor(clips[0]!);
+  if(clips.some(clip=>!samePresentation(presentationFor(clip),presentation))){
+    throw new Error("Script editing is blocked because A-roll clips have different Video presentation properties. Normalize them before rebuilding Script cuts.");
+  }
+
+  return{
+    trackId:track.id,
+    assetId:clips[0]!.assetId,
+    clips,
+    presentation,
+    baseSourceRanges:script.baseSourceRanges.length?mergeSourceRanges(script.baseSourceRanges):mergeSourceRanges(clips.map(sourceRangeFor)),
+  };
+};
 
 export const assertScriptEditingSafe=(project:Project)=>{
   const blockingTracks=project.tracks.filter(track=>track.type!=="video"&&track.clips.length>0);
@@ -18,27 +92,42 @@ export const buildScriptStatusTransaction=(project:Project,segmentId:string,stat
   if(segment.status===status)throw new Error(`Script segment ${segmentId} is already ${status}`);
 
   const script=structuredClone(project.script);
-  if(!script.baseSourceRanges.length)script.baseSourceRanges=getProjectVideoSourceRanges(project);
+  const context=resolveScriptVideoContext(project,script);
+  if(!script.baseSourceRanges.length)script.baseSourceRanges=context.baseSourceRanges;
   const target=script.segments.find(item=>item.id===segmentId)!;
   target.status=status;
   const keepRanges=getScriptKeepSourceRanges(script);
-
-  const currentVideo=project.tracks.find(track=>track.type==="video")?.clips.find(clip=>clip.type==="video");
-  const assetId=currentVideo?.type==="video"?currentVideo.assetId:project.assets.find(asset=>asset.kind==="video")?.id;
-  if(!assetId)throw new Error("No source video asset is available for Script editing.");
-  const volume=currentVideo?.type==="video"?currentVideo.volume:1;
+  if(!keepRanges.length)throw new Error("Script editing cannot remove all A-roll content. Keep at least one source range so the Video presentation state remains recoverable.");
 
   const commands:ProjectCommandTransaction["commands"]=[];
   commands.push({type:"set-script-document",script});
-  for(const clip of project.tracks.find(track=>track.type==="video")?.clips??[])commands.push({type:"remove-clip",clipId:clip.id});
+  for(const clip of context.clips)commands.push({type:"remove-clip",clipId:clip.id});
 
   let cursor=0;
   keepRanges.forEach((range,index)=>{
     const durationInFrames=range.endFrame-range.startFrame;
-    commands.push({type:"add-clip",trackId:"video-main",clip:{id:`script-video-${index+1}`,type:"video",assetId,startFrame:cursor,durationInFrames,sourceStartFrame:range.startFrame,volume,enabled:true,layer:0}});
+    const presentation=context.presentation;
+    commands.push({
+      type:"add-clip",
+      trackId:context.trackId,
+      clip:{
+        id:`script-video-${index+1}`,
+        type:"video",
+        assetId:context.assetId,
+        startFrame:cursor,
+        durationInFrames,
+        sourceStartFrame:range.startFrame,
+        volume:presentation.volume,
+        enabled:presentation.enabled,
+        layer:presentation.layer,
+        ...(presentation.muted===undefined?{}:{muted:presentation.muted}),
+        ...(presentation.fit===undefined?{}:{fit:presentation.fit}),
+        ...(presentation.transform===undefined?{}:{transform:structuredClone(presentation.transform)}),
+      },
+    });
     cursor+=durationInFrames;
   });
-  commands.push({type:"set-duration",durationInFrames:Math.max(1,cursor)});
+  commands.push({type:"set-duration",durationInFrames:cursor});
 
   return{id:`script-${status}-${segmentId}`,label:`${status==="removed"?"Remove":"Restore"} Script segment`,commands};
 };
