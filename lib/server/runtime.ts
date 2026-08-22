@@ -4,30 +4,47 @@ import {NodeFfmpegAdapter} from "@/adapters/ffmpeg";
 import {NodeRemotionCliAdapter} from "@/adapters/remotion-cli";
 import {NodeHyperFramesAdapter} from "@/adapters/hyperframes";
 import {NodeVideoUseAdapter} from "@/adapters/video-use";
+import {AssetLibraryService} from "@/lib/assets/service";
+import {HyperFramesRenderService} from "@/lib/hyperframes/render-service";
+import {createJobExecutors} from "@/lib/jobs/executors";
+import {DurableJobRuntime} from "@/lib/jobs/runtime";
+import {FileJobStore} from "@/lib/jobs/store";
 import {MediaImportService} from "@/lib/media/import-service";
 import {WaveformService} from "@/lib/media/waveform-service";
-import {ProjectRepository} from "@/lib/project/repository";
 import {ProjectMutationCoordinator} from "@/lib/project/mutation-coordinator";
+import {ProjectRepository} from "@/lib/project/repository";
 import {RenderJobManager} from "@/lib/render/render-jobs";
-import {HyperFramesRenderService} from "@/lib/hyperframes/render-service";
 import {VideoUseService} from "@/lib/video-use/service";
 import {RulesVisualPlannerAdapter} from "@/lib/visual-planner/rules";
 import {VisualPlanService} from "@/lib/visual-planner/service";
-import {AssetLibraryService} from "@/lib/assets/service";
+import {getGlobalRuntime} from "@/lib/server/global-runtime";
 
-const dataRoot=process.env.VIDEO_OS_DATA_ROOT||join(process.cwd(),".video-os-data");
+export const dataRoot=process.env.VIDEO_OS_DATA_ROOT||join(process.cwd(),".video-os-data");
 export const fileSystem=new NodeFileSystemAdapter();
 export const projectRepository=new ProjectRepository(fileSystem,dataRoot);
 export const projectMutations=new ProjectMutationCoordinator(fileSystem,projectRepository);
+
 export const ffmpegAdapter=new NodeFfmpegAdapter();
+export const remotionRenderAdapter=new NodeRemotionCliAdapter();
+export const hyperFramesAdapter=new NodeHyperFramesAdapter();
+export const videoUseAdapter=new NodeVideoUseAdapter();
+
 export const mediaImportService=new MediaImportService(fileSystem,ffmpegAdapter,projectRepository,undefined,projectMutations);
 export const waveformService=new WaveformService(fileSystem,ffmpegAdapter,projectRepository);
-export const remotionRenderAdapter=new NodeRemotionCliAdapter();
-export const renderJobs=new RenderJobManager(remotionRenderAdapter,projectRepository);
-export const hyperFramesAdapter=new NodeHyperFramesAdapter();
 export const hyperFramesRenderService=new HyperFramesRenderService(fileSystem,hyperFramesAdapter,projectRepository,projectMutations);
-export const videoUseAdapter=new NodeVideoUseAdapter();
 export const videoUseService=new VideoUseService(fileSystem,videoUseAdapter,projectRepository,projectMutations);
+
+export const jobStore=getGlobalRuntime(`${dataRoot}:job-store`,()=>new FileJobStore(dataRoot));
+export const jobRuntime=getGlobalRuntime(`${dataRoot}:job-runtime`,()=>new DurableJobRuntime(jobStore,createJobExecutors({
+  fs:fileSystem,
+  repository:projectRepository,
+  remotion:remotionRenderAdapter,
+  ffmpeg:ffmpegAdapter,
+  hyperFrames:hyperFramesRenderService,
+  videoUse:videoUseService,
+})));
+export const renderJobs=new RenderJobManager(jobRuntime);
+
 export const visualPlannerAdapter=new RulesVisualPlannerAdapter();
 export const visualPlanService=new VisualPlanService(fileSystem,projectRepository,visualPlannerAdapter,hyperFramesRenderService,projectMutations);
 export const assetLibraryService=new AssetLibraryService(fileSystem,dataRoot,projectRepository,hyperFramesRenderService,projectMutations);
