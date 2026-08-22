@@ -13,8 +13,9 @@ released_on: 2026-08-22
 current_milestone: V2.1.1 Engineering Hardening
 current_workstream: R0 Repository Truth / Agent Guardrails
 active_branch: hardening/v2.1.1-r0-repository-truth
-active_pr: pending
-cloud_ci: pending for current branch
+active_branch_head: 0c683bb84bbb7c4e307298d8c52e8bad1eb1eac5
+active_pr: 17
+cloud_ci: pending for PR #17
 windows_local_validation: not required for R0; required for later engine/media workstreams
 next_allowed_workstream: H0 Correctness Hotfix after R0 merge
 next_product_milestone: V2.2 Workflow Runtime only after V2.1.1 release
