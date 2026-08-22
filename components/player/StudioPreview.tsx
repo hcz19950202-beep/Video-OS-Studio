@@ -4,6 +4,7 @@ import {Player,type PlayerRef} from "@remotion/player";
 import {useEffect,useMemo,useRef,useState} from "react";
 import {MasterComposition} from "@/remotion/MasterComposition";
 import type {ProjectCommand} from "@/lib/project/commands";
+import {ProjectRequestError,postProjectCommand,reloadProject} from "@/lib/client/project-mutations";
 import {DEFAULT_MOTION_TRANSFORM} from "@/schemas/clip";
 import type {Project} from "@/schemas/project";
 import {clampFrame} from "@/lib/timeline/frames";
@@ -33,7 +34,21 @@ export const StudioPreview=({project}:{project:Project})=>{
   useEffect(()=>{const toggle=()=>{const player=playerRef.current;if(!player)return;if(player.isPlaying())player.pause();else player.play();};window.addEventListener("video-os-toggle-playback",toggle);return()=>window.removeEventListener("video-os-toggle-playback",toggle);},[]);
   useEffect(()=>{const viewport=viewportRef.current;if(!viewport)return;const observer=new ResizeObserver(entries=>{const rect=entries[0]?.contentRect;if(rect)setFitSize(fitInside(rect.width,rect.height,project.canvas.width,project.canvas.height));});observer.observe(viewport);return()=>observer.disconnect();},[project.canvas.height,project.canvas.width]);
 
-  const persistCanvasCommand=async(command:ProjectCommand,message:string)=>{setCanvasError(null);const before=useProjectStore.getState().project;const response=await fetch(`/api/projects/${encodeURIComponent(project.project.id)}/commands`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(command)});const payload=await response.json() as{project?:Project;error?:string};if(!response.ok||!payload.project)throw new Error(payload.error||message);setProject(payload.project);if(before&&before.project.id===payload.project.project.id&&before.project.revision!==payload.project.project.revision)pushHistory({projectId:project.project.id,label:message,before,after:payload.project});};
+  const persistCanvasCommand=async(command:ProjectCommand,message:string)=>{
+    setCanvasError(null);
+    const before=useProjectStore.getState().project??project;
+    try{
+      const payload=await postProjectCommand(before,command);
+      setProject(payload.project);
+      if(before.project.id===payload.project.project.id&&before.project.revision!==payload.project.project.revision)pushHistory({projectId:project.project.id,label:message,before,after:payload.project});
+    }catch(error){
+      if(error instanceof ProjectRequestError&&error.code==="PROJECT_REVISION_CONFLICT"){
+        const latest=await reloadProject(project.project.id);
+        setProject(latest.project);
+      }
+      throw error;
+    }
+  };
   const previewProject=useMemo(()=>withCanvasDraft(project,canvasDraft),[canvasDraft,project]);
   const assetUrls=useMemo(()=>Object.fromEntries(project.assets.map(asset=>[asset.id,`/api/projects/${encodeURIComponent(project.project.id)}/assets/${encodeURIComponent(asset.id)}`])),[project.assets,project.project.id]);const ratio=`${project.canvas.width} / ${project.canvas.height}`;const end=Math.max(0,project.canvas.durationInFrames-1);const key=`${project.project.id}-${project.canvas.durationInFrames}-${project.canvas.width}x${project.canvas.height}`;const fitStyle=zoom==="fit"&&fitSize?{width:`${fitSize.width}px`,height:`${fitSize.height}px`}:{width:`${project.canvas.width}px`,height:`${project.canvas.height}px`};
   const updateCustom=(side:keyof SafeAreaInsets,value:number)=>setCustomSafeArea({...prefs.customSafeArea,[side]:Math.max(0,Math.min(.45,value/100))});
