@@ -26,20 +26,7 @@ export class NodeRemotionCliAdapter implements RemotionRenderAdapter{
     await writeFile(propsPath,JSON.stringify({project,assetUrls,renderMode:mode}),"utf8");
     const command=await requireProjectBin("remotion",this.cliPath);
     const args=buildRemotionRenderArgs(input,this.entryPoint,propsPath);
-    try{
-      await this.runner.run({
-        tool:"remotion-render",
-        command,
-        args,
-        timeoutMs:options.timeoutMs??parseToolTimeout(process.env.REMOTION_RENDER_TIMEOUT_MS,DEFAULT_REMOTION_TIMEOUT_MS),
-        signal:options.signal,
-        onLog:options.onLog,
-        env:{REMOTION_CLI_PATH:command},
-      });
-    }catch(error){
-      const message=error instanceof Error?error.message:String(error);
-      throw new Error(`Remotion render failed: ${message}. Verify the project-local Remotion CLI is installed and version-aligned with remotion/@remotion/player.`);
-    }
+    await this.runner.run({tool:"remotion-render",command,args,timeoutMs:options.timeoutMs??parseToolTimeout(process.env.REMOTION_RENDER_TIMEOUT_MS,DEFAULT_REMOTION_TIMEOUT_MS),signal:options.signal,onLog:options.onLog});
     return{outputPath};
   }
 }
