@@ -39,6 +39,7 @@ export class MediaImportService{
       workingFileName=`${withoutExtension(safeName)}-working.mp4`;
       relativePath=`input/${assetId}-${workingFileName}`;
       const workingPath=this.repository.resolveProjectFile(project.project.id,relativePath);
+      await this.fs.ensureDir(this.repository.resolveProjectFile(project.project.id,"input"));
       await this.ffmpeg.normalizeVideo({inputPath:sourcePath,outputPath:workingPath});
     }else{
       const folder=plan.kind==="video"?"input":"assets";
