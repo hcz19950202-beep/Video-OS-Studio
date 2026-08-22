@@ -1,24 +1,32 @@
 # Video OS Studio — Current Project Status
 
 > This file is the single current-state source of truth for GPT Web, local Codex, and other development agents.
-> Historical PRDs, validation reports, release notes, and handoff documents are evidence; they do not override this file.
+> Historical PRDs, validation reports, release notes, old PR descriptions, and conversation memory are evidence; they do not override this file.
 
-## Current baseline
+## Status semantics
+
+When this file is read from `main`, it describes the **accepted checkpoint** and the **next allowed workstream**.
+
+When this file is read from a feature branch, changes to status are **proposed until that branch is merged**. Do not treat a feature-branch status edit as accepted main state before the PR merges.
+
+Do not hard-code the current `main` HEAD into this file: the merge that changes this file necessarily creates a newer main SHA. Before branching or local validation, resolve the current GitHub `main` SHA and the active PR HEAD directly from GitHub.
+
+## Accepted checkpoint after R0 merge
 
 ```yaml
 product_version: 2.1.0
+released_v2_1_sha: fcfb341367b6ff5e8911693483c14196386c5a93
 project_schema: 2.0.0
-main_sha: fcfb341367b6ff5e8911693483c14196386c5a93
-released_on: 2026-08-22
 current_milestone: V2.1.1 Engineering Hardening
-current_workstream: R0 Repository Truth / Agent Guardrails
-active_branch: hardening/v2.1.1-r0-repository-truth
-active_pr: 17
-cloud_ci: use the latest PR #17 head/run; do not cache a branch HEAD in this file
-windows_local_validation: not required for R0; required for later engine/media workstreams
-next_allowed_workstream: H0 Correctness Hotfix after R0 merge
+last_completed_workstream: R0 Repository Truth / Agent Guardrails
+next_allowed_workstream: H0 Correctness Hotfix
+active_workstream_on_main: none until an H0 branch/PR is opened
 next_product_milestone: V2.2 Workflow Runtime only after V2.1.1 release
 ```
+
+R0 delivery PR: **#17**.
+
+Before starting H0, the agent must verify that PR #17 is merged and resolve the latest `main` SHA from GitHub. If PR #17 is still open, R0 is not yet accepted.
 
 ## Accepted V2.1 product state
 
@@ -66,7 +74,7 @@ H7 Frontend Consolidation (after correctness/infrastructure)
 - cloud CI analysis;
 - review of local Codex fixes;
 - final merge decisions;
-- keeping `PROJECT_STATUS.md` current.
+- keeping `PROJECT_STATUS.md` current at accepted checkpoints.
 
 ### Local Codex owns
 
@@ -88,30 +96,33 @@ For every workstream:
 
 ```text
 GPT Web
-→ create branch from current accepted main
+→ resolve latest accepted main from GitHub
+→ create one workstream branch
 → implement cloud-safe scope
 → run/inspect GitHub CI
-→ freeze an exact green SHA in the handoff message/PR
-→ update this status with workstream state, not self-referential branch HEADs
+→ freeze an exact green branch SHA in the PR/handoff message
 
 Local Codex (only when local evidence is required)
 → git fetch
 → checkout the exact branch/SHA supplied by GPT Web
+→ verify HEAD matches
 → use an isolated VIDEO_OS_DATA_ROOT
 → run Windows/local acceptance
 → fix only defects inside the active workstream
 → add regression tests
 → commit and push to the same workstream branch
-→ report commit SHA + evidence
+→ report final SHA + evidence
 
 GPT Web
 → review local commits/diff
 → confirm latest CI
 → confirm acceptance contract
+→ prepare PROJECT_STATUS as the post-merge checkpoint
 → merge
-→ update PROJECT_STATUS.md
-→ open the next workstream
+→ only then open the next workstream
 ```
+
+This design intentionally avoids trying to store a branch's ever-changing current HEAD inside the same file that creates new HEADs.
 
 ## Architecture invariants
 
@@ -162,7 +173,8 @@ Do not start:
 1. `PROJECT_STATUS.md`
 2. `AGENTS.md`
 3. `SYSTEM.md`
-4. active milestone PRD under `docs/prd/`
-5. active validation contract, if the workstream requires local validation
+4. `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`
+5. active validation contract if the workstream requires local validation
+6. current GitHub main/PR state before branching or claiming a frozen SHA
 
 If another document conflicts with this current-state file, stop and resolve the conflict instead of guessing.
