@@ -1,0 +1,91 @@
+/* Video OS Studio V2.1 — UI-1 shell and workspace chrome */
+
+.v21-studio{--v21-topbar:48px;min-height:640px}
+
+.os-topbar-v21{
+  height:var(--v21-topbar);
+  flex:0 0 var(--v21-topbar);
+  grid-template-columns:154px minmax(150px,260px) auto minmax(120px,1fr) auto;
+  background:var(--bg-deep);
+}
+.os-topbar-v21 .os-brand{padding-inline:14px}
+.os-topbar-v21 .os-brand strong{letter-spacing:.1em}
+.os-project-title{min-width:0;display:flex;align-items:center;gap:9px;padding:0 13px;border-right:1px solid var(--border)}
+.os-project-title small{font:600 7px/1 var(--mono);letter-spacing:.16em;color:var(--muted);flex:0 0 auto}
+.os-project-title strong{font-size:11px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.os-workspace-tabs-v21{height:100%;align-items:stretch;border-right:1px solid var(--border);padding:0 4px;gap:2px}
+.os-workspace-tabs-v21 button{min-width:58px;padding:0 12px;border-right:0;font-size:10px;border-radius:0}
+.os-workspace-tabs-v21 button.active{background:var(--panel);color:var(--text)}
+.os-workspace-tabs-v21 button.active:after{left:8px;right:8px;bottom:0}
+.os-save-state{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;padding:0 12px;color:var(--muted);font:500 8px/1 var(--mono);white-space:nowrap;overflow:hidden}
+.os-save-state span{overflow:hidden;text-overflow:ellipsis}.os-save-state span.busy{color:var(--accent)}
+.os-save-state small{color:var(--muted-2);font:500 7px/1 var(--mono)}
+.os-top-actions-v21{height:100%}
+.os-top-actions-v21>button{padding-inline:14px;font-size:10px}
+.os-top-actions-v21 .os-primary{min-width:76px;font-size:10px}
+
+.os-project-menu{position:relative;height:100%;border-right:1px solid var(--border)}
+.os-project-menu>summary{height:100%;min-width:40px;display:grid;place-items:center;list-style:none;color:var(--muted);cursor:pointer;font:700 12px/1 var(--mono)}
+.os-project-menu>summary::-webkit-details-marker{display:none}
+.os-project-menu[open]>summary,.os-project-menu>summary:hover{background:var(--panel-2);color:var(--text)}
+.os-project-menu-popover{position:absolute;right:4px;top:calc(100% + 5px);z-index:80;width:190px;padding:5px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;box-shadow:0 14px 42px rgba(0,0,0,.38);display:flex;flex-direction:column}
+.os-project-menu-popover button{height:32px;padding:0 10px;border:0;border-radius:4px;background:transparent;text-align:left;color:var(--text-2);font-size:10px;cursor:pointer}
+.os-project-menu-popover button:hover{background:var(--raised);color:var(--text)}
+.os-project-menu-popover button:disabled{opacity:.35;cursor:not-allowed}
+
+.os-shell-v21{position:relative;display:grid;min-width:0;transition:grid-template-columns 120ms ease-out}
+.os-shell-v21 .os-left-panel,.os-shell-v21 .os-right-panel{border:0;min-width:0}
+.os-shell-v21 .os-left-panel{border-right:0}
+.os-shell-v21 .os-right-panel{border-left:0}
+.os-shell-v21 .os-left-panel.is-collapsed,.os-shell-v21 .os-right-panel.is-collapsed{visibility:hidden;pointer-events:none}
+
+.os-v21-divider{position:relative;z-index:18;min-width:0;background:var(--bg-deep);cursor:col-resize;border-left:1px solid var(--border);border-right:1px solid var(--border);touch-action:none;user-select:none}
+.os-v21-divider:before{content:"";position:absolute;top:0;bottom:0;left:50%;width:1px;background:transparent;transform:translateX(-50%)}
+.os-v21-divider:hover:before,.os-v21-divider:active:before{background:var(--accent)}
+.os-v21-divider>button{position:absolute;z-index:2;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:34px;border:1px solid var(--border);border-radius:5px;background:var(--panel-2);color:var(--muted);font:700 10px/1 var(--mono);cursor:pointer;opacity:0;transition:opacity 100ms ease,background 100ms ease,color 100ms ease}
+.os-v21-divider:hover>button,.os-v21-divider.collapsed>button{opacity:1}
+.os-v21-divider>button:hover{background:var(--raised);color:var(--accent)}
+.os-v21-divider.collapsed{cursor:default;background:var(--panel)}
+.os-v21-divider.collapsed:before{display:none}
+
+.os-shell-v21 .os-main-column{min-width:420px}
+.os-shell-v21 .os-stage{min-height:260px}
+.os-shell-v21 .os-status-strip{height:24px;flex-basis:24px;padding-inline:9px}
+
+.os-splitter-v21{position:relative;height:7px;flex:0 0 7px;touch-action:none;user-select:none;background:var(--bg-deep);border-top:1px solid var(--border);border-bottom:1px solid var(--border);cursor:row-resize}
+.os-splitter-v21 span{position:absolute;width:32px;height:1px;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--muted-2)}
+.os-splitter-v21:hover span{background:var(--accent)}
+.os-splitter-v21>button{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:24px;height:20px;border:1px solid var(--border);border-radius:4px;background:var(--panel-2);color:var(--muted);font-size:9px;cursor:pointer;opacity:0}
+.os-splitter-v21:hover>button,.os-splitter-v21.collapsed>button{opacity:1}
+.os-splitter-v21.collapsed{height:23px;flex-basis:23px;cursor:default}
+.os-splitter-v21.collapsed span{width:48px}
+.os-timeline-region.is-collapsed{overflow:hidden;border:0!important;padding:0!important;min-height:0!important}
+
+/* UI-1 preserves the legacy content tabs until UI-2 replaces them with the icon rail. */
+.os-shell-v21 .os-left-tabs-six{overflow-x:auto;overflow-y:hidden;gap:13px;padding-inline:10px;scrollbar-width:none}
+.os-shell-v21 .os-left-tabs-six::-webkit-scrollbar{display:none}
+.os-shell-v21 .os-left-tabs-six button{white-space:nowrap;flex:0 0 auto}
+
+/* Workspace emphasis only changes chrome/layout. It does not mutate project state. */
+.workspace-script .os-left-panel{background:var(--panel)}
+.workspace-ai .os-left-panel{background:linear-gradient(180deg,var(--panel),var(--bg-deep) 100%)}
+.workspace-motion .os-timeline-region{background:var(--bg-deep)}
+
+/* Keep the preview quieter; persistent telemetry moved out of the top bar. */
+.v21-studio .player-workspace{padding-top:8px}
+.v21-studio .player-toolbar{margin-bottom:6px}
+.v21-studio .render-controls{margin-bottom:4px}
+
+@media (max-width:1500px){
+  .os-topbar-v21{grid-template-columns:136px minmax(120px,210px) auto minmax(80px,1fr) auto}
+  .os-workspace-tabs-v21 button{min-width:52px;padding-inline:9px}
+  .os-save-state small{display:none}
+}
+
+@media (max-width:1366px){
+  .os-topbar-v21{grid-template-columns:126px minmax(100px,180px) auto 1fr auto}
+  .os-project-title small{display:none}
+  .os-save-state{padding-inline:7px}
+  .os-top-actions-v21>button.os-ghost{padding-inline:9px}
+  .os-shell-v21 .os-main-column{min-width:360px}
+}
