@@ -38,4 +38,17 @@ describe("applyProjectCommand",()=>{
     const clip=project.tracks.find(track=>track.id==="motion-main")!.clips[0]!;
     expect(clip).toMatchObject({type:"motion",transform:{x:120,y:-80,scale:1.25,opacity:.65,anchor:"bottom-right"}});
   });
+
+  it("merges minimal Caption style patches without overwriting newer unrelated fields",()=>{
+    let project=createProject({id:"caption-patch",name:"Caption Patch",now});
+    project=applyProjectCommand(project,{type:"add-clip",trackId:"captions-main",clip:{id:"c1",type:"caption",text:"Hello",preset:"primary",emphasis:"none",keywords:[],style:{fontFamily:"Inter",fontSize:48},startFrame:0,durationInFrames:60,enabled:true,layer:100}});
+
+    // Edit A lands first. Edit B was prepared from an older Inspector view but
+    // correctly sends only the field that the user actually changed.
+    project=applyProjectCommand(project,{type:"update-caption-style",clipId:"c1",style:{fontFamily:"Geist"}});
+    project=applyProjectCommand(project,{type:"update-caption-style",clipId:"c1",style:{fontSize:72}});
+
+    const clip=project.tracks.find(track=>track.id==="captions-main")!.clips[0];
+    expect(clip).toMatchObject({type:"caption",style:{fontFamily:"Geist",fontSize:72}});
+  });
 });
