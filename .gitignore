@@ -17,6 +17,9 @@ data/
 cache/
 renders/
 proxy/
+.video-os-data/
+*.tmp
+*.hf-work/
 *.mp4
 *.mov
 *.mkv
