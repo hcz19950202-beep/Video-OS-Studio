@@ -4,6 +4,7 @@ import type {Project} from "@/schemas/project";
 import type {ScriptDocument,ScriptSegment,ScriptSourceRange,TranscriptWord} from "@/schemas/script";
 
 type VideoClip=Extract<Project["tracks"][number]["clips"][number],{type:"video"}>;
+type VideoTrack=Extract<Project["tracks"][number],{type:"video"}>;
 
 const sentenceEnd=/[.!?。！？；;:]$/u;
 
@@ -18,8 +19,19 @@ export const mergeSourceRanges=(ranges:ScriptSourceRange[]):ScriptSourceRange[]=
   return merged;
 };
 
+/**
+ * Script/timeline helpers prefer the single populated Video track. This keeps
+ * migrated/non-canonical track IDs working without assuming `video-main`.
+ * Editing itself performs stricter ambiguity checks before rebuilding A-roll.
+ */
+export const getProjectPrimaryVideoTrack=(project:Project):VideoTrack|undefined=>{
+  const videoTracks=project.tracks.filter((track):track is VideoTrack=>track.type==="video");
+  const populated=videoTracks.filter(track=>track.clips.some(clip=>clip.type==="video"));
+  return populated.length===1?populated[0]:videoTracks[0];
+};
+
 export const getProjectVideoSourceRanges=(project:Project):ScriptSourceRange[]=>{
-  const clips=(project.tracks.find(track=>track.type==="video")?.clips??[]).filter((clip):clip is VideoClip=>clip.type==="video");
+  const clips=(getProjectPrimaryVideoTrack(project)?.clips??[]).filter((clip):clip is VideoClip=>clip.type==="video");
   const ranges=clips.map(clip=>({startFrame:clip.sourceStartFrame,endFrame:clip.sourceStartFrame+clip.durationInFrames}));
   if(ranges.length)return mergeSourceRanges(ranges);
   const asset=project.assets.find(item=>item.kind==="video");
@@ -92,7 +104,7 @@ export const getScriptKeepSourceRanges=(script:ScriptDocument):ScriptSourceRange
 };
 
 export const mapSourceFrameToTimelineFrame=(project:Project,sourceFrame:number):number|null=>{
-  const clips=(project.tracks.find(track=>track.type==="video")?.clips??[]).filter((clip):clip is VideoClip=>clip.type==="video").sort((a,b)=>a.startFrame-b.startFrame);
+  const clips=(getProjectPrimaryVideoTrack(project)?.clips??[]).filter((clip):clip is VideoClip=>clip.type==="video").sort((a,b)=>a.startFrame-b.startFrame);
   for(const clip of clips){
     const sourceEnd=clip.sourceStartFrame+clip.durationInFrames;
     if(sourceFrame>=clip.sourceStartFrame&&sourceFrame<sourceEnd)return clip.startFrame+(sourceFrame-clip.sourceStartFrame);
@@ -101,7 +113,7 @@ export const mapSourceFrameToTimelineFrame=(project:Project,sourceFrame:number):
 };
 
 export const mapTimelineFrameToSourceFrame=(project:Project,timelineFrame:number):number|null=>{
-  const clips=(project.tracks.find(track=>track.type==="video")?.clips??[]).filter((clip):clip is VideoClip=>clip.type==="video").sort((a,b)=>a.startFrame-b.startFrame);
+  const clips=(getProjectPrimaryVideoTrack(project)?.clips??[]).filter((clip):clip is VideoClip=>clip.type==="video").sort((a,b)=>a.startFrame-b.startFrame);
   for(const clip of clips){
     const end=clip.startFrame+clip.durationInFrames;
     if(timelineFrame>=clip.startFrame&&timelineFrame<end)return clip.sourceStartFrame+(timelineFrame-clip.startFrame);
