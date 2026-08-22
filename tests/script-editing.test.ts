@@ -85,7 +85,7 @@ describe("V2 Script editing",()=>{
   });
 
   it("blocks multiple populated Video tracks as ambiguous",()=>{
-    let project=withScript(makeProject());
+    const project=withScript(makeProject());
     project.tracks.push({id:"video-overlay",type:"video",name:"Overlay Video",locked:false,hidden:false,clips:[{id:"overlay-video",type:"video",assetId:"v1",startFrame:0,durationInFrames:30,sourceStartFrame:100,volume:1,enabled:true,layer:8}]});
     expect(()=>applyScriptSegmentStatus(project,"s2","removed")).toThrow(/multiple populated Video tracks/);
   });
