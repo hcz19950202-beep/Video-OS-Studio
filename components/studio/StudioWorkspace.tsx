@@ -1,6 +1,6 @@
 "use client";
 
-import {useCallback,useMemo,useRef,useState,type PointerEvent as ReactPointerEvent} from "react";
+import {useCallback,useRef,useState,type PointerEvent as ReactPointerEvent} from "react";
 import {StudioPreview} from "@/components/player/StudioPreview";
 import {Timeline} from "@/components/timeline/Timeline";
 import {EffectLibrary} from "@/components/library/EffectLibrary";
@@ -14,16 +14,14 @@ import type {ProjectSummary} from "@/lib/project/repository";
 import type {Project} from "@/schemas/project";
 import {useProjectStore} from "@/store/project-store";
 import {useHistoryStore} from "@/store/history-store";
-import {usePlayerStore} from "@/store/player-store";
 import {useSelectionStore} from "@/store/selection-store";
-import {formatStudioTime,getStudioMetrics} from "@/lib/studio/metrics";
-import {translateEffectName} from "@/lib/i18n/studio";
+import {STUDIO_LAYOUT_LIMITS,workspacePresetLayout,type StudioWorkspaceLayout,type StudioWorkspacePreset} from "@/lib/studio/workspace-layout";
 
 type ApiError={error?:string;action?:string;retryable?:boolean};
 type ErrorState={message:string;action?:string;retryable:boolean}|null;
-type WorkspaceTab="script"|"edit"|"effects";
 type LeftTab="script"|"scenes"|"assets"|"effects"|"captions"|"project";
-type ResizeState={pointerId:number;startY:number;startHeight:number}|null;
+type ResizeKind="left"|"right"|"timeline";
+type ResizeState={kind:ResizeKind;pointerId:number;startX:number;startY:number;startValue:number}|null;
 
 const requestJson=async<T,>(url:string,init?:RequestInit):Promise<T>=>{
   const response=await fetch(url,init);
@@ -42,46 +40,31 @@ const toErrorState=(error:unknown):ErrorState=>({
   retryable:error instanceof Error&&"retryable" in error?Boolean((error as Error&{retryable?:boolean}).retryable):true,
 });
 
+const clamp=(value:number,min:number,max:number)=>Math.max(min,Math.min(max,value));
+
 const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]})=>{
-  const{locale,theme,t,toggleLocale,toggleTheme,timelineHeight,setTimelineHeight}=useStudioPreferences();
+  const{locale,theme,t,toggleLocale,toggleTheme,workspaceLayout,setWorkspacePreset,updateWorkspaceLayout,resetWorkspaceLayout}=useStudioPreferences();
   const project=useProjectStore(state=>state.project);
   const setProject=useProjectStore(state=>state.setProject);
   const pushHistory=useHistoryStore(state=>state.push);
-  const currentFrame=usePlayerStore(state=>state.currentFrame);
-  const selectedClipId=useSelectionStore(state=>state.selectedClipId);
-  const selectedSceneId=useSelectionStore(state=>state.selectedSceneId);
+  const selectedClipIds=useSelectionStore(state=>state.selectedClipIds);
   const[projects,setProjects]=useState(initialProjects);
   const[newProjectName,setNewProjectName]=useState("Untitled Video");
   const[busy,setBusy]=useState<string|null>(null);
   const[notice,setNotice]=useState(t("app.status.ready"));
   const[error,setError]=useState<ErrorState>(null);
   const[lastUpload,setLastUpload]=useState<File|null>(null);
-  const[workspaceTab,setWorkspaceTab]=useState<WorkspaceTab>("edit");
-  const[leftTab,setLeftTab]=useState<LeftTab>("effects");
+  const[leftTab,setLeftTab]=useState<LeftTab>("assets");
+  const[layoutDraft,setLayoutDraft]=useState<Partial<StudioWorkspaceLayout>|null>(null);
   const fileInputRef=useRef<HTMLInputElement>(null);
   const renameInputRef=useRef<HTMLInputElement>(null);
   const resizeRef=useRef<ResizeState>(null);
 
-  const metrics=useMemo(()=>project?getStudioMetrics(project):null,[project]);
-  const selectedClip=project?.tracks.flatMap(track=>track.clips).find(clip=>clip.id===selectedClipId);
-  const selectedScene=project?.scenes.find(scene=>scene.id===selectedSceneId);
-  const totalFrame=project?Math.max(0,project.canvas.durationInFrames-1):0;
+  const effectiveLayout={...workspaceLayout,...(layoutDraft??{})};
   const motionClips=project?.tracks.flatMap(track=>track.clips).filter(clip=>clip.type==="motion")??[];
   const captionClips=project?.tracks.flatMap(track=>track.clips).filter(clip=>clip.type==="caption")??[];
   const scriptSegments=project?.script.segments.length??0;
   const sceneCount=project?.scenes.length??0;
-
-  const selectedName=useMemo(()=>{
-    if(selectedScene)return selectedScene.name;
-    if(!selectedClip)return t("metric.none");
-    if(selectedClip.type==="motion")return translateEffectName(locale,selectedClip.effectId,selectedClip.effectId);
-    if(selectedClip.type==="caption")return t("selection.caption");
-    if(selectedClip.type==="video")return t("selection.video");
-    if(selectedClip.type==="broll")return t("selection.broll");
-    return t("selection.audio");
-  },[locale,selectedClip,selectedScene,t]);
-  const selectedDuration=selectedScene&&project?(selectedScene.endFrame-selectedScene.startFrame)/project.canvas.fps:selectedClip&&project?selectedClip.durationInFrames/project.canvas.fps:null;
-  const selectedMetric=(selectedClip||selectedScene)&&selectedDuration!==null?`${selectedName} · ${selectedDuration.toFixed(1)}${locale==="zh-CN"?"秒":"s"}`:selectedName;
 
   const refreshRecent=useCallback(async()=>{
     const data=await requestJson<{projects:ProjectSummary[]}>("/api/projects",{cache:"no-store"});
@@ -147,53 +130,78 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
     });
   };
 
-  const startResize=(event:ReactPointerEvent<HTMLDivElement>)=>{
-    resizeRef.current={pointerId:event.pointerId,startY:event.clientY,startHeight:timelineHeight};
+  const switchWorkspace=(preset:StudioWorkspacePreset)=>{
+    setWorkspacePreset(preset);
+    if(preset==="script")setLeftTab("script");
+    else if(preset==="motion"||preset==="ai")setLeftTab("effects");
+    else if(leftTab==="script"||leftTab==="effects")setLeftTab("assets");
+  };
+
+  const workspaceLabel=(preset:StudioWorkspacePreset)=>{
+    if(locale==="zh-CN")return preset==="edit"?"剪辑":preset==="ai"?"AI":preset==="script"?"脚本":"动效";
+    return preset==="edit"?"Edit":preset==="ai"?"AI":preset==="script"?"Script":"Motion";
+  };
+
+  const startResize=(kind:ResizeKind,event:ReactPointerEvent<HTMLDivElement>)=>{
+    const startValue=kind==="left"?effectiveLayout.leftPanelWidth:kind==="right"?effectiveLayout.inspectorWidth:effectiveLayout.timelineHeight;
+    resizeRef.current={kind,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,startValue};
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const moveResize=(event:ReactPointerEvent<HTMLDivElement>)=>{
     const drag=resizeRef.current;
     if(!drag||drag.pointerId!==event.pointerId)return;
-    const maxHeight=Math.max(220,Math.min(520,window.innerHeight-330));
-    setTimelineHeight(Math.max(180,Math.min(maxHeight,drag.startHeight+(drag.startY-event.clientY))));
+    if(drag.kind==="left")setLayoutDraft({leftPanelWidth:clamp(drag.startValue+(event.clientX-drag.startX),STUDIO_LAYOUT_LIMITS.left.min,STUDIO_LAYOUT_LIMITS.left.max)});
+    else if(drag.kind==="right")setLayoutDraft({inspectorWidth:clamp(drag.startValue-(event.clientX-drag.startX),STUDIO_LAYOUT_LIMITS.inspector.min,STUDIO_LAYOUT_LIMITS.inspector.max)});
+    else{
+      const viewportMax=Math.max(STUDIO_LAYOUT_LIMITS.timeline.min,Math.min(STUDIO_LAYOUT_LIMITS.timeline.max,window.innerHeight-330));
+      setLayoutDraft({timelineHeight:clamp(drag.startValue+(drag.startY-event.clientY),STUDIO_LAYOUT_LIMITS.timeline.min,viewportMax)});
+    }
   };
   const stopResize=(event:ReactPointerEvent<HTMLDivElement>)=>{
-    if(resizeRef.current?.pointerId===event.pointerId)resizeRef.current=null;
+    const drag=resizeRef.current;
+    if(!drag||drag.pointerId!==event.pointerId)return;
+    if(layoutDraft)updateWorkspaceLayout(layoutDraft);
+    setLayoutDraft(null);resizeRef.current=null;
     if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
   };
+  const resetAxis=(kind:ResizeKind)=>{
+    const defaults=workspacePresetLayout(workspaceLayout.preset);
+    updateWorkspaceLayout(kind==="left"?{leftPanelWidth:defaults.leftPanelWidth}:kind==="right"?{inspectorWidth:defaults.inspectorWidth}:{timelineHeight:defaults.timelineHeight,timelineCollapsed:false});
+  };
 
-  return <main className="overlay-studio">
+  const leftWidth=effectiveLayout.leftCollapsed?0:effectiveLayout.leftPanelWidth;
+  const rightWidth=effectiveLayout.inspectorCollapsed?0:effectiveLayout.inspectorWidth;
+  const timelineHeight=effectiveLayout.timelineCollapsed?0:effectiveLayout.timelineHeight;
+  const leftDivider=effectiveLayout.leftCollapsed?22:6;
+  const rightDivider=effectiveLayout.inspectorCollapsed?22:6;
+
+  return <main className="overlay-studio v21-studio">
     <input ref={fileInputRef} className="sr-only" type="file" accept="video/mp4,.mp4,application/x-subrip,.srt,text/vtt,.vtt" onChange={event=>{const file=event.target.files?.[0];event.currentTarget.value="";if(file)void uploadFile(file);}}/>
 
-    <header className="os-topbar">
-      <div className="os-brand"><strong>{t("app.brand")}</strong><span>v2</span></div>
-      <nav className="os-workspace-tabs">
-        <button className={workspaceTab==="script"?"active":""} onClick={()=>{setWorkspaceTab("script");setLeftTab("script");}}>{locale==="zh-CN"?"脚本":"Script"}</button>
-        <button className={workspaceTab==="edit"?"active":""} onClick={()=>setWorkspaceTab("edit")}>{t("app.edit")}</button>
-        <button className={workspaceTab==="effects"?"active":""} onClick={()=>{setWorkspaceTab("effects");setLeftTab("effects");}}>{t("app.effects")}</button>
-      </nav>
-      <div className="os-metrics">
-        <div><small>{t("metric.time")}</small><strong>{project?formatStudioTime(currentFrame,project.canvas.fps):"00:00.0"}<em>/ {project?formatStudioTime(totalFrame,project.canvas.fps):"00:00.0"}</em></strong></div>
-        <div><small>{t("metric.cards")}</small><strong>{metrics?.motionCards??0}<em>/ 50</em></strong></div>
-        <div><small>{t("metric.density")}</small><strong className="accent-metric">{metrics?metrics.densityPerMinute.toFixed(1):"0.0"}<em>/ min</em></strong></div>
-        <div><small>{t("metric.peak")}</small><strong>{metrics?.peakConcurrency??0}</strong></div>
-        <div className="metric-selection"><small>{t("metric.selected")}</small><strong title={selectedClip?.id??selectedScene?.id}>{selectedMetric}</strong></div>
-      </div>
-      <div className="os-top-actions">
-        <button className="os-ghost" onClick={toggleLocale}>{locale==="zh-CN"?"EN":"中文"}</button>
-        <button className="os-ghost" onClick={toggleTheme}>{theme==="dark"?`☀ ${t("app.theme.light")}`:`☾ ${t("app.theme.dark")}`}</button>
-        <button className="os-ghost" disabled={!project} onClick={exportProjectJson}>{t("app.exportJson")}</button>
-        <button className="os-ghost" disabled={!project||Boolean(busy)} onClick={()=>void saveProject()}>{t("app.save")}</button>
-        <button className="os-primary" disabled={!project||Boolean(busy)} onClick={()=>fileInputRef.current?.click()}>↓ {t("app.importVideo")}</button>
+    <header className="os-topbar os-topbar-v21">
+      <div className="os-brand"><strong>{t("app.brand")}</strong><span>v2.1</span></div>
+      <div className="os-project-title" title={project?.project.name??""}><small>{locale==="zh-CN"?"项目":"PROJECT"}</small><strong>{project?.project.name??(locale==="zh-CN"?"未打开项目":"No project")}</strong></div>
+      <nav className="os-workspace-tabs os-workspace-tabs-v21" aria-label={locale==="zh-CN"?"工作区":"Workspace"}>{(["edit","ai","script","motion"] as StudioWorkspacePreset[]).map(preset=><button key={preset} className={workspaceLayout.preset===preset?"active":""} onClick={()=>switchWorkspace(preset)}>{workspaceLabel(preset)}</button>)}</nav>
+      <div className="os-save-state"><span className={busy?"busy":""}>{busy??notice}</span>{project?<small>rev {project.project.revision}</small>:null}</div>
+      <div className="os-top-actions os-top-actions-v21">
+        <button className="os-ghost" disabled={!project||Boolean(busy)} onClick={()=>void saveProject()}>{locale==="zh-CN"?"保存":"Save"}</button>
+        <details className="os-project-menu"><summary aria-label={locale==="zh-CN"?"更多":"More"}>•••</summary><div className="os-project-menu-popover">
+          <button onClick={toggleLocale}>{locale==="zh-CN"?"English":"中文"}</button>
+          <button onClick={toggleTheme}>{theme==="dark"?(locale==="zh-CN"?"浅色界面":"Light UI"):(locale==="zh-CN"?"深色界面":"Dark UI")}</button>
+          <button disabled={!project} onClick={()=>fileInputRef.current?.click()}>{locale==="zh-CN"?"导入媒体":"Import media"}</button>
+          <button disabled={!project} onClick={exportProjectJson}>{locale==="zh-CN"?"导出项目 JSON":"Export Project JSON"}</button>
+          <button onClick={resetWorkspaceLayout}>{locale==="zh-CN"?"重置工作区":"Reset workspace"}</button>
+        </div></details>
+        <button className="os-primary" disabled={!project} onClick={()=>window.dispatchEvent(new Event("video-os-start-final-render"))}>↓ {locale==="zh-CN"?"导出":"Export"}</button>
       </div>
     </header>
 
     {error?<div className="error-banner os-error" role="alert"><div><strong>{error.message}</strong>{error.action?<span>{error.action}</span>:null}</div>{error.retryable&&lastUpload&&project?<button className="button danger" onClick={()=>void uploadFile(lastUpload)}>Retry</button>:null}</div>:null}
 
-    <div className="os-shell">
-      <aside className="os-left-panel">
+    <div className={`os-shell os-shell-v21 workspace-${workspaceLayout.preset}`} style={{gridTemplateColumns:`${leftWidth}px ${leftDivider}px minmax(420px,1fr) ${rightDivider}px ${rightWidth}px`}}>
+      <aside className={`os-left-panel ${effectiveLayout.leftCollapsed?"is-collapsed":""}`} aria-hidden={effectiveLayout.leftCollapsed}>
         <div className="os-left-tabs os-left-tabs-six">
-          <button className={leftTab==="script"?"active":""} onClick={()=>{setLeftTab("script");setWorkspaceTab("script");}}>{locale==="zh-CN"?"脚本":"Script"} <span>{scriptSegments}</span></button>
+          <button className={leftTab==="script"?"active":""} onClick={()=>setLeftTab("script")}>{locale==="zh-CN"?"脚本":"Script"} <span>{scriptSegments}</span></button>
           <button className={leftTab==="scenes"?"active":""} onClick={()=>setLeftTab("scenes")}>{locale==="zh-CN"?"场景":"Scenes"} <span>{sceneCount}</span></button>
           <button className={leftTab==="assets"?"active":""} onClick={()=>setLeftTab("assets")}>{t("left.assets")} <span>{project?.assets.length??0}</span></button>
           <button className={leftTab==="effects"?"active":""} onClick={()=>setLeftTab("effects")}>{t("left.effects")} <span>{motionClips.length}</span></button>
@@ -227,16 +235,18 @@ const StudioWorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]}
         </div>
       </aside>
 
+      <div className={`os-v21-divider os-v21-divider-left ${effectiveLayout.leftCollapsed?"collapsed":""}`} role="separator" aria-orientation="vertical" onPointerDown={event=>startResize("left",event)} onPointerMove={moveResize} onPointerUp={stopResize} onPointerCancel={stopResize} onDoubleClick={()=>resetAxis("left")}><button type="button" aria-label={effectiveLayout.leftCollapsed?(locale==="zh-CN"?"展开左面板":"Expand left panel"):(locale==="zh-CN"?"折叠左面板":"Collapse left panel")} onPointerDown={event=>event.stopPropagation()} onClick={()=>updateWorkspaceLayout({leftCollapsed:!effectiveLayout.leftCollapsed})}>{effectiveLayout.leftCollapsed?"›":"‹"}</button></div>
+
       <section className="os-main-column">
-        <div className="os-stage">
-          {workspaceTab==="effects"&&project?<div className="os-catalog-stage"><EffectLibrary project={project} onCommand={persistCommand} onProjectChange={setProject} mode="catalog"/></div>:project?<StudioPreview project={project}/>:<div className="empty-state os-empty"><span>01</span><h2>{t("preview.emptyTitle")}</h2><p>{t("preview.emptyBody")}</p></div>}
-        </div>
-        <div className="os-status-strip"><span className={busy?"busy":""}>{busy??notice}</span><span>{project?`${project.canvas.width}×${project.canvas.height} · ${project.canvas.fps} fps · rev ${project.project.revision}`:"—"}</span></div>
-        <div className="os-splitter" role="separator" aria-orientation="horizontal" aria-label={t("preview.resizeTimeline")} title={t("preview.resizeTimeline")} onPointerDown={startResize} onPointerMove={moveResize} onPointerUp={stopResize} onPointerCancel={stopResize}><span/></div>
-        <div className="os-timeline-region" style={{height:`${timelineHeight}px`,flexBasis:`${timelineHeight}px`}}>{project?<Timeline project={project} onCommand={persistCommand}/>:<section className="timeline-placeholder"><strong>{t("timeline.title")}</strong></section>}</div>
+        <div className="os-stage">{project?<StudioPreview project={project}/>:<div className="empty-state os-empty"><span>01</span><h2>{t("preview.emptyTitle")}</h2><p>{t("preview.emptyBody")}</p></div>}</div>
+        <div className="os-status-strip"><span className={busy?"busy":""}>{busy??notice}</span><span>{project?`${project.canvas.width}×${project.canvas.height} · ${project.canvas.fps} fps · ${selectedClipIds.length?`${selectedClipIds.length} sel · `:""}rev ${project.project.revision}`:"—"}</span></div>
+        <div className={`os-splitter os-splitter-v21 ${effectiveLayout.timelineCollapsed?"collapsed":""}`} role="separator" aria-orientation="horizontal" aria-label={t("preview.resizeTimeline")} title={t("preview.resizeTimeline")} onPointerDown={event=>startResize("timeline",event)} onPointerMove={moveResize} onPointerUp={stopResize} onPointerCancel={stopResize} onDoubleClick={()=>resetAxis("timeline")}><span/><button type="button" onPointerDown={event=>event.stopPropagation()} onClick={()=>updateWorkspaceLayout({timelineCollapsed:!effectiveLayout.timelineCollapsed})}>{effectiveLayout.timelineCollapsed?"⌃":"⌄"}</button></div>
+        <div className={`os-timeline-region ${effectiveLayout.timelineCollapsed?"is-collapsed":""}`} style={{height:`${timelineHeight}px`,flexBasis:`${timelineHeight}px`}}>{project&&!effectiveLayout.timelineCollapsed?<Timeline project={project} onCommand={persistCommand}/>:!project&&!effectiveLayout.timelineCollapsed?<section className="timeline-placeholder"><strong>{t("timeline.title")}</strong></section>:null}</div>
       </section>
 
-      <aside className="os-right-panel">{project?<EffectInspector project={project} onCommand={persistCommand}/>:<div className="inspector-empty"><h2>{t("inspector.title")}</h2><p>{t("preview.emptyBody")}</p></div>}</aside>
+      <div className={`os-v21-divider os-v21-divider-right ${effectiveLayout.inspectorCollapsed?"collapsed":""}`} role="separator" aria-orientation="vertical" onPointerDown={event=>startResize("right",event)} onPointerMove={moveResize} onPointerUp={stopResize} onPointerCancel={stopResize} onDoubleClick={()=>resetAxis("right")}><button type="button" aria-label={effectiveLayout.inspectorCollapsed?(locale==="zh-CN"?"展开检查器":"Expand inspector"):(locale==="zh-CN"?"折叠检查器":"Collapse inspector")} onPointerDown={event=>event.stopPropagation()} onClick={()=>updateWorkspaceLayout({inspectorCollapsed:!effectiveLayout.inspectorCollapsed})}>{effectiveLayout.inspectorCollapsed?"‹":"›"}</button></div>
+
+      <aside className={`os-right-panel ${effectiveLayout.inspectorCollapsed?"is-collapsed":""}`} aria-hidden={effectiveLayout.inspectorCollapsed}>{project?<EffectInspector project={project} onCommand={persistCommand}/>:<div className="inspector-empty"><h2>{t("inspector.title")}</h2><p>{t("preview.emptyBody")}</p></div>}</aside>
     </div>
   </main>;
 };
