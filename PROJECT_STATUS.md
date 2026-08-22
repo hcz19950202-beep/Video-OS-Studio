@@ -11,7 +11,45 @@ When this file is read from a feature branch, changes to status are **proposed u
 
 Do not hard-code the current `main` HEAD into this file: the merge that changes this file necessarily creates a newer main SHA. Before branching or local validation, resolve the current GitHub `main` SHA and the active PR HEAD directly from GitHub.
 
+## Active H1 feature-branch state — proposed, not yet accepted on main
+
+This section applies when reading `hardening/v2.1.1-h1-transaction-safety` / PR #20.
+
+```yaml
+active_workstream: H1 Project Transaction Safety
+cloud_implementation: COMPLETE
+cloud_ci: must be green on the exact frozen handoff SHA
+local_windows_validation: PENDING
+merge_status: DO NOT MERGE until local H1 acceptance returns to GPT Web
+next_allowed_workstream: none on this branch
+h2_status: BLOCKED until H1 is locally accepted and PR #20 is merged
+```
+
+H1 cloud implementation establishes:
+
+- revision-aware mutation envelopes using `expectedRevision` plus stable command/transaction/operation IDs;
+- one shared runtime `ProjectMutationCoordinator` with a per-project mutex;
+- same-Project stale writers receive `409 PROJECT_REVISION_CONFLICT` instead of silently overwriting;
+- different Projects are not serialized behind one global mutex;
+- durable `operations.jsonl` idempotency/audit records with pending/applied/aborted recovery semantics;
+- operation IDs remain bound to one mutation payload, including after an aborted save;
+- duplicate identical operations execute at most once;
+- normal Studio Save no longer PUTs the whole browser Project;
+- explicit whole-Project replacement is limited to restore/import/migration/maintenance envelopes;
+- Script, Canvas, Media Import, video-use Prepare/EDL, HyperFrames, Visual Planner Apply, and Project-preset Apply write through revision-safe coordination;
+- Caption stale-write protection required by Issue #11 is covered by coordinator regression tests.
+
+Local H1 validation authority:
+
+```text
+docs/validation/LOCAL_VALIDATION_V2_1_1_H1.md
+```
+
+Local Codex must use the exact frozen green SHA supplied by GPT Web, must not merge PR #20, and must not start H2.
+
 ## Accepted checkpoint after H0 merge
+
+The following remains the accepted `main` checkpoint until PR #20 is merged:
 
 ```yaml
 product_version: 2.1.0
@@ -20,7 +58,7 @@ project_schema: 2.0.0
 current_milestone: V2.1.1 Engineering Hardening
 last_completed_workstream: H0 Correctness Hotfix
 next_allowed_workstream: H1 Project Transaction Safety
-active_workstream_on_main: none until an H1 branch/PR is opened
+active_workstream_on_main: none; H1 remains unaccepted until PR #20 merges
 next_product_milestone: V2.2 Workflow Runtime only after V2.1.1 release
 ```
 
@@ -29,9 +67,8 @@ Delivery history:
 ```text
 R0 Repository Truth / Agent Guardrails  → PR #17
 H0 Correctness Hotfix                   → PR #19
+H1 Project Transaction Safety           → PR #20 ACTIVE / LOCAL VALIDATION PENDING
 ```
-
-Before starting H1, the agent must verify that PR #19 is merged and resolve the latest `main` SHA from GitHub. If PR #19 is still open, H0 is not yet accepted.
 
 ## H0 accepted behavior after PR #19 merge
 
@@ -48,7 +85,7 @@ H0 establishes these correctness boundaries:
 - Caption style resolution remains Linked property → Clip property → Brand default;
 - Canvas failed mutation promises are consumed, transient drafts are cleared, and visible error feedback is surfaced.
 
-H0 does **not** solve true concurrent stale-request races. GitHub Issue #11 remains open for H1 revision/conflict protection.
+H0 does **not** solve true concurrent stale-request races. H1 / PR #20 is the active workstream that adds revision/conflict protection.
 
 ## Accepted V2.1 product state
 
@@ -76,8 +113,8 @@ Required workstreams:
 ```text
 R0 Repository Truth / Agent Guardrails       COMPLETE after PR #17
 H0 Correctness Hotfix                        COMPLETE after PR #19
-H1 Project Transaction Safety                NEXT
-H2 Engine Process Runtime
+H1 Project Transaction Safety                ACTIVE — cloud implementation complete; local validation pending
+H2 Engine Process Runtime                    BLOCKED
 H3 Durable Job Runtime
 H4 Streaming Media Pipeline
 H5 Project / Data Hardening
@@ -186,7 +223,7 @@ Do not start:
 
 ## Current known follow-ups
 
-- GitHub Issue #11: H0 reduces stale Caption write frequency and keeps patches minimal; H1 must still add expected revision / conflict protection before the issue can close.
+- GitHub Issue #11: H1 cloud implementation now adds expected-revision/conflict protection and stale Caption regression coverage; keep the issue open until H1 local acceptance and PR #20 merge prove the fix end to end.
 - GitHub Issue #10: closed as completed by V2.1 universal MOV normalization.
 - PR #13: closed as superseded by the released V2.1 path through PR #14/#15.
 
@@ -196,7 +233,7 @@ Do not start:
 2. `AGENTS.md`
 3. `SYSTEM.md`
 4. `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`
-5. active validation contract if the workstream requires local validation
+5. `docs/validation/LOCAL_VALIDATION_V2_1_1_H1.md` for the active H1 local validation
 6. current GitHub main/PR state before branching or claiming a frozen SHA
 
 If another document conflicts with this current-state file, stop and resolve the conflict instead of guessing.
