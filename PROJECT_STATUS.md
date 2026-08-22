@@ -13,9 +13,8 @@ released_on: 2026-08-22
 current_milestone: V2.1.1 Engineering Hardening
 current_workstream: R0 Repository Truth / Agent Guardrails
 active_branch: hardening/v2.1.1-r0-repository-truth
-active_branch_head: 0c683bb84bbb7c4e307298d8c52e8bad1eb1eac5
 active_pr: 17
-cloud_ci: pending for PR #17
+cloud_ci: use the latest PR #17 head/run; do not cache a branch HEAD in this file
 windows_local_validation: not required for R0; required for later engine/media workstreams
 next_allowed_workstream: H0 Correctness Hotfix after R0 merge
 next_product_milestone: V2.2 Workflow Runtime only after V2.1.1 release
@@ -92,12 +91,12 @@ GPT Web
 → create branch from current accepted main
 → implement cloud-safe scope
 → run/inspect GitHub CI
-→ freeze an exact green SHA
-→ update this status
+→ freeze an exact green SHA in the handoff message/PR
+→ update this status with workstream state, not self-referential branch HEADs
 
 Local Codex (only when local evidence is required)
 → git fetch
-→ checkout the exact branch/SHA
+→ checkout the exact branch/SHA supplied by GPT Web
 → use an isolated VIDEO_OS_DATA_ROOT
 → run Windows/local acceptance
 → fix only defects inside the active workstream
@@ -154,9 +153,9 @@ Do not start:
 
 ## Current known follow-ups
 
-- GitHub Issue #11: stale Caption Inspector save overwriting newer unrelated style fields — active, must be resolved through H0/H1.
-- GitHub Issue #10: MOV import / transcode follow-up — V2.1 universal ingest now implements MOV normalization; close as completed during R0 governance.
-- PR #13: superseded V2.1 UI redesign draft — close as superseded during R0 governance.
+- GitHub Issue #11: stale Caption Inspector save overwriting newer unrelated style fields — active and assigned to H0/H1.
+- GitHub Issue #10: closed as completed by V2.1 universal MOV normalization.
+- PR #13: closed as superseded by the released V2.1 path through PR #14/#15.
 
 ## Read order for agents
 
