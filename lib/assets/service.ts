@@ -2,6 +2,7 @@ import {randomUUID} from "node:crypto";
 import {join} from "node:path";
 import type {FileSystemAdapter} from "@/adapters/contracts";
 import {applyProjectCommand} from "@/lib/project/commands";
+import {ProjectMutationCoordinator,ProjectRevisionConflictError} from "@/lib/project/mutation-coordinator";
 import type {ProjectRepository} from "@/lib/project/repository";
 import type {HyperFramesRenderService} from "@/lib/hyperframes/render-service";
 import {EFFECT_CATALOG_BY_ID} from "@/shared/effects/catalog";
@@ -9,15 +10,19 @@ import {parseHyperFramesEffect} from "@/shared/hyperframes/registry";
 import {AssetPresetSchema,AssetRegistrySchema,type AssetPreset,type AssetRegistry} from "@/lib/assets/schema";
 import type {Project} from "@/schemas/project";
 
+type MutationMeta={expectedRevision:number;operationId:string};
+
 export class AssetLibraryService{
   private readonly registryPath:string;
   private readonly backupPath:string;
   private readonly promotedDir:string;
+  private readonly mutations:ProjectMutationCoordinator;
 
-  constructor(private readonly fs:FileSystemAdapter,private readonly dataRoot:string,private readonly projects:ProjectRepository,private readonly hyperFrames:HyperFramesRenderService){
+  constructor(private readonly fs:FileSystemAdapter,private readonly dataRoot:string,private readonly projects:ProjectRepository,private readonly hyperFrames:HyperFramesRenderService,mutations?:ProjectMutationCoordinator){
     this.registryPath=join(dataRoot,"library","asset-registry.json");
     this.backupPath=join(dataRoot,"library","asset-registry.backup.json");
     this.promotedDir=join(dataRoot,"library","promoted");
+    this.mutations=mutations??new ProjectMutationCoordinator(fs,projects);
   }
 
   async load():Promise<AssetRegistry>{
@@ -38,9 +43,7 @@ export class AssetLibraryService{
       const effect=EFFECT_CATALOG_BY_ID[clip.effectId];
       if(!effect)throw new Error(`Unknown Remotion effect ${clip.effectId}`);
       props=effect.schema.parse(clip.props);
-    }else{
-      props=parseHyperFramesEffect(clip.effectId,clip.props).props;
-    }
+    }else props=parseHyperFramesEffect(clip.effectId,clip.props).props;
     const now=new Date().toISOString();
     const preset=AssetPresetSchema.parse({id:`preset-${randomUUID()}`,name:name.trim(),engine:clip.engine,effectId:clip.effectId,props,transform:clip.transform,durationInFrames:clip.durationInFrames,favorite:false,status:"draft",sourceProjectId:projectId,createdAt:now,updatedAt:now});
     const registry=await this.load();
@@ -60,18 +63,23 @@ export class AssetLibraryService{
     return next;
   }
 
-  async applyToProject(projectId:string,presetId:string,startFrame:number):Promise<Project>{
+  async applyToProject(projectId:string,presetId:string,startFrame:number,meta?:MutationMeta):Promise<Project>{
     const registry=await this.load();
     const preset=registry.presets.find(item=>item.id===presetId);
     if(!preset)throw new Error(`Preset ${presetId} not found.`);
-    let project=await this.projects.load(projectId);
-    const duration=Math.max(1,Math.min(preset.durationInFrames,project.canvas.durationInFrames-startFrame));
-    if(preset.engine==="hyperframes")return this.hyperFrames.renderAndAdd({projectId,effectId:preset.effectId,props:preset.props,transform:preset.transform,startFrame,durationInFrames:duration});
+    const baseline=await this.projects.load(projectId);
+    const expectedRevision=meta?.expectedRevision??baseline.project.revision;
+    if(baseline.project.revision!==expectedRevision)throw new ProjectRevisionConflictError(expectedRevision,baseline.project.revision);
+    const operationId=meta?.operationId??`preset-apply-${randomUUID()}`;
+    const duration=Math.max(1,Math.min(preset.durationInFrames,baseline.canvas.durationInFrames-startFrame));
+    if(preset.engine==="hyperframes")return this.hyperFrames.renderAndAdd({projectId,effectId:preset.effectId,props:preset.props,transform:preset.transform,startFrame,durationInFrames:duration},{expectedRevision,operationId});
     const effect=EFFECT_CATALOG_BY_ID[preset.effectId];
     if(!effect)throw new Error(`Unknown Remotion effect ${preset.effectId}`);
     const props=effect.schema.parse(preset.props);
-    project=applyProjectCommand(project,{type:"add-clip",trackId:"motion-main",clip:{id:`preset-${preset.id}-${Date.now()}`,type:"motion",engine:"remotion",effectId:preset.effectId,props,transform:preset.transform,startFrame,durationInFrames:duration,enabled:true,layer:10}});
-    await this.projects.save(project);
-    return project;
+    const committed=await this.mutations.mutate({
+      projectId,expectedRevision,operationId,kind:"preset",payload:{presetId,startFrame,durationInFrames:duration},
+      apply:current=>applyProjectCommand(current,{type:"add-clip",trackId:"motion-main",clip:{id:`preset-${preset.id}-${operationId}`,type:"motion",engine:"remotion",effectId:preset.effectId,props,transform:preset.transform,startFrame,durationInFrames:duration,enabled:true,layer:10}}),
+    });
+    return committed.project;
   }
 }
