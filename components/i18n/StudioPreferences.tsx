@@ -2,25 +2,30 @@
 
 import {createContext,useContext,useLayoutEffect,useMemo,useSyncExternalStore} from "react";
 import {translateStudio,type StudioLocale,type StudioMessageKey,type StudioTheme} from "@/lib/i18n/studio";
+import {normalizeWorkspaceLayout,patchWorkspaceLayout,workspacePresetLayout,type StudioWorkspaceLayout,type StudioWorkspacePreset} from "@/lib/studio/workspace-layout";
 
 type StudioPreferencesValue={
   locale:StudioLocale;
   theme:StudioTheme;
   timelineHeight:number;
+  workspaceLayout:StudioWorkspaceLayout;
   setLocale:(locale:StudioLocale)=>void;
   toggleLocale:()=>void;
   setTheme:(theme:StudioTheme)=>void;
   toggleTheme:()=>void;
   setTimelineHeight:(height:number)=>void;
+  setWorkspacePreset:(preset:StudioWorkspacePreset)=>void;
+  updateWorkspaceLayout:(patch:Partial<StudioWorkspaceLayout>)=>void;
+  resetWorkspaceLayout:()=>void;
   t:(key:StudioMessageKey,variables?:Record<string,string|number>)=>string;
 };
 
 const StudioPreferencesContext=createContext<StudioPreferencesValue|null>(null);
 const LOCALE_KEY="video-os-studio-locale";
 const THEME_KEY="video-os-studio-theme";
-const TIMELINE_HEIGHT_KEY="video-os-studio-timeline-height";
+const LEGACY_TIMELINE_HEIGHT_KEY="video-os-studio-timeline-height";
+const WORKSPACE_LAYOUT_KEY="video-os-studio-workspace-layout-v21";
 const PREFERENCES_EVENT="video-os-studio-preferences";
-const DEFAULT_TIMELINE_HEIGHT=235;
 
 const readLocale=():StudioLocale=>{
   if(typeof window==="undefined")return"zh-CN";
@@ -34,15 +39,19 @@ const readTheme=():StudioTheme=>{
   return value==="light"||value==="dark"?value:"dark";
 };
 
-const readTimelineHeight=()=>{
-  if(typeof window==="undefined")return DEFAULT_TIMELINE_HEIGHT;
-  const parsed=Number(window.localStorage.getItem(TIMELINE_HEIGHT_KEY));
-  return Number.isFinite(parsed)?Math.max(180,Math.min(520,parsed)):DEFAULT_TIMELINE_HEIGHT;
+const readWorkspaceLayout=():StudioWorkspaceLayout=>{
+  if(typeof window==="undefined")return workspacePresetLayout("edit");
+  const raw=window.localStorage.getItem(WORKSPACE_LAYOUT_KEY);
+  if(raw){
+    try{return normalizeWorkspaceLayout(JSON.parse(raw) as Partial<StudioWorkspaceLayout>);}catch{/* fall through */}
+  }
+  const legacyTimeline=Number(window.localStorage.getItem(LEGACY_TIMELINE_HEIGHT_KEY));
+  return normalizeWorkspaceLayout(Number.isFinite(legacyTimeline)&&legacyTimeline>0?{timelineHeight:legacyTimeline}:undefined);
 };
 
 const getServerLocale=():StudioLocale=>"zh-CN";
 const getServerTheme=():StudioTheme=>"dark";
-const getServerTimelineHeight=()=>DEFAULT_TIMELINE_HEIGHT;
+const getServerWorkspaceLayout=()=>workspacePresetLayout("edit");
 
 const subscribePreferences=(notify:()=>void)=>{
   window.addEventListener("storage",notify);
@@ -58,10 +67,12 @@ const persistPreference=(key:string,value:string)=>{
   window.dispatchEvent(new Event(PREFERENCES_EVENT));
 };
 
+const persistWorkspaceLayout=(layout:StudioWorkspaceLayout)=>persistPreference(WORKSPACE_LAYOUT_KEY,JSON.stringify(normalizeWorkspaceLayout(layout)));
+
 export const StudioPreferencesProvider=({children}:{children:React.ReactNode})=>{
   const locale=useSyncExternalStore(subscribePreferences,readLocale,getServerLocale);
   const theme=useSyncExternalStore(subscribePreferences,readTheme,getServerTheme);
-  const timelineHeight=useSyncExternalStore(subscribePreferences,readTimelineHeight,getServerTimelineHeight);
+  const workspaceLayout=useSyncExternalStore(subscribePreferences,readWorkspaceLayout,getServerWorkspaceLayout);
 
   useLayoutEffect(()=>{
     document.documentElement.dataset.studioTheme=theme;
@@ -71,14 +82,18 @@ export const StudioPreferencesProvider=({children}:{children:React.ReactNode})=>
   const value=useMemo<StudioPreferencesValue>(()=>({
     locale,
     theme,
-    timelineHeight,
+    timelineHeight:workspaceLayout.timelineHeight,
+    workspaceLayout,
     setLocale:next=>persistPreference(LOCALE_KEY,next),
     toggleLocale:()=>persistPreference(LOCALE_KEY,locale==="zh-CN"?"en-US":"zh-CN"),
     setTheme:next=>persistPreference(THEME_KEY,next),
     toggleTheme:()=>persistPreference(THEME_KEY,theme==="dark"?"light":"dark"),
-    setTimelineHeight:height=>persistPreference(TIMELINE_HEIGHT_KEY,String(Math.round(Math.max(180,Math.min(520,height))))),
+    setTimelineHeight:height=>persistWorkspaceLayout(patchWorkspaceLayout(workspaceLayout,{timelineHeight:height,timelineCollapsed:false})),
+    setWorkspacePreset:preset=>persistWorkspaceLayout(workspacePresetLayout(preset)),
+    updateWorkspaceLayout:patch=>persistWorkspaceLayout(patchWorkspaceLayout(workspaceLayout,patch)),
+    resetWorkspaceLayout:()=>persistWorkspaceLayout(workspacePresetLayout(workspaceLayout.preset)),
     t:(key,variables)=>translateStudio(locale,key,variables),
-  }),[locale,theme,timelineHeight]);
+  }),[locale,theme,workspaceLayout]);
 
   return <StudioPreferencesContext.Provider value={value}>{children}</StudioPreferencesContext.Provider>;
 };
