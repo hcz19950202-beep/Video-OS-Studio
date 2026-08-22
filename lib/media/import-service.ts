@@ -9,7 +9,7 @@ import {planMediaImport,type MediaImportKind,type MediaImportStrategy} from "@/l
 
 const SAFE_FILE_NAME=/[^A-Za-z0-9._-]+/g;
 const sanitizeFileName=(name:string)=>{const n=name.replaceAll("\\","/").split("/").pop()||"asset";return n.replace(SAFE_FILE_NAME,"-").replace(/^-+|-+$/g,"")||"asset";};
-const withoutExtension=(name:string)=>name.replace(/\.[^.]+$/,""")||"media";
+const withoutExtension=(name:string)=>name.replace(/\.[^.]+$/,"")||"media";
 
 export type ImportMediaInput={projectId:string;fileName:string;mimeType?:string;bytes:Uint8Array};
 export type MediaImportReport={kind:MediaImportKind;strategy:MediaImportStrategy;normalized:boolean;assetId:string;originalRelativePath?:string;workingRelativePath:string;workingFileName:string;};
@@ -65,7 +65,7 @@ export class MediaImportService{
       project=applyProjectCommand(project,{type:"add-asset",asset});
       for(const caption of captionsToFrames(parsed,project.canvas.fps))project=applyProjectCommand(project,{type:"add-clip",trackId:"captions-main",clip:{...caption,id:`${assetId}-${caption.id}`}});
     }else if(plan.kind==="audio"){
-      try{const probe=await this.ffmpeg.probe(absolutePath);asset={...asset,durationInFrames:Math.max(1,Math.round(probe.durationSeconds*project.canvas.fps)),hasAudio:true};}catch{/* Asset remains importable even if duration probe is unavailable; local validation covers codecs. */}
+      try{const probe=await this.ffmpeg.probe(absolutePath);asset={...asset,durationInFrames:Math.max(1,Math.round(probe.durationSeconds*project.canvas.fps)),hasAudio:true};}catch{/* Asset remains importable if a specific audio codec cannot be probed in cloud/mock environments. */}
       project=applyProjectCommand(project,{type:"add-asset",asset});
     }else{
       project=applyProjectCommand(project,{type:"add-asset",asset});
