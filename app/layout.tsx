@@ -7,6 +7,7 @@ import "./script.css";
 import "./m4.css";
 import "./m5.css";
 import "./v21.css";
+import "./v21-inspector.css";
 
 export const metadata:Metadata={title:"Video OS Studio",description:"Local-first AI-native universal video production workspace"};
 export default function RootLayout({children}:Readonly<{children:React.ReactNode}>){return <html lang="zh-CN"><body>{children}</body></html>;}
