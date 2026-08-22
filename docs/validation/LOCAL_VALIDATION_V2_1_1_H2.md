@@ -437,3 +437,46 @@ MERGE RECOMMENDATION: YES/NO
 ```
 
 If validation documentation itself creates the final commit, return that new documentation HEAD accurately.
+
+## Actual Results / Final Result — 2026-08-23
+
+The following results are from the isolated Windows run after the E: drive was
+cleaned. The H2 input was kept frozen at `231a29638ad78c2962d53849146338bf56a0a696`.
+
+```text
+BRANCH: hardening/v2.1.1-h2-engine-runtime
+FINAL HEAD: c9d9d5ad9e5a4edcfabca9ff8848c1c7918b45ac before this validation record; the documentation commit is the final pushed HEAD reported in the handoff
+FROZEN INPUT HEAD: 231a29638ad78c2962d53849146338bf56a0a696
+LOCAL WORKTREE: E:\Video-OS-Studio-H2-Validation
+LOCAL DATA ROOT: E:\Video-OS-Data\v2.1.1-h2-validation-231a2963
+WINDOWS: Windows 10 Home Simplified Chinese 10.0.19045 x64
+NODE/NPM: Node v25.2.1 / npm 11.6.2 (project engine warning: 24.x expected)
+CHROME: 151.0.7922.138 via local Chrome CDP
+PYTHON: 3.12.10; video-use isolated venv at E:\Video-OS-Data\v2.1.1-h2-validation-231a2963\video-use-venv with Pillow 12.3.0 and numpy 2.5.2
+FFMPEG/FFPROBE: 8.1.1-full_build-www.gyan.dev
+
+REMOTION VERSIONS: remotion 4.0.513; @remotion/cli 4.0.513; @remotion/player 4.0.513
+HYPERFRAMES VERSION: 0.8.10 exact npm dependency; doctor/lint/check/render all ran through the local package bin
+DEPENDENCY LOCK: PASS — package.json and package-lock.json lock the exact H2 runtime versions; no npx runtime fallback
+CLEAN NPM CI: PASS — npm ci completed from the committed lock; the host blocked the separate manual node_modules removal command, but npm ci performed the clean reinstall successfully
+CODE CHECKS: PASS — lint (0 errors, 2 existing no-img-element warnings), typecheck, 40 test files / 161 tests, and build
+TOOLRUNNER ARGV: PASS — literal spaces, ampersand, quote, Unicode, stdout/stderr and PID metadata verified under E:\Video OS 测试\H2 Engine\argv & 非ASCII
+WINDOWS TREE TIMEOUT: PASS — TOOL_TIMEOUT returned and parent/child PIDs were absent afterwards
+WINDOWS TREE ABORT: PASS — TOOL_ABORTED returned and parent/child PIDs were absent afterwards
+BOUNDED LOGS: PASS — stdout/stderr each capped at 1024 bytes while live log events remained bounded
+REMOTION REAL RENDER: PASS — normal service path produced E:\Video-OS-Data\v2.1.1-h2-validation-231a2963\projects\h2-remotion-acceptance-107b41f6\render\final-1080x1920-30fps-385859b3-b98e-4a35-8403-e73d863df488.mp4; ffprobe h264 1080x1920 30/1, duration 3.000s
+REMOTION ABORT: PASS — real adapter cancellation returned ToolAbortedError and left no new owned node/Chrome/FFmpeg process
+HYPERFRAMES CHECK/RENDER: PASS — doctor, lint, strict check and strict render passed; direct E: output was 1080x1920 VP9 WebM, 30/1, 4.000s; browser app retry after E: cleanup returned HTTP 200 and wrote the E: project overlay asset
+HYPERFRAMES ABORT/TIMEOUT: PASS — both adapter paths returned ToolAbortedError/ToolTimeoutError and left no new owned process
+FFMPEG/FFPROBE: PASS — real probe, 160-point waveform, normalized H.264/AAC video and normalized AAC audio completed; outputs were ffprobe-valid
+FFMPEG ABORT/TIMEOUT: PASS — both real adapter paths returned the expected abort/timeout errors and left no new owned process
+VIDEO-USE: PASS — real timeline_view completed with the isolated Python environment; PNG output exists; abort/timeout paths returned expected errors with no owned residuals
+APP REGRESSION: PASS — local Chrome CDP opened/recovered the project, imported a real .MOV, edited Caption Inspector, edited canvas state, exercised save/reopen/undo/redo/preview, completed the real Remotion render, and added HyperFrames process-flow in the browser; project revision advanced 6 -> 7 and the HyperFrames asset is present in E:\Video-OS-Data\v2.1.1-h2-validation-231a2963\projects\h2-remotion-acceptance-107b41f6\animations\hf-process-flow-d31e50f048a245f6.webm (VP9, 1080x1920, 30/1, 4.000s)
+
+DEFECTS FIXED: V2.1.1-H2-LV-001 — made the existing package-root assertion platform-aware on Windows by using node:path join; this was a test portability defect exposed by the H2 clean Windows run
+COMMITS PUSHED: c9d9d5ad9e5a4edcfabca9ff8848c1c7918b45ac (H2 dependency lock and regression test); this Actual Results section is the follow-up documentation commit
+REMAINING FAILURES: No H2 product failures. Non-blocking environment notes: npm EBADENGINE warning because the host has Node 25 while the project declares 24.x; HyperFrames doctor reported low available memory, Docker unavailable, and optional whisper/TTS/BGM tools absent; two existing ESLint warnings remain. The first HyperFrames app attempt occurred before E: cleanup with only about 1 GB free and failed for low disk; the required retry after cleanup passed.
+RESIDUAL OWNED PROCESSES: none observed after the H2 server and harnesses were stopped; an unrelated pre-existing Chrome renderer was not owned by H2
+
+MERGE RECOMMENDATION: YES — H2 local Windows acceptance passed after the documented H2-only test fix and exact dependency lock. Keep PR #21 unmerged until the separate GPT Web review/merge decision; do not start H3.
+```
