@@ -586,3 +586,54 @@ MERGE RECOMMENDATION: YES/NO
 ```
 
 If validation documentation creates the last commit, report that documentation commit as FINAL HEAD.
+
+## Actual Results / Final Result — 2026-08-23
+
+The following is the complete local Windows result for the frozen H3 input. Real
+runtime data and temporary harnesses stayed outside Git under the isolated E:
+data root. The production server was used for the real-engine/restart gates;
+the fixed dev-route owner behavior was separately rechecked with a real Final
+Render compatibility request.
+
+```text
+BRANCH: hardening/v2.1.1-h3-durable-job-runtime
+FINAL HEAD: 90d8f7e06efbee0382010f6a7d5ab8b57e9c26a9 before this final documentation commit; the documentation commit is the final pushed HEAD reported in the handoff
+FROZEN INPUT HEAD: 74d26ab933c0421dd45c25ae5471a0ffff5ab75d
+LOCAL WORKTREE: E:\Video-OS-Studio-H3-Validation
+LOCAL DATA ROOT: E:\Video-OS-Data\v2.1.1-h3-validation-74d26ab9
+WINDOWS: Windows 10 Home Simplified Chinese 10.0.19045 x64
+NODE/NPM: Node v25.2.1 / npm 11.6.2 (project declares Node 24.x)
+CHROME: 151.0.7922.138 via local Chrome CDP/browser-use
+PYTHON: 3.12.10; isolated E:\Video-OS-Data\v2.1.1-h3-validation-74d26ab9\video-use-venv with faster-whisper 1.2.1, Pillow 12.3.0 and numpy 2.5.2
+FFMPEG/FFPROBE: 8.1.1-full_build-www.gyan.dev
+REMOTION VERSIONS: remotion 4.0.513; @remotion/player 4.0.513; @remotion/cli 4.0.513
+HYPERFRAMES VERSION: 0.8.10 exact local npm package
+
+CLEAN NPM CI: PASS — 681 packages installed from the committed lock; only the known Node 24.x vs local Node 25.2.1 engine warning and existing deprecation warnings appeared
+CODE CHECKS: PASS — lint 0 errors / 2 pre-existing no-img-element warnings, typecheck, 42 test files / 171 tests, build
+DURABLE FILE LAYOUT: PASS — real job directories contain job.json, stdout.log, stderr.log and artifacts.json; repeated Windows stress produced no EPERM/EEXIST/rename collision and no leftover *.tmp
+JOB API CONTRACT: PASS — list limit/filter, POST 202, unknown 404, malformed input 400, completed retry 409, bounded log tail, cancel, retry and compatibility render GET/output endpoints
+STATUS/STAGE/PROGRESS: PASS — real jobs observed queued -> preparing/running -> terminal with engine stages and progress ending at 1; cancel observed cancelling -> cancelled
+RENDER FINAL JOB: PASS — ba9fe89a-3ef0-410e-a82b-9525f62b9654 completed; ffprobe H.264/AAC 1080x1920 30fps, 8.042667s
+RENDER OVERLAY JOB: PASS — da2046c3-3e61-4140-9695-d849ffe68779 completed; ffprobe VP9 WebM 1080x1920 30fps, 8.000s
+REAL CANCEL + RETRY: PASS — c1962471-ac32-4e78-b5a4-b8e6494572e0 cancelled at attempt 1 with TOOL_ABORTED, same job ID retried at attempt 2 and completed; historical retry log retained and final artifact metadata valid
+HYPERFRAMES JOB: PASS — 926df9bd-afcf-40ec-b280-d69ca6d36459 completed with exact 0.8.10, project revision 1 -> 2, overlay asset/clip attached through H1 envelope, ffprobe VP9 1080x1920 30fps 4.000s
+MEDIA NORMALIZE JOB: PASS — e87e3f3a-e79e-4eff-996e-c8d9d3d773e9 completed through FFmpeg; project-relative output 1280x720 30fps, 8s, audio present, artifact metadata persisted
+VIDEO-USE TRANSCRIBE JOB: PASS — 63d0a59a-bc21-41d2-8bee-989986d9868b completed through the isolated Python/faster-whisper runtime, transcript JSON and takes_packed.md persisted, Project revision 2 -> 3 and Script commit applied
+NORMAL SERVER RESTART PERSISTENCE: PASS — after production Next server restart, completed Final/retry/Overlay/HyperFrames/normalize/video-use jobs retained completed status, attempt, output, artifacts and timestamps; no rerun occurred
+UNCLEAN RESTART INTERRUPTED: PASS — real FileJobStore/DurableJobRuntime fake-executor phase A/B harness converted active running job 9ae56e13-7db9-4588-83fc-fbcb7719505d to JOB_INTERRUPTED with retryable=true and finishedAt
+QUEUED RESTART REQUEUE: PASS — the same phase B harness discovered queued job 8cfdfe14-4416-4a38-9000-e54ed187072a, requeued and completed it at attempt 1
+CONCURRENCY MATRIX: PASS — final harness measured render=1, hyperframes=1, normalize=2, transcribe=1; different groups overlapped, queued cancel did not start, and next render queued job started after slot release
+DURABLE LOGS: PASS — real engine stdout/stderr persisted (including HyperFrames stdout/stderr), retry marker retained, completion followed queued log flush, and API tail was bounded to 1024 bytes without exposing raw failure paths
+ARTIFACT SEMANTICS: PASS — fake-executor H3 harness job d27a77fd-eedc-4968-b690-e7128eac94df showed partial metadata cleared on retry while actual attempt-1 media remained, then attempt-2 metadata/media completed
+PROJECT MUTATION SAFETY: PASS — stale HyperFrames ef95a39c-7019-4213-94f2-4d6a6e0a0074 failed PROJECT_REVISION_CONFLICT at expected 3/current 4 and retry 409; stale video-use 6282b49d-67bc-4cb1-ba4b-14296d008a93 failed expected 4/current 5 and retry 409; fresh video-use at current revision completed
+APP REGRESSION: PASS — local Chrome CDP opened/recovered the project, imported the real MOV, edited Caption 48 -> 52, edited Canvas Motion X -> 12, saved/reopened, exercised Undo/Redo and Preview playback, triggered durable Final Render and downloaded/read the MP4, and added a HyperFrames process-flow overlay through the UI; UI project revision reached 19 and the added WebM was ffprobe-readable
+FINAL GITHUB VERIFY: PASS — run 32593145028 / job 97079965165, final head 90d8f7e06efbee0382010f6a7d5ab8b57e9c26a9; install, lint, typecheck, 42-file unit suite and build all passed
+
+DEFECTS FIXED: V2.1.1-H3-LV-001 — Windows FileJobStore now serializes reads, appends and atomic writes per path, preventing read/rename EPERM; the concurrency test now waits for every job to reach terminal before filesystem cleanup. V2.1.1-H3-LV-002 — restart recovery now distinguishes a new server owner from Next dev route workers using a durable parent-PID owner marker, while production build skips runtime-owner writes; same-root runtime registry support was added. V2.1.1-H3-LV-003 — concurrency regression observation waits for actual executor active counts, removing the Ubuntu status-before-executor race.
+COMMITS PUSHED: 7cd5cabcfd6af5a0fb0e47224aafc1cf151ac87e (H3 Windows durable runtime fixes and regression tests), 90d8f7e06efbee0382010f6a7d5ab8b57e9c26a9 (H3 concurrency test stabilization); this Actual Results section is the final documentation commit
+REMAINING FAILURES: No H3 product or final-CI failures. Non-blocking notes: local Node is newer than the declared 24.x engine, two pre-existing lint warnings remain, and the synthetic tone fixture produced a valid zero-word transcript; the real video-use process, transcript artifacts and H1 Script commit all completed. Historical failed/interrupted probe jobs remain only as local acceptance evidence.
+RESIDUAL OWNED PROCESSES: none — all H3 servers and real engine children were stopped/absent; unrelated pre-existing non-H3 local runtimes were not touched
+
+MERGE RECOMMENDATION: YES — H3 local Windows acceptance and final GitHub verify passed. Keep PR #22 open/draft/unmerged for GPT Web frozen-to-final review; do not start H4.
+```
