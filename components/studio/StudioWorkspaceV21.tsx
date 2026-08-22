@@ -14,6 +14,7 @@ import {ResizableWorkspaceShell} from "@/components/studio/ResizableWorkspaceShe
 import {WorkspaceLayoutProvider,useWorkspaceLayout} from "@/components/studio/WorkspaceLayoutProvider";
 import {RENDER_REQUEST_EVENT} from "@/components/render/RenderControls";
 import {CANVAS_PRESETS,describeCanvas} from "@/lib/canvas/aspect";
+import {ProjectRequestError,postProjectCommand,reloadProject} from "@/lib/client/project-mutations";
 import type {ProjectCommand} from "@/lib/project/commands";
 import {DEFAULT_MOTION_TRANSFORM} from "@/schemas/clip";
 import type {ProjectSummary} from "@/lib/project/repository";
@@ -24,7 +25,7 @@ import {useSelectionStore} from "@/store/selection-store";
 import {usePlayerStore} from "@/store/player-store";
 import type {WorkspacePreset} from "@/lib/studio/workspace-layout";
 
-type ApiError={error?:string;action?:string;retryable?:boolean};
+type ApiError={code?:string;error?:string;message?:string;action?:string;retryable?:boolean;details?:Record<string,unknown>;requestId?:string};
 type ErrorState={message:string;action?:string;retryable:boolean}|null;
 type ToolId="script"|"scenes"|"ai"|"media"|"captions"|"effects"|"brand"|"project";
 type MediaTab="assets"|"transcript"|"library";
@@ -32,7 +33,7 @@ type ScenarioId="talking-head"|"product-ad"|"explainer"|"educational"|"motion"|"
 type ImportReport={kind?:"video"|"audio"|"image"|"subtitle";normalized?:boolean;assetId?:string;workingFileName?:string;originalRelativePath?:string;workingRelativePath?:string};
 type ImportStatus={fileName:string;phase:"uploading"|"preparing"|"ready";normalized?:boolean;workingFileName?:string};
 
-const requestJson=async<T,>(url:string,init?:RequestInit):Promise<T>=>{const response=await fetch(url,init);const payload=(await response.json()) as T&ApiError;if(!response.ok){const error=new Error(payload.error||`Request failed with status ${response.status}`);Object.assign(error,{action:payload.action,retryable:payload.retryable});throw error;}return payload;};
+const requestJson=async<T,>(url:string,init?:RequestInit):Promise<T>=>{const response=await fetch(url,init);const payload=(await response.json()) as T&ApiError;if(!response.ok){const error=new Error(payload.message||payload.error||`Request failed with status ${response.status}`);Object.assign(error,{code:payload.code,action:payload.action,retryable:payload.retryable,details:payload.details,requestId:payload.requestId});throw error;}return payload;};
 const toErrorState=(error:unknown):ErrorState=>({message:error instanceof Error?error.message:String(error),action:error instanceof Error&&"action" in error?String((error as Error&{action?:string}).action||""):undefined,retryable:error instanceof Error&&"retryable" in error?Boolean((error as Error&{retryable?:boolean}).retryable):true});
 
 const scenarios:Array<{id:ScenarioId;zh:string;en:string;detailZh:string;detailEn:string}>=[
@@ -65,19 +66,20 @@ const WorkspaceInner=({initialProjects}:{initialProjects:ProjectSummary[]})=>{
   const[projects,setProjects]=useState(initialProjects);const[tool,setTool]=useState<ToolId>("media");const[mediaTab,setMediaTab]=useState<MediaTab>("assets");
   const[newProjectName,setNewProjectName]=useState("Untitled Video");const[scenario,setScenario]=useState<ScenarioId>("blank");const[canvasWidth,setCanvasWidth]=useState(1920);const[canvasHeight,setCanvasHeight]=useState(1080);const[canvasFps,setCanvasFps]=useState(30);const[matchSourceCanvas,setMatchSourceCanvas]=useState(false);
   const[busy,setBusy]=useState<string|null>(null);const[notice,setNotice]=useState(locale==="zh-CN"?"V2.1 Universal Workspace":"V2.1 Universal Workspace");const[error,setError]=useState<ErrorState>(null);const[lastUpload,setLastUpload]=useState<File|null>(null);const[importStatus,setImportStatus]=useState<ImportStatus|null>(null);
-  const fileInputRef=useRef<HTMLInputElement>(null);const renameInputRef=useRef<HTMLInputElement>(null);
+  const fileInputRef=useRef<HTMLInputElement>(null);const renameInputRef=useRef<HTMLInputElement>(null);const mutationChainRef=useRef<Promise<void>>(Promise.resolve());
   const zh=locale==="zh-CN";
   const captionClips=project?.tracks.flatMap(track=>track.clips).filter(clip=>clip.type==="caption")??[];
   const canvas=project?describeCanvas(project.canvas.width,project.canvas.height):null;
 
   const refreshRecent=useCallback(async()=>{const data=await requestJson<{projects:ProjectSummary[]}>("/api/projects",{cache:"no-store"});setProjects(data.projects);},[]);
   const run=async(label:string,op:()=>Promise<void>)=>{setBusy(label);setError(null);try{await op();}catch(caught){setError(toErrorState(caught));}finally{setBusy(null);}};
-  const postCommand=async(base:Project,command:ProjectCommand,message:string)=>{const data=await requestJson<{project:Project}>(`/api/projects/${encodeURIComponent(base.project.id)}/commands`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(command)});setProject(data.project);setNotice(message);await refreshRecent();if(base.project.revision!==data.project.project.revision)pushHistory({projectId:base.project.id,label:message,before:base,after:data.project});return data.project;};
-  const persistCommand=(command:ProjectCommand,message:string)=>{if(!project)return Promise.resolve();return run(t("status.saving"),async()=>{await postCommand(useProjectStore.getState().project??project,command,message);});};
+  const enqueueMutation=(op:()=>Promise<void>)=>{const next=mutationChainRef.current.catch(()=>undefined).then(op);mutationChainRef.current=next.catch(()=>undefined);return next;};
+  const postCommand=async(base:Project,command:ProjectCommand,message:string)=>{const data=await postProjectCommand(base,command);setProject(data.project);setNotice(message);await refreshRecent();if(base.project.revision!==data.project.project.revision)pushHistory({projectId:base.project.id,label:message,before:base,after:data.project});return data.project;};
+  const persistCommand=(command:ProjectCommand,message:string)=>{if(!project)return Promise.resolve();return run(t("status.saving"),()=>enqueueMutation(async()=>{const base=useProjectStore.getState().project??project;try{await postCommand(base,command,message);}catch(caught){if(caught instanceof ProjectRequestError&&caught.code==="PROJECT_REVISION_CONFLICT"){const latest=await reloadProject(base.project.id);setProject(latest.project);}throw caught;}}));};
 
   const createNewProject=()=>run(t("status.creating"),async()=>{const data=await requestJson<{project:Project}>("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:newProjectName,width:canvasWidth,height:canvasHeight,fps:canvasFps,scenario})});setProject(data.project);setNotice(matchSourceCanvas?(zh?"项目已创建；导入首个视频后将匹配源尺寸":"Project created; the first imported video will set the canvas size"):t("status.projectCreated"));setTool("media");setPreset("edit");await refreshRecent();});
-  const openProject=(id:string)=>run(t("status.opening"),async()=>{const data=await requestJson<{project:Project}>(`/api/projects/${encodeURIComponent(id)}`,{cache:"no-store"});setProject(data.project);setNotice(t("status.projectRestored"));setMatchSourceCanvas(false);});
-  const saveProject=()=>{if(!project)return Promise.resolve();return run(t("status.saving"),async()=>{const data=await requestJson<{project:Project}>(`/api/projects/${encodeURIComponent(project.project.id)}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(project)});setProject(data.project);setNotice(t("status.projectSaved"));await refreshRecent();});};
+  const openProject=(id:string)=>run(t("status.opening"),async()=>{await mutationChainRef.current.catch(()=>undefined);const data=await reloadProject(id);setProject(data.project);setNotice(t("status.projectRestored"));setMatchSourceCanvas(false);});
+  const saveProject=()=>{if(!project)return Promise.resolve();return run(t("status.saving"),async()=>{await mutationChainRef.current.catch(()=>undefined);const current=useProjectStore.getState().project??project;const data=await reloadProject(current.project.id);setProject(data.project);setNotice(t("status.projectSaved"));await refreshRecent();});};
   const renameProject=()=>{const name=renameInputRef.current?.value.trim();return!project||!name||name===project.project.name?Promise.resolve():persistCommand({type:"rename-project",name},t("status.projectRenamed"));};
   const exportProjectJson=()=>{if(!project)return;const blob=new Blob([JSON.stringify(project,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const anchor=document.createElement("a");anchor.href=url;anchor.download=`${project.project.id}.json`;anchor.click();URL.revokeObjectURL(url);};
   const uploadFile=(file:File)=>{if(!project)return Promise.resolve();setLastUpload(file);setImportStatus({fileName:file.name,phase:"uploading"});return run(`${t("status.importing")} ${file.name}`,async()=>{const form=new FormData();form.set("file",file);setImportStatus({fileName:file.name,phase:"preparing"});const data=await requestJson<{project:Project;import?:ImportReport}>(`/api/projects/${encodeURIComponent(project.project.id)}/media`,{method:"POST",body:form});let next=data.project;const report=data.import;if(matchSourceCanvas&&report?.kind==="video"&&report.assetId){const asset=next.assets.find(item=>item.id===report.assetId);if(asset?.width&&asset?.height&&(asset.width!==next.canvas.width||asset.height!==next.canvas.height)){next=await postCommand(next,{type:"set-canvas",width:asset.width,height:asset.height},zh?`画布已匹配源视频 ${asset.width}×${asset.height}`:`Canvas matched source video ${asset.width}×${asset.height}`);}setMatchSourceCanvas(false);}else setProject(next);setImportStatus({fileName:file.name,phase:"ready",normalized:report?.normalized,workingFileName:report?.workingFileName});setNotice(report?.normalized?(zh?`原始 ${file.name} 已保留；正在使用 ${report.workingFileName??"内部 MP4"}`:`Original ${file.name} preserved; using ${report.workingFileName??"internal MP4"}`):(zh?`${file.name} 已导入`:`Imported ${file.name}`));await refreshRecent();});};
