@@ -790,7 +790,7 @@ The brand-new `V21-E2E-Content-First` project rendered the same real source and 
 | Landscape | 1920×1080 | H.264 / 30 | 2274 | 75.84s | PASS |
 | Square | 1080×1080 | H.264 / 30 | 2274 | 75.84s | PASS |
 
-All three included Video, 2 Captions, 1 Motion and Audio. Preview and Portrait Final frame comparison was materially consistent for the factory background, presenter, keyword strip and caption.
+All three included Video, 2 Captions and 1 Motion. The source Video carried AAC audio into each Final MP4. Preview and Portrait Final frame comparison was materially consistent for the factory background, presenter, keyword strip and caption.
 
 The additional `V21-Short-Linked` project rendered at 1080×1080, 300 frames / 10.048s, H.264/AAC. Its render props confirmed `LinkedStyles=1`, `BrollClips=1`, and `MarkerCount=1`.
 
@@ -804,10 +804,10 @@ New Project → custom Canvas → real MOV import/normalize → video-use
 → AI rules Analyze / Review / Apply → Motion
 → Brand / Linked Style → Canvas Preview / Apply
 → Timeline Marker / Split / Duplicate / Undo
-→ B-roll / Audio → Render
+→ Canvas Apply → Render
 ```
 
-`V21-Short-Linked` was reopened after a real server stop/restart, then received a second UI edit (Marker), Save, and second Render. Recent Project reopen restored Canvas, Script, Scene, Captions, Motion, Linked Style, Marker, media paths, and revision.
+`V21-Short-Linked` was reopened after a real server stop/restart, then received a second UI edit (Marker), Save, and second Render. A real JPEG was then added through the new B-roll UI and a third Render confirmed `BrollClips=1` together with `LinkedStyles=1`. Recent Project reopen restored Canvas, Script, Scene, Captions, Motion, Linked Style, Marker, B-roll, media paths, and revision.
 
 Script Search / Clear / Remove / Restore: PASS. Scene semantic labels, select/seek, Rename, Split/Merge controls and Visual Intensity command: PASS. AI Director source remained `rules`; Analyze, Reason/Confidence/Alternatives, Change Preview and one-transaction Apply: PASS. Timeline Scene Strip, five tracks, Marker, Snap, Waveform, Zoom, Split, Duplicate and Undo: PASS.
 
