@@ -1,13 +1,15 @@
 import type {Project} from "@/schemas/project";
+import type {ToolLogEvent} from "@/lib/process/tool-runner";
 
+export type ToolExecutionOptions={signal?:AbortSignal;timeoutMs?:number;onLog?:(event:ToolLogEvent)=>void};
 export type MediaProbeResult={durationSeconds:number;width?:number;height?:number;fps?:number;hasAudio:boolean};
 export type VideoNormalizationInput={inputPath:string;outputPath:string};
 export type AudioNormalizationInput={inputPath:string;outputPath:string};
 export interface FileSystemAdapter{exists(path:string):Promise<boolean>;readText(path:string):Promise<string>;readBinary(path:string):Promise<Uint8Array>;ensureDir(path:string):Promise<void>;listDirectories(path:string):Promise<string[]>;writeBinary(path:string,content:Uint8Array):Promise<void>;writeTextAtomic(path:string,content:string,backupPath?:string):Promise<void>;}
-export interface FfmpegAdapter{probe(inputPath:string):Promise<MediaProbeResult>;waveformPeaks(inputPath:string,points:number):Promise<number[]>;normalizeVideo(input:VideoNormalizationInput):Promise<{outputPath:string}>;normalizeAudio(input:AudioNormalizationInput):Promise<{outputPath:string}>;}
-export interface RemotionRenderAdapter{render(input:{project:Project;outputPath:string;mode:"final"|"overlay";assetBaseUrl:string;quality?:"draft"|"standard"|"high";includeAudio?:boolean}):Promise<{outputPath:string}>;}
-export interface HyperFramesAdapter{render(input:{effectId:string;props:Record<string,unknown>;width:number;height:number;fps:number;durationInFrames:number;outputPath:string}):Promise<{outputPath:string}>;}
+export interface FfmpegAdapter{probe(inputPath:string,options?:ToolExecutionOptions):Promise<MediaProbeResult>;waveformPeaks(inputPath:string,points:number,options?:ToolExecutionOptions):Promise<number[]>;normalizeVideo(input:VideoNormalizationInput,options?:ToolExecutionOptions):Promise<{outputPath:string}>;normalizeAudio(input:AudioNormalizationInput,options?:ToolExecutionOptions):Promise<{outputPath:string}>;}
+export interface RemotionRenderAdapter{render(input:{project:Project;outputPath:string;mode:"final"|"overlay";assetBaseUrl:string;quality?:"draft"|"standard"|"high";includeAudio?:boolean},options?:ToolExecutionOptions):Promise<{outputPath:string}>;}
+export interface HyperFramesAdapter{render(input:{effectId:string;props:Record<string,unknown>;width:number;height:number;fps:number;durationInFrames:number;outputPath:string},options?:ToolExecutionOptions):Promise<{outputPath:string}>;}
 
 export type TranscriptWord={text:string;startSeconds:number;endSeconds:number;speakerId?:string;type?:"word"|"audio_event"};
 export type VideoUsePrepareResult={words:TranscriptWord[];text:string;packedText:string;transcriptPath:string;packedTranscriptPath:string};
-export interface VideoUseAdapter{prepare(input:{inputPath:string;editDir:string}):Promise<VideoUsePrepareResult>;renderEdl(input:{edlPath:string;outputPath:string;preview:boolean}):Promise<{outputPath:string}>;timelineView(input:{videoPath:string;startSeconds:number;endSeconds:number;outputPath?:string}):Promise<{artifactPath?:string}>;}
+export interface VideoUseAdapter{prepare(input:{inputPath:string;editDir:string},options?:ToolExecutionOptions):Promise<VideoUsePrepareResult>;renderEdl(input:{edlPath:string;outputPath:string;preview:boolean},options?:ToolExecutionOptions):Promise<{outputPath:string}>;timelineView(input:{videoPath:string;startSeconds:number;endSeconds:number;outputPath?:string},options?:ToolExecutionOptions):Promise<{artifactPath?:string}>;}
