@@ -17,7 +17,6 @@ export type MediaImportResult={project:Project;import:MediaImportReport};
 
 export class MediaImportService{
   constructor(private readonly fs:FileSystemAdapter,private readonly ffmpeg:FfmpegAdapter,private readonly repository:ProjectRepository,private readonly idFactory:()=>string=randomUUID){}
-
   async importFile(input:ImportMediaInput):Promise<Project>{return(await this.importWithReport(input)).project;}
 
   async importWithReport(input:ImportMediaInput):Promise<MediaImportResult>{
@@ -32,15 +31,18 @@ export class MediaImportService{
     if(plan.kind==="subtitle"){
       relativePath=`captions/${assetId}-${safeName}`;
       await this.fs.writeBinary(this.repository.resolveProjectFile(project.project.id,relativePath),input.bytes);
-    }else if(plan.kind==="video"&&plan.strategy==="normalize-video"){
+    }else if(plan.strategy==="normalize-video"||plan.strategy==="normalize-audio"){
       originalRelativePath=`original/${assetId}-${safeName}`;
       const sourcePath=this.repository.resolveProjectFile(project.project.id,originalRelativePath);
       await this.fs.writeBinary(sourcePath,input.bytes);
-      workingFileName=`${withoutExtension(safeName)}-working.mp4`;
-      relativePath=`input/${assetId}-${workingFileName}`;
+      const extension=plan.strategy==="normalize-video"?"mp4":"m4a";
+      const folder=plan.kind==="video"?"input":"assets";
+      workingFileName=`${withoutExtension(safeName)}-working.${extension}`;
+      relativePath=`${folder}/${assetId}-${workingFileName}`;
       const workingPath=this.repository.resolveProjectFile(project.project.id,relativePath);
-      await this.fs.ensureDir(this.repository.resolveProjectFile(project.project.id,"input"));
-      await this.ffmpeg.normalizeVideo({inputPath:sourcePath,outputPath:workingPath});
+      await this.fs.ensureDir(this.repository.resolveProjectFile(project.project.id,folder));
+      if(plan.strategy==="normalize-video")await this.ffmpeg.normalizeVideo({inputPath:sourcePath,outputPath:workingPath});
+      else await this.ffmpeg.normalizeAudio({inputPath:sourcePath,outputPath:workingPath});
     }else{
       const folder=plan.kind==="video"?"input":"assets";
       relativePath=`${folder}/${assetId}-${safeName}`;
@@ -48,7 +50,8 @@ export class MediaImportService{
     }
 
     const absolutePath=this.repository.resolveProjectFile(project.project.id,relativePath);
-    let asset:Asset={id:assetId,kind:plan.kind,relativePath,originalRelativePath,label:safeName,originalName:input.fileName,mimeType:plan.kind==="video"&&plan.strategy==="normalize-video"?"video/mp4":plan.mimeType,originalMimeType:input.mimeType||plan.mimeType,sizeBytes:input.bytes.byteLength};
+    const normalizedMime=plan.strategy==="normalize-video"?"video/mp4":plan.strategy==="normalize-audio"?"audio/mp4":plan.mimeType;
+    let asset:Asset={id:assetId,kind:plan.kind,relativePath,originalRelativePath,label:safeName,originalName:input.fileName,mimeType:normalizedMime,originalMimeType:input.mimeType||plan.mimeType,sizeBytes:input.bytes.byteLength};
 
     if(plan.kind==="video"){
       let probe;
@@ -68,11 +71,9 @@ export class MediaImportService{
     }else if(plan.kind==="audio"){
       try{const probe=await this.ffmpeg.probe(absolutePath);asset={...asset,durationInFrames:Math.max(1,Math.round(probe.durationSeconds*project.canvas.fps)),hasAudio:true};}catch{/* Asset remains importable if a specific audio codec cannot be probed in cloud/mock environments. */}
       project=applyProjectCommand(project,{type:"add-asset",asset});
-    }else{
-      project=applyProjectCommand(project,{type:"add-asset",asset});
-    }
+    }else project=applyProjectCommand(project,{type:"add-asset",asset});
 
     await this.repository.save(project);
-    return{project,import:{kind:plan.kind,strategy:plan.strategy,normalized:plan.strategy==="normalize-video",assetId,originalRelativePath,workingRelativePath:relativePath,workingFileName}};
+    return{project,import:{kind:plan.kind,strategy:plan.strategy,normalized:plan.strategy==="normalize-video"||plan.strategy==="normalize-audio",assetId,originalRelativePath,workingRelativePath:relativePath,workingFileName}};
   }
 }
