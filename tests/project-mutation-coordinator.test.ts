@@ -12,6 +12,14 @@ const setup=async()=>{
   return{fs,repository,coordinator};
 };
 
+class FailingProjectRepository extends ProjectRepository{
+  failNextSave=false;
+  override async save(project:Parameters<ProjectRepository["save"]>[0]):Promise<void>{
+    if(this.failNextSave){this.failNextSave=false;throw new Error("simulated save failure");}
+    return super.save(project);
+  }
+}
+
 describe("ProjectMutationCoordinator",()=>{
   it("applies a command exactly once and persists idempotency",async()=>{
     const{repository,coordinator,fs}=await setup();
@@ -35,6 +43,20 @@ describe("ProjectMutationCoordinator",()=>{
     const{coordinator}=await setup();
     await coordinator.applyCommand("p1",{expectedRevision:0,commandId:"same-id",command:{type:"rename-project",name:"First"}});
     await expect(coordinator.applyCommand("p1",{expectedRevision:1,commandId:"same-id",command:{type:"rename-project",name:"Second"}})).rejects.toBeInstanceOf(ProjectOperationIdReuseError);
+  });
+
+  it("keeps an aborted operation id bound to its original payload",async()=>{
+    const fs=new InMemoryFileSystemAdapter();
+    const repository=new FailingProjectRepository(fs,"/data");
+    const coordinator=new ProjectMutationCoordinator(fs,repository);
+    await repository.create({id:"p1",name:"One",now:"2026-08-22T00:00:00.000Z"});
+    repository.failNextSave=true;
+    const original={expectedRevision:0,commandId:"retry-id",command:{type:"rename-project" as const,name:"First"}};
+    await expect(coordinator.applyCommand("p1",original)).rejects.toThrow("simulated save failure");
+    await expect(coordinator.applyCommand("p1",{expectedRevision:0,commandId:"retry-id",command:{type:"rename-project",name:"Second"}})).rejects.toBeInstanceOf(ProjectOperationIdReuseError);
+    const retry=await coordinator.applyCommand("p1",original);
+    expect(retry.project.project.name).toBe("First");
+    expect(retry.project.project.revision).toBe(1);
   });
 
   it("serializes same-project stale writers so one wins and one receives a revision conflict",async()=>{
