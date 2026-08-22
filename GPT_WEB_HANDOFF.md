@@ -33,34 +33,30 @@ Draft PR:
 
 PR #14 must remain **Draft / OPEN / unmerged** until Windows local acceptance passes.
 
-The authoritative cloud/local contracts are:
+Authoritative documents:
 
 1. `Video_OS_Studio_V2_1_AI_First_Universal_UI_Redesign_Master_PRD_Rev2.md`
 2. `V2_1_CLOUD_LOCAL_EXECUTION_PLAN.md`
 3. `LOCAL_VALIDATION_V2_1.md`
 4. this handoff.
 
-If a SHA or CI number in conversation history differs from GitHub, use the **latest PR #14 head with its latest successful CI**.
+For exact execution, Local Codex must use the **latest PR #14 head whose corresponding GitHub CI is successful**. Conversation-era SHAs are not allowed to override the latest green PR head.
 
-## 2. V2.1 product definition
+## 2. Product definition and invariant
 
-V2.1 is not a portrait-only editor and is not a 9:16 product mode.
-
-Product definition:
+V2.1 is:
 
 > **AI-First Universal Video Workspace**
 
-Three domains remain separate:
+It is not portrait-first, landscape-first or 9:16-first.
+
+Always preserve:
 
 ```text
-Source Media
-!=
-Project Canvas
-!=
-Export Profile
+Source Media != Project Canvas != Export Profile
 ```
 
-Project canvas truth remains:
+Project canvas remains:
 
 ```text
 canvas.width
@@ -68,229 +64,163 @@ canvas.height
 canvas.fps
 ```
 
-Aspect presets are shortcuts only. Arbitrary custom width × height is first-class.
+Aspect presets are shortcuts. Arbitrary custom width × height is first-class.
 
-No code or acceptance path may assume portrait is the primary or full-feature mode.
+## 3. Accepted V2.0 Core remains untouched
 
-## 3. V2.0 Core remains accepted and must not be rewritten
-
-The following accepted V2.0 engines remain the foundation:
+V2.1 reuses the accepted V2.0 engines:
 
 - Project Schema / Commands / Transactions;
-- Script word-level text editing;
+- Script word editing / Remove / Restore;
 - Scenes / Scene Strip;
 - Context Inspector;
 - Generated Video Brand / Linked Styles;
-- Canvas drag / resize / rotate / snap / layer;
+- Canvas live drag / resize / rotate / snap / layer;
 - Timeline Marker / Snap / Split / Waveform / Undo / Redo;
 - AI Director Analyze / Suggest / Reason / Confidence / Alternatives / Density Hold / Diff / transactional Apply;
 - Remotion Master Composition;
 - HyperFrames / video-use / FFmpeg adapters;
-- local-first project/media separation through `VIDEO_OS_DATA_ROOT`.
+- `VIDEO_OS_DATA_ROOT` runtime-media separation.
 
-Project Schema remains:
+Project Schema remains `2.0.0`.
+
+## 4. Cloud implementation status
+
+All cloud packages are code-complete:
 
 ```text
-2.0.0
+C0 Universal Contract                         PASS
+C1 Resizable Universal Editor Shell          PASS
+C2 IA / Inspector / Timeline Presentation    PASS
+C3 AI Workspace / Script / Scene / Project   PASS
+C4 Universal Media Ingest / Polish           PASS
 ```
 
-V2.1 is primarily a universal UI / ingest / workspace upgrade, not a V2 Core rewrite.
-
-## 4. Cloud package status
-
-### C0 — Universal contract and guardrails
-
-**COMPLETE**
+### C0
 
 Delivered:
 
-- Rev.2 V2.1 Master PRD;
-- cloud/local execution plan;
+- Rev.2 Master PRD;
 - Universal Canvas contract;
-- aspect/orientation/preset helpers;
-- arbitrary custom canvas tests;
-- Viewer fit tests for landscape / portrait / square / ultrawide / custom.
+- landscape / portrait / square / ultrawide / custom canvas math;
+- canvas presets as shortcuts, not whitelist;
+- universal Viewer-fit tests.
 
-### C1 — Resizable Universal Editor Shell
-
-**COMPLETE**
+### C1
 
 Delivered:
 
 - 48px icon rail;
 - resizable left content panel;
-- universal flex Viewer;
+- Universal Viewer;
 - resizable Inspector;
 - resizable Timeline;
-- collapse/expand states;
-- workspace presets: EDIT / AI / SCRIPT / MOTION;
-- local-only workspace persistence;
-- Reset Workspace;
-- pointer resize uses ephemeral draft and persists on pointer-up;
-- keyboard-accessible separators with ARIA values and Arrow / Shift+Arrow resizing;
-- workspace changes do not write Project JSON.
+- Edit / AI / Script / Motion presets;
+- collapse / restore;
+- workspace persistence outside Project JSON;
+- pointer draft → pointer-up persistence;
+- keyboard separators with ARIA value/min/max and Arrow / Shift+Arrow resizing.
 
-### C2 — Information architecture / Inspector / Timeline presentation
-
-**COMPLETE**
-
-Primary destinations:
-
-```text
-Script
-Scenes
-AI
-Media
-Captions
-Effects
-Brand
-Project
-```
-
-Media grouping:
-
-```text
-Assets
-Transcript
-Library
-```
+### C2
 
 Delivered:
 
-- Selection-aware Inspector Registry shell over accepted inspectors;
-- Project Inspector Canvas section;
-- staged Canvas Change Preview before high-impact aspect changes;
-- affected Caption / Motion / B-roll / Video counts;
-- Cancel / Apply flow using existing `set-canvas` command;
-- Universal Viewer canvas metadata;
-- Timeline visual redesign while preserving M4 Timeline engine;
-- Scene Strip / Track / Clip / Marker / Snap / Waveform hierarchy polish.
+- primary IA: Script / Scenes / AI / Media / Captions / Effects / Brand / Project;
+- Media tabs: Assets / Transcript / Library;
+- Inspector Registry navigation over existing accepted inspectors;
+- Project Inspector Canvas controls;
+- staged Canvas Change Preview with Before/After and affected Caption / Motion / B-roll / Video counts;
+- explicit Cancel / Apply using existing `set-canvas` command;
+- Timeline visual redesign without changing M4 Timeline engine.
 
-### C3 — AI Workspace / Script / Scene / New Project
-
-**COMPLETE**
+### C3
 
 Delivered:
 
-- AI as first-class workspace;
-- existing accepted M5 AI Director reused rather than rewritten;
-- Project Canvas context inside AI Workspace;
-- Scene / Clip / Transcript references from current selection;
-- Cards / Density / Peak moved into AI context;
-- Script search;
-- Scene semantic chips in Script;
-- Scene semantic labels / visual count / visual intensity UI;
+- AI as first-class workspace over accepted M5 AI Director;
+- current Canvas metadata in AI context;
+- Scene / Clip / Transcript references;
+- Cards / Density / Peak in AI workspace;
+- Script search and Scene semantic chips;
+- Scene semantic labels, visual count and visual intensity editing;
 - Scenario Starter cards;
-- canvas presets plus arbitrary custom Width × Height;
-- FPS presets plus custom FPS;
-- Match Source Dimensions flow for the first imported video.
+- universal presets + arbitrary custom Width × Height;
+- FPS presets + custom FPS;
+- Match Source Dimensions.
 
-Important Match Source rule:
+Match Source rule:
 
 ```text
-first video probe -> Width × Height may update through one Project Command
-Project FPS remains the explicit project timebase selected by the user
+first imported video probe may set Width × Height
+Project FPS remains explicit user-selected timebase
 ```
 
-Scenario starters never force orientation.
+Scenario starters do not force orientation.
 
-### C4 — Universal media ingest / polish
+### C4
 
-**COMPLETE**
-
-User-facing video target:
+Delivered user-facing ingest policy:
 
 ```text
-MP4
-MOV
-M4V
-WebM
-MKV
-AVI
-```
-
-Audio target:
-
-```text
-MP3
-WAV
-M4A
-AAC
-FLAC
-```
-
-Images:
-
-```text
-PNG
-JPEG
-WebP
-```
-
-Subtitles:
-
-```text
-SRT
-VTT
+Video: MP4 / MOV / M4V / WebM / MKV / AVI
+Audio: MP3 / WAV / M4A / AAC / FLAC
+Image: PNG / JPEG / WebP
+Subtitle: SRT / VTT
 ```
 
 Working-media behavior:
 
 ```text
-MP4 -> native project media
-MOV/M4V/WebM/MKV/AVI -> original preserved + working H.264/AAC MP4
-MP3/WAV/M4A -> reusable audio asset
-AAC/FLAC -> original preserved + working AAC/M4A
+MP4
+→ native project media
+
+MOV / M4V / WebM / MKV / AVI
+→ original preserved
+→ H.264 yuv420p + AAC MP4 working media
+
+MP3 / WAV / M4A
+→ reusable audio asset
+
+AAC / FLAC
+→ original preserved
+→ AAC/M4A working media
 ```
 
-The user-facing principle is:
+UI states:
 
 ```text
-broad input compatibility
-+
-controlled internal working formats
+Uploading
+→ Preparing editable media
+→ Ready
+→ Original preserved / Working media shown
 ```
 
-The UI exposes Import / Preparing / Ready state and explicitly shows when the original source was preserved.
+Actual Windows codec compatibility and performance are local claims only.
 
-Actual Windows FFmpeg compatibility and timing remain a local gate.
+## 5. Cloud verification
 
-Polish delivered:
-
-- zh-CN / en-US surfaces for new primary flows;
-- focus-visible states;
-- reduced-motion states;
-- keyboard-resizable workspace separators;
-- error/retry import UI;
-- no fixed portrait Viewer mode.
-
-## 5. Latest cloud verification before local handoff
-
-The complete V2.1 code + local-validation-contract head passed GitHub CI before this handoff update.
-
-Verified cloud baseline included:
+The complete V2.1 code plus Windows acceptance contract has already passed:
 
 ```text
-Install dependencies: PASS
-Lint: PASS (0 errors; 2 accepted existing <img> warnings)
-Typecheck: PASS
-Unit tests: PASS
-Test files: 32
-Tests: 107
-Production build: PASS
+Install       PASS
+Lint          PASS — 0 errors; 2 accepted existing <img> warnings
+Typecheck     PASS
+Test files    32
+Tests         107 PASS
+Build         PASS
 ```
 
-The latest successful run before handoff documentation was:
+Verified CI baseline:
 
 ```text
-CI Run 32549458297
+32549458297
 ```
 
-Because this handoff update creates a newer documentation head, **do not start local validation until the latest PR #14 head also has a successful CI**. GPT Web will provide that frozen head and run ID to Local Codex.
+Subsequent commits after that baseline are documentation-only handoff/status updates. Do not begin local validation until the **latest PR #14 head itself** has a successful CI. GPT Web will provide the exact frozen head/run.
 
-## 6. AI boundary remains unchanged
+## 6. AI boundary
 
-V2.1 does **not** add a real AI provider.
+V2.1 does not add a real AI Provider.
 
 AI Director runtime may remain:
 
@@ -298,28 +228,26 @@ AI Director runtime may remain:
 rules
 ```
 
-V2.1 does not add a broad general-purpose AI Command Bar.
+No broad general-purpose AI Command Bar was added.
 
-Do not claim provider-backed AI was added during V2.1.
+## 7. Local execution is now L1–L4 only
 
-## 7. Windows local work now permitted only after final cloud freeze
-
-Local execution is exactly:
-
-```text
-L1 Windows Workspace + Universal Canvas
-L2 Real Universal Media Ingest / FFmpeg normalization
-L3 Real Cross-Aspect Render Matrix
-L4 V2.1 Full End-to-End Acceptance
-```
-
-Detailed acceptance is in:
+Read and execute:
 
 ```text
 LOCAL_VALIDATION_V2_1.md
 ```
 
-Local Codex may only fix defects discovered by that contract and must number them:
+Exactly these local packages are permitted:
+
+```text
+L1 Windows Workspace / Universal Canvas
+L2 Real Universal Media Ingest / FFmpeg normalization
+L3 Real Cross-Aspect Render Matrix
+L4 V2.1 Full End-to-End Acceptance
+```
+
+Defects discovered locally are numbered:
 
 ```text
 V2.1-LV-001
@@ -327,21 +255,17 @@ V2.1-LV-002
 ...
 ```
 
-Any local fix must add regression evidence where appropriate and must be pushed back to:
+Only V2.1 acceptance defects may be fixed on:
 
 ```text
 feature/v2.1-universal-ui
 ```
 
-Then PR #14 latest CI must return green.
+Every fix batch must rerun lint / typecheck / test / build and latest PR #14 CI must return green.
 
-## 8. Required real local evidence
+## 8. Real local evidence required
 
-Local acceptance must prove, not assume:
-
-### Universal Viewer / UI
-
-At minimum:
+Universal Viewer matrix minimum:
 
 ```text
 1920×1080
@@ -352,23 +276,17 @@ At minimum:
 900×1600 custom
 ```
 
-### Real media
-
-At minimum where files are available:
+Real media minimum where available:
 
 - MP4;
 - MOV;
 - WebM or MKV;
-- MP3/WAV/M4A;
+- MP3 / WAV / M4A;
 - FLAC or AAC;
-- PNG/JPEG/WebP;
+- PNG / JPEG / WebP;
 - SRT or VTT.
 
-No normal supported source should require a user-run manual FFmpeg command.
-
-### Real renders
-
-Must really render at least:
+Real final renders minimum:
 
 ```text
 one landscape
@@ -376,11 +294,9 @@ one portrait
 one square or materially nonstandard custom canvas
 ```
 
-Preview and Final frames must be compared visually, and ffprobe evidence must be recorded.
+Preview ↔ Final must be compared visually and all required outputs must have ffprobe evidence.
 
-## 9. Final V2.1 local gates
-
-Local report must return:
+## 9. Local final gates
 
 ```text
 CODE COMPLETE: PASS / FAIL
@@ -395,15 +311,15 @@ USABILITY ACCEPTED: PASS / FAIL
 REGRESSION ACCEPTED: PASS / FAIL
 ```
 
-PR #14 must not merge until all required gates pass.
+PR #14 cannot merge before all required gates pass.
 
-## 10. Explicit non-goals for Local Codex
+## 10. Explicit local non-goals
 
-Do not use local validation as an excuse to develop:
+Do not add during V2.1 acceptance:
 
 - real AI Provider;
 - broad AI Command Bar;
-- Project Schema V3;
+- Project Schema rewrite;
 - multi-timeline;
 - arbitrary docking;
 - Crop/Mask full engine;
@@ -412,4 +328,4 @@ Do not use local validation as an excuse to develop:
 - cloud/collaboration;
 - HDR / advanced color.
 
-Stop after V2.1 validation and necessary V2.1 defect fixes. Return results to GPT Web for final review and merge decision.
+Stop after V2.1 local validation and necessary V2.1 defect fixes. Return the complete result to GPT Web for final review and merge decision.
