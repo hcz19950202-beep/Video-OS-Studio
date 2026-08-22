@@ -13,6 +13,7 @@ import type {Project} from "@/schemas/project";
 
 export type VisualPlanApplyResult={project:Project;diff:VisualPlanDiff;transactionId:string|null;appliedIds:string[]};
 const placementTransform=(project:Project,placement?:VisualPlacement)=>placement?{x:Math.round(placement.x*project.canvas.width),y:Math.round(placement.y*project.canvas.height),scale:placement.scale,opacity:1,anchor:placement.anchor,rotation:0}:undefined;
+const workflowIntensityDirective=(project:Project)=>project.workflow.visualIntensity==="high"?"dynamic high energy":project.workflow.visualIntensity==="low"?"minimal restrained":"";
 
 export class VisualPlanService{
   constructor(private readonly fs:FileSystemAdapter,private readonly repository:ProjectRepository,private readonly planner:VisualPlannerAdapter,private readonly hyperFrames:HyperFramesRenderService){}
@@ -20,7 +21,9 @@ export class VisualPlanService{
   async generate(projectId:string,contextInput?:VisualPlannerContext):Promise<VisualPlan>{
     const project=await this.repository.load(projectId);
     const parsed=VisualPlannerContextSchema.parse(contextInput??{});
-    const context=VisualPlannerContextSchema.parse({...parsed,intent:parsed.intent.trim()||project.workflow.starterPrompt});
+    const explicitIntent=parsed.intent.trim();
+    const starterIntent=[project.workflow.starterPrompt,workflowIntensityDirective(project)].filter(Boolean).join(" ").trim();
+    const context=VisualPlannerContextSchema.parse({...parsed,intent:explicitIntent||starterIntent});
     const plan=VisualPlanSchema.parse(this.planner.generate(project,context));
     await this.fs.writeTextAtomic(this.repository.resolveProjectFile(projectId,"edit/ai-director-plan.json"),JSON.stringify(plan,null,2));
     return plan;
