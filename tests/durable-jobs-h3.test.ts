@@ -4,7 +4,7 @@ import {join} from "node:path";
 import {afterEach,describe,expect,it} from "vitest";
 import {DurableJobRuntime,JobStateError,type JobExecutor} from "@/lib/jobs/runtime";
 import {FileJobStore} from "@/lib/jobs/store";
-import {JobRecordSchema,type JobRecord,type JobType} from "@/lib/jobs/schema";
+import {JobRecordSchema,isTerminalJobStatus,type JobRecord,type JobType} from "@/lib/jobs/schema";
 import {ProjectRevisionConflictError} from "@/lib/project/mutation-coordinator";
 import {ToolAbortedError} from "@/lib/process/tool-runner";
 
@@ -27,6 +27,25 @@ describe("H3 durable job runtime",()=>{
     expect(JSON.parse(await readFile(join(root,"jobs",created.id,"artifacts.json"),"utf8"))).toHaveLength(1);
   });
 
+  it("distinguishes same-process route runtimes from a restarted process",async()=>{
+    const{store}=await makeStore();
+    expect(await store.claimRuntimeOwner(1001)).toBe(false);
+    expect(await store.claimRuntimeOwner(1001)).toBe(true);
+    expect(await store.claimRuntimeOwner(1002)).toBe(false);
+  });
+
+  it("keeps concurrent job reads from colliding with Windows atomic metadata writes",async()=>{
+    const{store}=await makeStore();
+    const executor:JobExecutor=async(_job,ctx)=>{await ctx.update("rendering",.25);ctx.onToolLog({tool:"fixture",stream:"stdout",chunk:"live\n"});await ctx.log("stdout","durable\n");await ctx.addArtifact({id:"output",kind:"render",label:"output",relativePath:"render/out.mp4"});await ctx.update("finalizing",.95);return{outputRelativePath:"render/out.mp4"};};
+    for(let iteration=0;iteration<200;iteration++){
+      const runtime=new DurableJobRuntime(store,{"render-final":executor});
+      const job=await runtime.create({type:"render-final",projectId:"demo",input:{iteration}});
+      const readers=Array.from({length:8},async()=>{let terminal=false;while(!terminal){const current=await runtime.get(job.id);terminal=current?.status==="completed"||current?.status==="failed";if(!terminal)await new Promise(resolve=>setTimeout(resolve,0));}});
+      await waitFor(()=>runtime.get(job.id),current=>current?.status==="completed");
+      await Promise.all(readers);
+    }
+  },15000);
+
   it("enforces one active render while allowing two normalizations",async()=>{
     const{store}=await makeStore();let activeRender=0,maxRender=0,activeNormalize=0,maxNormalize=0;
     let releaseRender!:()=>void;const renderGate=new Promise<void>(resolve=>{releaseRender=resolve;});const normalizeReleases:Array<()=>void>=[];
@@ -35,7 +54,8 @@ describe("H3 durable job runtime",()=>{
     const runtime=new DurableJobRuntime(store,{"render-final":render,"render-overlay":render,"media-normalize":normalize});
     const r1=await runtime.create({type:"render-final",projectId:"demo",input:{}});const r2=await runtime.create({type:"render-overlay",projectId:"demo",input:{}});const n1=await runtime.create({type:"media-normalize",projectId:"demo",input:{}});const n2=await runtime.create({type:"media-normalize",projectId:"demo",input:{}});
     await waitFor(async()=>({r1:await runtime.get(r1.id),r2:await runtime.get(r2.id),n1:await runtime.get(n1.id),n2:await runtime.get(n2.id)}),state=>state.r1?.status==="running"&&state.r2?.status==="queued"&&state.n1?.status==="running"&&state.n2?.status==="running");
-    expect(maxRender).toBe(1);expect(maxNormalize).toBe(2);releaseRender();normalizeReleases.splice(0).forEach(release=>release());await waitFor(()=>runtime.get(r2.id),job=>job?.status==="running"||job?.status==="completed");
+    expect(maxRender).toBe(1);expect(maxNormalize).toBe(2);releaseRender();normalizeReleases.splice(0).forEach(release=>release());
+    await Promise.all([r1,r2,n1,n2].map(job=>waitFor(()=>runtime.get(job.id),current=>current!==null&&isTerminalJobStatus(current.status))));
   });
 
   it("cancels an active job through AbortSignal and leaves a durable cancelled state",async()=>{

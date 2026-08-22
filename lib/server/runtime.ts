@@ -17,6 +17,7 @@ import {RenderJobManager} from "@/lib/render/render-jobs";
 import {VideoUseService} from "@/lib/video-use/service";
 import {RulesVisualPlannerAdapter} from "@/lib/visual-planner/rules";
 import {VisualPlanService} from "@/lib/visual-planner/service";
+import {getGlobalRuntime} from "@/lib/server/global-runtime";
 
 export const dataRoot=process.env.VIDEO_OS_DATA_ROOT||join(process.cwd(),".video-os-data");
 export const fileSystem=new NodeFileSystemAdapter();
@@ -33,15 +34,15 @@ export const waveformService=new WaveformService(fileSystem,ffmpegAdapter,projec
 export const hyperFramesRenderService=new HyperFramesRenderService(fileSystem,hyperFramesAdapter,projectRepository,projectMutations);
 export const videoUseService=new VideoUseService(fileSystem,videoUseAdapter,projectRepository,projectMutations);
 
-export const jobStore=new FileJobStore(dataRoot);
-export const jobRuntime=new DurableJobRuntime(jobStore,createJobExecutors({
+export const jobStore=getGlobalRuntime(`${dataRoot}:job-store`,()=>new FileJobStore(dataRoot));
+export const jobRuntime=getGlobalRuntime(`${dataRoot}:job-runtime`,()=>new DurableJobRuntime(jobStore,createJobExecutors({
   fs:fileSystem,
   repository:projectRepository,
   remotion:remotionRenderAdapter,
   ffmpeg:ffmpegAdapter,
   hyperFrames:hyperFramesRenderService,
   videoUse:videoUseService,
-}));
+})));
 export const renderJobs=new RenderJobManager(jobRuntime);
 
 export const visualPlannerAdapter=new RulesVisualPlannerAdapter();
