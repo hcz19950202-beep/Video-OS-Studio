@@ -4,55 +4,37 @@ Video OS Studio is a local-first AI-native video production workspace for talkin
 
 ## Current product baseline
 
-**V1.1 is complete and merged to `main`.**
+**Video OS Studio V2.0 Core is complete and accepted.**
+
+Accepted delivery sequence:
 
 - PR #1 — V1 core workflow: MERGED
 - PR #2 — V1.1 workstation UI / i18n: MERGED
-- V1.1 merge baseline: `c3c026cd256d6ebfdced28b433112c1839347666`
-- Default branch: `main`
+- PR #3 — V2 baseline/document freeze: MERGED
+- PR #4 — Project Schema 2.0 + V1→V2 migration: MERGED
+- PR #5 — Script Editor + Scene System: MERGED
+- PR #6 — Context Inspector + multi-select + Brand + Linked Style: MERGED
+- PR #7 — Canvas direct manipulation + Timeline V2: MERGED
+- PR #8 — AI Director V2: MERGED
+- PR #9 — V2 Core Final Acceptance / RC1: MERGED
 
-The next product line is **Video OS Studio V2.0 — AI Native Video Editor**. Read `Video_OS_Studio_V2_AI_Native_Editor_Master_PRD_Rev2.md` before starting V2 work.
+Accepted RC1 merge baseline:
 
-## Validated V1/V1.1 architecture
+```text
+d1f45777d8e70f366f665a4dae7ba534096dda9e
+```
 
-- **video-use** — word-level transcript preparation, packed transcript, confirmed EDL and QA helpers
-- **HyperFrames** — deterministic parameterized complex motion assets rendered as reusable WebM overlays
-- **Remotion** — interactive Player preview and final master composition
-- **FFmpeg / ffprobe** — local media probing and processing
-- **Project JSON** — durable project format
+Release metadata target:
 
-### V1.1 workstation baseline — do not rebuild
+```text
+2.0.0
+```
 
-V1.1 already provides:
+V2 was accepted through both milestone-level validation and a final end-to-end RC1 run on a brand-new Project created from a new real talking-head source.
 
-- high-density dark workstation UI + light theme
-- persisted zh-CN / en-US UI switching
-- adaptive Preview for 9:16 / 16:9 / 1:1
-- resizable Preview / Timeline splitter
-- Assets / Effects / Captions / Project workspaces
-- searchable Remotion + HyperFrames effect library
-- five-track frame-based Timeline
-- shared Motion transform for Remotion and HyperFrames: X / Y / Scale / Opacity / 9-point Anchor
-- schema-driven Inspector and Inspector Preset workflow
-- video-use, Visual Planner and reusable local Preset Library
-- final H.264/AAC MP4 and validated VP9 alpha WebM render paths
+## V2 product model
 
-V2 must **REUSE / EXTEND**, not rewrite, these accepted capabilities.
-
-## Core rules
-
-- UI, AI planners and tools mutate durable project state only through validated Project Commands or bounded services.
-- Canonical timeline timing is **frame-based**. Seconds are converted only at adapter seams.
-- External engines remain behind adapters; UI components never spawn CLIs directly.
-- Project JSON stores logical asset IDs and project-relative POSIX paths, never machine-specific absolute paths.
-- Repository code and local media/user presets are separated through `VIDEO_OS_DATA_ROOT`.
-- Remotion remains the master composition engine.
-- Studio UI theme/locale are local preferences and must not contaminate generated-video brand state.
-- `REUSE > MODIFY > CREATE`.
-
-## V2 direction
-
-V2 changes the editing abstraction from:
+V2 changes the primary editing abstraction from:
 
 ```text
 Clip → Track → Timeline → Effect
@@ -61,24 +43,137 @@ Clip → Track → Timeline → Effect
 to:
 
 ```text
-Words → Meaning → Scene → Visual Decision → Clip → Render
+Words → Meaning → Scenes → Visual Decisions → Clips → Render
 ```
 
-Core milestones:
+A normal production flow is:
 
-1. V2 baseline/document freeze
-2. Project Schema 2.0 + V1→V2 migration
-3. Script Editor + Scene System
-4. Context Inspector + multi-select + Brand + Linked Style
-5. Canvas direct manipulation + Timeline V2
-6. AI Director V2 with explainable suggestions and change preview
+```text
+New Project
+→ Import talking-head video
+→ video-use transcript
+→ Script editing
+→ Scenes
+→ Captions
+→ AI Director review/apply
+→ Brand / Linked Style
+→ Canvas refinement
+→ Timeline refinement
+→ B-roll / Audio
+→ Final Render
+→ Reopen / continue editing
+```
+
+## V2 Core capabilities
+
+### Project / durability
+
+- Project Schema `2.0.0`
+- V1→V2 migration
+- validated Project Commands / Transactions
+- bounded Undo / Redo history
+- atomic save / reopen
+- project-relative asset paths
+
+### Text-native editing
+
+- word-level Script
+- Script ↔ Player synchronization
+- Remove / Restore sentence
+- canonical A-roll rebuild
+- semantic tags
+- Scene generation / Scene Strip / Scene Inspector
+
+### Editor Core
+
+- Context Inspector for Project / Video / Caption / Motion / HyperFrames / B-roll / Audio / Scene / Multi-select
+- Generated Video Brand separate from Studio Theme
+- Motion / Caption Linked Styles
+- multi-select + common-property editing
+- B-roll and Audio media paths
+
+### Canvas / Timeline V2
+
+- direct select / drag / resize / rotate
+- live Preview during pointer gesture
+- nudge / snap / alignment guides
+- layer ordering
+- Markers
+- source-aware Split
+- real FFmpeg waveform cache
+- Timeline shortcuts
+- Undo / Redo
+
+### AI Director V2
+
+- Scene-grounded visual suggestions
+- Spoken Text grounding
+- Recommendation / Reason / Confidence / Alternatives
+- Density Hold / restraint
+- Change Preview before Apply
+- per-suggestion deselection
+- one Apply = one validated Project Transaction
+- whole-batch Undo / Redo
+- idempotent re-apply
+
+Current Director runtime source is intentionally reported as:
+
+```text
+rules
+```
+
+The adapter/schema boundary is ready for a future provider integration, but V2.0 does not claim a cloud LLM provider is already connected.
+
+## Engines
+
+- **video-use** — transcript preparation, packed transcript, confirmed EDL and QA helpers
+- **HyperFrames** — deterministic parameterized complex motion assets
+- **Remotion** — interactive Player preview and master composition/render
+- **FFmpeg / ffprobe** — local media probing, waveform analysis and processing
+- **Project JSON** — durable source of truth
+
+## Core architecture rules
+
+- UI and AI mutate durable project state only through validated Project Commands / Transactions / bounded services.
+- Canonical timeline timing is frame-based.
+- External engines remain behind adapters; UI components never spawn CLIs directly.
+- Project JSON stores logical asset IDs and project-relative POSIX paths, not machine-specific absolute paths.
+- Repository code and runtime media/user data are separated through `VIDEO_OS_DATA_ROOT`.
+- Remotion remains the master composition engine.
+- Studio UI theme/locale are local preferences and are separate from generated-video Brand.
+- `REUSE > MODIFY > CREATE`.
+
+## RC1 acceptance
+
+The V2 Core release candidate was validated end to end on a new real project:
+
+- real raw talking-head source
+- real video-use transcription
+- Script cut + Restore + final cut
+- 10 Scenes
+- 38 Captions
+- AI Director Analyze / Review / Deselect / Apply
+- Generated Video Brand
+- Linked Style shared across Motion clips
+- Canvas editing
+- real B-roll
+- real BGM
+- Timeline Marker / Split / Undo / Redo / Waveform
+- Save / Stop / Restart / Recent Project reopen
+- first final render
+- second edit after reopen
+- second final render
+
+Final RC output passed H.264/AAC, 1080×1920, 30fps, full video/audio decode, visual comparison and regression acceptance.
+
+Known non-blocking polish observations are tracked separately from the V2.0 Core release.
 
 ## Local requirements
 
 - Node.js 24
 - npm
 - FFmpeg / ffprobe
-- Chromium/Chrome for media/render validation
+- Chromium/Chrome for browser/media/render validation
 
 Copy `.env.example` to `.env.local` and set at least:
 
@@ -97,25 +192,21 @@ npm run build
 npm run dev
 ```
 
-## Verification gates
+## Verification discipline
 
-Always report independently:
+Cloud CI proves repository code health, not local media behavior.
 
-- `CODE COMPLETE`
-- `CLOUD VERIFIED`
-- `LOCAL VERIFIED`
-- `PRD ACCEPTED`
-- `RENDER VERIFIED` when rendering is involved
-- `VISUAL ACCEPTED` for UI milestones
-- `MIGRATION VERIFIED` for schema migrations
+Windows release acceptance separately verifies real browser interaction, MP4 playback, FFmpeg behavior, Remotion rendering, HyperFrames media, video-use transcription, fonts, persistence and real-media performance.
 
-GitHub CI does **not** prove Windows browser interaction, real MP4 playback, FFmpeg behavior, Remotion MP4/WebM output, HyperFrames alpha, video-use transcription, fonts or media performance.
+## Product documents
 
-## Read before continuing work
+Read before starting follow-up work:
 
 1. `GPT_WEB_HANDOFF.md`
-2. `Video_OS_Studio_V2_AI_Native_Editor_Master_PRD_Rev2.md`
-3. `SYSTEM.md`
-4. `DESIGN.md`
-5. `LOCAL_VALIDATION_V1.md`
-6. `LOCAL_VALIDATION_V1_1_POLISH.md`
+2. `RELEASE_NOTES_V2.0.0.md`
+3. `Video_OS_Studio_V2_AI_Native_Editor_Master_PRD_Rev2.md`
+4. `LOCAL_VALIDATION_V2_CORE_RC1.md`
+5. `SYSTEM.md`
+6. `DESIGN.md`
+
+Post-Core work must be opened deliberately as a new milestone rather than mixed into the V2.0 release branch.
