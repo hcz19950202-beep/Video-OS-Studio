@@ -1,7 +1,7 @@
 # Video OS Studio — GPT Web / Local Codex Handoff
 
 > Updated: 2026-08-22 (Asia/Shanghai)  
-> Current execution handoff: **V2.0.0 release closeout**.
+> Current execution handoff: **V2.1 AI-First Universal UI — Windows Local Validation**.
 
 ## 1. Current truth
 
@@ -11,223 +11,321 @@ Repository:
 hcz19950202-beep/Video-OS-Studio
 ```
 
-Accepted and merged:
-
-- V1 core PR #1
-- V1.1 workstation UI/i18n PR #2
-- V2 M0 baseline PR #3
-- V2 M1 Project 2.0/migration PR #4
-- V2 M2 Script + Scene PR #5
-- V2 M3 Editor Core PR #6
-- V2 M4 Canvas + Timeline V2 PR #7
-- V2 M5 AI Director V2 PR #8
-- V2 Core Final Acceptance / RC1 PR #9
-
-Accepted RC1 merge commit on `main`:
+Stable released baseline:
 
 ```text
-d1f45777d8e70f366f665a4dae7ba534096dda9e
+Video OS Studio v2.0.0
+main: 64da5ec6539a787f4d2f3750b3c5cea0273255ce
+tag: v2.0.0
 ```
 
-All milestone gates and all eight RC1 product gates passed.
-
-Current release-closeout branch:
+V2.1 integration branch:
 
 ```text
-release/v2.0.0
+feature/v2.1-universal-ui
 ```
 
-Do not add product features on this branch.
-
-## 2. V2.0 Core status
-
-V2 Core is accepted.
-
-Canonical product path:
+Draft PR:
 
 ```text
-New Project
-→ Import
-→ video-use transcript
-→ Script editing
-→ Scenes
-→ Captions
-→ AI Director
-→ Brand / Linked Style
-→ Canvas
-→ Timeline
-→ B-roll / Audio
-→ Final Render
-→ Restart / Reopen
-→ Second Edit
-→ Second Final Render
+#14 — feat: V2.1 universal AI-first editor workspace
 ```
 
-RC1 proved this flow using a brand-new real Project and new real talking-head source, not a copied milestone fixture.
+PR #14 must remain **Draft / OPEN / unmerged** until Windows local acceptance passes.
 
-## 3. Accepted architecture
+Authoritative documents:
 
-- Node 24 baseline.
-- Project version `2.0.0`.
-- canonical internal time = frames.
-- durable Project changes use validated Commands / Transactions / bounded services.
-- Project JSON remains source of truth.
-- AI does not hand-edit Project JSON.
-- Remotion remains Master Composition.
-- HyperFrames / video-use / FFmpeg remain behind adapters/services.
-- repository code and runtime media stay separate through `VIDEO_OS_DATA_ROOT`.
-- Studio Theme / locale remain separate from Generated Video Brand.
-- `REUSE > MODIFY > CREATE`.
+1. `Video_OS_Studio_V2_1_AI_First_Universal_UI_Redesign_Master_PRD_Rev2.md`
+2. `V2_1_CLOUD_LOCAL_EXECUTION_PLAN.md`
+3. `LOCAL_VALIDATION_V2_1.md`
+4. this handoff.
 
-## 4. Accepted V2 Core capabilities
+For exact execution, Local Codex must use the **latest PR #14 head whose corresponding GitHub CI is successful**. Conversation-era SHAs are not allowed to override the latest green PR head.
 
-### Project / durability
+## 2. Product definition and invariant
 
-- Schema 2.0
-- V1→V2 migration
-- Commands / Transactions
-- atomic save / reopen
-- Undo / Redo
+V2.1 is:
 
-### Text-native editing
+> **AI-First Universal Video Workspace**
 
-- word-level Script
-- Script ↔ Player synchronization
-- Remove / Restore
-- canonical A-roll rebuild
-- semantic tags
-- Scenes / Scene Strip
+It is not portrait-first, landscape-first or 9:16-first.
 
-### Editor Core
+Always preserve:
 
-- Context Inspector
-- Generated Video Brand
-- Motion / Caption Linked Styles
-- multi-select
-- B-roll / Audio
+```text
+Source Media != Project Canvas != Export Profile
+```
 
-### Canvas / Timeline
+Project canvas remains:
 
-- direct drag / resize / rotate
-- live Preview during gesture
-- snap / guides
-- layer ordering
-- Markers
-- source-aware Split
-- real FFmpeg waveform
-- shortcuts
-- Undo / Redo
+```text
+canvas.width
+canvas.height
+canvas.fps
+```
 
-### AI Director
+Aspect presets are shortcuts. Arbitrary custom width × height is first-class.
 
-- Scene-grounded suggestions
-- Spoken Text / Reason / Confidence / Alternatives
-- Density Hold
-- Change Preview
-- per-suggestion review/deselection
-- one Apply = one Project Transaction
-- whole-batch Undo / Redo
-- idempotent re-apply
+## 3. Accepted V2.0 Core remains untouched
 
-Current Director runtime source remains:
+V2.1 reuses the accepted V2.0 engines:
+
+- Project Schema / Commands / Transactions;
+- Script word editing / Remove / Restore;
+- Scenes / Scene Strip;
+- Context Inspector;
+- Generated Video Brand / Linked Styles;
+- Canvas live drag / resize / rotate / snap / layer;
+- Timeline Marker / Snap / Split / Waveform / Undo / Redo;
+- AI Director Analyze / Suggest / Reason / Confidence / Alternatives / Density Hold / Diff / transactional Apply;
+- Remotion Master Composition;
+- HyperFrames / video-use / FFmpeg adapters;
+- `VIDEO_OS_DATA_ROOT` runtime-media separation.
+
+Project Schema remains `2.0.0`.
+
+## 4. Cloud implementation status
+
+All cloud packages are code-complete:
+
+```text
+C0 Universal Contract                         PASS
+C1 Resizable Universal Editor Shell          PASS
+C2 IA / Inspector / Timeline Presentation    PASS
+C3 AI Workspace / Script / Scene / Project   PASS
+C4 Universal Media Ingest / Polish           PASS
+```
+
+### C0
+
+Delivered:
+
+- Rev.2 Master PRD;
+- Universal Canvas contract;
+- landscape / portrait / square / ultrawide / custom canvas math;
+- canvas presets as shortcuts, not whitelist;
+- universal Viewer-fit tests.
+
+### C1
+
+Delivered:
+
+- 48px icon rail;
+- resizable left content panel;
+- Universal Viewer;
+- resizable Inspector;
+- resizable Timeline;
+- Edit / AI / Script / Motion presets;
+- collapse / restore;
+- workspace persistence outside Project JSON;
+- pointer draft → pointer-up persistence;
+- keyboard separators with ARIA value/min/max and Arrow / Shift+Arrow resizing.
+
+### C2
+
+Delivered:
+
+- primary IA: Script / Scenes / AI / Media / Captions / Effects / Brand / Project;
+- Media tabs: Assets / Transcript / Library;
+- Inspector Registry navigation over existing accepted inspectors;
+- Project Inspector Canvas controls;
+- staged Canvas Change Preview with Before/After and affected Caption / Motion / B-roll / Video counts;
+- explicit Cancel / Apply using existing `set-canvas` command;
+- Timeline visual redesign without changing M4 Timeline engine.
+
+### C3
+
+Delivered:
+
+- AI as first-class workspace over accepted M5 AI Director;
+- current Canvas metadata in AI context;
+- Scene / Clip / Transcript references;
+- Cards / Density / Peak in AI workspace;
+- Script search and Scene semantic chips;
+- Scene semantic labels, visual count and visual intensity editing;
+- Scenario Starter cards;
+- universal presets + arbitrary custom Width × Height;
+- FPS presets + custom FPS;
+- Match Source Dimensions.
+
+Match Source rule:
+
+```text
+first imported video probe may set Width × Height
+Project FPS remains explicit user-selected timebase
+```
+
+Scenario starters do not force orientation.
+
+### C4
+
+Delivered user-facing ingest policy:
+
+```text
+Video: MP4 / MOV / M4V / WebM / MKV / AVI
+Audio: MP3 / WAV / M4A / AAC / FLAC
+Image: PNG / JPEG / WebP
+Subtitle: SRT / VTT
+```
+
+Working-media behavior:
+
+```text
+MP4
+→ native project media
+
+MOV / M4V / WebM / MKV / AVI
+→ original preserved
+→ H.264 yuv420p + AAC MP4 working media
+
+MP3 / WAV / M4A
+→ reusable audio asset
+
+AAC / FLAC
+→ original preserved
+→ AAC/M4A working media
+```
+
+UI states:
+
+```text
+Uploading
+→ Preparing editable media
+→ Ready
+→ Original preserved / Working media shown
+```
+
+Actual Windows codec compatibility and performance are local claims only.
+
+## 5. Cloud verification
+
+The complete V2.1 code plus Windows acceptance contract has already passed:
+
+```text
+Install       PASS
+Lint          PASS — 0 errors; 2 accepted existing <img> warnings
+Typecheck     PASS
+Test files    32
+Tests         107 PASS
+Build         PASS
+```
+
+Verified CI baseline:
+
+```text
+32549458297
+```
+
+Subsequent commits after that baseline are documentation-only handoff/status updates. Do not begin local validation until the **latest PR #14 head itself** has a successful CI. GPT Web will provide the exact frozen head/run.
+
+## 6. AI boundary
+
+V2.1 does not add a real AI Provider.
+
+AI Director runtime may remain:
 
 ```text
 rules
 ```
 
-A real AI provider is Post-Core and must be introduced as a separate milestone.
+No broad general-purpose AI Command Bar was added.
 
-## 5. RC1 acceptance summary
+## 7. Local execution is now L1–L4 only
 
-Accepted new-project RC:
+Read and execute:
 
 ```text
-Project ID: rc1-5a342e14
-Final revision: 83
+LOCAL_VALIDATION_V2_1.md
 ```
 
-Coverage included:
-
-- raw talking-head import path
-- video-use: 341 words / 19 segments
-- Script cut: 2279 → 2169 frames
-- 10 Scenes
-- 38 Captions
-- AI Director: 28 suggestions / 19 Density Hold / 8 applied visuals
-- custom Brand
-- Linked Style across 8 Motion clips
-- Canvas direct manipulation
-- real B-roll with split continuity
-- real BGM + waveform
-- Timeline V2 controls
-- Save / Stop / Restart / Recent Project reopen
-- first Final MP4
-- second edit after reopen
-- second Final MP4
-
-Final corrected output passed:
+Exactly these local packages are permitted:
 
 ```text
-H.264 High
-AAC LC stereo
+L1 Windows Workspace / Universal Canvas
+L2 Real Universal Media Ingest / FFmpeg normalization
+L3 Real Cross-Aspect Render Matrix
+L4 V2.1 Full End-to-End Acceptance
+```
+
+Defects discovered locally are numbered:
+
+```text
+V2.1-LV-001
+V2.1-LV-002
+...
+```
+
+Only V2.1 acceptance defects may be fixed on:
+
+```text
+feature/v2.1-universal-ui
+```
+
+Every fix batch must rerun lint / typecheck / test / build and latest PR #14 CI must return green.
+
+## 8. Real local evidence required
+
+Universal Viewer matrix minimum:
+
+```text
+1920×1080
 1080×1920
-30 fps
-2169 frames
-~72.36 s
+1080×1080
+2560×1080
+1600×900 custom
+900×1600 custom
 ```
 
-All eight RC gates:
+Real media minimum where available:
+
+- MP4;
+- MOV;
+- WebM or MKV;
+- MP3 / WAV / M4A;
+- FLAC or AAC;
+- PNG / JPEG / WebP;
+- SRT or VTT.
+
+Real final renders minimum:
 
 ```text
-CODE HEALTH: PASS
-END-TO-END LOCAL: PASS
-DURABILITY: PASS
-FIRST RENDER: PASS
-SECOND-EDIT RENDER: PASS
-VISUAL ACCEPTED: PASS
-USABILITY ACCEPTED: PASS with P2 observations
-REGRESSION ACCEPTED: PASS
+one landscape
+one portrait
+one square or materially nonstandard custom canvas
 ```
 
-## 6. Known non-blocking follow-ups
+Preview ↔ Final must be compared visually and all required outputs must have ffprobe evidence.
 
-P2 polish:
-
-1. MOV is not accepted by the current Studio import boundary; RC adapted the source to MP4 before UI import.
-2. RC observed one stale UI Save overwriting a Caption font field. Final state was repaired through the supported command boundary and re-rendered. This should be investigated post-release without blocking V2.0.
-
-These are not release blockers.
-
-## 7. Release closeout now
-
-Release branch:
+## 9. Local final gates
 
 ```text
-release/v2.0.0
+CODE COMPLETE: PASS / FAIL
+CLOUD VERIFIED: PASS / FAIL
+WINDOWS UI VERIFIED: PASS / FAIL
+UNIVERSAL MEDIA VERIFIED: PASS / FAIL
+CROSS-ASPECT RENDER VERIFIED: PASS / FAIL
+DURABILITY VERIFIED: PASS / FAIL
+PRD ACCEPTED: PASS / FAIL
+VISUAL ACCEPTED: PASS / FAIL
+USABILITY ACCEPTED: PASS / FAIL
+REGRESSION ACCEPTED: PASS / FAIL
 ```
 
-Release-closeout work only:
+PR #14 cannot merge before all required gates pass.
 
-- package version metadata → `2.0.0`;
-- synchronize `package-lock.json` through npm, not hand edits;
-- README / Handoff truth;
-- `RELEASE_NOTES_V2.0.0.md`;
-- full lint/typecheck/test/build;
-- merge release branch;
-- create `v2.0.0` tag/release only after final main is green.
+## 10. Explicit local non-goals
 
-No post-Core feature may enter this branch.
+Do not add during V2.1 acceptance:
 
-## 8. Next Post-Core decision
+- real AI Provider;
+- broad AI Command Bar;
+- Project Schema rewrite;
+- multi-timeline;
+- arbitrary docking;
+- Crop/Mask full engine;
+- transition suite;
+- generated-media provider marketplace;
+- cloud/collaboration;
+- HDR / advanced color.
 
-Do not automatically continue development after release.
-
-Recommended priority order to decide explicitly after V2.0 is tagged:
-
-1. real AI Provider for AI Director;
-2. AI Command Bar;
-3. Project Package / portability;
-4. multi-language content tracks;
-5. additional effect packs.
-
-The next milestone should be opened deliberately with a new PRD/branch.
+Stop after V2.1 local validation and necessary V2.1 defect fixes. Return the complete result to GPT Web for final review and merge decision.
