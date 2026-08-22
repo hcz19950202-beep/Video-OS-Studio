@@ -19,7 +19,7 @@ export const resolveExportProfile=(project:Project,input?:Partial<ExportProfile>
   const profile=ExportProfileSchema.parse(input??{});
   const width=profile.sizing==="custom"?(profile.width??project.canvas.width):project.canvas.width;
   const height=profile.sizing==="custom"?(profile.height??project.canvas.height):project.canvas.height;
-  const fps=profile.fps??project.canvas.fps;
+  const fps=profile.sizing==="custom"?(profile.fps??project.canvas.fps):project.canvas.fps;
   const sourceRatio=project.canvas.width/project.canvas.height;
   const outputRatio=width/height;
   return{...profile,width,height,fps,aspectMismatch:Math.abs(sourceRatio-outputRatio)>.01};
