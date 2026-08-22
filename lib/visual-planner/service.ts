@@ -19,7 +19,8 @@ export class VisualPlanService{
 
   async generate(projectId:string,contextInput?:VisualPlannerContext):Promise<VisualPlan>{
     const project=await this.repository.load(projectId);
-    const context=VisualPlannerContextSchema.parse(contextInput??{});
+    const parsed=VisualPlannerContextSchema.parse(contextInput??{});
+    const context=VisualPlannerContextSchema.parse({...parsed,intent:parsed.intent.trim()||project.workflow.starterPrompt});
     const plan=VisualPlanSchema.parse(this.planner.generate(project,context));
     await this.fs.writeTextAtomic(this.repository.resolveProjectFile(projectId,"edit/ai-director-plan.json"),JSON.stringify(plan,null,2));
     return plan;
