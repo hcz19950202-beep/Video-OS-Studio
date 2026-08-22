@@ -1,8 +1,48 @@
 # Video OS Studio V2.1 — GPT Web + GitHub / Local Codex Execution Plan
 
-> Basis: `Video_OS_Studio_V2_1_AI_First_Universal_UI_Redesign_Master_PRD_Rev2.md`
-> Baseline: Video OS Studio V2.0.0 (`main@64da5ec6539a787f4d2f3750b3c5cea0273255ce`)
+> Basis: `Video_OS_Studio_V2_1_AI_First_Universal_UI_Redesign_Master_PRD_Rev2.md`  
+> Baseline: Video OS Studio V2.0.0 (`main@64da5ec6539a787f4d2f3750b3c5cea0273255ce`)  
 > Integration branch: `feature/v2.1-universal-ui`
+
+## 0. Current execution status
+
+Cloud implementation is complete and Windows local acceptance is the next gate.
+
+```text
+C0 Universal Contract                         PASS
+C1 Resizable Universal Editor Shell          PASS
+C2 IA / Inspector / Timeline Presentation    PASS
+C3 AI Workspace / Script / Scene / Project   PASS
+C4 Universal Media Ingest / Polish           PASS
+Cloud CI                                     PASS
+
+L1 Windows Workspace / Universal Canvas      PENDING
+L2 Real Universal Media Ingest               PENDING
+L3 Cross-Aspect Real Render Matrix           PENDING
+L4 V2.1 End-to-End Acceptance                PENDING
+```
+
+The last fully verified cloud code + acceptance-contract baseline before final handoff documentation passed:
+
+```text
+Install       PASS
+Lint          PASS — 0 errors, 2 existing <img> warnings
+Typecheck     PASS
+Test files    32
+Tests         107 PASS
+Build         PASS
+CI            32549458297
+```
+
+The authoritative local contract is now:
+
+```text
+LOCAL_VALIDATION_V2_1.md
+```
+
+Because documentation updates create a newer branch head, Local Codex must use the latest PR #14 head only after its corresponding CI is successful.
+
+---
 
 ## 1. Delivery model
 
@@ -45,6 +85,10 @@ Local Codex must not implement cloud-planned product scope before the cloud bran
 
 ## 2. Cloud package C0 — Universal contract and regression guardrails
 
+### Status
+
+**COMPLETE**
+
 ### Scope
 
 - Commit V2.1 Rev.2 Master PRD.
@@ -61,52 +105,40 @@ Local Codex must not implement cloud-planned product scope before the cloud bran
 - `docs/v2.1/UNIVERSAL_CANVAS_CONTRACT.md`
 - pure aspect/canvas helpers + tests.
 
-### Cloud gate
-
-`lint / typecheck / test / build = PASS`
-
 ---
 
 ## 3. Cloud package C1 — Resizable universal editor shell
 
-### Scope
+### Status
 
-Implement the OpenCut-inspired professional editor shell without rewriting V2 engines.
+**COMPLETE**
 
-- top bar simplified;
+### Delivered
+
+- simplified V2.1 top bar;
 - 48px icon rail;
 - resizable left content panel;
-- flex universal viewer region;
-- resizable context inspector;
-- resizable timeline height;
+- flex universal Viewer;
+- resizable Context Inspector;
+- resizable Timeline height;
 - collapse/restore panel states;
-- workspace layout persistence in local preferences, not project.json;
-- official workspace presets: Edit / AI / Script / Motion;
+- local workspace persistence outside Project JSON;
+- official workspaces: Edit / AI / Script / Motion;
 - Reset Workspace;
-- viewer must fit any `canvas.width × canvas.height`.
-
-### Explicit non-goals
-
+- pointer resize draft → pointer-up persistence;
+- keyboard-accessible separators with ARIA values;
 - no arbitrary docking engine;
-- no Project Schema version bump;
-- no Timeline engine rewrite;
-- no Canvas engine rewrite.
+- no Project Schema rewrite.
 
-### Automated cloud acceptance
-
-- layout reducer/store tests;
-- clamp/min/max tests;
-- workspace preset tests;
-- local-preference serialization tests;
-- universal viewer fit tests: landscape / portrait / square / ultrawide / custom.
+Automated tests cover layout normalization, limits, presets, persistence and universal Viewer fit.
 
 ---
 
-## 4. Cloud package C2 — Information architecture + inspector/timeline shell redesign
+## 4. Cloud package C2 — Information architecture + Inspector / Timeline presentation
 
-### Scope
+### Status
 
-#### Left rail / content panel
+**COMPLETE**
 
 Primary destinations:
 
@@ -122,165 +154,165 @@ Primary destinations:
 Panel grouping:
 
 - Media: Assets / Transcript / Library
-- Effects: Remotion / HyperFrames / Presets
-- Project: Canvas / Brand / Workspace / Settings
+- Effects continue to reuse accepted Remotion / HyperFrames libraries;
+- Project exposes universal project/canvas workflow without duplicating Inspector state.
 
-#### Inspector
+Inspector:
 
-Convert presentation to a registry/tab architecture driven by current V2 selection/capabilities.
-Do not rewrite accepted commands.
+- registry/navigation shell driven by existing V2 selection/capabilities;
+- accepted Context Inspector commands remain authoritative;
+- Project Inspector adds staged Canvas Change Preview;
+- Before / After + affected Caption / Motion / B-roll / Video counts;
+- one explicit Apply uses existing `set-canvas` command.
 
-#### Viewer toolbar
+Timeline:
 
-- timecode;
-- play/pause;
-- Canvas Edit;
-- Safe Area;
-- Guides;
-- Fit / zoom;
-- canvas dimension + ratio info;
-- fullscreen.
-
-#### Timeline visual redesign
-
-Reuse M4 engine; redesign only:
-
-- toolbar hierarchy;
-- track headers;
-- scene strip visual treatment;
-- marker/snap/waveform states;
-- zoom presentation;
-- selection hierarchy.
-
-### Cloud gate
-
-All V2.0 tests plus new navigation/registry/layout tests pass.
+- M4 engine is preserved;
+- toolbar / tracks / Scene Strip / clips / marker / snap / waveform visual hierarchy redesigned only.
 
 ---
 
-## 5. Cloud package C3 — AI-first workspace + Script/Scene UX + New Project
+## 5. Cloud package C3 — AI-first workspace + Script / Scene UX + New Project
 
-### AI Workspace
+### Status
 
-Use existing M5 AI Director engine.
+**COMPLETE**
 
-UI composition:
+AI Workspace:
 
-- Composer;
-- Selection References;
-- Plan/Reason/Confidence/Alternatives;
-- Agent Activity presentation;
-- Change Preview;
-- Apply/Undo surfaces;
-- AI metrics live inside AI Workspace instead of permanent top-bar metrics.
+- first-class AI workspace;
+- accepted M5 AI Director reused;
+- current Project Canvas context;
+- Scene / Clip / Transcript selection references;
+- Cards / Density / Peak inside AI context;
+- existing Plan / Reason / Confidence / Alternatives / Diff / Apply flow preserved.
 
-No real AI provider and no broad AI Command Bar in V2.1.
+AI runtime remains:
 
-### Script / Scene UX
+```text
+rules
+```
 
-Presentation enhancements only unless explicitly covered by existing V2 commands:
+No real provider and no broad command agent were introduced.
 
-- wider Script focus mode;
-- current-word clarity;
-- removed text clarity;
+Script / Scene:
+
+- Script search;
+- current word and removed state preserved;
 - semantic chips;
-- AI reference affordance;
-- Scene cards with semantic type, duration, density/AI state;
-- Scene → AI entry.
+- Scene semantic labels;
+- Scene visual count;
+- Scene visual-intensity command UI;
+- Rename / Split / Merge / Seek behavior preserved.
 
-### Home / New Project
+New Project:
 
-- Recent Projects;
-- Scenario Starter;
-- Canvas step;
-- Match Source;
-- ratio presets;
-- custom width/height;
-- fps presets/custom;
-- scenario must never force an orientation.
+- Scenario starters;
+- scenario never forces orientation;
+- universal canvas presets;
+- arbitrary custom width/height;
+- FPS presets and custom FPS;
+- Match Source Dimensions.
 
-### Cloud gate
+Match Source rule:
 
-- new-project contract tests;
-- scenario does not force canvas tests;
-- AI workspace selection/diff/apply integration tests;
-- i18n keys for all new surfaces.
+```text
+first imported video probe may set Width × Height
+FPS remains explicit Project timebase
+```
 
 ---
 
 ## 6. Cloud package C4 — Universal media ingest + polish
 
-### Universal media ingest code
+### Status
 
-User-facing target containers:
+**COMPLETE**
 
-- MP4
-- MOV
-- M4V
-- WebM
-- MKV
-- AVI
+User-facing video formats:
+
+```text
+MP4
+MOV
+M4V
+WebM
+MKV
+AVI
+```
 
 Audio:
 
-- MP3
-- WAV
-- M4A
-- AAC
-- FLAC
+```text
+MP3
+WAV
+M4A
+AAC
+FLAC
+```
 
-Image:
+Images:
 
-- PNG
-- JPEG
-- WebP
+```text
+PNG
+JPEG
+WebP
+```
+
+Subtitles:
+
+```text
+SRT
+VTT
+```
 
 Architecture:
 
 ```text
 Import
-→ probe
+→ capability policy
 → native-compatible?
-   ├─ yes → working media = original/copied project media
-   └─ no  → normalize via media adapter
-            → project working media
-→ preserve original identity
+   ├─ yes → project working media / reusable asset
+   └─ no  → preserve original
+            → normalize through FfmpegAdapter
+            → controlled working media
 ```
 
-Cloud implementation must provide:
+Video normalization:
 
-- format/capability policy;
-- normalization plan;
-- API response/status model;
-- progress/error UI states where possible;
-- dependency-injected normalization executor for tests;
-- no direct UI shell command execution.
+```text
+MOV/M4V/WebM/MKV/AVI
+→ H.264 yuv420p + AAC MP4 working media
+```
 
-Actual Windows FFmpeg normalization is a Local Codex gate.
+Audio normalization:
 
-### Polish
+```text
+AAC/FLAC
+→ AAC/M4A working media
+```
 
-- zh-CN / en-US complete;
-- focus states;
-- keyboard navigation;
-- tooltip contracts;
-- empty/loading/error states;
-- layout persistence migrations;
-- no fixed-aspect visible assumptions.
+Delivered:
 
-### Final cloud gate
+- format policy;
+- normalization strategy;
+- original-source identity fields;
+- API import report;
+- Uploading / Preparing / Ready UX;
+- explicit Original Preserved state;
+- retry/error UI;
+- dependency-injected FFmpeg adapters/mocks;
+- keyboard/focus/reduced-motion polish;
+- zh-CN / en-US primary V2.1 surfaces.
 
-- all tests pass;
-- production build pass;
-- PR remains unmerged pending local validation.
+Actual Windows FFmpeg codec compatibility remains L2, not a cloud claim.
 
 ---
 
-# 7. Local package L1 — Windows workspace / universal canvas interaction acceptance
+# 7. Local package L1 — Windows Workspace / Universal Canvas
 
-Codex validates the final cloud branch on real Windows browser.
+Execute exactly from `LOCAL_VALIDATION_V2_1.md`.
 
-Canvas matrix minimum:
+Minimum Viewer matrix:
 
 - 1920×1080 (16:9)
 - 1080×1920 (9:16)
@@ -289,74 +321,63 @@ Canvas matrix minimum:
 - 1600×900 custom landscape
 - 900×1600 custom portrait
 
-Check:
+Validate:
 
-- resize/collapse/persistence;
-- Edit / AI / Script / Motion workspace presets;
-- universal viewer fit;
-- Canvas selection/drag/resize/rotate/snap;
-- Inspector round-trip;
-- Timeline usability;
-- DPI/browser-size behavior;
-- no clipping/overlap/dead panels.
+- pointer/keyboard resize;
+- collapse / persistence;
+- Edit / AI / Script / Motion presets;
+- universal Viewer fit;
+- Canvas interaction regression;
+- Canvas Change Preview / Cancel / Apply revisions;
+- no clipping / dead panels / portrait-first behavior.
 
 ---
 
-# 8. Local package L2 — Real universal media ingest
+# 8. Local package L2 — Real Universal Media Ingest
 
-Use real Windows files.
-
-At minimum:
-
-- MOV video;
-- MP4 video;
-- WebM or MKV video if available;
-- MP3/M4A/WAV audio;
-- PNG/JPEG/WebP image.
+Use real Windows sources.
 
 Validate:
 
-- ffprobe;
-- native vs normalization decision;
-- automatic working-media creation;
+- MP4 native path;
+- MOV automatic working MP4;
+- WebM or MKV automatic working MP4;
+- AVI if available;
+- MP3/WAV/M4A;
+- FLAC or AAC automatic working M4A;
+- PNG/JPEG/WebP;
+- SRT/VTT;
+- Match Source Dimensions;
 - original source not modified;
-- project-relative paths;
+- project-relative original/working paths;
 - restart/reopen;
-- no manual FFmpeg step required for normal user path.
+- no normal-user manual FFmpeg step.
 
 ---
 
-# 9. Local package L3 — Real cross-aspect render matrix
+# 9. Local package L3 — Real Cross-Aspect Render Matrix
 
 Must really render at least:
 
 1. landscape;
 2. portrait;
-3. square or nonstandard custom canvas.
+3. square or materially nonstandard custom canvas.
 
-Each must include representative:
+Each should contain representative A-roll, Caption, Motion, B-roll, Audio, AI visual and Canvas transform where practical.
 
-- A-roll;
-- Caption;
-- Motion;
-- B-roll;
-- Audio;
-- AI Director visual;
-- Canvas transform.
+Validate with ffprobe and Preview ↔ Final comparison.
 
-Validate with ffprobe + visual comparison.
-
-Do not claim theoretical support.
+Theoretical support is not acceptance.
 
 ---
 
-# 10. Local package L4 — V2.1 final end-to-end acceptance
+# 10. Local package L4 — V2.1 Final End-to-End
 
-Use at least one real new project and complete:
+Use at least one brand-new real project and complete:
 
 ```text
 New Project
-→ Universal canvas selection
+→ Universal canvas / scenario
 → Import / auto-normalize
 → Transcript
 → Script
@@ -366,13 +387,13 @@ New Project
 → Brand / Linked Style
 → Canvas
 → Timeline
-→ Final render
-→ Stop/restart/reopen
-→ second edit
-→ second render
+→ Final Render
+→ Save / Stop / Restart / Reopen
+→ Second Edit
+→ Second Render
 ```
 
-Capture usability timings and all release blockers.
+Collect usability timings and release blockers.
 
 ---
 
@@ -380,41 +401,42 @@ Capture usability timings and all release blockers.
 
 Cloud integration branch:
 
-`feature/v2.1-universal-ui`
-
-Recommended execution order:
-
 ```text
-C0 → C1 → cloud CI
-C2 → cloud CI
-C3 → cloud CI
-C4 → final cloud CI
-↓
-Local Codex L1 + L2 + L3 + L4
-↓
-local fixes on same branch
-↓
-final CI
-↓
-V2.1 acceptance review
-↓
-merge to main
+feature/v2.1-universal-ui
 ```
 
-Do not merge to `main` before local gates pass.
+Current execution order:
+
+```text
+C0 PASS
+→ C1 PASS
+→ C2 PASS
+→ C3 PASS
+→ C4 PASS
+→ final cloud CI PASS
+→ L1 / L2 / L3 / L4
+→ V2.1 local defect fixes on same branch
+→ latest CI PASS
+→ V2.1 final acceptance review
+→ merge decision
+```
+
+Do not merge PR #14 before all local gates pass.
 
 ---
 
-# 12. V2.1 definition of done
+# 12. V2.1 Definition of Done
 
 V2.1 is done only if:
 
-- professional resizable shell works;
+- professional resizable shell works on Windows;
 - AI Workspace is first-class;
 - Viewer has no portrait/landscape special mode;
 - custom canvas is first-class;
 - common source formats enter one user flow;
 - MOV no longer requires a user-run manual FFmpeg conversion;
+- common unstable audio such as FLAC/AAC can create controlled working media;
 - at least landscape + portrait + square/custom are actually rendered;
 - V2.0 semantic/project/command/render behavior does not regress;
-- no engineer-only Project JSON edits are required for normal workflow.
+- no engineer-only Project JSON edits are required for normal workflow;
+- all gates in `LOCAL_VALIDATION_V2_1.md` pass.
