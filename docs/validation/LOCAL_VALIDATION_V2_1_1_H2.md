@@ -445,7 +445,7 @@ cleaned. The H2 input was kept frozen at `231a29638ad78c2962d53849146338bf56a0a6
 
 ```text
 BRANCH: hardening/v2.1.1-h2-engine-runtime
-FINAL HEAD: c9d9d5ad9e5a4edcfabca9ff8848c1c7918b45ac before this validation record; the documentation commit is the final pushed HEAD reported in the handoff
+FINAL HEAD: 818180691e62987259e7cfd0114d929729d7a9cb before this follow-up validation record; the final documentation commit is the final pushed HEAD reported in the handoff
 FROZEN INPUT HEAD: 231a29638ad78c2962d53849146338bf56a0a696
 LOCAL WORKTREE: E:\Video-OS-Studio-H2-Validation
 LOCAL DATA ROOT: E:\Video-OS-Data\v2.1.1-h2-validation-231a2963
@@ -457,8 +457,8 @@ FFMPEG/FFPROBE: 8.1.1-full_build-www.gyan.dev
 
 REMOTION VERSIONS: remotion 4.0.513; @remotion/cli 4.0.513; @remotion/player 4.0.513
 HYPERFRAMES VERSION: 0.8.10 exact npm dependency; doctor/lint/check/render all ran through the local package bin
-DEPENDENCY LOCK: PASS — package.json and package-lock.json lock the exact H2 runtime versions; no npx runtime fallback
-CLEAN NPM CI: PASS — npm ci completed from the committed lock; the host blocked the separate manual node_modules removal command, but npm ci performed the clean reinstall successfully
+DEPENDENCY LOCK: PASS — package.json and package-lock.json lock the exact H2 runtime versions plus cross-platform @emnapi optional packages; no npx runtime fallback
+CLEAN NPM CI: PASS — local npm ci completed from the corrected committed lock; the first pushed lock failed Ubuntu npm ci because @emnapi/runtime/core 1.11.3 were absent, then 8181806 added the exact entries and GitHub run 32588357257 passed install, lint, typecheck, tests and build. The host blocked the separate manual node_modules removal command, but npm ci performed the clean reinstall successfully
 CODE CHECKS: PASS — lint (0 errors, 2 existing no-img-element warnings), typecheck, 40 test files / 161 tests, and build
 TOOLRUNNER ARGV: PASS — literal spaces, ampersand, quote, Unicode, stdout/stderr and PID metadata verified under E:\Video OS 测试\H2 Engine\argv & 非ASCII
 WINDOWS TREE TIMEOUT: PASS — TOOL_TIMEOUT returned and parent/child PIDs were absent afterwards
@@ -473,10 +473,10 @@ FFMPEG ABORT/TIMEOUT: PASS — both real adapter paths returned the expected abo
 VIDEO-USE: PASS — real timeline_view completed with the isolated Python environment; PNG output exists; abort/timeout paths returned expected errors with no owned residuals
 APP REGRESSION: PASS — local Chrome CDP opened/recovered the project, imported a real .MOV, edited Caption Inspector, edited canvas state, exercised save/reopen/undo/redo/preview, completed the real Remotion render, and added HyperFrames process-flow in the browser; project revision advanced 6 -> 7 and the HyperFrames asset is present in E:\Video-OS-Data\v2.1.1-h2-validation-231a2963\projects\h2-remotion-acceptance-107b41f6\animations\hf-process-flow-d31e50f048a245f6.webm (VP9, 1080x1920, 30/1, 4.000s)
 
-DEFECTS FIXED: V2.1.1-H2-LV-001 — made the existing package-root assertion platform-aware on Windows by using node:path join; this was a test portability defect exposed by the H2 clean Windows run
-COMMITS PUSHED: c9d9d5ad9e5a4edcfabca9ff8848c1c7918b45ac (H2 dependency lock and regression test); this Actual Results section is the follow-up documentation commit
-REMAINING FAILURES: No H2 product failures. Non-blocking environment notes: npm EBADENGINE warning because the host has Node 25 while the project declares 24.x; HyperFrames doctor reported low available memory, Docker unavailable, and optional whisper/TTS/BGM tools absent; two existing ESLint warnings remain. The first HyperFrames app attempt occurred before E: cleanup with only about 1 GB free and failed for low disk; the required retry after cleanup passed.
+DEFECTS FIXED: V2.1.1-H2-LV-001 — made the existing package-root assertion platform-aware on Windows by using node:path join; V2.1.1-H2-LV-002 — added the missing cross-platform @emnapi/runtime/core 1.11.3 entries required for Ubuntu npm ci. Both were H2-only defects exposed by the local/CI acceptance run.
+COMMITS PUSHED: c9d9d5ad9e5a4edcfabca9ff8848c1c7918b45ac (H2 dependency lock and regression test), 1941222ef72a442cff1e0a1c280038851139b2b6 (initial validation record), 818180691e62987259e7cfd0114d929729d7a9cb (cross-platform lock fix); this follow-up Actual Results section is the final documentation commit
+REMAINING FAILURES: No H2 product or CI failures after 8181806. Non-blocking environment notes: npm EBADENGINE warning because the host has Node 25 while the project declares 24.x; HyperFrames doctor reported low available memory, Docker unavailable, and optional whisper/TTS/BGM tools absent; two existing ESLint warnings remain. The first HyperFrames app attempt occurred before E: cleanup with only about 1 GB free and failed for low disk; the required retry after cleanup passed.
 RESIDUAL OWNED PROCESSES: none observed after the H2 server and harnesses were stopped; an unrelated pre-existing Chrome renderer was not owned by H2
 
-MERGE RECOMMENDATION: YES — H2 local Windows acceptance passed after the documented H2-only test fix and exact dependency lock. Keep PR #21 unmerged until the separate GPT Web review/merge decision; do not start H3.
+MERGE RECOMMENDATION: YES — H2 local Windows acceptance and post-fix GitHub verify passed. Keep PR #21 unmerged until the separate GPT Web review/merge decision; do not start H3.
 ```
