@@ -1,1 +1,16 @@
-import {fileSystem,projectRepository,renderJobs} from "@/lib/server/runtime";export const runtime="nodejs";type Context={params:Promise<{jobId:string}>};export async function GET(_request:Request,{params}:Context){try{const{jobId}=await params;const job=renderJobs.get(jobId);if(!job||job.status!=="completed"||!job.outputRelativePath)throw new Error("Render output is not available.");const bytes=await fileSystem.readBinary(projectRepository.resolveProjectFile(job.projectId,job.outputRelativePath));const buffer=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength) as ArrayBuffer;return new Response(buffer,{headers:{"Content-Type":job.mode==="overlay"?"video/webm":"video/mp4","Content-Disposition":`attachment; filename="video-os-${job.mode}.${job.mode==="overlay"?"webm":"mp4"}"`}});}catch(error){return Response.json({error:error instanceof Error?error.message:String(error),retryable:false},{status:404});}}
+import {fileSystem,projectRepository,renderJobs} from "@/lib/server/runtime";
+export const runtime="nodejs";
+type Context={params:Promise<{jobId:string}>};
+
+export async function GET(_request:Request,{params}:Context){
+  try{
+    const{jobId}=await params;
+    const job=await renderJobs.get(jobId);
+    if(!job||job.status!=="completed"||!job.outputRelativePath)throw new Error("Render output is not available.");
+    const bytes=await fileSystem.readBinary(projectRepository.resolveProjectFile(job.projectId,job.outputRelativePath));
+    const buffer=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength) as ArrayBuffer;
+    return new Response(buffer,{headers:{"Content-Type":job.mode==="overlay"?"video/webm":"video/mp4","Content-Disposition":`attachment; filename="video-os-${job.mode}.${job.mode==="overlay"?"webm":"mp4"}"`}});
+  }catch(error){
+    return Response.json({error:error instanceof Error?error.message:String(error),retryable:false},{status:404});
+  }
+}
