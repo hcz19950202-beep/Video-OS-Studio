@@ -714,3 +714,151 @@ REGRESSION ACCEPTED: PASS / FAIL
 ```
 
 Stop after V2.1 validation and necessary V2.1 defect fixes. Do not start post-V2.1 product scope.
+
+---
+
+# Actual Results — Windows Local Validation 2026-08-22
+
+## Cloud and environment
+
+- Branch: `feature/v2.1-universal-ui`
+- Validation HEAD before local fixes: `5bc0ab22da6d8c78d40559245e5b0ddd90643631`
+- Final local-fix commit: `7440d5c`
+- PR #14: Draft / Open / unmerged
+- Cloud CI for frozen head: Run `32549716348`, PASS
+- Worktree: `E:\Video-OS-Studio-v2.1-validation`
+- Data root: `E:\Video-OS-Data\v2.1-validation-20260822-133549`
+- Node used for validation: `v24.19.0` bundled workspace runtime; system PATH Node `v25.2.1` was not used for checks
+- npm: `11.6.2`
+- FFmpeg / ffprobe: `8.1.1-full_build-www.gyan.dev`
+- Browser: Google Chrome `151.0.7922.138`
+- Windows: Windows 10 build `19045`
+- Display scale/DPI: `96 DPI` / `100%`
+
+## Automatic checks
+
+| Check | Result |
+| --- | --- |
+| `npm ci` | PASS |
+| `npm run lint` | PASS; 0 errors, 2 existing `no-img-element` warnings |
+| `npm run typecheck` | PASS |
+| `npm run test` | PASS; 32 files / 113 tests |
+| `npm run build` | PASS |
+
+## L1 — Workspace and Universal Canvas
+
+- EDIT / AI / SCRIPT / MOTION: PASS
+- 48px rail, left panel, universal Viewer, Inspector, Timeline: PASS
+- Pointer resize left / Inspector / Timeline: PASS; draft changes were visible before Pointer Up and persisted after Pointer Up
+- Keyboard separator resize: PASS; Arrow = 10px, Shift+Arrow = 40px; `aria-valuenow` changed and focus outline was visible
+- Collapse / Expand left and Inspector: PASS
+- Reset Workspace: PASS
+- Refresh persistence for all four official presets: PASS
+- Project revision remained unchanged during workspace switching/resizing/reset
+- Canvas matrix created through the UI and persisted as Schema `2.0.0`: 1920×1080, 1080×1920, 1080×1080, 2560×1080, custom 1600×900, custom 900×1600: PASS
+
+## L2 — Real Universal Media
+
+Representative sources were selected from `E:\外贸预制房` and copied only by Studio's normal import flow into the isolated data root. Original source files were not modified.
+
+| Input | Result |
+| --- | --- |
+| MP4 `source-sample-sdr.mp4` | Native project import, H.264/AAC, PASS |
+| MOV `source.MOV` | Original preserved, Working H.264 MP4, ffprobe/playback PASS |
+| WebM `f01.webm` | Original preserved, Working MP4, PASS |
+| MKV `v21-sample.mkv` | Isolated validation fixture, Original preserved, Working MP4, PASS |
+| AVI `v21-sample.avi` | Isolated validation fixture, Original preserved, Working MP4, PASS |
+| MP3 `sfx_001.mp3` | Reusable audio asset, PASS |
+| WAV `vo_cut.wav` | Reusable audio asset, PASS |
+| FLAC `v21-sample.flac` | Original preserved, Working M4A, PASS |
+| PNG / JPEG / WebP | Reusable image assets, PASS |
+| SRT / VTT | Subtitle assets produced Caption clips, PASS |
+| Unsupported `.txt` | Clear Error + Retry, no revision or partial asset, PASS |
+
+MOV source SHA256 before import and the preserved original copy matched:
+`04ED1ED966F1564B55AFA669ADEE322EF5911B336B2D3C751182351FEF322702`.
+
+Match Source project result: initial explicit FPS `30`; first MP4 probe changed Canvas to `1080×1920` at revision `+4`; FPS stayed `30`; second video import left Canvas and FPS unchanged at revision `8`.
+
+## L3 — Real Cross-Aspect Render
+
+The brand-new `V21-E2E-Content-First` project rendered the same real source and semantic content at three canvases:
+
+| Render | Canvas | Codec / FPS | Frames | Duration | Result |
+| --- | --- | --- | ---: | ---: | --- |
+| Portrait | 1080×1920 | H.264 / 30 | 2274 | 75.84s | PASS |
+| Landscape | 1920×1080 | H.264 / 30 | 2274 | 75.84s | PASS |
+| Square | 1080×1080 | H.264 / 30 | 2274 | 75.84s | PASS |
+
+All three included Video, 2 Captions, 1 Motion and Audio. Preview and Portrait Final frame comparison was materially consistent for the factory background, presenter, keyword strip and caption.
+
+The additional `V21-Short-Linked` project rendered at 1080×1080, 300 frames / 10.048s, H.264/AAC. Its render props confirmed `LinkedStyles=1`, `BrollClips=1`, and `MarkerCount=1`.
+
+## L4 — Brand-new V2.1 projects
+
+`V21-E2E-Content-First` was created from the V2.1 UI, not copied from RC1/M5. It completed:
+
+```text
+New Project → custom Canvas → real MOV import/normalize → video-use
+→ 20 Script segments → 10 Scenes → 2 Caption clips
+→ AI rules Analyze / Review / Apply → Motion
+→ Brand / Linked Style → Canvas Preview / Apply
+→ Timeline Marker / Split / Duplicate / Undo
+→ B-roll / Audio → Render
+```
+
+`V21-Short-Linked` was reopened after a real server stop/restart, then received a second UI edit (Marker), Save, and second Render. Recent Project reopen restored Canvas, Script, Scene, Captions, Motion, Linked Style, Marker, media paths, and revision.
+
+Script Search / Clear / Remove / Restore: PASS. Scene semantic labels, select/seek, Rename, Split/Merge controls and Visual Intensity command: PASS. AI Director source remained `rules`; Analyze, Reason/Confidence/Alternatives, Change Preview and one-transaction Apply: PASS. Timeline Scene Strip, five tracks, Marker, Snap, Waveform, Zoom, Split, Duplicate and Undo: PASS.
+
+zh-CN / en-US and refresh persistence: PASS. Dark/Light Studio theme changed the V2.1 shell without changing Project Brand or revision: PASS. Keyboard focus indicators and separator ARIA values: PASS.
+
+## Local defects fixed
+
+All fixes are in local validation commit `7440d5c` and were followed by the final full automatic regression.
+
+| ID | Area | Actual defect | Fix / regression |
+| --- | --- | --- | --- |
+| V2.1-LV-001 | New Project | Long form was clipped behind Timeline at 1440×900 | Constrained content panel flex/scroll layout; verified mouse-accessible Create Project |
+| V2.1-LV-002 | Theme | Light preference changed root tokens but V2.1 shell stayed dark | Added V2.1 light surface tokens; verified dark/light and Brand isolation |
+| V2.1-LV-003 | Canvas | Floating toolbar intercepted SE Resize handle | Toolbar pointer-events pass-through, buttons remain interactive |
+| V2.1-LV-004 | Canvas | Rotate control was clipped by overlay `overflow:hidden` | Canvas overlay controls remain visible |
+| V2.1-LV-005 | Inspector | Canvas Change Preview Apply was behind Timeline | Inspector gets its own scroll container; Apply verified by real click |
+| V2.1-LV-006 | Media / Timeline | Imported visual assets had no normal-user B-roll placement action | Added `Add B-roll` UI using existing `add-clip` / `broll-main`; real image click produced B-roll clip and render |
+
+## Usability and fallbacks
+
+- Launch → first new Project: approximately `0.98s` after button action
+- MOV Normalize: approximately `83–87s` for the 144MB HEVC MOV on this machine
+- Audio normalization: completed within the normal import interaction; no manual FFmpeg step
+- Long final renders: approximately `7–12 minutes` depending on Canvas; short 10s render: approximately `38–70s`
+- Terminal fallback in normal product path: `0`
+- API fallback in normal product path: `0`; APIs were inspected only for evidence/state verification
+- Internal ID / Project JSON knowledge required by normal user: `0`
+- Dead-end UI states after fixes: `0`
+- Planned durability restart: `1`; crash/forced restart: `0`
+- Browser Harness `mouseMoved` / screenshot calls timed out intermittently; validation used scoped Chrome CDP evidence helpers for real pointer events and screenshots. This is a harness fallback, not a product-user fallback.
+
+## Evidence
+
+- Evidence directory: `E:\Video-OS-Data\v2.1-validation-20260822-133549\evidence`
+- Browser recording: `C:\Users\hcz\.config\browser-harness\agent-workspace\recordings\video-os-v2.1-local-validation`
+- Continuation recording: `C:\Users\hcz\.config\browser-harness\agent-workspace\recordings\video-os-v2.1-local-validation-continued`
+- Screenshots include the four workspaces, pointer/keyboard separators, Viewer matrix, Script/Scene/AI, Canvas Preview, Normalize/Error, Canvas transform, Final frames, restart/reopen, and second render.
+
+## Final gates
+
+```text
+CODE COMPLETE: PASS
+CLOUD VERIFIED: PASS
+WINDOWS UI VERIFIED: PASS
+UNIVERSAL MEDIA VERIFIED: PASS
+CROSS-ASPECT RENDER VERIFIED: PASS
+DURABILITY VERIFIED: PASS
+PRD ACCEPTED: PASS
+VISUAL ACCEPTED: PASS
+USABILITY ACCEPTED: PASS
+REGRESSION ACCEPTED: PASS
+```
+
+No Project Schema upgrade, Post-V2.1 scope, PR merge, real AI Provider, Multi Timeline, arbitrary Docking, Crop/Mask engine, Transition Suite, Generated Media Provider, Cloud Collaboration, HDR or Advanced Color work was started.
