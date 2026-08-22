@@ -5,6 +5,7 @@ import type {ProjectCommandTransaction} from "@/lib/project/history";
 import type {Project} from "@/schemas/project";
 import {useProjectStore} from "@/store/project-store";
 import {ContextInspector} from "./ContextInspector";
+import {InspectorRegistryShell} from "./InspectorRegistryShell";
 
 export const EffectInspector=({project,onCommand}:{project:Project;onCommand:(command:ProjectCommand,message:string)=>Promise<void>})=>{
   const setProject=useProjectStore(state=>state.setProject);
@@ -14,5 +15,5 @@ export const EffectInspector=({project,onCommand}:{project:Project;onCommand:(co
     if(!response.ok||!payload.project)throw new Error(payload.error||`${message}: project transaction failed`);
     setProject(payload.project);
   };
-  return <ContextInspector project={project} onCommand={onCommand} onTransaction={onTransaction}/>;
+  return <InspectorRegistryShell project={project}><ContextInspector project={project} onCommand={onCommand} onTransaction={onTransaction}/></InspectorRegistryShell>;
 };
