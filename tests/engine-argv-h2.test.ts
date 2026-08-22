@@ -1,0 +1,44 @@
+import {describe,expect,it} from "vitest";
+import {createProject} from "@/lib/project/factory";
+import {projectBinPath} from "@/lib/process/project-bin";
+import {buildRemotionRenderArgs} from "@/adapters/remotion-cli";
+import {buildHyperFramesCheckArgs,buildHyperFramesLintArgs,buildHyperFramesRenderArgs} from "@/adapters/hyperframes";
+import {buildVideoUsePackArgs,buildVideoUsePrepareArgs,buildVideoUseRenderArgs,buildVideoUseTimelineArgs} from "@/adapters/video-use";
+import {buildFfprobeArgs,buildNormalizeAudioArgs,buildNormalizeVideoArgs,buildWaveformArgs} from "@/adapters/ffmpeg";
+
+describe("H2 deterministic engine argv",()=>{
+  it("builds a local Remotion render argv with no runtime npx package install",()=>{
+    const project=createProject({id:"h2",name:"H2",width:1920,height:1080,fps:30,durationInFrames:90});
+    const args=buildRemotionRenderArgs({project,outputPath:"E:/Video OS/out file.mp4",mode:"final",assetBaseUrl:"http://127.0.0.1:3000",quality:"high"},"E:/Video OS/remotion/index.ts","E:/Video OS/out file.mp4.props.json");
+    expect(args.slice(0,4)).toEqual(["render","E:/Video OS/remotion/index.ts","VideoOSMaster","E:/Video OS/out file.mp4"]);
+    expect(args).toContain("--codec=h264");
+    expect(args).not.toContain("--package");
+    expect(args).not.toContain("npx");
+  });
+
+  it("resolves project-local CLIs per platform",()=>{
+    expect(projectBinPath("remotion","win32","C:/repo")).toMatch(/node_modules[\\/]\.bin[\\/]remotion\.cmd$/u);
+    expect(projectBinPath("hyperframes","linux","/repo")).toBe("/repo/node_modules/.bin/hyperframes");
+  });
+
+  it("builds HyperFrames lint/check/render argv without a shell prefix",()=>{
+    expect(buildHyperFramesLintArgs()).toEqual(["lint","--json"]);
+    expect(buildHyperFramesCheckArgs()).toEqual(["check","--json"]);
+    expect(buildHyperFramesRenderArgs("E:/out file.webm",30)).toEqual(["render","--output","E:/out file.webm","--format","webm","--fps","30","--quality","standard","--strict"]);
+  });
+
+  it("keeps video-use paths as literal argv elements",()=>{
+    expect(buildVideoUsePrepareArgs("E:/Skill Dir/transcribe.py","E:/Media Dir/a clip.mov","E:/Edit Dir")).toEqual(["E:/Skill Dir/transcribe.py","E:/Media Dir/a clip.mov","--edit-dir","E:/Edit Dir"]);
+    expect(buildVideoUsePackArgs("E:/Skill Dir/pack_transcripts.py","E:/Edit Dir")).toEqual(["E:/Skill Dir/pack_transcripts.py","--edit-dir","E:/Edit Dir"]);
+    expect(buildVideoUseRenderArgs("E:/Skill Dir/render.py","E:/Edit Dir/cut.json","E:/Output Dir/out.mp4",true)).toEqual(["E:/Skill Dir/render.py","E:/Edit Dir/cut.json","-o","E:/Output Dir/out.mp4","--preview"]);
+    expect(buildVideoUseTimelineArgs("E:/Skill Dir/timeline_view.py","E:/Media Dir/a clip.mov",1.5,3.25,"E:/Output Dir/view.png")).toEqual(["E:/Skill Dir/timeline_view.py","E:/Media Dir/a clip.mov","1.5","3.25","-o","E:/Output Dir/view.png"]);
+  });
+
+  it("builds FFmpeg/ffprobe argv with input/output paths unquoted and unsplit",()=>{
+    const input="E:/媒体 Folder/source clip.mov";const output="E:/输出 Folder/out clip.mp4";
+    expect(buildFfprobeArgs(input).at(-1)).toBe(input);
+    expect(buildWaveformArgs(input,160,64)).toContain(input);
+    expect(buildNormalizeVideoArgs(input,output).at(-1)).toBe(output);
+    expect(buildNormalizeAudioArgs(input,output).at(-1)).toBe(output);
+  });
+});
