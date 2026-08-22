@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "1.0",
+  "chatcutVersion": "0.2.15",
+  "videoOsBaseline": {
+    "version": "2.0.0",
+    "commit": "64da5ec6539a787f4d2f3750b3c5cea0273255ce",
+    "projectSchema": "2.0.0"
+  },
+  "gaps": [
+    {
+      "capability": "Selection-aware AI composer",
+      "videoOsCurrent": "AI Director rules with plan/review/apply",
+      "reuse": "Keep safe apply gate and bind prompt references to existing selection and commands",
+      "stage": "V2.1",
+      "priority": 1
+    },
+    {
+      "capability": "Visible agent execution state",
+      "videoOsCurrent": "Plan/review/apply flow without a persistent agent workspace",
+      "reuse": "Expose plan, running, result, retry and stale-target states",
+      "stage": "V2.1",
+      "priority": 2
+    },
+    {
+      "capability": "Transcript speaker and recovery UX",
+      "videoOsCurrent": "Word Script and remove/restore commands",
+      "reuse": "Add speaker model and explicit restore UI on top of current command contract",
+      "stage": "V2.1",
+      "priority": 3
+    },
+    {
+      "capability": "Capability-driven Inspector",
+      "videoOsCurrent": "Properties and direct manipulation backed by project commands",
+      "reuse": "Register Transform, Caption and Audio sections by selected item capability",
+      "stage": "V2.1",
+      "priority": 4
+    },
+    {
+      "capability": "Observable Render Job",
+      "videoOsCurrent": "Local render/export workflow",
+      "reuse": "Persist progress, cancellation, failure reason and retry state",
+      "stage": "V2.1",
+      "priority": 5
+    },
+    {
+      "capability": "Assets bins and generated asset lifecycle",
+      "videoOsCurrent": "Project assets, B-roll and audio",
+      "reuse": "Create one media-pool state machine for imports and generated outputs",
+      "stage": "V2.2",
+      "priority": 6
+    },
+    {
+      "capability": "Transcript segment reorder",
+      "videoOsCurrent": "Scene/clip/script relations and transactions",
+      "reuse": "Map text drag to an atomic scene/clip reorder command",
+      "stage": "V2.2",
+      "priority": 7
+    },
+    {
+      "capability": "Basic transitions and export zones",
+      "videoOsCurrent": "Clip timeline and render pipeline",
+      "reuse": "Introduce a small transition model plus full/zone, audio and subtitle intents",
+      "stage": "V2.2",
+      "priority": 8
+    },
+    {
+      "capability": "Multiple timelines and named versions",
+      "videoOsCurrent": "Single core project workflow and bounded undo/redo",
+      "reuse": "Promote timelines and snapshots to project-level entities with migrations",
+      "stage": "V2.3",
+      "priority": 9
+    },
+    {
+      "capability": "Workspace persistence and advanced visual properties",
+      "videoOsCurrent": "Stable editor layout and canvas properties",
+      "reuse": "Add curated workspace presets before arbitrary docking; extend Inspector to crop/mask/effects",
+      "stage": "V2.3",
+      "priority": 10
+    },
+    {
+      "capability": "Tool surface, project skills and reusable library",
+      "videoOsCurrent": "Commands plus Remotion/HyperFrames/video-use integrations",
+      "reuse": "Expose validated command schemas and auditable project-local workflow presets",
+      "stage": "V2.4",
+      "priority": 11
+    },
+    {
+      "capability": "Cloud collaboration and marketplace",
+      "videoOsCurrent": "Local-first core",
+      "reuse": "Do not prioritize until local versioning, permissions and conflict model are proven",
+      "stage": "Later",
+      "priority": 12
+    }
+  ]
+}

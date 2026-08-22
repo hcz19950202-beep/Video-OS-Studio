@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.0",
+  "product": "ChatCut Desktop",
+  "version": "0.2.15",
+  "modes": [
+    { "name": "Agent", "evidence": "CONFIRMED_LOCAL_FILE" },
+    { "name": "Video Gen", "evidence": "CONFIRMED_LOCAL_FILE" }
+  ],
+  "references": [
+    { "type": "timeline_item", "event": "chatcut:items-clicked", "evidence": "CONFIRMED_LOCAL_FILE" },
+    { "type": "asset", "event": "chatcut:assets-clicked", "evidence": "CONFIRMED_LOCAL_FILE" },
+    { "type": "timeline_time", "event": "chatcut:time-marked", "evidence": "CONFIRMED_LOCAL_FILE" },
+    { "type": "transcript_selection", "event": "chatcut:transcript-selected", "evidence": "CONFIRMED_LOCAL_FILE" },
+    { "type": "canvas_region", "event": "chatcut:canvas-region-marked", "evidence": "CONFIRMED_LOCAL_FILE" }
+  ],
+  "states": [
+    "IDLE",
+    "PROMPT_DRAFT",
+    "CONTEXT_BOUND",
+    "SESSION_CREATING",
+    "SESSION_RECOVERING",
+    "SENDING_PROMPT",
+    "THINKING",
+    "PLAN",
+    "TOOL_CALLING",
+    "AWAITING_USER",
+    "RUNNING",
+    "GENERATING",
+    "REVIEWING_RESULTS",
+    "COMPLETED",
+    "CANCELLED",
+    "ERROR",
+    "STALE_TARGET"
+  ],
+  "permissions": [
+    { "action": "allow_once", "evidence": "CONFIRMED_LOCAL_FILE" },
+    { "action": "allow_all_in_project", "evidence": "CONFIRMED_LOCAL_FILE" },
+    { "action": "deny_or_adjust", "evidence": "CONFIRMED_LOCAL_FILE" }
+  ],
+  "toolFamilies": [
+    { "family": "assets", "examples": ["browse_assets", "import_media", "inspect_asset", "manage_media_pool"] },
+    { "family": "timeline", "examples": ["preview_timeline", "manage_timelines", "clip_add", "clip_adjust", "clip_remove", "clip_split"] },
+    { "family": "transcript", "examples": ["manage_transcript", "find_transcript", "fix_transcript"] },
+    { "family": "generation", "examples": ["image_generation", "video_generation", "voice_isolation", "multicam_sync"] }
+  ],
+  "resultContract": {
+    "generatedMediaBecomesAsset": { "value": true, "evidence": "CONFIRMED_LOCAL_FILE" },
+    "timelineEditsRemainManuallyEditable": { "value": true, "evidence": "CONFIRMED_LOCAL_FILE" },
+    "atomicTransactionPerToolCall": { "value": null, "evidence": "UNKNOWN" }
+  }
+}

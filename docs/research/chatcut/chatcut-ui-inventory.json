@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.0",
+  "product": "ChatCut Desktop",
+  "version": "0.2.15",
+  "platform": "Windows",
+  "runtimeScreenshotCount": 0,
+  "evidencePolicy": [
+    "CONFIRMED_UI",
+    "CONFIRMED_LOCAL_FILE",
+    "CONFIRMED_PUBLIC_DOC",
+    "INFERRED",
+    "UNKNOWN"
+  ],
+  "areas": [
+    {
+      "id": "topbar",
+      "name": "Top Bar",
+      "purpose": "Project navigation, workspace-level actions, undo/redo and export access",
+      "evidence": "CONFIRMED_LOCAL_FILE"
+    },
+    {
+      "id": "ai-panel",
+      "name": "AI Agent Panel",
+      "purpose": "Prompt composition, selection references, skills, plans, tool calls and generation state",
+      "evidence": "CONFIRMED_LOCAL_FILE"
+    },
+    {
+      "id": "media-group",
+      "name": "Media Group",
+      "purpose": "My Assets, Library and Transcript tabs",
+      "evidence": "CONFIRMED_LOCAL_FILE"
+    },
+    {
+      "id": "viewer",
+      "name": "Preview / Canvas",
+      "purpose": "Playback, direct manipulation, caption editing, crop, mask and guides",
+      "evidence": "CONFIRMED_LOCAL_FILE"
+    },
+    {
+      "id": "timeline",
+      "name": "Timeline",
+      "purpose": "Sequence, track and item editing",
+      "evidence": "CONFIRMED_LOCAL_FILE"
+    },
+    {
+      "id": "inspector",
+      "name": "Inspector",
+      "purpose": "Contextual properties for the current selection",
+      "evidence": "CONFIRMED_LOCAL_FILE"
+    }
+  ],
+  "layout": {
+    "referenceViewport": { "width": 1440, "height": 880 },
+    "aiWidthRatio": 0.34,
+    "mediaWidthRatio": 0.24,
+    "timelineHeightRatio": 0.34,
+    "timelineDefaultHeightPx": 300,
+    "timelineMinHeightPx": 260,
+    "viewerMinWidthPx": 300,
+    "viewerMaxWidthPx": 560,
+    "dockPersistenceKey": "chatcut-dockview-layout-v9",
+    "evidence": "CONFIRMED_LOCAL_FILE"
+  },
+  "designTokens": {
+    "surfaces": ["#1e1e1e", "#2d2d2d", "#1a1a1a"],
+    "accent": "#00d0d0",
+    "textPrimary": "#fcfcfc",
+    "textSecondary": "#888",
+    "panelTabFontPx": [12, 13],
+    "headerHeightPx": 35,
+    "toolbarHeightPx": 36,
+    "controlHeightLargePx": 44,
+    "radiiPx": [0, 2, 4, 8, 20],
+    "evidence": "CONFIRMED_LOCAL_FILE"
+  },
+  "unknownRuntimeDetails": [
+    "Exact visual arrangement in every workspace preset",
+    "All hover, focus and disabled states",
+    "Complete accessibility semantics",
+    "Full keyframe editor UI",
+    "Actual export progress and error presentation"
+  ]
+}
