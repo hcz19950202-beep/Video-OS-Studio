@@ -598,3 +598,23 @@ VERIFIED: 100%
 ```
 
 Stop there. Do not merge PR #15 and do not start V2.1.0 release or Post-V2.1 work locally.
+
+---
+
+# Local Completion Addendum — 2026-08-22
+
+Validation worktree: `E:\Video-OS-Studio-v2.1-prd-completion`
+
+Isolated data root: `E:\Video-OS-Data\v2.1-prd-completion-20260822-173247`
+
+## Defect Record
+
+### V2.1-COMP-LV-001 — Imported audio had no normal-user placement action
+
+- Root cause: the V2.1 media asset list exposed `Add B-roll` for visual assets but did not expose a placement action for `audio` assets.
+- Fix: `StudioWorkspaceV21` now exposes `Add Audio` / `加入音频`, creates an `audio-main` clip with `type: "audio"`, preserves the source asset, and assigns the default `sfx` role.
+- Regression: `tests/workspace-v2.1.test.ts` asserts the user-facing Audio action, `audio-main` track, and `audio` clip type.
+- Windows UI evidence: imported `sfx_001.mp3`, clicked `加入音频`, observed the Audio timeline row, selected the clip, and verified the Audio Inspector with role, timing, volume, mute, fade-in, and fade-out controls.
+- Durability evidence: the Audio clip remained in `project.json` after stop/restart/reopen and was included in the subsequent 900×1600 render.
+
+No other completion defect was found during the C1–C9 run. No business feature or Project Schema change was made.
