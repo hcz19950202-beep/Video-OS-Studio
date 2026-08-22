@@ -1,0 +1,67 @@
+.v21-content-panel-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.v21-content-header {
+  flex: 0 0 48px;
+}
+
+.v21-content-scroll {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.v21-inspector-panel {
+  overflow: auto;
+}
+
+:root[data-studio-theme="light"] .v21-workspace {
+  background: var(--bg);
+  color: var(--text);
+}
+
+:root[data-studio-theme="light"] .v21-topbar,
+:root[data-studio-theme="light"] .v21-icon-rail,
+:root[data-studio-theme="light"] .v21-content-panel,
+:root[data-studio-theme="light"] .v21-inspector-panel {
+  background: var(--panel);
+  border-color: var(--border);
+}
+
+:root[data-studio-theme="light"] .v21-viewer-region {
+  background: var(--bg-deep);
+}
+
+:root[data-studio-theme="light"] .v21-timeline-region {
+  background: var(--panel-2);
+  border-color: var(--border);
+}
+
+:root[data-studio-theme="light"] .v21-content-header,
+:root[data-studio-theme="light"] .v21-viewer-meta,
+:root[data-studio-theme="light"] .v21-inspector-tabs,
+:root[data-studio-theme="light"] .v21-panel-tabs {
+  background: var(--panel-2);
+  border-color: var(--border);
+}
+
+:root[data-studio-theme="light"] .v21-workspace button:not(.v21-primary) {
+  color: var(--text-2);
+}
+
+.canvas-floating-toolbar {
+  pointer-events: none;
+}
+
+.canvas-floating-toolbar button {
+  pointer-events: auto;
+}
+
+.canvas-overlay {
+  overflow: visible;
+}

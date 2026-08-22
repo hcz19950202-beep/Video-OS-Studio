@@ -7,6 +7,7 @@ import "./script.css";
 import "./m4.css";
 import "./m5.css";
 import "./v21.css";
+import "./v21-layout.css";
 import "./v21-inspector.css";
 import "./v21-a11y.css";
 

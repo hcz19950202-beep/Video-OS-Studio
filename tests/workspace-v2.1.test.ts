@@ -1,4 +1,6 @@
 import {describe,expect,it} from "vitest";
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
 import {applyWorkspacePreset,availableViewerWidth,normalizeWorkspaceLayout,parseWorkspaceLayout,serializeWorkspaceLayout,updateWorkspaceLayout,WORKSPACE_LIMITS} from "@/lib/studio/workspace-layout";
 
 describe("V2.1 workspace layout",()=>{
@@ -30,5 +32,49 @@ describe("V2.1 workspace layout",()=>{
     expect(availableViewerWidth(1440,layout)).toBe(772);
     expect(availableViewerWidth(600,layout)).toBe(WORKSPACE_LIMITS.viewerMin);
     expect(availableViewerWidth(1000,{...layout,leftCollapsed:true,inspectorCollapsed:true})).toBe(952);
+  });
+
+  it("keeps long content panels constrained and scrollable inside the upper workspace",()=>{
+    const css=readFileSync(resolve(process.cwd(),"app/v21-layout.css"),"utf8");
+    expect(css).toContain(".v21-content-panel-inner");
+    expect(css).toContain("height: 100%");
+    expect(css).toContain(".v21-content-scroll");
+    expect(css).toContain("flex: 1");
+    expect(css).toContain("min-height: 0");
+    expect(css).toContain("overflow: auto");
+  });
+
+  it("provides a light-theme surface for the V2.1 shell without coupling to Project Brand",()=>{
+    const css=readFileSync(resolve(process.cwd(),"app/v21-layout.css"),"utf8");
+    expect(css).toContain(':root[data-studio-theme="light"] .v21-workspace');
+    expect(css).toContain("background: var(--panel)");
+    expect(css).toContain("background: var(--bg-deep)");
+  });
+
+  it("keeps canvas resize handles reachable beneath the floating toolbar",()=>{
+    const css=readFileSync(resolve(process.cwd(),"app/v21-layout.css"),"utf8");
+    expect(css).toContain(".canvas-floating-toolbar");
+    expect(css).toContain("pointer-events: none");
+    expect(css).toContain(".canvas-floating-toolbar button");
+    expect(css).toContain("pointer-events: auto");
+  });
+
+  it("keeps canvas rotate controls visible at the canvas boundary",()=>{
+    const css=readFileSync(resolve(process.cwd(),"app/v21-layout.css"),"utf8");
+    expect(css).toContain(".canvas-overlay");
+    expect(css).toContain("overflow: visible");
+  });
+
+  it("keeps the inspector scrollable above the timeline region",()=>{
+    const css=readFileSync(resolve(process.cwd(),"app/v21-layout.css"),"utf8");
+    expect(css).toContain(".v21-inspector-panel");
+    expect(css).toContain("overflow: auto");
+  });
+
+  it("exposes a normal-user B-roll placement action for imported visual assets",()=>{
+    const source=readFileSync(resolve(process.cwd(),"components/studio/StudioWorkspaceV21.tsx"),"utf8");
+    expect(source).toContain("Add B-roll");
+    expect(source).toContain('trackId:"broll-main"');
+    expect(source).toContain('type:"broll"');
   });
 });
