@@ -2,6 +2,7 @@
 
 import {useMemo,useState} from "react";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
+import {createOperationId,parseProjectResponse} from "@/lib/client/project-mutations";
 import type {ProjectCommand} from "@/lib/project/commands";
 import {textEditingMessage} from "@/lib/i18n/text-editing";
 import {getSegmentSourceRange,mapSourceFrameToTimelineFrame,mapTimelineFrameToSourceFrame,segmentText} from "@/lib/script/model";
@@ -21,7 +22,7 @@ export const ScriptEditor=({project,onProjectChange,onCommand}:Props)=>{
   const segments=useMemo(()=>{const needle=query.trim().toLocaleLowerCase();return project.script.segments.filter(segment=>(showRemoved||segment.status!=="removed")&&(!needle||segmentText(segment).toLocaleLowerCase().includes(needle)));},[project.script.segments,showRemoved,query]);
   const wordCount=project.script.segments.reduce((sum,segment)=>sum+segment.words.length,0);
 
-  const setStatus=async(segmentId:string,status:"active"|"removed")=>{setBusyId(segmentId);setError(null);try{const response=await fetch(`/api/projects/${encodeURIComponent(project.project.id)}/script/edit`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({segmentId,status})});const data=await response.json() as {project?:Project;error?:string};if(!response.ok||!data.project)throw new Error(data.error||"Script edit failed");onProjectChange(data.project);}catch(caught){setError(caught instanceof Error?caught.message:String(caught));}finally{setBusyId(null);}};
+  const setStatus=async(segmentId:string,status:"active"|"removed")=>{setBusyId(segmentId);setError(null);try{const response=await fetch(`/api/projects/${encodeURIComponent(project.project.id)}/script/edit`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expectedRevision:project.project.revision,operationId:createOperationId("script"),segmentId,status})});const data=await parseProjectResponse<{project:Project}>(response);onProjectChange(data.project);}catch(caught){setError(caught instanceof Error?caught.message:String(caught));}finally{setBusyId(null);}};
   const toggleTag=async(segmentId:string,tag:string)=>{const script=structuredClone(project.script);const segment=script.segments.find(item=>item.id===segmentId);if(!segment)return;segment.semanticTags=segment.semanticTags.includes(tag)?segment.semanticTags.filter(item=>item!==tag):[...segment.semanticTags,tag];await onCommand({type:"set-script-document",script},zh?"脚本标签已更新":"Script tags updated");};
 
   if(!project.script.segments.length)return <section className="script-editor script-empty"><div className="script-editor-head"><div><small>SCRIPT</small><strong>{msg("noScript")}</strong></div></div><p>{msg("transcribe")}</p></section>;
