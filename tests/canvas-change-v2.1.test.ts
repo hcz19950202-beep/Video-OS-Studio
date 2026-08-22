@@ -22,7 +22,7 @@ describe("V2.1 canvas change preview",()=>{
     project=applyProjectCommand(project,{type:"add-asset",asset:{id:"video-a",kind:"video",relativePath:"input/a.mp4",originalName:"a.mp4"}});
     project=applyProjectCommand(project,{type:"add-clip",trackId:"video-main",clip:{id:"video-1",type:"video",assetId:"video-a",startFrame:0,durationInFrames:30,sourceStartFrame:0,volume:1,enabled:true,layer:0}});
     project=applyProjectCommand(project,{type:"add-clip",trackId:"motion-main",clip:{id:"motion-1",type:"motion",engine:"remotion",effectId:"big-number",startFrame:0,durationInFrames:30,props:{},enabled:true,layer:1}});
-    project=applyProjectCommand(project,{type:"add-clip",trackId:"captions-main",clip:{id:"caption-1",type:"caption",text:"Hello",startFrame:0,durationInFrames:30,enabled:true,layer:2}});
+    project=applyProjectCommand(project,{type:"add-clip",trackId:"captions-main",clip:{id:"caption-1",type:"caption",text:"Hello",preset:"primary",emphasis:"none",keywords:[],startFrame:0,durationInFrames:30,enabled:true,layer:2}});
     const revision=project.project.revision;
     const preview=buildCanvasChangePreview(project,{width:1080,height:1080});
     expect(preview.affected).toMatchObject({videos:1,motions:1,captions:1,broll:0,total:3});
