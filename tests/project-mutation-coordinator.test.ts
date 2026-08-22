@@ -51,6 +51,18 @@ describe("ProjectMutationCoordinator",()=>{
     expect(["A","B"]).toContain(project.project.name);
   });
 
+  it("prevents a stale Caption patch from overwriting a newer unrelated field",async()=>{
+    const{repository,coordinator}=await setup();
+    await coordinator.applyCommand("p1",{expectedRevision:0,commandId:"caption-add",command:{type:"add-clip",trackId:"captions-main",clip:{id:"caption-1",type:"caption",text:"Hello",preset:"primary",emphasis:"none",keywords:[],style:{fontFamily:"Arial",fontSize:48},startFrame:0,durationInFrames:30,enabled:true,layer:100}}});
+    await coordinator.applyCommand("p1",{expectedRevision:1,commandId:"caption-font",command:{type:"update-caption-style",clipId:"caption-1",style:{fontFamily:"Inter"}}});
+    await expect(coordinator.applyCommand("p1",{expectedRevision:1,commandId:"caption-size-stale",command:{type:"update-caption-style",clipId:"caption-1",style:{fontSize:72}}})).rejects.toBeInstanceOf(ProjectRevisionConflictError);
+    await coordinator.applyCommand("p1",{expectedRevision:2,commandId:"caption-size-retry",command:{type:"update-caption-style",clipId:"caption-1",style:{fontSize:72}}});
+    const project=await repository.load("p1");
+    const caption=project.tracks.flatMap(track=>track.clips).find(clip=>clip.id==="caption-1");
+    expect(caption).toMatchObject({type:"caption",style:{fontFamily:"Inter",fontSize:72}});
+    expect(project.project.revision).toBe(3);
+  });
+
   it("does not use a global lock across different projects",async()=>{
     const{coordinator}=await setup();
     let releaseFirst!:()=>void;
