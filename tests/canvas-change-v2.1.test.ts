@@ -1,4 +1,6 @@
 import {describe,expect,it} from "vitest";
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
 import {InMemoryFileSystemAdapter} from "@/adapters/filesystem";
 import {ProjectRepository} from "@/lib/project/repository";
 import {applyProjectCommand} from "@/lib/project/commands";
@@ -27,5 +29,10 @@ describe("V2.1 canvas change preview",()=>{
     const preview=buildCanvasChangePreview(project,{width:1080,height:1080});
     expect(preview.affected).toMatchObject({videos:1,motions:1,captions:1,broll:0,total:3});
     expect(project.project.revision).toBe(revision);
+  });
+
+  it("prevents child resize and rotate pointer-up events from committing twice",()=>{
+    const source=readFileSync(resolve(process.cwd(),"components/canvas/CanvasOverlay.tsx"),"utf8");
+    expect(source).toContain("const finish=async(event:ReactPointerEvent)=>{event.stopPropagation();");
   });
 });
