@@ -4,7 +4,7 @@ import type {Project} from "@/schemas/project";
 import type {ScriptDocument,ScriptSegment,ScriptSourceRange,TranscriptWord} from "@/schemas/script";
 
 type VideoClip=Extract<Project["tracks"][number]["clips"][number],{type:"video"}>;
-type VideoTrack=Extract<Project["tracks"][number],{type:"video"}>;
+type ProjectTrack=Project["tracks"][number];
 
 const sentenceEnd=/[.!?。！？；;:]$/u;
 
@@ -24,8 +24,8 @@ export const mergeSourceRanges=(ranges:ScriptSourceRange[]):ScriptSourceRange[]=
  * migrated/non-canonical track IDs working without assuming `video-main`.
  * Editing itself performs stricter ambiguity checks before rebuilding A-roll.
  */
-export const getProjectPrimaryVideoTrack=(project:Project):VideoTrack|undefined=>{
-  const videoTracks=project.tracks.filter((track):track is VideoTrack=>track.type==="video");
+export const getProjectPrimaryVideoTrack=(project:Project):ProjectTrack|undefined=>{
+  const videoTracks=project.tracks.filter(track=>track.type==="video");
   const populated=videoTracks.filter(track=>track.clips.some(clip=>clip.type==="video"));
   return populated.length===1?populated[0]:videoTracks[0];
 };
