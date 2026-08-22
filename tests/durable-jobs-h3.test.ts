@@ -53,7 +53,7 @@ describe("H3 durable job runtime",()=>{
     const normalize:JobExecutor=async()=>{activeNormalize++;maxNormalize=Math.max(maxNormalize,activeNormalize);await new Promise<void>(resolve=>normalizeReleases.push(resolve));activeNormalize--;return{};};
     const runtime=new DurableJobRuntime(store,{"render-final":render,"render-overlay":render,"media-normalize":normalize});
     const r1=await runtime.create({type:"render-final",projectId:"demo",input:{}});const r2=await runtime.create({type:"render-overlay",projectId:"demo",input:{}});const n1=await runtime.create({type:"media-normalize",projectId:"demo",input:{}});const n2=await runtime.create({type:"media-normalize",projectId:"demo",input:{}});
-    await waitFor(async()=>({r1:await runtime.get(r1.id),r2:await runtime.get(r2.id),n1:await runtime.get(n1.id),n2:await runtime.get(n2.id)}),state=>state.r1?.status==="running"&&state.r2?.status==="queued"&&state.n1?.status==="running"&&state.n2?.status==="running");
+    await waitFor(async()=>({r1:await runtime.get(r1.id),r2:await runtime.get(r2.id),n1:await runtime.get(n1.id),n2:await runtime.get(n2.id)}),state=>state.r1?.status==="running"&&state.r2?.status==="queued"&&state.n1?.status==="running"&&state.n2?.status==="running"&&activeRender===1&&activeNormalize===2);
     expect(maxRender).toBe(1);expect(maxNormalize).toBe(2);releaseRender();normalizeReleases.splice(0).forEach(release=>release());
     await Promise.all([r1,r2,n1,n2].map(job=>waitFor(()=>runtime.get(job.id),current=>current!==null&&isTerminalJobStatus(current.status))));
   });
