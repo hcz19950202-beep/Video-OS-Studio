@@ -126,8 +126,8 @@ export class ProjectMutationCoordinator{
       const existing=latest.get(input.operationId);
       const inputFingerprint=fingerprint(input.payload);
 
+      if(existing&&(existing.kind!==input.kind||existing.fingerprint!==inputFingerprint))throw new ProjectOperationIdReuseError(input.operationId);
       if(existing?.status==="applied"){
-        if(existing.kind!==input.kind||existing.fingerprint!==inputFingerprint)throw new ProjectOperationIdReuseError(input.operationId);
         current=await this.repository.load(input.projectId);
         return{project:current,operationId:input.operationId,appliedRevision:existing.appliedRevision,alreadyApplied:true};
       }
