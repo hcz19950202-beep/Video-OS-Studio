@@ -112,7 +112,10 @@ describe("H6 route contracts", () => {
     fakes.projectMutations.replaceProject.mockResolvedValue(mutationResult);
     const context = { params: Promise.resolve({ projectId: "h6-project" }) };
 
-    const loaded = await projectRoute.GET(new Request("http://localhost/api/projects/h6-project"), context);
+    const loaded = await projectRoute.GET(
+      new Request("http://localhost/api/projects/h6-project"),
+      context,
+    );
     expect(loaded.status).toBe(200);
     expect((await loaded.json()).project.project.id).toBe("h6-project");
 
@@ -191,7 +194,7 @@ describe("H6 route contracts", () => {
       expect(input.expectedRevision).toBe(3);
       expect(input.operationId).toBe("media-1");
       expect(input.sizeBytes).toBe(5);
-      expect([...await readFile(input.sourcePath)]).toEqual([1, 2, 3, 4, 5]);
+      expect([...(await readFile(input.sourcePath))]).toEqual([1, 2, 3, 4, 5]);
       return { project, assetId: "asset-1", normalized: false };
     });
 
@@ -313,7 +316,11 @@ describe("H6 route contracts", () => {
   });
 
   it("creates project render jobs with the request origin as asset base URL", async () => {
-    fakes.renderJobs.create.mockResolvedValue({ id: job.id, projectId: "h6-project", mode: "final" });
+    fakes.renderJobs.create.mockResolvedValue({
+      id: job.id,
+      projectId: "h6-project",
+      mode: "final",
+    });
     const response = await rendersRoute.POST(
       new Request("http://127.0.0.1:3456/api/projects/h6-project/renders", {
         method: "POST",

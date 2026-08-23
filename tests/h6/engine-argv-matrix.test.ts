@@ -64,10 +64,7 @@ describe("H6 engine argv matrix", () => {
       "--height",
       "720",
     ]);
-    expect(args.slice(args.indexOf("--fps"), args.indexOf("--fps") + 2)).toEqual([
-      "--fps",
-      "24",
-    ]);
+    expect(args.slice(args.indexOf("--fps"), args.indexOf("--fps") + 2)).toEqual(["--fps", "24"]);
     expect(args.slice(args.indexOf("--duration"), args.indexOf("--duration") + 2)).toEqual([
       "--duration",
       "240",

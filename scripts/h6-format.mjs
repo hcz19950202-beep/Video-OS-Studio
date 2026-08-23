@@ -5,7 +5,16 @@ import * as prettier from "prettier";
 const EXPECTED_PRETTIER_VERSION = "3.8.1";
 const ROOT = process.cwd();
 const write = process.argv.includes("--write");
-const supportedExtensions = new Set([".json", ".js", ".mjs", ".md", ".ts", ".tsx", ".yaml", ".yml"]);
+const supportedExtensions = new Set([
+  ".json",
+  ".js",
+  ".mjs",
+  ".md",
+  ".ts",
+  ".tsx",
+  ".yaml",
+  ".yml",
+]);
 
 const exists = async (path) => {
   try {
