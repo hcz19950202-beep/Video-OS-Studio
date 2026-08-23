@@ -81,6 +81,10 @@ export class ProjectRepository {
   }
 
   private async readOrRepairSummary(projectId:string):Promise<ProjectSummary|null>{
+    if(!(await this.fs.exists(this.projectPath(projectId)))){
+      await this.fs.removeFile(this.summaryPath(projectId)).catch(()=>undefined);
+      return null;
+    }
     try{
       const parsed=ProjectSummarySchema.parse(JSON.parse(await this.fs.readText(this.summaryPath(projectId))));
       if(parsed.id!==projectId)throw new Error("Project summary id mismatch");
