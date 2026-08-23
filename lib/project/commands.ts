@@ -68,23 +68,24 @@ export const ProjectCommandSchema=z.discriminatedUnion("type",[
 ]);
 
 export type ProjectCommand=z.infer<typeof ProjectCommandSchema>;
-export type ApplyProjectCommandOptions={now?:string;skipRevision?:boolean};
+export type ApplyProjectCommandOptions={now?:string;skipRevision?:boolean;validatedTransactionStep?:boolean};
 
 const findClip=(project:Project,clipId:string)=>project.tracks.flatMap(track=>track.clips).find(item=>item.id===clipId);
 const applyTransform=(current:typeof DEFAULT_MOTION_TRANSFORM|undefined,patch:Partial<typeof DEFAULT_MOTION_TRANSFORM>)=>MotionTransformSchema.parse({...DEFAULT_MOTION_TRANSFORM,...(current??{}),...patch});
 
-export const applyProjectCommand=(projectInput:Project,commandInput:ProjectCommand,{now=new Date().toISOString(),skipRevision=false}:ApplyProjectCommandOptions={}):Project=>{
-  const project=ProjectSchema.parse(projectInput);
-  const command=ProjectCommandSchema.parse(commandInput);
+export const applyProjectCommand=(projectInput:Project,commandInput:ProjectCommand,{now=new Date().toISOString(),skipRevision=false,validatedTransactionStep=false}:ApplyProjectCommandOptions={}):Project=>{
+  if(validatedTransactionStep&&!skipRevision)throw new Error("A validated transaction step must defer revision advancement to the transaction boundary.");
+  const project=validatedTransactionStep?projectInput:ProjectSchema.parse(projectInput);
+  const command=validatedTransactionStep?commandInput:ProjectCommandSchema.parse(commandInput);
 
   if(command.type==="restore-project-snapshot"){
     if(command.snapshot.project.id!==project.project.id)throw new Error("Project snapshot ID must match the loaded project");
     const restored=structuredClone(command.snapshot) as Project;
     if(!skipRevision){restored.project.revision=project.project.revision+1;restored.project.updatedAt=now;}
-    return ProjectSchema.parse(restored);
+    return validatedTransactionStep?restored:ProjectSchema.parse(restored);
   }
 
-  const next=structuredClone(project) as Project;
+  const next=(validatedTransactionStep?project:structuredClone(project)) as Project;
 
   switch(command.type){
     case"rename-project":next.project.name=command.name;break;
@@ -120,5 +121,5 @@ export const applyProjectCommand=(projectInput:Project,commandInput:ProjectComma
   }
 
   if(!skipRevision){next.project.revision+=1;next.project.updatedAt=now;}
-  return ProjectSchema.parse(next);
+  return validatedTransactionStep?next:ProjectSchema.parse(next);
 };
