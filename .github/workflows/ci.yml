@@ -6,32 +6,109 @@ on:
   push:
     branches: [main]
 
-jobs:
-  verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
+jobs:
+  ubuntu-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-
+      - name: Format check
+        run: npm run format:check
       - name: Lint
         run: npm run lint
-
       - name: Typecheck
         run: npm run typecheck
+      - name: Unit tests
+        run: npm run test
+      - name: Build
+        run: npm run build
 
+  windows-verify:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Format check
+        run: npm run format:check
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
       - name: Unit tests
         run: npm run test
 
-      - name: Build
-        run: npm run build
+  browser-smoke:
+    needs: ubuntu-verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Configure isolated browser data root
+        shell: bash
+        run: |
+          echo "CI=true" >> "$GITHUB_ENV"
+          echo "VIDEO_OS_DATA_ROOT=$RUNNER_TEMP/video-os-h6-e2e" >> "$GITHUB_ENV"
+      - name: Install pinned Chromium
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Playwright H6 smoke
+        run: npm run test:e2e
+
+  windows-media-smoke:
+    needs: windows-verify
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Configure isolated Windows media root
+        shell: pwsh
+        run: |
+          "H6_WINDOWS_MEDIA_SMOKE=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VIDEO_OS_DATA_ROOT=$env:RUNNER_TEMP\video-os-h6-windows-media" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Install pinned FFmpeg
+        shell: pwsh
+        run: choco install ffmpeg --version=9.0.1 -y --no-progress
+      - name: Verify media runtime
+        shell: pwsh
+        run: |
+          ffmpeg -version
+          ffprobe -version
+          $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+          if (!(Test-Path $chrome)) { throw "Chrome executable not found at $chrome" }
+      - name: Windows real-media smoke
+        run: npm run test:windows-media

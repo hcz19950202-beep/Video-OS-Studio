@@ -9,9 +9,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "format": "node scripts/h6-format.mjs --write",
+    "format:check": "node scripts/h6-format.mjs --check",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:windows-media": "vitest run tests/h6/windows-media-smoke.test.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -26,6 +30,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
