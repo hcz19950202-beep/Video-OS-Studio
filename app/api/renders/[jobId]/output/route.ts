@@ -1,16 +1,26 @@
-import {fileSystem,projectRepository,renderJobs} from "@/lib/server/runtime";
+import {projectRepository,renderJobs} from "@/lib/server/runtime";
+import {createStreamingFileResponse} from "@/lib/http/streaming-file";
+
 export const runtime="nodejs";
+export const dynamic="force-dynamic";
 type Context={params:Promise<{jobId:string}>};
 
-export async function GET(_request:Request,{params}:Context){
+const serve=async(request:Request,{params}:Context)=>{
   try{
     const{jobId}=await params;
     const job=await renderJobs.get(jobId);
     if(!job||job.status!=="completed"||!job.outputRelativePath)throw new Error("Render output is not available.");
-    const bytes=await fileSystem.readBinary(projectRepository.resolveProjectFile(job.projectId,job.outputRelativePath));
-    const buffer=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength) as ArrayBuffer;
-    return new Response(buffer,{headers:{"Content-Type":job.mode==="overlay"?"video/webm":"video/mp4","Content-Disposition":`attachment; filename="video-os-${job.mode}.${job.mode==="overlay"?"webm":"mp4"}"`}});
+    const overlay=job.mode==="overlay";
+    const path=projectRepository.resolveProjectFile(job.projectId,job.outputRelativePath);
+    return createStreamingFileResponse(request,path,{
+      mimeType:overlay?"video/webm":"video/mp4",
+      contentDisposition:`attachment; filename="video-os-${job.mode}.${overlay?"webm":"mp4"}"`,
+      cacheControl:"no-store",
+    });
   }catch(error){
-    return Response.json({error:error instanceof Error?error.message:String(error),retryable:false},{status:404});
+    return Response.json({error:error instanceof Error?error.message:String(error),retryable:false},{status:404,headers:{"X-Content-Type-Options":"nosniff"}});
   }
-}
+};
+
+export const GET=serve;
+export const HEAD=serve;
