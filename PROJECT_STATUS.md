@@ -7,18 +7,18 @@
 
 When read from `main`, this file describes the accepted checkpoint and the next allowed workstream.
 
-When read from a feature branch, status changes are proposed until the PR merges. Resolve live `main`, branch, PR, and CI SHAs from GitHub rather than making this file self-reference its own commit SHA.
+When read from a feature branch, status changes are proposed until the PR merges. Resolve live GitHub `main`, branch, PR, and CI SHAs at runtime rather than making this file self-reference its own commit SHA.
 
-## Proposed accepted checkpoint after H2 / PR #21 merge
+## Proposed accepted checkpoint after H3 / PR #22 merge
 
 ```yaml
 product_version: 2.1.0
 released_v2_1_sha: fcfb341367b6ff5e8911693483c14196386c5a93
 project_schema: 2.0.0
 current_milestone: V2.1.1 Engineering Hardening
-last_completed_workstream: H2 Engine Process Runtime
-next_allowed_workstream: H3 Durable Job Runtime
-active_workstream_on_main: none until an H3 branch/PR is opened
+last_completed_workstream: H3 Durable Job Runtime
+next_allowed_workstream: H4 Streaming Media Pipeline
+active_workstream_on_main: none until H4 branch/PR is opened
 next_product_milestone: V2.2 Workflow Runtime only after V2.1.1 release
 ```
 
@@ -28,123 +28,138 @@ Delivery history:
 R0 Repository Truth / Agent Guardrails  → PR #17 COMPLETE
 H0 Correctness Hotfix                   → PR #19 COMPLETE
 H1 Project Transaction Safety           → PR #20 COMPLETE
-H2 Engine Process Runtime               → PR #21 COMPLETE after merge
-H3 Durable Job Runtime                  → NEXT
+H2 Engine Process Runtime               → PR #21 COMPLETE
+H3 Durable Job Runtime                  → PR #22 COMPLETE after merge
+H4 Streaming Media Pipeline             → NEXT
 ```
 
-## H2 acceptance evidence
+## H3 acceptance evidence
 
 ```text
-PR: #21
-Base accepted main: 32b419d2a8010f34ed48664a9e87278eec3b36ff
-Frozen cloud input: 231a29638ad78c2962d53849146338bf56a0a696
-Local validation final head: 6e5b939a4883671422f1040d9f62e8123e9f8c2a
+PR: #22
+Base accepted H2 main: 7a832a5fb04b0826224de0acdd0e56d360e064a3
+Frozen cloud input: 74d26ab933c0421dd45c25ae5471a0ffff5ab75d
+Local validation final head: 5c9f3a5b3f5c4f196f7bde458529a39cfd73f1d2
 Local validation: PASS
-Final GitHub verify on local head: PASS
-Test files: 40
-Tests: 161
-Remotion: 4.0.513 exact
-@remotion/player: 4.0.513 exact
-@remotion/cli: 4.0.513 exact
-HyperFrames: 0.8.10 exact
+Final GitHub verify: PASS
+Final local test baseline: 42 files / 171 tests
 ```
 
 Acceptance authority:
 
 ```text
-docs/validation/LOCAL_VALIDATION_V2_1_1_H2.md
+docs/validation/LOCAL_VALIDATION_V2_1_1_H3.md
 ```
 
-H2 local acceptance proved:
+H3 local Windows acceptance proved:
 
-- literal argv with spaces, shell metacharacters, quotes, and Unicode on Windows;
-- `TOOL_TIMEOUT` and `TOOL_ABORTED` terminate owned parent + child process trees;
-- bounded stdout/stderr capture while live log callbacks continue;
-- Remotion launches through the installed package's real JavaScript bin entry, not runtime `npx --package`;
-- a real 3-second 1080x1920 H.264 Remotion render completes and ffprobe validates it;
-- real Remotion cancellation leaves no new owned Node/Chrome/FFmpeg process;
-- HyperFrames 0.8.10 runs through the installed package bin and passes doctor/lint/check/render sufficiently for product rendering;
-- a real 4-second 1080x1920 VP9 HyperFrames WebM is generated and validated;
-- HyperFrames abort/timeout cleanup succeeds;
-- FFmpeg/ffprobe probe, binary waveform, video normalization, audio normalization, abort and timeout succeed;
-- representative video-use/Python execution, abort and timeout succeed;
-- browser/application regression succeeds across real MOV import, Caption edit, Canvas edit, save/reopen, Undo/Redo, preview, Remotion render, and HyperFrames add;
-- no H2-owned residual process remains after validation.
+- durable job storage under `VIDEO_OS_DATA_ROOT/jobs/<jobId>/` with `job.json`, `stdout.log`, `stderr.log`, and `artifacts.json`;
+- durable statuses `queued / preparing / running / completed / failed / cancelled / interrupted`;
+- Job API and Render compatibility API behavior;
+- real Final and Overlay Remotion jobs;
+- active cancel through H2 AbortSignal/process-tree termination and same-job retry with incremented attempt;
+- real HyperFrames 0.8.10 job with H1-safe Project attachment;
+- real FFmpeg media-normalize job;
+- real video-use transcribe job with H1-safe Script commit;
+- normal server restart preserves completed jobs, outputs, logs, timestamps, and artifacts without rerun;
+- controlled unclean restart converts active jobs to retryable `JOB_INTERRUPTED` while queued jobs requeue;
+- scheduler limits verified: render=1, HyperFrames=1, normalize=2, transcribe=1, with cross-group concurrency;
+- durable log flush/tail behavior and artifact retry semantics;
+- stale long-job Project commits fail with `PROJECT_REVISION_CONFLICT` rather than silently overwriting current Project state;
+- representative V2.1 browser regression passed;
+- no H3-owned residual process remained.
 
-H2 local defects fixed before acceptance:
+H3 local defects fixed before acceptance:
 
 ```text
-V2.1.1-H2-LV-001
-Windows path assertion used a POSIX hard-coded path.
-Fix: use node:path join in the cross-platform package-root test.
+V2.1.1-H3-LV-001
+Windows durable metadata read/write and atomic rename contention.
+Fix: per-path serialization across reads, appends and atomic writes; repeated stress produced no EPERM/EEXIST/rename collision or leftover temp files.
 
-V2.1.1-H2-LV-002
-The first regenerated npm lock was incomplete for Ubuntu npm ci.
-Fix: add the required cross-platform @emnapi/core and @emnapi/runtime 1.11.3 optional lock entries; subsequent Ubuntu CI passed.
+V2.1.1-H3-LV-002
+Next route workers could falsely classify an active job as interrupted.
+Fix: durable runtime-owner marker plus same-root global runtime reuse so route module evaluation inside one server owner does not trigger restart recovery.
+
+V2.1.1-H3-LV-003
+Ubuntu concurrency regression could observe status before executor active counters settled.
+Fix: test waits for both durable status and executor active counts before asserting concurrency.
 ```
 
-Non-blocking H2 environment notes:
+Non-blocking H3 environment notes:
 
-- local host used Node 25.2.1 while the repository declares Node `24.x`; keep the repository declaration unchanged unless a future workstream deliberately changes support policy;
-- HyperFrames optional Docker / whisper / TTS / BGM tooling is not required for the accepted H2 product path;
-- two existing `@next/next/no-img-element` lint warnings remain non-blocking.
+- local validation used Node 25.2.1 while repository declares Node `24.x`; repository engine declaration remains unchanged;
+- two pre-existing `@next/next/no-img-element` lint warnings remain non-blocking;
+- synthetic tone transcription produced zero words, but the real video-use process, transcript artifacts, packed transcript, and H1 Script commit path all completed successfully.
+
+## H3 accepted behavior
+
+H3 establishes the durable long-running execution foundation required by V2.1.1:
+
+- long-running work is represented by durable job records rather than request-local in-memory state;
+- supported job types are `render-final`, `render-overlay`, `hyperframes-render`, `media-normalize`, and `video-use-transcribe`;
+- default concurrency groups are render=1, HyperFrames=1, normalize=2, transcribe=1;
+- active cancellation propagates through accepted H2 ToolRunner semantics;
+- retry keeps the same job ID, increments attempt, retains history logs, clears transient result/artifact metadata, and does not delete actual media files;
+- queued jobs survive restart; previously active jobs become `interrupted` after a true server-owner restart;
+- persistent logs and artifacts remain queryable across restart;
+- long mutating jobs attach Project results through accepted H1 expectedRevision/operationId safety;
+- existing Render routes remain compatibility wrappers over Durable Job Runtime.
+
+## H4 next scope gate
+
+H4 owns **Streaming Media Pipeline** and may begin only after PR #22 merges and the new accepted `main` SHA is resolved from GitHub.
+
+Required direction from the Master PRD:
+
+```text
+Upload:
+browser File stream
+→ temp file
+→ byte-limit enforcement
+→ probe
+→ optional normalize Job
+→ Asset registration
+
+Asset/output GET:
+stat
+→ parse Range
+→ createReadStream(start,end)
+→ 206
+```
+
+H4 must remove GB-scale whole-file buffering from upload and serving paths.
+
+H4 acceptance must cover:
+
+- no `File.arrayBuffer()` for large upload paths;
+- streaming temp-file upload with size enforcement and cleanup;
+- streaming GET/HEAD for assets and render outputs;
+- correct 200/206/416 semantics;
+- `Content-Length`, `Content-Range`, `Accept-Ranges`, canonical server MIME, and `X-Content-Type-Options: nosniff`;
+- multiple Range forms including open-ended and suffix ranges;
+- real large-media Windows upload/serve tests;
+- Node heap/RSS evidence showing memory does not scale approximately 1:1 with media file size;
+- no regression to H1 transaction safety, H2 engine execution, or H3 durable-job output behavior.
+
+H4 must **not** absorb H5 orphan cleanup/data integrity, H6 broad CI/Playwright expansion, H7 frontend consolidation, Project Schema changes, or V2.2 Workflow Runtime.
 
 ## H2 accepted behavior
 
-H2 establishes deterministic external-engine execution:
-
-- shared `NodeToolRunner` uses `spawn(command, argv)` with `shell:false`;
-- tool runs expose PID, exit code/signal, duration, bounded diagnostics, live logs, timeout, and AbortSignal cancellation;
-- Windows owned process trees terminate through `taskkill /PID <pid> /T /F`;
-- Unix owned process groups use TERM → KILL fallback;
-- structured `TOOL_TIMEOUT` and `TOOL_ABORTED` survive engine adapter boundaries;
-- FFmpeg binary stdout is supported without maxBuffer-style whole-output failure;
-- Remotion, HyperFrames, FFmpeg/ffprobe, and video-use/Python share the same process lifecycle contract;
-- npm CLIs resolve from the package's actual JavaScript `bin` entry and execute through Node, avoiding `.cmd` shell wrappers;
-- normal Remotion and HyperFrames product runtime no longer depends on unpinned runtime `npx` package downloads;
-- Remotion runtime packages are aligned exactly at `4.0.513`;
-- HyperFrames is pinned at the locally validated exact version `0.8.10`.
-
-## H3 next scope gate
-
-H3 may begin only after PR #21 merges and the new accepted `main` SHA is resolved from GitHub.
-
-H3 owns **Durable Job Runtime**. Required direction from the Master PRD:
+H2 acceptance authority:
 
 ```text
-statuses:
-queued / preparing / running / completed / failed / cancelled / interrupted
-
-storage:
-VIDEO_OS_DATA_ROOT/jobs/<jobId>/job.json
-VIDEO_OS_DATA_ROOT/jobs/<jobId>/stdout.log
-VIDEO_OS_DATA_ROOT/jobs/<jobId>/stderr.log
-VIDEO_OS_DATA_ROOT/jobs/<jobId>/artifacts.json
-
-job types:
-render-final
-render-overlay
-hyperframes-render
-media-normalize
-video-use-transcribe
+docs/validation/LOCAL_VALIDATION_V2_1_1_H2.md
 ```
 
-H3 must add durable job records, cancellation/retry APIs, real progress/stages, bounded concurrency, and restart recovery. It must build on the H2 ToolRunner rather than reintroducing engine-specific process management.
+H2 establishes deterministic external-engine execution:
 
-H3 must **not** absorb H4 streaming media, H5 orphan cleanup/data hardening, H6 Windows CI expansion, or unrelated editor features into the same PR.
+- shared `NodeToolRunner` uses argv-safe `spawn(..., {shell:false})`;
+- timeout/abort, PID metadata, bounded diagnostics, live logs, and Windows process-tree termination are unified;
+- Remotion / HyperFrames / FFmpeg / ffprobe / video-use share the same process lifecycle contract;
+- Remotion runtime packages are pinned exactly at `4.0.513`;
+- HyperFrames is pinned exactly at `0.8.10`.
 
 ## H1 accepted behavior
-
-H1 established the no-silent-lost-update foundation:
-
-- all durable Project writers use `expectedRevision` and stable operation identifiers;
-- per-Project mutation serialization prevents silent overwrite;
-- stale writes return structured `409 PROJECT_REVISION_CONFLICT`;
-- duplicate identical operations apply at most once;
-- operation IDs remain bound to their original payload;
-- `operations.jsonl` records pending/applied/aborted audit semantics;
-- normal Save does not whole-project PUT;
-- Caption Issue #11 was proven fixed with real interleaved stale-write Windows acceptance.
 
 H1 acceptance authority:
 
@@ -152,9 +167,17 @@ H1 acceptance authority:
 docs/validation/LOCAL_VALIDATION_V2_1_1_H1.md
 ```
 
+H1 establishes no-silent-lost-update Project mutation safety with per-Project serialization, `expectedRevision`, stable operation IDs, structured 409 conflicts, idempotency, and revision-safe long-job attachment.
+
 ## H0 accepted behavior
 
-H0 established safe Script A-roll rebuild boundaries, bounded/minimal Caption commits, explicit Linked → Clip → Brand style resolution, and Canvas mutation error/draft cleanup.
+H0 acceptance authority:
+
+```text
+docs/validation/LOCAL_VALIDATION_V2_1_1_H0.md
+```
+
+H0 establishes safe Script A-roll rebuild boundaries, bounded/minimal Caption commits, Linked → Clip → Brand style resolution, and Canvas mutation error/draft cleanup.
 
 ## Architecture invariants
 
@@ -190,11 +213,10 @@ And:
 
 ### Local Codex owns
 
-- Windows-only verification and fixes;
-- real Remotion/HyperFrames/FFmpeg/video-use processes;
-- Chrome/browser behavior;
-- real media/render artifacts;
-- process-tree, restart, persistence, and performance evidence when required by the active validation contract.
+- Windows-only verification and active-workstream fixes;
+- real browser/media/engine behavior;
+- filesystem/process/restart/performance evidence;
+- real large-media memory evidence for H4.
 
 ## Handoff protocol
 
@@ -212,7 +234,7 @@ Local Codex
 → checkout exact frozen SHA
 → follow the active validation contract
 → fix only active-workstream defects
-→ push exact code/dependency/docs commits to the same branch
+→ push exact code/docs commits to the same branch
 → return FINAL HEAD + evidence
 
 GPT Web
@@ -226,7 +248,9 @@ GPT Web
 ## Current known follow-ups
 
 - H1 deliberate stale imports left orphan media pairs; cleanup remains H5 scope.
+- current upload and asset/render output serving still have whole-file buffering paths; H4 owns their streaming rewrite.
 - two existing `@next/next/no-img-element` lint warnings remain non-blocking.
+- repository runtime engine declaration remains Node `24.x`.
 - Issue #10 is closed by V2.1 MOV normalization.
 - Issue #11 is closed by H0 + H1 stale Caption protection.
 - PR #13 is closed as superseded by the V2.1 release path.
@@ -238,23 +262,17 @@ Do not start:
 - real external AI Provider;
 - broad AI Command Bar;
 - V2.2 Workflow Runtime implementation;
-- multi-timeline;
-- arbitrary docking;
-- full Crop / Mask engine;
-- transition suite;
-- generated-media marketplace;
-- cloud collaboration;
-- HDR / advanced color pipeline;
-- desktop packaging work;
-- large UI rewrite unrelated to active hardening defects.
+- unrelated major editor features;
+- Project Schema migration without an approved migration decision.
 
 ## Read order for agents
 
-1. `PROJECT_STATUS.md`
-2. `AGENTS.md`
-3. `SYSTEM.md`
-4. `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`
-5. active validation contract when one exists
-6. current GitHub main / active PR / CI state
+1. resolve current GitHub `main`, branch, PR, and CI state;
+2. `PROJECT_STATUS.md`;
+3. `AGENTS.md`;
+4. `SYSTEM.md`;
+5. `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`;
+6. active validation contract when one exists;
+7. active PR diff/CI.
 
 If another document conflicts with this file, stop and resolve the conflict instead of guessing.

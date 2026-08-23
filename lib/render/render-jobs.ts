@@ -1,1 +1,59 @@
-import {randomUUID} from "node:crypto";import type {RemotionRenderAdapter} from "@/adapters/contracts";import type {ProjectRepository} from "@/lib/project/repository";import {ExportProfileSchema,projectForExportProfile,type ExportProfile,type ResolvedExportProfile} from "@/lib/render/profile";export type RenderMode="final"|"overlay";export type RenderJob={id:string;projectId:string;mode:RenderMode;status:"queued"|"running"|"completed"|"failed";progress:number;outputRelativePath?:string;error?:string;profile?:ResolvedExportProfile;createdAt:string;updatedAt:string};export class RenderJobManager{private readonly jobs=new Map<string,RenderJob>();constructor(private readonly adapter:RemotionRenderAdapter,private readonly repository:ProjectRepository){}create(projectId:string,mode:RenderMode,assetBaseUrl:string,profileInput?:Partial<ExportProfile>){const id=randomUUID();const now=new Date().toISOString();const profile=mode==="final"?ExportProfileSchema.parse(profileInput??{}):undefined;const job:RenderJob={id,projectId,mode,status:"queued",progress:0,createdAt:now,updatedAt:now};this.jobs.set(id,job);void this.execute(job,assetBaseUrl,profile);return job;}get(id:string){return this.jobs.get(id)??null;}private patch(id:string,patch:Partial<RenderJob>){const current=this.jobs.get(id);if(!current)return;this.jobs.set(id,{...current,...patch,updatedAt:new Date().toISOString()});}private async execute(job:RenderJob,assetBaseUrl:string,profileInput?:Partial<ExportProfile>){this.patch(job.id,{status:"running",progress:.1});try{const sourceProject=await this.repository.load(job.projectId);const prepared=job.mode==="final"?projectForExportProfile(sourceProject,profileInput):{project:sourceProject,profile:undefined};const project=prepared.project;const profile=prepared.profile;const ext=job.mode==="overlay"?"webm":"mp4";const suffix=profile?`-${profile.width}x${profile.height}-${profile.fps}fps`:"";const relativePath=`render/${job.mode}${suffix}-${job.id}.${ext}`;const outputPath=this.repository.resolveProjectFile(job.projectId,relativePath);this.patch(job.id,{progress:.2,outputRelativePath:relativePath,...(profile?{profile}:{})});await this.adapter.render({project,outputPath,mode:job.mode,assetBaseUrl,quality:profile?.quality,includeAudio:profile?.audio!=="none"});this.patch(job.id,{status:"completed",progress:1});}catch(error){this.patch(job.id,{status:"failed",progress:0,error:error instanceof Error?error.message:String(error)});}}}
+import type {DurableJobRuntime} from "@/lib/jobs/runtime";
+import type {JobRecord,JobStatus} from "@/lib/jobs/schema";
+import {ExportProfileSchema,type ExportProfile,type ResolvedExportProfile} from "@/lib/render/profile";
+
+export type RenderMode="final"|"overlay";
+export type RenderJob={
+  id:string;
+  projectId:string;
+  mode:RenderMode;
+  status:JobStatus;
+  stage:string;
+  progress:number;
+  attempt:number;
+  outputRelativePath?:string;
+  error?:string;
+  profile?:ResolvedExportProfile;
+  createdAt:string;
+  updatedAt:string;
+  startedAt?:string;
+  finishedAt?:string;
+};
+
+const asObject=(value:unknown):Record<string,unknown>|undefined=>value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:undefined;
+const projectRenderJob=(record:JobRecord|null):RenderJob|null=>{
+  if(!record||!record.projectId||!(record.type==="render-final"||record.type==="render-overlay"))return null;
+  const output=record.output??{};
+  const rawProfile=asObject(output.profile);
+  const profile=rawProfile?ExportProfileSchema.safeParse(rawProfile):undefined;
+  return{
+    id:record.id,
+    projectId:record.projectId,
+    mode:record.type==="render-overlay"?"overlay":"final",
+    status:record.status,
+    stage:record.stage,
+    progress:record.progress,
+    attempt:record.attempt,
+    outputRelativePath:typeof output.outputRelativePath==="string"?output.outputRelativePath:undefined,
+    error:record.error?.message,
+    profile:profile?.success?profile.data as ResolvedExportProfile:undefined,
+    createdAt:record.createdAt,
+    updatedAt:record.updatedAt,
+    startedAt:record.startedAt,
+    finishedAt:record.finishedAt,
+  };
+};
+
+export class RenderJobManager{
+  constructor(private readonly jobs:DurableJobRuntime){}
+
+  async create(projectId:string,mode:RenderMode,assetBaseUrl:string,profileInput?:Partial<ExportProfile>){
+    const profile=mode==="final"?ExportProfileSchema.partial().parse(profileInput??{}):undefined;
+    const record=await this.jobs.create({type:mode==="final"?"render-final":"render-overlay",projectId,input:{assetBaseUrl,...(profile?{profile}:{})}});
+    return projectRenderJob(record)!;
+  }
+
+  async get(id:string){return projectRenderJob(await this.jobs.get(id));}
+  async cancel(id:string){return projectRenderJob(await this.jobs.cancel(id));}
+  async retry(id:string){return projectRenderJob(await this.jobs.retry(id));}
+}
