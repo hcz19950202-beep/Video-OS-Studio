@@ -33,6 +33,12 @@ export class NodeFileSystemAdapter implements FileSystemAdapter {
     return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
   }
 
+  async listFiles(path:string):Promise<string[]>{
+    if(!(await this.exists(path)))return[];
+    const entries=await readdir(path,{withFileTypes:true});
+    return entries.filter(entry=>entry.isFile()).map(entry=>entry.name);
+  }
+
   async writeBinary(path: string, content: Uint8Array): Promise<void> {
     await this.ensureDir(dirname(path));
     await writeFile(path, content);
@@ -49,6 +55,8 @@ export class NodeFileSystemAdapter implements FileSystemAdapter {
       await rm(sourcePath,{force:true});
     }
   }
+
+  async removeFile(path:string):Promise<void>{await rm(path,{force:true});}
 
   async writeTextAtomic(path: string, content: string, backupPath?: string): Promise<void> {
     const previous = this.writeChains.get(path) ?? Promise.resolve();
@@ -123,6 +131,12 @@ export class InMemoryFileSystemAdapter implements FileSystemAdapter {
     return [...directories];
   }
 
+  async listFiles(path:string):Promise<string[]>{
+    const root=this.key(path).replace(/\/$/,"");const prefix=`${root}/`;const names=new Set<string>();
+    for(const key of[...this.files.keys(),...this.binaryFiles.keys()]){if(!key.startsWith(prefix))continue;const rest=key.slice(prefix.length);if(rest&&!rest.includes("/"))names.add(rest);}
+    return[...names];
+  }
+
   async writeBinary(path: string, content: Uint8Array): Promise<void> {
     this.binaryFiles.set(this.key(path), new Uint8Array(content));
   }
@@ -135,6 +149,8 @@ export class InMemoryFileSystemAdapter implements FileSystemAdapter {
     if(text!==undefined){this.files.set(targetKey,text);this.files.delete(sourceKey);return;}
     throw new Error(`File not found: ${sourcePath}`);
   }
+
+  async removeFile(path:string):Promise<void>{const key=this.key(path);this.files.delete(key);this.binaryFiles.delete(key);}
 
   async writeTextAtomic(path: string, content: string, backupPath?: string): Promise<void> {
     const targetKey = this.key(path);

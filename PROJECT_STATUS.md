@@ -9,16 +9,17 @@ When read from `main`, this file describes the accepted checkpoint and the next 
 
 When read from a feature branch, status changes are proposed until the PR merges. Resolve live GitHub `main`, branch, PR, and CI SHAs at runtime rather than making this file self-reference its own commit SHA.
 
-## Proposed accepted checkpoint after H4 / PR #23 merge
+## Proposed accepted checkpoint after H5 / PR #24 merge
 
 ```yaml
 product_version: 2.1.0
 released_v2_1_sha: fcfb341367b6ff5e8911693483c14196386c5a93
 project_schema: 2.0.0
 current_milestone: V2.1.1 Engineering Hardening
-last_completed_workstream: H4 Streaming Media Pipeline
-next_allowed_workstream: H5 Project / Data Hardening
-active_workstream_on_main: none until H5 branch/PR is opened
+accepted_main_before_h5: e1808e80cf7313fc067fe4b4ada6d3e299a45543
+last_completed_workstream: H5 Project / Data Hardening
+next_allowed_workstream: H6 Automated Acceptance
+h7_status: BLOCKED until H6 acceptance
 next_product_milestone: V2.2 Workflow Runtime only after V2.1.1 release
 ```
 
@@ -30,239 +31,152 @@ H0 Correctness Hotfix                   → PR #19 COMPLETE
 H1 Project Transaction Safety           → PR #20 COMPLETE
 H2 Engine Process Runtime               → PR #21 COMPLETE
 H3 Durable Job Runtime                  → PR #22 COMPLETE
-H4 Streaming Media Pipeline             → PR #23 COMPLETE after merge
-H5 Project / Data Hardening             → NEXT
-H6 Automated Acceptance                 → BLOCKED
+H4 Streaming Media Pipeline             → PR #23 COMPLETE
+H5 Project / Data Hardening             → PR #24 ACCEPTED PENDING MERGE
+H6 Automated Acceptance                 → NEXT AFTER PR #24 MERGES
 H7 Frontend Consolidation               → BLOCKED
 ```
 
-## H4 acceptance evidence
+## H5 acceptance evidence
 
 ```text
-PR: #23
-Base accepted H3 main: 0abaa07d715087631644f62e7e6d6c075125a1b3
-Frozen cloud input: eb308a9752af911b0d1e3d2d1ebce9607389df15
-Local validation final head: bd956893c32a49ed8a80d15d3eeee34ed6e55fad
+PR: #24
+Branch: hardening/v2.1.1-h5-project-data-hardening
+Base accepted H4 main: e1808e80cf7313fc067fe4b4ada6d3e299a45543
+Frozen cloud input: 43969af857f63f9fe6268d148dc3f76ab40ad6e1
+Cloud freeze CI: Run 32620743837 PASS
+Cloud freeze tests: 48 files / 206 tests
+Local validation final head: 68f7459c5ad422441b9e55ee1a5120d8d7c10552
 Local validation: PASS
-Final GitHub verify: Run 32618434045 PASS
-Final local test baseline: 43 files / 179 tests
+Final local test baseline: 49 files / 208 tests
+Final GitHub verify: Run 32622990083 PASS
 ```
 
 Acceptance authority:
 
 ```text
-docs/validation/LOCAL_VALIDATION_V2_1_1_H4.md
+docs/validation/LOCAL_VALIDATION_V2_1_1_H5.md
 ```
 
-H4 local Windows/large-media acceptance proved:
+H5 local Windows/data acceptance proved:
 
-- normal Studio media import uses raw browser `File` body rather than multipart `FormData`;
-- server receives `request.body` as a stream and stages progressively under Project `.uploads/`;
-- a 379.86 MB real upload produced only 15.22 MB Next-server RSS delta (`0.0401×` file size);
-- validation helper upload RSS/file ratio was `0.1786`, heap/file ratio `0.0000`;
-- aborted upload cleans partial `.part`, does not mutate Project state, and later upload recovers;
-- declared >2 GB request returns 413 / `MEDIA_UPLOAD_TOO_LARGE` with no retained temp file or Project mutation;
-- native MP4 and MOV → normalized MP4 paths both pass;
-- stale upload commit returns `PROJECT_REVISION_CONFLICT` and preserves the newer Project revision;
-- Asset GET/HEAD uses streaming semantics and full Range matrix passes with exact bytes;
-- large Asset server RSS/file ratio was `0.0267`; helper RSS/file ratio `0.1883`, heap/file ratio `0.0078`;
-- browser playback/seek generated real Range requests and 206 responses;
-- durable Final Render output GET/HEAD/Range passes without deleting H3 artifacts;
-- canonical MIME and `X-Content-Type-Options: nosniff` pass;
-- no H4 `.part` files, file handles, owned Node/FFmpeg/curl processes, or blocking failures remained;
-- representative H0/H1/H2/H3 application behavior remained healthy.
+- frozen historical V1 schema remains independent from mutable current Asset/Clip schemas;
+- explicit migration chain works, unknown versions fail, and duplicate source-version registration is rejected;
+- Project-wide referential integrity rejects duplicate IDs, missing Assets, invalid Linked/scene styles, and invalid timeline/source bounds;
+- multi-command transactions preserve H1 revision/idempotency semantics and advance revision exactly once;
+- History uses bounded entry/byte budgets, correct redo invalidation, and revision guards;
+- stale Timeline Undo conflict reloads latest Project without an unhandled Promise rejection;
+- Recent Projects use lightweight summaries, repair missing summaries from durable `project.json`, and remove ghost summaries when `project.json` is absent;
+- real Windows MOV normalization followed by stale mutation conflict removes only the failed import's original/working candidates and preserves the newer Project edit;
+- failed normalization removes its original/partial working candidates without mutating Project revision or deleting unrelated files;
+- orphan maintenance dry-run reports only owned `media-*` candidates;
+- cleanup requires explicit idle confirmation, current expectedRevision, and no active durable Project jobs;
+- cleanup protects current Project Asset/original paths, H3 durable job artifacts, unrelated files, and Project JSON;
+- four controlled orphans were removed and the second dry-run was empty;
+- no H5 `.tmp/.part/.partial` residue or H5-owned Node/FFmpeg process remained;
+- representative Create/Open, MP4/MOV/SRT import, Caption, Canvas, Timeline, Save/Reopen, Undo/Redo, playback/seek and HyperFrames regression passed.
 
-Non-blocking H4 notes:
+H5 local defect fixed:
+
+```text
+V2.1.1-H5-LV-001
+stale Timeline Undo correctly reloaded latest Project after 409,
+but the void Promise escaped as an unhandled rejection.
+Fix: contain expected PROJECT_REVISION_CONFLICT at the History action boundary,
+while preserving unexpected failures.
+Regression: tests/history-actions-h5.test.ts
+Commit: 717d9f5f9e2a172de32bb128e5df2a07144acf27
+```
+
+Non-blocking H5 notes:
 
 - local validation used Node 25.2.1 while repository declares Node `24.x`;
 - two pre-existing `@next/next/no-img-element` lint warnings remain;
-- one early transient `Controller is already closed` abort diagnostic was not reproduced in the final production abort rerun; server cleanup/recovery remained healthy;
-- stale revision/import tests can leave already-moved/normalized media before mutation conflict; cleanup remains H5 scope by design.
+- expected stale-writer 409 responses are part of the accepted H1/H5 safety behavior.
 
-## H4 accepted behavior
+## H5 accepted behavior
 
-H4 establishes bounded large-media IO for the local-first workstation pipeline:
+### Historical schemas and migrations
 
-```text
-Upload:
-browser File body
-→ request.body stream
-→ .uploads/<uuid>.part
-→ byte-limit enforcement
-→ staged MediaImportService
-→ probe / optional normalize
-→ H1-safe Project registration
+- historical V1 input contracts are physically frozen from mutable current Asset/Clip schemas;
+- migrations register explicit source → target steps;
+- duplicate registration for one source version is rejected;
+- final current Project still validates through `ProjectSchema`;
+- Project Schema remains `2.0.0` in V2.1.1.
 
-Asset/output serving:
-stat
-→ parse single Range
-→ createReadStream(start,end)
-→ Web stream
-→ 200 / 206 / 416
-```
+### Project integrity
 
-Accepted constraints:
-
-- no normal large upload path uses `File.arrayBuffer()` / whole-file `Uint8Array` buffering;
-- one byte range is supported; multipart/byteranges is not required;
-- GET/HEAD include correct `Content-Length`, Range metadata, canonical server MIME, and `nosniff`;
-- H3 durable render outputs remain durable while being streamed;
-- H4 does not solve orphan cleanup or historical schema integrity.
-
-## H5 next scope gate
-
-H5 owns **Project / Data Hardening**. It may begin only after PR #23 merges and the new accepted `main` SHA is resolved from GitHub.
-
-Required direction from the Master PRD:
-
-### 1. Freeze historical schemas
-
-`project-v1.ts` must not import mutable current `ClipSchema` / `AssetSchema` as its historical input contract.
-
-Historical input contracts must be frozen so future current-schema changes cannot silently change what V1 migration accepts.
-
-### 2. Chain migrations
-
-Replace direct special-casing of old versions to `CURRENT_PROJECT_VERSION` with explicit version-to-version migration registration.
-
-Target shape:
-
-```text
-V1
-→ V2
-→ V3 ...
-```
-
-Each migration step owns one source contract and one target contract.
-
-### 3. Referential integrity
-
-Final Project validation must cover at least:
+Final Project validation includes:
 
 - unique Asset IDs;
 - unique Track IDs;
 - globally unique Clip IDs;
-- asset-backed Clip references exist;
-- `linkedStyle` references exist and target type matches;
-- scene style references exist;
+- asset-backed Clip references;
+- Linked Style existence/type compatibility;
+- scene style references;
 - Clip timeline bounds;
-- source bounds where source metadata is available.
+- source bounds when source duration metadata exists.
 
-Invalid references must be rejected before durable save rather than discovered later by the UI/render path.
+### Transactions and History
 
-### 4. Transaction efficiency
+- transactions validate/clone at transaction boundaries instead of performing full Project validation/cloning once per command;
+- H1 expectedRevision/idempotency remains authoritative;
+- History remains snapshot-based for V2.1.1, with bounded count/byte budgets and revision-safe Undo/Redo;
+- no event-sourcing rewrite was introduced.
 
-Avoid full-project parse/clone/validation N times for an N-command transaction.
+### Recent Projects
 
-Target behavior:
+- `project.json` remains durable Project truth;
+- `project.summary.json` is a rebuildable cache only;
+- normal Recent refresh can use summaries without parsing every full Project;
+- missing summaries repair from durable Project JSON;
+- summaries without durable Project JSON do not create ghost Recent entries.
 
-```text
-validate/clone at transaction boundary
-→ apply bounded command sequence
-→ validate final Project once
-```
+### Media/data cleanup
 
-Correctness from H1 must remain unchanged.
+- failed imports compensate only their own known candidate paths after re-checking latest Project references;
+- explicit maintenance scans only MediaImport-owned `media-*` files under `input/assets/original/captions`;
+- current Project media and durable job artifacts are protected;
+- destructive cleanup requires current revision, explicit idle confirmation, and no active Project jobs;
+- maintenance is explicit/dry-run-first, not an automatic startup cleaner.
 
-### 5. History hardening
+## H6 next scope gate
 
-Do **not** rewrite Undo/Redo into event sourcing in V2.1.1.
+H6 owns **Automated Acceptance** and may begin only after PR #24 merges and the new accepted `main` SHA is resolved from GitHub.
 
-Instead:
-
-- lower/bound entry count when needed;
-- add memory/byte budget;
-- remove redundant clones;
-- add revision guards;
-- preserve correct redo invalidation.
-
-### 6. Recent Project index
-
-Avoid parsing every full Project JSON on every Recent Project refresh.
-
-Maintain lightweight current summary metadata/index sufficient for Recent Project listing while keeping `project.json` as durable project truth.
-
-### 7. Orphan media/data cleanup
-
-H5 owns the orphan media created by failed/stale imports after files were already staged/moved/normalized.
-
-Cleanup must be conservative and must never delete media still referenced by the current Project or durable artifacts.
-
-## H5 acceptance direction
-
-Cloud-safe correctness tests should cover:
+Master PRD target:
 
 ```text
-frozen V1 fixture remains accepted by V1 contract
-current schema changes cannot alter V1 input contract
-migration chain executes step-by-step
-invalid duplicate IDs rejected
-missing Asset references rejected
-invalid Linked/scene style references rejected
-invalid timeline/source bounds rejected
-multi-command transaction preserves H1 revision/idempotency semantics
-history budget/revision/redo invalidation behavior
-Recent Project listing avoids full Project parse path
-orphan cleanup preserves referenced media and removes only provably unreferenced owned media
+Cloud CI:
+Ubuntu: install / format-check / lint / typecheck / unit / build
+Windows: install / format-check / lint / typecheck / unit
 ```
 
-Local Codex is required only for H5 checks that depend on real Windows filesystem behavior, real historical local Project folders, or safe cleanup semantics not fully reproducible in cloud tests. GPT Web must explicitly freeze a green H5 SHA before any local H5 validation.
+Required H6 direction:
 
-H5 must **not** absorb:
+1. add workflow concurrency so obsolete runs for the same branch/PR are cancelled;
+2. introduce formatter/format-check in a formatting-only commit before mixing broad formatting with logic changes;
+3. add/strengthen minimum route tests for commands, transactions, media, asset Range, jobs/renders, project load/save;
+4. add/strengthen engine argv tests for Remotion final/overlay/custom export/muted, HyperFrames, FFmpeg normalize, Windows launcher;
+5. add Playwright smoke for Create/Open, tiny import, Caption edit, Canvas change, AI rules Analyze/Apply, Undo/Redo, Save/Reopen;
+6. add Windows media smoke for tiny MP4, MOV, image, audio, subtitle, normalize/probe/Range and a short Final Render;
+7. retain the local-first security boundary and do not turn H6 into product/UI feature work.
 
-- H6 broad Windows CI / Playwright matrix;
+H6 must not absorb:
+
 - H7 frontend consolidation;
-- Project Schema version change unless an approved migration decision explicitly requires it;
-- real external AI Provider;
 - V2.2 Workflow Runtime;
-- unrelated editor feature work.
+- real external AI Provider;
+- Project Schema version changes;
+- unrelated editor/UI redesign.
 
-## H3 accepted behavior
+## Accepted prior foundations
 
-Acceptance authority:
-
-```text
-docs/validation/LOCAL_VALIDATION_V2_1_1_H3.md
-```
-
-H3 established durable file-backed jobs, cancellation/retry/restart recovery, bounded concurrency, durable logs/artifacts, real engine jobs, and H1-safe long-job Project attachment.
-
-## H2 accepted behavior
-
-Acceptance authority:
-
-```text
-docs/validation/LOCAL_VALIDATION_V2_1_1_H2.md
-```
-
-H2 established deterministic shared ToolRunner execution and exact runtime pins:
-
-```text
-remotion             4.0.513
-@remotion/player     4.0.513
-@remotion/cli        4.0.513
-hyperframes          0.8.10
-```
-
-## H1 accepted behavior
-
-Acceptance authority:
-
-```text
-docs/validation/LOCAL_VALIDATION_V2_1_1_H1.md
-```
-
-H1 established per-Project serialization, `expectedRevision`, stable operation IDs, idempotency, structured revision conflicts, and revision-safe long-task attachment.
-
-## H0 accepted behavior
-
-Acceptance authority:
-
-```text
-docs/validation/LOCAL_VALIDATION_V2_1_1_H0.md
-```
-
-H0 established safe Script A-roll rebuild boundaries, bounded/minimal Caption commits, Linked → Clip → Brand style resolution, and Canvas mutation error/draft cleanup.
+- H4: streaming browser upload, Asset/output Range serving, bounded large-media memory. Authority: `docs/validation/LOCAL_VALIDATION_V2_1_1_H4.md`.
+- H3: durable file-backed Jobs, cancellation/retry/restart recovery/concurrency/logs/artifacts. Authority: `docs/validation/LOCAL_VALIDATION_V2_1_1_H3.md`.
+- H2: deterministic ToolRunner and exact engine pins: Remotion `4.0.513`, HyperFrames `0.8.10`. Authority: `docs/validation/LOCAL_VALIDATION_V2_1_1_H2.md`.
+- H1: per-Project serialization, expectedRevision, operation IDs, idempotency, structured conflicts. Authority: `docs/validation/LOCAL_VALIDATION_V2_1_1_H1.md`.
+- H0: safe Script rebuild, minimal Inspector commits, style precedence and Canvas error cleanup. Authority: `docs/validation/LOCAL_VALIDATION_V2_1_1_H0.md`.
 
 ## Architecture invariants
 
@@ -292,16 +206,16 @@ And:
 - architecture and PRD decisions;
 - cloud-safe implementation;
 - branch/PR/CI/review/merge;
-- cloud unit/contract tests;
+- cloud unit/API/contract/automation tests;
 - review of local Codex fixes;
 - accepted checkpoint maintenance.
 
 ### Local Codex owns
 
-- Windows-only verification and active-workstream fixes;
+- Windows-specific runtime acceptance;
 - real browser/media/engine behavior;
 - filesystem/process/performance evidence;
-- real local-data cleanup validation where cloud evidence is insufficient.
+- Windows media/render smoke and active-workstream defect fixes.
 
 ## Handoff protocol
 
@@ -329,16 +243,6 @@ GPT Web
 → merge
 → only then open the next workstream
 ```
-
-## Current known follow-ups
-
-- H5 owns conservative cleanup of stale-import/orphan media created after files were already staged/moved/normalized but before a failed mutation commit.
-- H5 owns frozen historical Project schemas, chained migrations, stronger referential integrity, transaction efficiency, history budget/revision guards, and Recent Project indexing.
-- two existing `@next/next/no-img-element` lint warnings remain non-blocking.
-- repository runtime engine declaration remains Node `24.x`.
-- Issue #10 is closed by V2.1 MOV normalization.
-- Issue #11 is closed by H0 + H1 stale Caption protection.
-- PR #13 is closed as superseded by the V2.1 release path.
 
 ## Blocked until V2.1.1 is complete
 

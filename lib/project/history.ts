@@ -16,20 +16,23 @@ export type ProjectHistoryEntry={
   after:Project;
 };
 
+const applyValidatedTransaction=(original:Project,transaction:ProjectCommandTransaction,now:string):Project=>{
+  let working=structuredClone(original) as Project;
+  for(const command of transaction.commands as ProjectCommand[])working=applyProjectCommand(working,command,{now,skipRevision:true,validatedTransactionStep:true});
+  working.project.revision=original.project.revision+1;
+  working.project.updatedAt=now;
+  return ProjectSchema.parse(working);
+};
+
 export const applyProjectCommandTransaction=(projectInput:Project,transactionInput:ProjectCommandTransaction,{now=new Date().toISOString()}:{now?:string}={}):Project=>{
   const original=ProjectSchema.parse(projectInput);
   const transaction=ProjectCommandTransactionSchema.parse(transactionInput);
-  let working=structuredClone(original) as Project;
-  for(const command of transaction.commands as ProjectCommand[])working=applyProjectCommand(working,command,{now,skipRevision:true});
-  const next=structuredClone(working) as Project;
-  next.project.revision=original.project.revision+1;
-  next.project.updatedAt=now;
-  return ProjectSchema.parse(next);
+  return applyValidatedTransaction(original,transaction,now);
 };
 
 export const createProjectHistoryEntry=(before:Project,transaction:ProjectCommandTransaction,options?:{now?:string}):ProjectHistoryEntry=>{
   const parsedBefore=ProjectSchema.parse(before);
   const parsedTransaction=ProjectCommandTransactionSchema.parse(transaction);
-  const after=applyProjectCommandTransaction(parsedBefore,parsedTransaction,options);
-  return{transaction:parsedTransaction,before:structuredClone(parsedBefore),after:structuredClone(after)};
+  const after=applyValidatedTransaction(parsedBefore,parsedTransaction,options?.now??new Date().toISOString());
+  return{transaction:parsedTransaction,before:parsedBefore,after};
 };
