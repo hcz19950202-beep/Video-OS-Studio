@@ -7,6 +7,9 @@ import {resolveCaptionStyle,resolveMotionStyle} from "@/lib/styles/resolve";
 describe("V2 M3 editor core",()=>{
   it("persists contextual Video B-roll and Audio properties",()=>{
     let project=createProject({id:"m3-media",name:"M3",durationInFrames:600});
+    project=applyProjectCommand(project,{type:"add-asset",asset:{id:"video",kind:"video",relativePath:"input/video.mp4",durationInFrames:600}});
+    project=applyProjectCommand(project,{type:"add-asset",asset:{id:"broll",kind:"video",relativePath:"assets/broll.mp4",durationInFrames:600}});
+    project=applyProjectCommand(project,{type:"add-asset",asset:{id:"audio",kind:"audio",relativePath:"assets/audio.m4a",durationInFrames:600}});
     project=applyProjectCommand(project,{type:"add-clip",trackId:"video-main",clip:{id:"v",type:"video",assetId:"video",startFrame:0,durationInFrames:300,sourceStartFrame:0,volume:1,enabled:true,layer:0}});
     project=applyProjectCommand(project,{type:"add-clip",trackId:"broll-main",clip:{id:"b",type:"broll",assetId:"broll",startFrame:30,durationInFrames:90,enabled:true,layer:1}});
     project=applyProjectCommand(project,{type:"add-clip",trackId:"audio-main",clip:{id:"a",type:"audio",assetId:"audio",startFrame:0,durationInFrames:300,sourceStartFrame:0,volume:1,enabled:true,layer:0}});
