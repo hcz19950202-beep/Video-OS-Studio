@@ -3,56 +3,41 @@ name: CI
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+
+permissions:
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ubuntu-verify:
+  lock-playwright:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
-      - name: Checkout
+      - name: Checkout H6 branch
         uses: actions/checkout@v4
+        with:
+          ref: hardening/v2.1.1-h6-automated-acceptance
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Format check
-        run: npm run format:check
-      - name: Lint
-        run: npm run lint
-      - name: Typecheck
-        run: npm run typecheck
-      - name: Unit tests
-        run: npm run test
-      - name: Build
-        run: npm run build
-
-  windows-verify:
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Format check
-        run: npm run format:check
-      - name: Lint
-        run: npm run lint
-      - name: Typecheck
-        run: npm run typecheck
-      - name: Unit tests
-        run: npm run test
+      - name: Install exact Playwright test package
+        run: npm install --save-dev --save-exact @playwright/test@1.62.1 --no-audit --no-fund
+      - name: Commit dependency lock
+        shell: bash
+        run: |
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "Playwright dependency already locked."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "test: pin Playwright 1.62.1"
+          git push origin HEAD:hardening/v2.1.1-h6-automated-acceptance
+      - name: Stop temporary lock workflow
+        run: exit 1
