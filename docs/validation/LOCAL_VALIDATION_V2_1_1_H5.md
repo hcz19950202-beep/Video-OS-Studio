@@ -506,3 +506,48 @@ REMAINING FAILURES:
 
 MERGE RECOMMENDATION: YES/NO
 ```
+## Actual Results / Final Result
+
+Validation date: 2026-08-23 (Asia/Shanghai)
+
+BRANCH: hardening/v2.1.1-h5-project-data-hardening
+FINAL HEAD: final documentation commit created by this section; exact SHA recorded in the final handoff
+FROZEN INPUT HEAD: 43969af857f63f9fe6268d148dc3f76ab40ad6e1
+LOCAL WORKTREE: E:\Video-OS-Studio-H5-Validation
+LOCAL DATA ROOT: E:\Video-OS-Data\v2.1.1-h5-validation-43969af8
+WINDOWS: Microsoft Windows 10 家庭中文版 10.0.19045, x64
+NODE/NPM: v25.2.1 / 11.6.2 (project engine remains Node 24.x; warning only)
+CHROME: Chrome/151.0.7922.138
+FFMPEG/FFPROBE: 8.1.1-full_build-www.gyan.dev / 8.1.1-full_build-www.gyan.dev
+REMOTION VERSIONS: remotion 4.0.513; @remotion/player 4.0.513; @remotion/cli 4.0.513
+HYPERFRAMES VERSION: 0.8.10
+
+CLEAN NPM CI: PASS — 681 packages installed; existing engine/deprecation warnings only
+CODE CHECKS: PASS — 49 test files / 208 tests; lint 0 errors with the two pre-existing no-img-element warnings; typecheck PASS; build PASS
+V1/MIGRATION CHAIN: PASS — real legacy-v1 fixture migrated to 2.0.0 with 4 assets and 6 clips; duplicate registration and unknown version rejected; frozen V1 schema has no mutable AssetSchema/ClipSchema imports
+PROJECT INTEGRITY: PASS — H5 integrity suite 6/6 and real save/reopen Project remained valid
+TRANSACTION/H1 REGRESSION: PASS — real Windows multi-command transaction advanced exactly once; duplicate was idempotent; stale writer and operation-id reuse were rejected
+HISTORY BUDGET: PASS — H5 history suite covers 30-entry and 12 MiB budgets, oversized eviction, redo invalidation, and stale-project clearing
+UNDO/REDO REVISION GUARD: PASS — repeated Undo/Redo/Undo reached rev9; exact two-window run A rev19 -> B rev20 -> stale A Undo 409/reload; post-conflict fresh Undo/Redo reached rev18 in the first run; post-fix stale run had no unhandled rejection
+RECENT SUMMARY FAST PATH: PASS — invalid disposable project.json still listed from project.summary.json
+RECENT SUMMARY REPAIR: PASS — deleted disposable summary was rebuilt from valid project.json
+GHOST SUMMARY CLEANUP: PASS — disposable project.json deletion removed its ghost summary and excluded the folder
+MOV STALE-IMPORT COMPENSATION: PASS — real MOV normalization completed before conflict; stale original media-56b84cf809b05a19b0ae-camera.mov and working media-56b84cf809b05a19b0ae-camera-working.mp4 were removed; Project edit remained; later MOV media-cb74fbd25ecfa41f6a53 import succeeded at revision 2
+FAILED NORMALIZATION CLEANUP: PASS — original media-a13bc9beee752de1f51d-failed-camera.mov and partial working media-a13bc9beee752de1f51d-failed-camera-working.mp4 were removed; revision stayed 0; unrelated assets/user-owned-failure.bin remained
+ORPHAN DRY RUN: PASS — reported only four controlled media-* candidates and did not delete during inspection
+ORPHAN SAFETY GATES: PASS — confirm=false, stale expectedRevision, and active durable job each blocked deletion
+ORPHAN CLEANUP: PASS — removed only assets/media-orphan-b.bin, captions/media-orphan-d.srt, input/media-orphan-a.mp4, original/media-orphan-c.MOV; second dry run was empty; Project JSON hash was unchanged
+APP REGRESSION: PASS — real browser Create/Open, MP4, MOV, SRT captions, 9:16 Canvas Apply, valid 90-frame timeline edit, Save/Reopen, repeated Undo/Redo, 2.0s seek, play/pause, and HyperFrames process operation. Final disposable app Project h5-local-acceptance-37a4fa31 was valid at rev20 with 4 assets, 2 captions, 1 HyperFrames clip, and preserved original MOV
+FINAL GITHUB VERIFY: PASS — final branch ref verified after documentation push; PR #24 remained Draft/unmerged
+
+ORPHAN CANDIDATES BEFORE CLEANUP: assets/media-orphan-b.bin; captions/media-orphan-d.srt; input/media-orphan-a.mp4; original/media-orphan-c.MOV
+REMOVED ORPHANS: assets/media-orphan-b.bin; captions/media-orphan-d.srt; input/media-orphan-a.mp4; original/media-orphan-c.MOV
+PROTECTED PROJECT PATHS: input/media-current.mp4; original/media-current.MOV
+PROTECTED JOB ARTIFACT PATHS: assets/media-job-artifact.mp4
+RESIDUAL TEMP/PROCESSES: no .tmp/.part/.partial files; no H5-owned node/ffmpeg/ffprobe process after server stop. The successful HyperFrames artifact retains its animations/*.webm.hf-work design directory and jobs/.runtime-owner.json metadata; neither is a temp file or active process.
+
+DEFECTS FIXED: V2.1.1-H5-LV-001 — stale Timeline Undo correctly reloaded latest Project after 409 but its void Promise escaped as browser/Next unhandledRejection. Fixed the H5 History action boundary to consume only PROJECT_REVISION_CONFLICT while preserving unexpected errors. Reproduction was the exact two-window A rev19 / B rev20 stale Undo sequence. Regression: tests/history-actions-h5.test.ts (2/2). Commit: 717d9f5f9e2a172de32bb128e5df2a07144acf27
+COMMITS PUSHED: 717d9f5f9e2a172de32bb128e5df2a07144acf27; final documentation commit follows on the same branch
+REMAINING FAILURES: None in H5 scope. Non-blocking environment/repository warnings: Node 25.2.1 versus the declared 24.x engine, two pre-existing no-img-element lint warnings, and normal expected 409 responses for stale-writer safety
+
+MERGE RECOMMENDATION: NO — H5 local acceptance is PASS, but keep PR #24 Draft/unmerged pending GPT Web review and final GitHub CI review; do not start H6
