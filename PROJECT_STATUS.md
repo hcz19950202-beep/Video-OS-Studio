@@ -9,7 +9,7 @@ When read from `main`, this file describes the accepted checkpoint and the next 
 
 When read from a feature branch, status changes are proposed until the PR merges. Resolve live GitHub `main`, branch, PR, CI, and final handoff SHAs at runtime rather than making this file self-reference the SHA of the commit that contains it.
 
-## Current proposed H6 checkpoint
+## Proposed accepted checkpoint after H6 / PR #25 merge
 
 ```yaml
 product_version: 2.1.0
@@ -17,22 +17,18 @@ released_v2_1_sha: fcfb341367b6ff5e8911693483c14196386c5a93
 project_schema: 2.0.0
 current_milestone: V2.1.1 Engineering Hardening
 accepted_h5_main: c639ebf2b6b91613b4cb772215599a6bd713638a
-active_workstream: H6 Automated Acceptance
+last_completed_workstream: H6 Automated Acceptance
 h6_pull_request: 25
 h6_branch: hardening/v2.1.1-h6-automated-acceptance
-h6_cloud_implementation: COMPLETE
-h6_cloud_code_sha: 3667867c9f43680b668229efbd67414e4a3e20b1
-h6_cloud_code_ci: Run 32626056514 PASS
-h6_unit_baseline: 51 passed test files + 1 Windows-media test file skipped in normal unit matrix / 222 passed tests + 1 skipped
-h6_playwright: 1 of 1 PASS
-h6_windows_media: 1 of 1 PASS
-h6_local_windows_release_acceptance: PENDING
-merge_status: BLOCKED until local Codex acceptance and final GitHub CI
-h7_status: BLOCKED until H6 merges
+h6_frozen_input: c019689884877a12660e73e1ec8ba81aa9e76e69
+h6_local_validation_final_head: 53a2c5ca5323723ded1aa75feef73feef34cbd02
+h6_local_windows_release_acceptance: PASS
+h6_final_head_ci: Run 32631619687 PASS
+next_allowed_workstream: H7 Frontend Consolidation
 next_product_milestone: V2.2 Workflow Runtime only after V2.1.1 release
 ```
 
-The exact **frozen handoff SHA** is the final H6 branch HEAD after this checkpoint documentation is committed and its full four-gate CI passes. It is supplied in PR #25 and the Codex handoff prompt. Do not infer it from the `h6_cloud_code_sha` above.
+On this H6 feature branch, the H7 unlock above is only a **proposed next checkpoint**. H7 must not start until PR #25 actually merges and the accepted `main` SHA is resolved from GitHub. Once this file is read from merged `main`, H7 is the next allowed workstream.
 
 ## Delivery history
 
@@ -44,24 +40,27 @@ H2 Engine Process Runtime               → PR #21 COMPLETE
 H3 Durable Job Runtime                  → PR #22 COMPLETE
 H4 Streaming Media Pipeline             → PR #23 COMPLETE
 H5 Project / Data Hardening             → PR #24 COMPLETE
-H6 Automated Acceptance                 → ACTIVE · CLOUD GREEN · LOCAL ACCEPTANCE PENDING
-H7 Frontend Consolidation               → BLOCKED
+H6 Automated Acceptance                 → PR #25 ACCEPTANCE COMPLETE · MERGE PENDING
+H7 Frontend Consolidation               → NEXT ONLY AFTER PR #25 MERGES
 ```
 
-## H6 cloud acceptance evidence
+## H6 acceptance evidence
 
-Cloud code gate:
+### Cloud implementation and frozen checkpoint
 
 ```text
 PR: #25
 Branch: hardening/v2.1.1-h6-automated-acceptance
 Base accepted H5 main: c639ebf2b6b91613b4cb772215599a6bd713638a
 Cloud code SHA: 3667867c9f43680b668229efbd67414e4a3e20b1
-Full cloud code CI: Run 32626056514 PASS
-Node / npm: 24.19.0 / 11.17.0
+Cloud code CI: Run 32626056514 PASS
+Frozen local-validation input: c019689884877a12660e73e1ec8ba81aa9e76e69
+Frozen checkpoint CI: Run 32626439309 PASS
+Local validation final head: 53a2c5ca5323723ded1aa75feef73feef34cbd02
+Final local-head GitHub verify: Run 32631619687 PASS
 ```
 
-Four required gates passed on Run `32626056514`:
+Final GitHub CI on the local validation final head passed all four required jobs:
 
 ```text
 ubuntu-verify:       PASS
@@ -70,60 +69,75 @@ browser-smoke:       PASS
 windows-media-smoke: PASS
 ```
 
-Ubuntu verification:
-
-- install PASS;
-- H6 format-check PASS for 9 H6-owned automation files;
-- lint PASS with only the two pre-existing `@next/next/no-img-element` warnings in `EffectLibrary.tsx` and `HyperFramesLibrary.tsx`;
-- typecheck PASS;
-- unit PASS: 51 files / 222 tests, with only the Windows real-media smoke intentionally skipped in the normal cross-platform unit matrix;
-- production build PASS.
-
-Browser acceptance:
-
-- exact `@playwright/test` `1.62.1` is locked by npm;
-- Chromium smoke 1/1 PASS;
-- automated path proves Create/Open, tiny import, Caption edit, Canvas preview/Apply, deterministic rules Analyze/Apply, Undo/Redo, Save/Reopen;
-- no real external AI provider is introduced.
-
-Windows media acceptance in GitHub CI:
-
-- Windows Server 2025 runner;
-- exact Chocolatey FFmpeg/ffprobe `9.0.1` installed because the current runner image does not preinstall FFmpeg;
-- real-media smoke 1/1 PASS;
-- real MP4 native import/probe;
-- real MOV normalization to working MP4 with original metadata retained;
-- real PNG import;
-- real FLAC normalization to M4A and ffprobe verification;
-- real SRT parsing into Caption clips;
-- real byte Range `206`, `Content-Range`, byte-count and `nosniff` verification;
-- one-second 320×180 Final render through the real `NodeRemotionCliAdapter`, followed by ffprobe verification.
-
-Automation authority:
+Final cloud unit baseline remains:
 
 ```text
-.github/workflows/ci.yml
-tests/h6/route-contracts.test.ts
-tests/h6/engine-argv-matrix.test.ts
-tests/e2e/h6-smoke.spec.ts
-tests/h6/windows-media-smoke.test.ts
-playwright.config.ts
+51 passed test files + 1 Windows-media smoke file skipped in the normal unit matrix
+222 passed tests + 1 skipped
+Build PASS
 ```
 
-Local validation authority:
+The skipped Windows-media test is intentional in the ordinary matrix and passes in the dedicated `windows-media-smoke` job.
+
+### Local Windows release acceptance
+
+Authority:
 
 ```text
 docs/validation/LOCAL_VALIDATION_V2_1_1_H6.md
 ```
 
-## H6 accepted cloud behavior
+Local environment:
+
+```text
+Windows: Windows 10 19045 x64
+Node / npm: 25.2.1 / 11.6.2
+Chrome: 151.0.7922.138
+FFmpeg / ffprobe: 8.1.1
+Remotion: 4.0.513 exact
+HyperFrames: 0.8.10 exact
+Playwright: 1.62.1 exact
+VIDEO_USE_ROOT: NOT CONFIGURED
+```
+
+Local Codex acceptance passed:
+
+- clean `npm ci`, format-check, lint, typecheck, unit and production build;
+- Playwright H6 smoke 1/1;
+- real Create/Open, tiny import, Caption edit, Canvas change, deterministic AI rules Analyze/Apply, Undo/Redo and Save/Reopen;
+- real MP4 import/probe;
+- real MOV normalization with original retained and working MP4 produced;
+- image import without unnecessary video normalization;
+- real FLAC normalization to M4A and ffprobe verification;
+- real SRT parsing into Caption clips;
+- Asset Range `206` and invalid Range `416` behavior;
+- real three-second 1080×1920 30fps muted Final MP4 through the product Remotion path;
+- HyperFrames `0.8.10` doctor/lint/check/render plus UI `process-flow` render;
+- representative app regression including playback/seek, Final Render and HyperFrames add/render;
+- no H6 `.tmp/.part/.partial` residue and no H6-owned Node/Chrome/FFmpeg/ffprobe/Python/HyperFrames process residue.
+
+No H6 product defect was reproduced, so the local Codex push was documentation-only. The frozen-to-final diff is exactly one commit and only modifies the H6 validation document.
+
+Non-blocking local environment notes:
+
+- local validation used Node `25.2.1` while the repository declares Node `24.x`; repository CI validates Node `24.19.0`;
+- the two pre-existing `@next/next/no-img-element` warnings remain;
+- local FFmpeg `8.1.1` differs from the GitHub Windows smoke's exact Chocolatey FFmpeg `9.0.1`; both required behavior paths passed;
+- optional HyperFrames Docker/whisper/TTS/BGM/memory notes were recorded, while required health/lint/check/render gates passed;
+- the machine's normal port 3000 was occupied by an unrelated existing service, so the identical checked-in Playwright test used temporary local port 3010;
+- video-use was not configured locally, so no H6 provider/runtime change was made.
+
+The local report's `MERGE RECOMMENDATION: NO` is an authority/stop-rule statement: Local Codex was instructed not to merge and to return control to GPT Web. It is not a failed acceptance gate. GPT Web independently reviewed the frozen-to-final diff and final GitHub CI before the merge decision.
+
+## H6 accepted behavior
 
 ### CI and formatting
 
-- obsolete same-branch/PR runs are cancelled through workflow concurrency;
-- Ubuntu and Windows run independent clean npm verification;
-- H6 formatting is checked through the exact locked Prettier version and does not broadly reformat compact legacy product code;
-- CI is read-only; temporary dependency/format helper workflows were removed after generating exact npm/Prettier output.
+- workflow concurrency cancels obsolete same-branch/PR runs;
+- Ubuntu runs install / format-check / lint / typecheck / unit / build;
+- Windows runs install / format-check / lint / typecheck / unit;
+- H6 formatting uses the exact locked Prettier version without broadly reformatting compact legacy product code;
+- CI automation is read-only after checked-in dependency/format outputs are generated.
 
 ### Route and engine contracts
 
@@ -142,45 +156,35 @@ H6 contract tests cover:
 
 ### Browser smoke
 
-The Playwright smoke intentionally uses the public Command API only to seed a deterministic proof Scene and Caption fixture. All user acceptance actions after seeding are performed through the real UI.
+The Playwright smoke uses the public Command API only to seed a deterministic proof Scene and Caption fixture. All user acceptance actions after seeding are performed through the real UI. Exact `@playwright/test` is `1.62.1`.
 
 ### Windows media smoke
 
-The CI media smoke uses real `MediaImportService`, `NodeFfmpegAdapter`, streaming Range response, `NodeRemotionCliAdapter`, and real generated media fixtures. It is not a mocked substitute for local Windows release acceptance.
+The dedicated GitHub Windows media job installs exact FFmpeg/ffprobe `9.0.1` because the current Windows runner image does not preinstall FFmpeg. It exercises real `MediaImportService`, `NodeFfmpegAdapter`, streaming Range response, `NodeRemotionCliAdapter`, real MP4/MOV/PNG/FLAC/SRT fixtures and a short Final render.
 
-## H6 local acceptance gate
+## H7 next scope gate
 
-H6 is **not merge-ready yet**. Local Codex must validate the exact frozen handoff SHA on the user's Windows environment using an isolated worktree and `VIDEO_OS_DATA_ROOT`.
+H7 Frontend Consolidation is the next allowed V2.1.1 workstream **only after PR #25 merges** and the accepted H6 `main` SHA is resolved.
 
-Required local areas include:
+Before H7 implementation:
 
-- clean npm install and all code gates;
-- real Windows Chrome Playwright/application inspection;
-- real MP4/MOV/image/audio/subtitle behavior;
-- valid and invalid Range behavior;
-- short Final Remotion render;
-- HyperFrames `0.8.10` health/lint/check/render on an existing effect;
-- representative H2/H3 cancellation/process cleanup regressions;
-- video-use focused regression when `VIDEO_USE_ROOT` is configured;
-- no H6 `.tmp/.part/.partial` residue and no H6-owned engine/browser processes remaining.
-
-Local Codex may fix only H6 defects, must add regression coverage, and must push fixes to the same H6 branch. It must not merge PR #25 or start H7.
+1. resolve live GitHub `main` after PR #25 merge;
+2. reread the H7 section of `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`;
+3. create a new H7 branch from the exact accepted H6 main SHA;
+4. open H7 as its own Draft PR;
+5. keep H7 limited to frontend consolidation and do not absorb V2.2 Workflow Runtime or unrelated product work.
 
 ## Accepted prior foundations
 
 ### H5 — Project / Data Hardening
 
-Accepted main:
+Accepted main before H6:
 
 ```text
 c639ebf2b6b91613b4cb772215599a6bd713638a
 ```
 
-Authority:
-
-```text
-docs/validation/LOCAL_VALIDATION_V2_1_1_H5.md
-```
+Authority: `docs/validation/LOCAL_VALIDATION_V2_1_1_H5.md`.
 
 Accepted behavior includes frozen historical schemas, explicit migrations, Project-wide referential integrity, bounded/revision-safe History, lightweight Recent Project summaries, compensating failed-import cleanup, and guarded orphan maintenance.
 
@@ -285,14 +289,14 @@ GPT Web
 → verify final CI
 → prepare accepted checkpoint
 → merge
+→ resolve accepted main
 → only then open the next workstream
 ```
 
-## Blocked until H6 acceptance and merge
+## Blocked until V2.1.1 is complete
 
 Do not start:
 
-- H7 Frontend Consolidation;
 - real external AI Provider;
 - broad AI Command Bar;
 - V2.2 Workflow Runtime implementation;
@@ -306,7 +310,7 @@ Do not start:
 3. `AGENTS.md`;
 4. `SYSTEM.md`;
 5. `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`;
-6. `docs/validation/LOCAL_VALIDATION_V2_1_1_H6.md`;
-7. PR #25 and its latest CI evidence.
+6. active validation contract when one exists;
+7. active PR diff/CI.
 
 If another document conflicts with this file, stop and resolve the conflict instead of guessing.
