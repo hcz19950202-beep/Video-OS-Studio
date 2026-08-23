@@ -12,7 +12,6 @@ import {translateEffectName} from "@/lib/i18n/studio";
 type LibraryMode="sidebar"|"catalog";
 
 export const HyperFramesLibrary=({project,onProjectChange,mode="sidebar"}:{project:Project;onProjectChange:(project:Project)=>void;mode?:LibraryMode})=>{
-  const frame=usePlayerStore(state=>state.currentFrame);
   const{locale,t}=useStudioPreferences();
   const[busy,setBusy]=useState<string|null>(null);
   const[error,setError]=useState<string|null>(null);
@@ -20,6 +19,7 @@ export const HyperFramesLibrary=({project,onProjectChange,mode="sidebar"}:{proje
   const add=async(effect:typeof HYPERFRAMES_EFFECTS[number])=>{
     setBusy(effect.id);setError(null);
     try{
+      const frame=usePlayerStore.getState().currentFrame;
       const duration=Math.min(effect.defaultDurationInFrames,Math.max(1,project.canvas.durationInFrames-frame));
       const next=await addHyperFramesEffect(project.project.id,{expectedRevision:project.project.revision,operationId:createOperationId("hyperframes"),effectId:effect.id,props:effect.defaults,startFrame:frame,durationInFrames:duration});
       onProjectChange(next);
