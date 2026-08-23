@@ -325,7 +325,7 @@ describe("H6 route contracts", () => {
       new Request("http://127.0.0.1:3456/api/projects/h6-project/renders", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mode: "final", profile: { quality: "draft", includeAudio: false } }),
+        body: JSON.stringify({ mode: "final", profile: { quality: "draft", audio: "none" } }),
       }),
       { params: Promise.resolve({ projectId: "h6-project" }) },
     );
@@ -335,7 +335,7 @@ describe("H6 route contracts", () => {
       "h6-project",
       "final",
       "http://127.0.0.1:3456",
-      expect.objectContaining({ quality: "draft", includeAudio: false }),
+      expect.objectContaining({ quality: "draft", audio: "none" }),
     );
   });
 });
