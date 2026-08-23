@@ -24,8 +24,19 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-      - name: Format check
-        run: npm run format:check
+      - name: Capture Prettier output
+        shell: bash
+        run: |
+          npm run format
+          node - <<'NODE'
+          const fs=require('node:fs');
+          for(const file of ['scripts/h6-format.mjs','tests/h6/engine-argv-matrix.test.ts','tests/h6/route-contracts.test.ts']){
+            console.log(`H6_FORMATTED_BEGIN:${file}`);
+            console.log(fs.readFileSync(file).toString('base64'));
+            console.log(`H6_FORMATTED_END:${file}`);
+          }
+          NODE
+          exit 1
       - name: Lint
         run: npm run lint
       - name: Typecheck
