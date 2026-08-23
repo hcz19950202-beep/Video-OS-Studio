@@ -101,10 +101,10 @@ describe("H6 route contracts", () => {
     expect(created.status).toBe(201);
     expect((await created.json()).project.project.id).toBe("h6-project");
 
-    const listed = await projectsRoute.GET(new Request("http://localhost/api/projects?limit=5"));
+    const listed = await projectsRoute.GET();
     expect(listed.status).toBe(200);
     expect((await listed.json()).projects).toHaveLength(1);
-    expect(fakes.projectRepository.listRecent).toHaveBeenCalledWith(5);
+    expect(fakes.projectRepository.listRecent).toHaveBeenCalledWith();
   });
 
   it("loads and explicitly replaces a Project through the detail route", async () => {
