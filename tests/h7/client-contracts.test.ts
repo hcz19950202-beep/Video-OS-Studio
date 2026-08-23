@@ -1,11 +1,13 @@
 import {beforeEach,describe,expect,it,vi} from "vitest";
 import {ApiRequestError,requestJson,toClientErrorState} from "@/lib/client/api";
-import {createStudioProject,listRecentProjects} from "@/lib/client/projects";
+import {addHyperFramesEffect} from "@/lib/client/hyperframes";
+import {cancelJob,createJob,getJob,listJobs,retryJob} from "@/lib/client/jobs";
 import {importProjectMedia} from "@/lib/client/media";
 import {applyVisualPlan,generateVisualPlan} from "@/lib/client/planner";
-import {createRenderJob,getRenderJob} from "@/lib/client/renders";
-import {cancelJob,createJob,getJob,listJobs,retryJob} from "@/lib/client/jobs";
 import {ProjectRequestError,parseProjectResponse} from "@/lib/client/project-mutations";
+import {createStudioProject,listRecentProjects} from "@/lib/client/projects";
+import {createRenderJob,getRenderJob} from "@/lib/client/renders";
+import {applyVideoUseEdl,prepareVideoUse} from "@/lib/client/video-use";
 import {createProject} from "@/lib/project/factory";
 
 const fetchMock=vi.fn<typeof fetch>();
@@ -107,5 +109,23 @@ describe("H7 typed client contracts",()=>{
     expect((await cancelJob(job.id)).status).toBe("cancelled");
     expect((await retryJob(job.id)).attempt).toBe(2);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/jobs?projectId=h7-project&limit=5");
+  });
+
+  it("routes HyperFrames and video-use operations through typed clients",async()=>{
+    const project=createProject({id:"h7-project",name:"H7 Project",now:"2026-08-23T10:00:00.000Z"});
+    const prepared={project,wordCount:2,scriptSegmentCount:1,text:"hello world",packedText:"packed",transcriptRelativePath:"edit/transcripts/a.json",packedTranscriptRelativePath:"edit/takes_packed.md",alreadyApplied:false};
+    fetchMock
+      .mockResolvedValueOnce(json({project}))
+      .mockResolvedValueOnce(json({result:prepared}))
+      .mockResolvedValueOnce(json({project}));
+
+    const hyperframes=await addHyperFramesEffect("h7-project",{expectedRevision:0,operationId:"hf-1",effectId:"process-flow",props:{},startFrame:0,durationInFrames:60});
+    expect(hyperframes.project.id).toBe("h7-project");
+    expect((await prepareVideoUse("h7-project",{expectedRevision:0,operationId:"vu-prepare-1"})).scriptSegmentCount).toBe(1);
+    const edl={version:1,ranges:[{start:0,end:1,beat:"HOOK",reason:"keep"}]} as never;
+    expect((await applyVideoUseEdl("h7-project",{expectedRevision:0,operationId:"vu-edl-1",edl})).project.id).toBe("h7-project");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/projects/h7-project/hyperframes");
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("/api/projects/h7-project/video-use/prepare");
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("/api/projects/h7-project/video-use/apply-edl");
   });
 });
