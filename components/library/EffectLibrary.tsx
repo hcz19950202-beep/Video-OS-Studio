@@ -16,7 +16,6 @@ import {HyperFramesLibrary} from "./HyperFramesLibrary";
 type LibraryMode="sidebar"|"catalog";
 
 export const EffectLibrary=({project,onCommand,onProjectChange,mode="sidebar"}:{project:Project;onCommand:(command:ProjectCommand,message:string)=>Promise<void>;onProjectChange:(project:Project)=>void;mode?:LibraryMode})=>{
-  const frame=usePlayerStore(state=>state.currentFrame);
   const{locale,t}=useStudioPreferences();
   const[query,setQuery]=useState("");
   const[category,setCategory]=useState("all");
@@ -37,6 +36,7 @@ export const EffectLibrary=({project,onCommand,onProjectChange,mode="sidebar"}:{
   const addEffect=(effect:typeof EFFECT_REGISTRY[number],clipId:string)=>{
     const compatibility=evaluateEffectCompatibility(effect.id,project.canvas.width,project.canvas.height);
     if(compatibility.status==="unsupported"){window.alert(compatibility.message);return;}
+    const frame=usePlayerStore.getState().currentFrame;
     const duration=Math.min(effect.defaultDurationInFrames,Math.max(1,project.canvas.durationInFrames-frame));
     void onCommand({type:"add-clip",trackId:"motion-main",clip:{id:clipId,type:"motion",engine:"remotion",effectId:effect.id,props:effect.defaults,startFrame:frame,durationInFrames:duration,enabled:true,layer:10}},`${translateEffectName(locale,effect.id,effect.name)} · ${t("status.effectAdded")}`);
   };
