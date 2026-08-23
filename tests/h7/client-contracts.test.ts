@@ -75,7 +75,7 @@ describe("H7 typed client contracts",()=>{
       .mockResolvedValueOnce(json({plan}))
       .mockResolvedValueOnce(json({project,diff,transactionId:null,appliedIds:[]}));
 
-    expect(await generateVisualPlan("h7-project",{intent:"restrained",safeArea:{profileId:"none",top:0,right:0,bottom:0,left:0}})).toBe(plan);
+    expect(await generateVisualPlan("h7-project",{intent:"restrained",safeArea:{profileId:"none",top:0,right:0,bottom:0,left:0}})).toStrictEqual(plan);
     const applied=await applyVisualPlan("h7-project",{expectedRevision:0,operationId:"ai-1",plan,selectedIds:[]});
     expect(applied.project.project.id).toBe("h7-project");
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/projects/h7-project/visual-plan");
