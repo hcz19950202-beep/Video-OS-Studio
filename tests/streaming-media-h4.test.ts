@@ -3,7 +3,7 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {afterEach,describe,expect,it} from "vitest";
 import {canonicalMediaMime,createStreamingFileResponse} from "@/lib/http/streaming-file";
-import {streamRequestBodyToFile,UploadTooLargeError} from "@/lib/http/stream-upload";
+import {streamRequestBodyToFile,UploadAbortedError,UploadTooLargeError} from "@/lib/http/stream-upload";
 import {InMemoryFileSystemAdapter} from "@/adapters/filesystem";
 import {MockFfmpegAdapter} from "@/adapters/mocks";
 import {MediaImportService} from "@/lib/media/import-service";
@@ -54,6 +54,13 @@ describe("H4 bounded streaming uploads",()=>{
     const root=await tempRoot();const path=join(root,"upload.part");
     await expect(streamRequestBodyToFile({body:streamOf([1]),destination:path,maxBytes:5,contentLength:6})).rejects.toBeInstanceOf(UploadTooLargeError);
     await expect(readFile(path)).rejects.toMatchObject({code:"ENOENT"});
+  });
+
+  it("aborts a pending stream and removes the partial temp file",async()=>{
+    const root=await tempRoot();const path=join(root,"upload.part");const controller=new AbortController();let cancelled=false;
+    const body=new ReadableStream<Uint8Array>({start(stream){stream.enqueue(Uint8Array.from([1,2,3,4]));},cancel(){cancelled=true;}});
+    const pending=streamRequestBodyToFile({body,destination:path,maxBytes:1024,signal:controller.signal});setTimeout(()=>controller.abort(),20);
+    await expect(pending).rejects.toBeInstanceOf(UploadAbortedError);expect(cancelled).toBe(true);await expect(readFile(path)).rejects.toMatchObject({code:"ENOENT"});
   });
 });
 
