@@ -11,6 +11,21 @@ describe("Phase 8 video-use",()=>{
     expect(parseScribePayload({text:"Hello",words:[{type:"word",text:"Hello",start:1,end:1.4,speaker_id:"speaker_0"},{type:"spacing",text:" ",start:1.4,end:1.5}]})).toEqual({text:"Hello",words:[{text:"Hello",startSeconds:1,endSeconds:1.4,speakerId:"speaker_0",type:"word"}]});
   });
 
+  it("prepares the video currently active on video-main when multiple video assets exist",async()=>{
+    const fs=new InMemoryFileSystemAdapter();
+    const repo=new ProjectRepository(fs,"/data");
+    let project=await repo.create({id:"active-video",name:"Active Video",fps:30,durationInFrames:30});
+    project=applyProjectCommand(project,{type:"add-asset",asset:{id:"first",kind:"video",relativePath:"input/first.mp4",durationInFrames:300}});
+    project=applyProjectCommand(project,{type:"add-asset",asset:{id:"second",kind:"video",relativePath:"input/second.mp4",durationInFrames:30}});
+    project=applyProjectCommand(project,{type:"add-clip",trackId:"video-main",clip:{id:"active-clip",type:"video",assetId:"second",startFrame:0,durationInFrames:30,sourceStartFrame:0,volume:1,enabled:true,layer:0}});
+    await repo.save(project);
+    let inputPath="";
+    const adapter:VideoUseAdapter={prepare:async(input)=>{inputPath=input.inputPath;return{words:[],text:"",packedText:"",transcriptPath:"",packedTranscriptPath:""};},renderEdl:async(input)=>({outputPath:input.outputPath}),timelineView:async()=>({})};
+    const service=new VideoUseService(fs,adapter,repo);
+    await service.prepare("active-video");
+    expect(inputPath).toContain("second.mp4");
+  });
+
   it("persists an editable frame-based Script when preparing a transcript",async()=>{
     const fs=new InMemoryFileSystemAdapter();
     const repo=new ProjectRepository(fs,"/data");
