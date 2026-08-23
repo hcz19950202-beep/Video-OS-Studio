@@ -9,26 +9,29 @@ When read from `main`, this file describes the accepted checkpoint and the next 
 
 When read from a feature branch, status changes are proposed until the PR merges. Resolve live GitHub `main`, branch, PR, CI, and final handoff SHAs at runtime rather than making this file self-reference the SHA of the commit that contains it.
 
-## Proposed accepted checkpoint after H6 / PR #25 merge
+## Current V2.1.1 checkpoint
 
 ```yaml
 product_version: 2.1.0
 released_v2_1_sha: fcfb341367b6ff5e8911693483c14196386c5a93
 project_schema: 2.0.0
 current_milestone: V2.1.1 Engineering Hardening
-accepted_h5_main: c639ebf2b6b91613b4cb772215599a6bd713638a
-last_completed_workstream: H6 Automated Acceptance
-h6_pull_request: 25
-h6_branch: hardening/v2.1.1-h6-automated-acceptance
-h6_frozen_input: c019689884877a12660e73e1ec8ba81aa9e76e69
-h6_local_validation_final_head: 53a2c5ca5323723ded1aa75feef73feef34cbd02
-h6_local_windows_release_acceptance: PASS
-h6_final_head_ci: Run 32631619687 PASS
-next_allowed_workstream: H7 Frontend Consolidation
-next_product_milestone: V2.2 Workflow Runtime only after V2.1.1 release
+accepted_h6_main: 11aafb2ab634ce06c5aa032382cc4263f9749f2d
+last_completed_workstream: H7 Frontend Consolidation
+active_workstream: V2.1.1 Final Release Acceptance
+h7_branch: hardening/v2.1.1-h7-frontend-consolidation
+h7_pr: 26
+h7_cloud_implementation: COMPLETE
+h7_local_validation: COMPLETE
+h7_frozen_input_sha: e1b1675001c3b62e113f94650c86e9326303f214
+h7_local_code_checkpoint_sha: 042dcd18252ca333f8b2c3c4de9c1a1f99eaae59
+h7_local_validation_head: 879379b7517c17ed8cc8bbc3eb68feb1136de03e
+h7_final_exact_head_ci: 32640006356 PASS
+h7_final_tests: 57 passed files / 238 passed tests / 1 skipped file / 1 skipped test
+h7_merge_status: PENDING final status-checkpoint CI and PR merge
+next_gate: merge PR #26, then V2.1.1 Final Release Acceptance
+v2_2_status: BLOCKED until V2.1.1 release acceptance
 ```
-
-On this H6 feature branch, the H7 unlock above is only a **proposed next checkpoint**. H7 must not start until PR #25 actually merges and the accepted `main` SHA is resolved from GitHub. Once this file is read from merged `main`, H7 is the next allowed workstream.
 
 ## Delivery history
 
@@ -40,27 +43,25 @@ H2 Engine Process Runtime               → PR #21 COMPLETE
 H3 Durable Job Runtime                  → PR #22 COMPLETE
 H4 Streaming Media Pipeline             → PR #23 COMPLETE
 H5 Project / Data Hardening             → PR #24 COMPLETE
-H6 Automated Acceptance                 → PR #25 ACCEPTANCE COMPLETE · MERGE PENDING
-H7 Frontend Consolidation               → NEXT ONLY AFTER PR #25 MERGES
+H6 Automated Acceptance                 → PR #25 COMPLETE
+H7 Frontend Consolidation               → ACCEPTANCE COMPLETE / MERGE PENDING
 ```
 
-## H6 acceptance evidence
+## H7 accepted validation checkpoint
 
-### Cloud implementation and frozen checkpoint
+H7 implementation and local acceptance authority:
 
 ```text
-PR: #25
-Branch: hardening/v2.1.1-h6-automated-acceptance
-Base accepted H5 main: c639ebf2b6b91613b4cb772215599a6bd713638a
-Cloud code SHA: 3667867c9f43680b668229efbd67414e4a3e20b1
-Cloud code CI: Run 32626056514 PASS
-Frozen local-validation input: c019689884877a12660e73e1ec8ba81aa9e76e69
-Frozen checkpoint CI: Run 32626439309 PASS
-Local validation final head: 53a2c5ca5323723ded1aa75feef73feef34cbd02
-Final local-head GitHub verify: Run 32631619687 PASS
+PR #26 — Draft / unmerged until the final status checkpoint passes CI
+Base accepted H6 main: 11aafb2ab634ce06c5aa032382cc4263f9749f2d
+Frozen local-validation input: e1b1675001c3b62e113f94650c86e9326303f214
+Local code checkpoint after H7 fixes: 042dcd18252ca333f8b2c3c4de9c1a1f99eaae59
+Local validation documentation head: 879379b7517c17ed8cc8bbc3eb68feb1136de03e
+Final exact-head CI: Run 32640006356 PASS
+Validation authority: docs/validation/LOCAL_VALIDATION_V2_1_1_H7.md
 ```
 
-Final GitHub CI on the local validation final head passed all four required jobs:
+All four final H7 gates passed on the exact local-validation head:
 
 ```text
 ubuntu-verify:       PASS
@@ -69,120 +70,126 @@ browser-smoke:       PASS
 windows-media-smoke: PASS
 ```
 
-Final cloud unit baseline remains:
+Final unit/build evidence:
 
 ```text
-51 passed test files + 1 Windows-media smoke file skipped in the normal unit matrix
-222 passed tests + 1 skipped
-Build PASS
+format-check: PASS
+lint: PASS with exactly 2 pre-existing @next/next/no-img-element warnings
+typecheck: PASS
+unit: 57 passed files + 1 skipped / 238 passed tests + 1 skipped
+build: PASS
 ```
 
-The skipped Windows-media test is intentional in the ordinary matrix and passes in the dedicated `windows-media-smoke` job.
+H7 local Windows/browser acceptance passed the release-critical frontend consolidation surfaces:
 
-### Local Windows release acceptance
+- typed project/media/job/planner/render/HyperFrames clients and centralized structured API errors;
+- `StudioWorkspaceV21` responsibility extraction without introducing a whole-Project PUT editing path;
+- Remotion Player event-driven frame/play state with no legacy 100 ms polling dependency;
+- top-level Workspace frame isolation while action-boundary playhead reads remain correct;
+- Canvas drag/resize/rotate latest-value rAF previews with one durable gesture commit and correct Undo/Redo boundaries;
+- VisualPlanner shared typed Studio i18n in Chinese and English;
+- V2.1 token consolidation across dark/light themes and 1920×929, 1440×900, and 1280×720 layouts;
+- typed Final Render UI and HyperFrames UI regression;
+- H0–H6 representative application regression.
 
-Authority:
+H7 local validation also found and fixed one real media-composition defect: image B-roll was incorrectly routed through `OffthreadVideo`. Image Assets now use the still-image path while video Assets remain on video playback. The follow-up removed the valid-PNG Remotion decode warning, and regression coverage was added in `tests/h7/master-composition-media.test.ts`.
+
+The validation report's literal `MERGE RECOMMENDATION: NO` was procedural: Local Codex was explicitly instructed not to merge PR #26 itself. The same report states that no H7 product failure remains in the tested scope. GPT Web reviewed the frozen-to-final diff, the two local code fixes, the validation evidence, and exact-head CI before preparing this H7 COMPLETE checkpoint.
+
+Video-Use was not configured on the local Windows machine, so no local Video-Use runtime claim is made. Existing automated `tests/video-use.test.ts` remained green. This is not treated as an H7 product failure.
+
+After this status-checkpoint commit itself passes the full CI matrix, PR #26 may be marked Ready and merged with an exact expected-head guard. V2.2 remains blocked. The only next allowed phase after the H7 merge is V2.1.1 Final Release Acceptance.
+
+## H6 accepted checkpoint
+
+Accepted H6 merge/main SHA:
 
 ```text
-docs/validation/LOCAL_VALIDATION_V2_1_1_H6.md
+11aafb2ab634ce06c5aa032382cc4263f9749f2d
 ```
 
-Local environment:
+H6 evidence:
 
 ```text
-Windows: Windows 10 19045 x64
-Node / npm: 25.2.1 / 11.6.2
-Chrome: 151.0.7922.138
-FFmpeg / ffprobe: 8.1.1
-Remotion: 4.0.513 exact
-HyperFrames: 0.8.10 exact
-Playwright: 1.62.1 exact
-VIDEO_USE_ROOT: NOT CONFIGURED
+PR #25
+Frozen local-validation input: c019689884877a12660e73e1ec8ba81aa9e76e69
+Local validation final head: 53a2c5ca5323723ded1aa75feef73feef34cbd02
+Final local-head CI: Run 32631619687 PASS
+Final status checkpoint: a7274467b640548aaed5c846c392001a52535d7c
+Final status-checkpoint CI: Run 32632395460 PASS
 ```
 
-Local Codex acceptance passed:
+All four H6 final gates passed:
 
-- clean `npm ci`, format-check, lint, typecheck, unit and production build;
-- Playwright H6 smoke 1/1;
-- real Create/Open, tiny import, Caption edit, Canvas change, deterministic AI rules Analyze/Apply, Undo/Redo and Save/Reopen;
-- real MP4 import/probe;
-- real MOV normalization with original retained and working MP4 produced;
-- image import without unnecessary video normalization;
-- real FLAC normalization to M4A and ffprobe verification;
-- real SRT parsing into Caption clips;
-- Asset Range `206` and invalid Range `416` behavior;
-- real three-second 1080×1920 30fps muted Final MP4 through the product Remotion path;
-- HyperFrames `0.8.10` doctor/lint/check/render plus UI `process-flow` render;
-- representative app regression including playback/seek, Final Render and HyperFrames add/render;
-- no H6 `.tmp/.part/.partial` residue and no H6-owned Node/Chrome/FFmpeg/ffprobe/Python/HyperFrames process residue.
+```text
+ubuntu-verify:       PASS
+windows-verify:      PASS
+browser-smoke:       PASS
+windows-media-smoke: PASS
+```
 
-No H6 product defect was reproduced, so the local Codex push was documentation-only. The frozen-to-final diff is exactly one commit and only modifies the H6 validation document.
+H6 local Windows release acceptance passed real browser/media/Remotion/HyperFrames regression with no H6 product defect reproduced. Authority: `docs/validation/LOCAL_VALIDATION_V2_1_1_H6.md`.
 
-Non-blocking local environment notes:
+## H7 scope gate
 
-- local validation used Node `25.2.1` while the repository declares Node `24.x`; repository CI validates Node `24.19.0`;
-- the two pre-existing `@next/next/no-img-element` warnings remain;
-- local FFmpeg `8.1.1` differs from the GitHub Windows smoke's exact Chocolatey FFmpeg `9.0.1`; both required behavior paths passed;
-- optional HyperFrames Docker/whisper/TTS/BGM/memory notes were recorded, while required health/lint/check/render gates passed;
-- the machine's normal port 3000 was occupied by an unrelated existing service, so the identical checked-in Playwright test used temporary local port 3010;
-- video-use was not configured locally, so no H6 provider/runtime change was made.
+H7 is **Frontend Consolidation** only.
 
-The local report's `MERGE RECOMMENDATION: NO` is an authority/stop-rule statement: Local Codex was instructed not to merge and to return control to GPT Web. It is not a failed acceptance gate. GPT Web independently reviewed the frozen-to-final diff and final GitHub CI before the merge decision.
+Master PRD targets:
 
-## H6 accepted behavior
+1. split `StudioWorkspaceV21` responsibilities;
+2. create typed project/media/job/planner clients;
+3. centralize API errors;
+4. remove 100ms top-level frame polling where Remotion Player events support an event-driven path;
+5. keep gesture drafts local and rAF-throttled;
+6. gradually replace milestone CSS layers with token/component layers;
+7. converge i18n to one typed dictionary mechanism.
 
-### CI and formatting
+H7 must not become a visual redesign.
 
-- workflow concurrency cancels obsolete same-branch/PR runs;
-- Ubuntu runs install / format-check / lint / typecheck / unit / build;
-- Windows runs install / format-check / lint / typecheck / unit;
-- H6 formatting uses the exact locked Prettier version without broadly reformatting compact legacy product code;
-- CI automation is read-only after checked-in dependency/format outputs are generated.
+H7 must also not absorb:
 
-### Route and engine contracts
+- V2.2 Workflow Runtime;
+- real external AI provider;
+- broad AI Command Bar;
+- Project Schema changes;
+- unrelated editor features;
+- new engine/runtime architecture unrelated to frontend consolidation.
 
-H6 contract tests cover:
+## H7 implementation rules
 
-- Project create/list/load/replace;
-- H1 Command and Transaction envelopes;
-- streaming media upload and payload-too-large preflight;
-- Asset GET/HEAD/single-byte Range including invalid Range;
-- durable Job create/query/cancel/retry;
-- Project render request origin/export profile;
-- Remotion final/overlay/custom/muted argv semantics;
-- HyperFrames argv;
-- FFmpeg normalization argv;
-- Windows launcher/process semantics.
+Preserve all H0–H6 accepted behavior and architecture boundaries.
 
-### Browser smoke
+Refactoring rules:
 
-The Playwright smoke uses the public Command API only to seed a deterministic proof Scene and Caption fixture. All user acceptance actions after seeding are performed through the real UI. Exact `@playwright/test` is `1.62.1`.
+- behavior before structure: add/retain regression coverage before moving responsibility;
+- prefer extracting typed boundaries over rewriting working product logic;
+- UI modules may call typed clients/services but may not spawn external CLIs;
+- Project mutations still use H1 Commands/Transactions and expectedRevision/idempotency semantics;
+- job operations still go through H3 durable Job APIs;
+- media still uses H4 streaming contracts;
+- errors must preserve machine-readable API codes and sanitized user-facing messages;
+- frame/time changes must preserve canonical frame-based Project timing;
+- avoid broad CSS churn that would make behavior review difficult;
+- `REUSE > MODIFY > CREATE`.
 
-### Windows media smoke
+## H7 expected acceptance direction
 
-The dedicated GitHub Windows media job installs exact FFmpeg/ffprobe `9.0.1` because the current Windows runner image does not preinstall FFmpeg. It exercises real `MediaImportService`, `NodeFfmpegAdapter`, streaming Range response, `NodeRemotionCliAdapter`, real MP4/MOV/PNG/FLAC/SRT fixtures and a short Final render.
+Cloud acceptance must prove:
 
-## H7 next scope gate
+- typed clients preserve route contracts and structured errors;
+- extracted workspace responsibilities preserve Create/Open/import/edit/save/render flows;
+- no direct ad-hoc fetch duplication remains in the consolidated target areas;
+- no new whole-project PUT editing path is introduced;
+- frame synchronization no longer depends on unnecessary 100ms top-level polling where Player events are available;
+- gesture drafts remain non-durable until commit boundaries;
+- typed i18n dictionaries typecheck and preserve current locale behavior;
+- Ubuntu/Windows H6 CI matrix remains green.
 
-H7 Frontend Consolidation is the next allowed V2.1.1 workstream **only after PR #25 merges** and the accepted H6 `main` SHA is resolved.
-
-Before H7 implementation:
-
-1. resolve live GitHub `main` after PR #25 merge;
-2. reread the H7 section of `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`;
-3. create a new H7 branch from the exact accepted H6 main SHA;
-4. open H7 as its own Draft PR;
-5. keep H7 limited to frontend consolidation and do not absorb V2.2 Workflow Runtime or unrelated product work.
+The final H7 cloud and local gates above satisfy these requirements. H7 is complete once PR #26 merges; no further H7 feature expansion is allowed during V2.1.1 Final Release Acceptance.
 
 ## Accepted prior foundations
 
 ### H5 — Project / Data Hardening
-
-Accepted main before H6:
-
-```text
-c639ebf2b6b91613b4cb772215599a6bd713638a
-```
 
 Authority: `docs/validation/LOCAL_VALIDATION_V2_1_1_H5.md`.
 

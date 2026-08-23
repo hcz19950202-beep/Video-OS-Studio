@@ -1,6 +1,8 @@
 "use client";
 
 import {useCallback,useEffect,useMemo,useState} from "react";
+import {toClientErrorState} from "@/lib/client/api";
+import {createRenderJob,getRenderJob} from "@/lib/client/renders";
 import type {RenderJob,RenderMode} from "@/lib/render/render-jobs";
 import {resolveExportProfile,type ExportProfile} from "@/lib/render/profile";
 import type {Project} from "@/schemas/project";
@@ -18,12 +20,12 @@ const RenderControlsInner=({project}:{project:Project})=>{
   const resolved=useMemo(()=>resolveExportProfile(project,profile),[profile,project]);
   const start=useCallback(async(mode:RenderMode,requestedProfile?:ExportProfile)=>{
     setError(null);
-    const response=await fetch(`/api/projects/${encodeURIComponent(project.project.id)}/renders`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode,...(mode==="final"&&requestedProfile?{profile:requestedProfile}:{})})});
-    const data=await response.json() as {job?:RenderJob;error?:string};
-    if(!response.ok||!data.job){setError(data.error||t("render.startError"));return;}
-    setJob(data.job);setShowProfile(false);
-  },[project.project.id,t]);
-  useEffect(()=>{if(!job||job.status==="completed"||job.status==="failed")return;const timer=window.setInterval(async()=>{const response=await fetch(`/api/renders/${job.id}`,{cache:"no-store"});const data=await response.json() as {job?:RenderJob};if(data.job)setJob(data.job);},700);return()=>window.clearInterval(timer);},[job]);
+    try{
+      const next=await createRenderJob(project.project.id,mode,mode==="final"?requestedProfile:undefined);
+      setJob(next);setShowProfile(false);
+    }catch(caught){setError(toClientErrorState(caught).message);}
+  },[project.project.id]);
+  useEffect(()=>{if(!job||job.status==="completed"||job.status==="failed"||job.status==="cancelled"||job.status==="interrupted")return;let active=true;const timer=window.setInterval(()=>{void getRenderJob(job.id).then(next=>{if(active)setJob(next);}).catch(caught=>{if(active)setError(toClientErrorState(caught).message);});},700);return()=>{active=false;window.clearInterval(timer);};},[job]);
   useEffect(()=>{const listener=()=>setShowProfile(true);window.addEventListener(RENDER_REQUEST_EVENT,listener);return()=>window.removeEventListener(RENDER_REQUEST_EVENT,listener);},[]);
   const setSizing=(sizing:"project"|"custom")=>setProfile(current=>sizing==="project"?{...current,sizing,width:undefined,height:undefined,fps:undefined}:{...current,sizing,width:project.canvas.width,height:project.canvas.height,fps:project.canvas.fps});
   const projectProfile:ExportProfile={sizing:"project",container:"mp4",codec:"h264",audio:"aac",quality:"high"};
