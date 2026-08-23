@@ -20,7 +20,13 @@ accepted_h6_main: 11aafb2ab634ce06c5aa032382cc4263f9749f2d
 last_completed_workstream: H6 Automated Acceptance
 active_workstream: H7 Frontend Consolidation
 h7_branch: hardening/v2.1.1-h7-frontend-consolidation
-h7_cloud_implementation: IN PROGRESS
+h7_pr: 26
+h7_cloud_implementation: COMPLETE
+h7_local_validation: PENDING
+h7_cloud_code_gate_sha: 0ed249406297fd382d0aade311f8566a6f4d462d
+h7_cloud_code_gate_ci: 32635740757 PASS
+h7_cloud_tests: 56 passed files / 236 passed tests / 1 skipped file / 1 skipped test
+next_gate: H7 isolated Windows/browser acceptance
 v2_2_status: BLOCKED until V2.1.1 release acceptance
 ```
 
@@ -35,8 +41,52 @@ H3 Durable Job Runtime                  → PR #22 COMPLETE
 H4 Streaming Media Pipeline             → PR #23 COMPLETE
 H5 Project / Data Hardening             → PR #24 COMPLETE
 H6 Automated Acceptance                 → PR #25 COMPLETE
-H7 Frontend Consolidation               → ACTIVE
+H7 Frontend Consolidation               → CLOUD COMPLETE / LOCAL PENDING
 ```
+
+## H7 cloud checkpoint
+
+Cloud implementation authority:
+
+```text
+PR #26 — Draft / unmerged
+Base accepted H6 main: 11aafb2ab634ce06c5aa032382cc4263f9749f2d
+Cloud code gate SHA: 0ed249406297fd382d0aade311f8566a6f4d462d
+Cloud code gate CI: Run 32635740757 PASS
+Validation authority: docs/validation/LOCAL_VALIDATION_V2_1_1_H7.md
+```
+
+All four H7 cloud gates passed:
+
+```text
+ubuntu-verify:       PASS
+windows-verify:      PASS
+browser-smoke:       PASS
+windows-media-smoke: PASS
+```
+
+Cloud unit/build evidence:
+
+```text
+format-check: PASS
+lint: PASS with exactly 2 pre-existing @next/next/no-img-element warnings
+typecheck: PASS
+unit: 56 passed files + 1 skipped / 236 passed tests + 1 skipped
+build: PASS
+```
+
+H7 cloud implementation completed the release-critical frontend consolidation targets:
+
+- shared typed API/error boundary and typed project/media/job/planner/render/HyperFrames/video-use clients;
+- `StudioWorkspaceV21` network/mutation orchestration extracted to `useWorkspaceProjectRuntime`;
+- consolidated target UI surfaces no longer use ad-hoc raw `fetch()` paths;
+- Remotion Player frame/play state uses supported Player events instead of the previous 100 ms polling loop;
+- only leaf consumers subscribe to live frame state; top-level Workspace reads playhead only at user action boundaries;
+- Canvas pointer draft publishing is latest-value rAF-coalesced while durable mutation remains one commit at gesture completion;
+- VisualPlanner uses the shared typed Studio dictionary rather than its own locale map;
+- V2.1 shell CSS uses existing shared tokens incrementally without a visual/layout redesign.
+
+The large historical CSS/i18n cleanup allowed to remain gradual by the Master PRD is not being expanded into a risky late-stage rewrite. H7 local Windows/browser acceptance must complete before PR #26 can merge.
 
 ## H6 accepted checkpoint
 
@@ -112,7 +162,7 @@ Refactoring rules:
 
 ## H7 expected acceptance direction
 
-Cloud acceptance should prove:
+Cloud acceptance must prove:
 
 - typed clients preserve route contracts and structured errors;
 - extracted workspace responsibilities preserve Create/Open/import/edit/save/render flows;
@@ -123,7 +173,7 @@ Cloud acceptance should prove:
 - typed i18n dictionaries typecheck and preserve current locale behavior;
 - Ubuntu/Windows H6 CI matrix remains green.
 
-Local/browser acceptance is required if H7 changes live Player events, gesture behavior, editor interaction timing, or other browser/runtime-sensitive behavior.
+The cloud gate above satisfies these source/automation requirements. Local/browser acceptance remains required because H7 changes live Player events, gesture behavior, editor interaction timing, and visual token usage.
 
 ## Accepted prior foundations
 
