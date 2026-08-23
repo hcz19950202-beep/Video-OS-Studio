@@ -1,10 +1,11 @@
 "use client";
 
 import {useMemo,useState} from "react";
-import {createOperationId,parseProjectResponse} from "@/lib/client/project-mutations";
+import {applyVisualPlan,generateVisualPlan} from "@/lib/client/planner";
+import {createOperationId} from "@/lib/client/project-mutations";
 import type {Project} from "@/schemas/project";
 import {buildVisualPlanDiff} from "@/lib/visual-planner/diff";
-import type {VisualPlan,VisualPlanDiff} from "@/lib/visual-planner/schema";
+import type {VisualPlan} from "@/lib/visual-planner/schema";
 import {useHistoryStore} from "@/store/history-store";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
 import {useProjectStudioPrefs} from "@/components/studio/useProjectStudioPrefs";
@@ -18,7 +19,6 @@ const copy={
   },
 } as const;
 
-type ApplyResponse={project:Project;diff:VisualPlanDiff;transactionId:string|null;appliedIds:string[];alreadyApplied?:boolean};
 type Activity={stage:string;message:string};
 const engineLabel=(engine:string,effectId?:string)=>engine==="none"?"NONE":`${engine.toUpperCase()}${effectId?` · ${effectId}`:""}`;
 
@@ -39,10 +39,10 @@ export const VisualPlannerPanel=({project,onProjectChange}:{project:Project;onPr
   const sceneGroups=useMemo(()=>project.scenes.map(scene=>({scene,suggestions:plan?.suggestions.filter(suggestion=>suggestion.sceneId===scene.id)??[]})).filter(group=>group.suggestions.length>0),[plan,project.scenes]);
   const planStats=useMemo(()=>({actionable:plan?.suggestions.filter(item=>item.recommendation.engine!=="none").length??0,holds:plan?.suggestions.filter(item=>item.recommendation.engine==="none").length??0,placed:plan?.suggestions.filter(item=>Boolean(item.recommendation.placement)).length??0}),[plan]);
 
-  const generate=async()=>{setBusy(true);setError(null);setActivity([{stage:"context",message:`${project.canvas.width}×${project.canvas.height} · ${safeArea.label}`},{stage:"analyze",message:locale==="zh-CN"?"读取 Scene、字幕、现有视觉密度与空间占位":"Read Scenes, captions, existing density and spatial occupancy"}]);try{const response=await fetch(`/api/projects/${encodeURIComponent(project.project.id)}/visual-plan`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({context:{intent,safeArea:{profileId:safeArea.id,...safeArea.insets}}})});const data=await response.json() as{plan?:VisualPlan;error?:string};if(!response.ok||!data.plan)throw new Error(data.error||"AI Director plan generation failed");setPlan(data.plan);setSelected(new Set(data.plan.suggestions.filter(suggestion=>suggestion.recommendation.engine!=="none").map(suggestion=>suggestion.id)));setApplied(new Set());setLastTransaction(null);setActivity(current=>[...current,{stage:"plan",message:`${data.plan!.suggestions.length} suggestions · ${data.plan!.suggestions.filter(item=>item.recommendation.engine!=="none").length} actionable`},{stage:"review",message:locale==="zh-CN"?"等待用户 Review / Deselect / Apply":"Waiting for Review / Deselect / Apply"}]);}catch(caught){const message=caught instanceof Error?caught.message:String(caught);setError(message);setActivity(current=>[...current,{stage:"error",message}]);}finally{setBusy(false);}};
+  const generate=async()=>{setBusy(true);setError(null);setActivity([{stage:"context",message:`${project.canvas.width}×${project.canvas.height} · ${safeArea.label}`},{stage:"analyze",message:locale==="zh-CN"?"读取 Scene、字幕、现有视觉密度与空间占位":"Read Scenes, captions, existing density and spatial occupancy"}]);try{const nextPlan=await generateVisualPlan(project.project.id,{intent,safeArea:{profileId:safeArea.id,...safeArea.insets}});setPlan(nextPlan);setSelected(new Set(nextPlan.suggestions.filter(suggestion=>suggestion.recommendation.engine!=="none").map(suggestion=>suggestion.id)));setApplied(new Set());setLastTransaction(null);setActivity(current=>[...current,{stage:"plan",message:`${nextPlan.suggestions.length} suggestions · ${nextPlan.suggestions.filter(item=>item.recommendation.engine!=="none").length} actionable`},{stage:"review",message:locale==="zh-CN"?"等待用户 Review / Deselect / Apply":"Waiting for Review / Deselect / Apply"}]);}catch(caught){const message=caught instanceof Error?caught.message:String(caught);setError(message);setActivity(current=>[...current,{stage:"error",message}]);}finally{setBusy(false);}};
   const toggle=(id:string)=>setSelected(current=>{const next=new Set(current);if(next.has(id))next.delete(id);else next.add(id);return next;});
 
-  const apply=async()=>{if(!plan||selected.size===0)return;setBusy(true);setError(null);setActivity(current=>[...current,{stage:"apply",message:`${selected.size} selected suggestion(s)`}]);try{const before=structuredClone(project);const response=await fetch(`/api/projects/${encodeURIComponent(project.project.id)}/visual-plan/apply`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expectedRevision:project.project.revision,operationId:createOperationId("ai-director"),plan,selectedIds:[...selected]})});const data=await parseProjectResponse<ApplyResponse>(response);onProjectChange(data.project);if(data.project.project.revision!==before.project.revision)pushHistory({projectId:project.project.id,label:`AI Director · ${data.appliedIds?.length??selected.size} suggestions`,before,after:data.project});setApplied(current=>new Set([...current,...(data.appliedIds??[])]));setSelected(new Set());setLastTransaction(data.transactionId??null);setActivity(current=>[...current,{stage:"done",message:`Transaction ${data.transactionId??"no-op"} · ${data.appliedIds?.length??0} applied`}]);}catch(caught){const message=caught instanceof Error?caught.message:String(caught);setError(message);setActivity(current=>[...current,{stage:"error",message}]);}finally{setBusy(false);}};
+  const apply=async()=>{if(!plan||selected.size===0)return;setBusy(true);setError(null);setActivity(current=>[...current,{stage:"apply",message:`${selected.size} selected suggestion(s)`}]);try{const before=structuredClone(project);const data=await applyVisualPlan(project.project.id,{expectedRevision:project.project.revision,operationId:createOperationId("ai-director"),plan,selectedIds:[...selected]});onProjectChange(data.project);if(data.project.project.revision!==before.project.revision)pushHistory({projectId:project.project.id,label:`AI Director · ${data.appliedIds?.length??selected.size} suggestions`,before,after:data.project});setApplied(current=>new Set([...current,...(data.appliedIds??[])]));setSelected(new Set());setLastTransaction(data.transactionId??null);setActivity(current=>[...current,{stage:"done",message:`Transaction ${data.transactionId??"no-op"} · ${data.appliedIds?.length??0} applied`}]);}catch(caught){const message=caught instanceof Error?caught.message:String(caught);setError(message);setActivity(current=>[...current,{stage:"error",message}]);}finally{setBusy(false);}};
 
   const density=(value:number)=>Number.isFinite(value)?value.toFixed(1):"0.0";
 
