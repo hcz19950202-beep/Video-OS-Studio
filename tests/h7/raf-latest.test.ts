@@ -6,7 +6,7 @@ describe("H7 rAF latest-value queue",()=>{
     let nextId=1;const callbacks=new Map<number,()=>void>();const published:number[]=[];
     const requestFrame=vi.fn((callback:()=>void)=>{const id=nextId++;callbacks.set(id,callback);return id;});
     const cancelFrame=vi.fn((id:number)=>callbacks.delete(id));
-    const queue=createRafLatestQueue(value=>published.push(value),requestFrame,cancelFrame);
+    const queue=createRafLatestQueue<number>(value=>published.push(value),requestFrame,cancelFrame);
 
     queue.schedule(1);queue.schedule(2);queue.schedule(3);
     expect(requestFrame).toHaveBeenCalledTimes(1);expect(published).toEqual([]);expect(queue.hasPending()).toBe(true);
@@ -19,7 +19,7 @@ describe("H7 rAF latest-value queue",()=>{
 
   it("cancels a pending frame without publishing stale preview state",()=>{
     const callbacks=new Map<number,()=>void>();const published:string[]=[];
-    const queue=createRafLatestQueue(value=>published.push(value),callback=>{callbacks.set(1,callback);return 1;},id=>callbacks.delete(id));
+    const queue=createRafLatestQueue<string>(value=>published.push(value),callback=>{callbacks.set(1,callback);return 1;},id=>callbacks.delete(id));
     queue.schedule("draft");queue.cancel();callbacks.get(1)?.();
     expect(published).toEqual([]);expect(queue.hasPending()).toBe(false);
   });
