@@ -1,7 +1,8 @@
 "use client";
 
 import {useState} from "react";
-import {createOperationId,parseProjectResponse} from "@/lib/client/project-mutations";
+import {addHyperFramesEffect} from "@/lib/client/hyperframes";
+import {createOperationId} from "@/lib/client/project-mutations";
 import type {Project} from "@/schemas/project";
 import {HYPERFRAMES_EFFECTS} from "@/shared/hyperframes/registry";
 import {usePlayerStore} from "@/store/player-store";
@@ -20,9 +21,8 @@ export const HyperFramesLibrary=({project,onProjectChange,mode="sidebar"}:{proje
     setBusy(effect.id);setError(null);
     try{
       const duration=Math.min(effect.defaultDurationInFrames,Math.max(1,project.canvas.durationInFrames-frame));
-      const response=await fetch(`/api/projects/${encodeURIComponent(project.project.id)}/hyperframes`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expectedRevision:project.project.revision,operationId:createOperationId("hyperframes"),effectId:effect.id,props:effect.defaults,startFrame:frame,durationInFrames:duration})});
-      const data=await parseProjectResponse<{project:Project}>(response);
-      onProjectChange(data.project);
+      const next=await addHyperFramesEffect(project.project.id,{expectedRevision:project.project.revision,operationId:createOperationId("hyperframes"),effectId:effect.id,props:effect.defaults,startFrame:frame,durationInFrames:duration});
+      onProjectChange(next);
     }catch(caught){setError(caught instanceof Error?caught.message:String(caught));}
     finally{setBusy(null);}
   };
