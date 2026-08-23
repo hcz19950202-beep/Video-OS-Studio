@@ -1,36 +1,14 @@
 import type {ProjectCommand} from "@/lib/project/commands";
 import type {ProjectCommandTransaction} from "@/lib/project/history";
 import type {Project} from "@/schemas/project";
+import {ApiRequestError,parseJsonResponse,type ApiErrorPayload} from "@/lib/client/api";
 
-export type ProjectApiError={
-  code?:string;
-  error?:string;
-  message?:string;
-  action?:string;
-  retryable?:boolean;
-  details?:Record<string,unknown>;
-  requestId?:string;
-};
-
-export class ProjectRequestError extends Error{
-  constructor(
-    message:string,
-    readonly status:number,
-    readonly code?:string,
-    readonly action?:string,
-    readonly retryable=true,
-    readonly details?:Record<string,unknown>,
-    readonly requestId?:string,
-  ){super(message);this.name="ProjectRequestError";}
-}
+export type ProjectApiError=ApiErrorPayload;
+export {ApiRequestError as ProjectRequestError};
 
 export const createOperationId=(prefix="op")=>`${prefix}-${crypto.randomUUID()}`;
 
-export const parseProjectResponse=async<T>(response:Response):Promise<T>=>{
-  const payload=(await response.json()) as T&ProjectApiError;
-  if(!response.ok)throw new ProjectRequestError(payload.message||payload.error||`Request failed with status ${response.status}`,response.status,payload.code,payload.action,payload.retryable??true,payload.details,payload.requestId);
-  return payload;
-};
+export const parseProjectResponse=<T,>(response:Response):Promise<T>=>parseJsonResponse<T>(response);
 
 export const postProjectCommand=async(base:Project,command:ProjectCommand,commandId=createOperationId("cmd"))=>{
   const response=await fetch(`/api/projects/${encodeURIComponent(base.project.id)}/commands`,{
