@@ -69,7 +69,7 @@ const job = {
   updatedAt: "2026-08-23T06:00:00.000Z",
 };
 
-let tempRoots: string[] = [];
+const tempRoots: string[] = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
