@@ -78,3 +78,30 @@ jobs:
         run: npx --no-install playwright install --with-deps chromium
       - name: Playwright H6 smoke
         run: npm run test:e2e
+
+  windows-media-smoke:
+    needs: windows-verify
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      H6_WINDOWS_MEDIA_SMOKE: "1"
+      VIDEO_OS_DATA_ROOT: ${{ runner.temp }}\video-os-h6-windows-media
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Verify media runtime
+        shell: pwsh
+        run: |
+          ffmpeg -version
+          ffprobe -version
+          $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+          if (!(Test-Path $chrome)) { throw "Chrome executable not found at $chrome" }
+      - name: Windows real-media smoke
+        run: npm run test:windows-media
