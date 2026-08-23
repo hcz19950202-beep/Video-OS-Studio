@@ -15,14 +15,14 @@ const withoutExtension=(name:string)=>name.replace(/\.[^.]+$/,"")||"media";
 const operationAssetId=(operationId:string)=>`media-${createHash("sha256").update(operationId).digest("hex").slice(0,20)}`;
 
 type ImportMediaCommon={projectId:string;fileName:string;mimeType?:string;expectedRevision?:number;operationId?:string};
-export type ImportMediaInput=ImportMediaCommon&(
-  |{bytes:Uint8Array;sourcePath?:never;sizeBytes?:never}
-  |{sourcePath:string;sizeBytes:number;bytes?:never}
-);
+type BufferedImportMediaInput=ImportMediaCommon&{bytes:Uint8Array};
+type StagedImportMediaInput=ImportMediaCommon&{sourcePath:string;sizeBytes:number};
+export type ImportMediaInput=BufferedImportMediaInput|StagedImportMediaInput;
 export type MediaImportReport={kind:MediaImportKind;strategy:MediaImportStrategy;normalized:boolean;assetId:string;originalRelativePath?:string;workingRelativePath:string;workingFileName:string;};
 export type MediaImportResult={project:Project;import:MediaImportReport;alreadyApplied?:boolean};
 
-const inputSizeBytes=(input:ImportMediaInput)=>"bytes" in input?input.bytes.byteLength:input.sizeBytes;
+const isBufferedInput=(input:ImportMediaInput):input is BufferedImportMediaInput=>"bytes" in input;
+const inputSizeBytes=(input:ImportMediaInput)=>isBufferedInput(input)?input.bytes.byteLength:input.sizeBytes;
 
 export class MediaImportService{
   private readonly mutations:ProjectMutationCoordinator;
@@ -41,7 +41,7 @@ export class MediaImportService{
     if(!Number.isSafeInteger(sizeBytes)||sizeBytes<=0)throw new Error("The selected file is empty or has an invalid size.");
     let stagedConsumed=false;
     const place=async(targetPath:string)=>{
-      if("bytes" in input){await this.fs.writeBinary(targetPath,input.bytes);return;}
+      if(isBufferedInput(input)){await this.fs.writeBinary(targetPath,input.bytes);return;}
       if(stagedConsumed)throw new Error("The staged upload was already consumed.");
       await this.fs.moveFile(input.sourcePath,targetPath);
       stagedConsumed=true;
