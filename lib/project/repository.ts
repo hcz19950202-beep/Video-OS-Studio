@@ -34,6 +34,7 @@ export class ProjectRepository {
   private summaryPath(projectId:string):string{return join(this.projectDir(projectId),"project.summary.json");}
   private summaryOf(project:Project):ProjectSummary{return{id:project.project.id,name:project.project.name,updatedAt:project.project.updatedAt,revision:project.project.revision};}
   private async writeSummary(project:Project):Promise<void>{await this.fs.writeTextAtomic(this.summaryPath(project.project.id),JSON.stringify(this.summaryOf(project)));}
+  private referencedProjectFiles(project:Project):Set<string>{const paths=new Set<string>();for(const asset of project.assets){paths.add(asset.relativePath);if(asset.originalRelativePath)paths.add(asset.originalRelativePath);}return paths;}
 
   resolveProjectFile(projectId: string, relativePath: string): string {
     const safeRelativePath = ProjectRelativePathSchema.parse(relativePath);
@@ -64,6 +65,19 @@ export class ProjectRepository {
       this.backupPath(project.project.id),
     );
     await this.writeSummary(project).catch(()=>undefined);
+  }
+
+  async cleanupUnreferencedProjectFiles(projectId:string,candidateRelativePaths:string[]):Promise<string[]>{
+    const latest=await this.load(projectId);
+    const referenced=this.referencedProjectFiles(latest);
+    const removed:string[]=[];
+    for(const rawPath of new Set(candidateRelativePaths)){
+      const relativePath=ProjectRelativePathSchema.parse(rawPath);
+      if(referenced.has(relativePath))continue;
+      const absolutePath=this.resolveProjectFile(projectId,relativePath);
+      if(await this.fs.exists(absolutePath)){await this.fs.removeFile(absolutePath);removed.push(relativePath);}
+    }
+    return removed;
   }
 
   private async readOrRepairSummary(projectId:string):Promise<ProjectSummary|null>{
