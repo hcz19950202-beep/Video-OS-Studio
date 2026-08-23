@@ -18,7 +18,7 @@ export class VideoUseService{
   private readonly mutations:ProjectMutationCoordinator;
   constructor(private readonly fs:FileSystemAdapter,private readonly adapter:VideoUseAdapter,private readonly repository:ProjectRepository,mutations?:ProjectMutationCoordinator){this.mutations=mutations??new ProjectMutationCoordinator(fs,repository);}
 
-  private primaryVideo(project:Project){const asset=project.assets.find(item=>item.kind==="video");if(!asset)throw new Error("Import an MP4 before running video-use.");return asset;}
+  private primaryVideo(project:Project){const activeClip=project.tracks.find(track=>track.id==="video-main")?.clips.find((clip):clip is Extract<Clip,{type:"video"}>=>(clip.type==="video"));const asset=project.assets.find(item=>item.kind==="video"&&item.id===activeClip?.assetId)??project.assets.find(item=>item.kind==="video");if(!asset)throw new Error("Import an MP4 before running video-use.");return asset;}
   private async baseline(projectId:string,meta?:MutationMeta){const project=await this.repository.load(projectId);if(meta&&project.project.revision!==meta.expectedRevision)throw new ProjectRevisionConflictError(meta.expectedRevision,project.project.revision);return project;}
 
   async prepare(projectId:string,meta?:MutationMeta,options:ToolExecutionOptions={}){
