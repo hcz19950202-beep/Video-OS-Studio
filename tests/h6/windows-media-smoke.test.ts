@@ -140,11 +140,19 @@ describe("H6 Windows real-media smoke", () => {
       const mp4Asset = mp4.project.assets.find((asset) => asset.id === mp4.import.assetId);
       expect(mp4Asset).toMatchObject({ kind: "video", width: 320, height: 180, hasAudio: true });
 
-      const mov = await importFixture(movPath, "tiny source.MOV", "video/quicktime", "h6-media-mov");
+      const mov = await importFixture(
+        movPath,
+        "tiny source.MOV",
+        "video/quicktime",
+        "h6-media-mov",
+      );
       expect(mov.import).toMatchObject({ kind: "video", normalized: true });
       expect(mov.import.originalRelativePath).toMatch(/^original\//);
       expect(mov.import.workingRelativePath).toMatch(/^input\/.+\.mp4$/);
-      const movWorkingPath = repository.resolveProjectFile(projectId, mov.import.workingRelativePath);
+      const movWorkingPath = repository.resolveProjectFile(
+        projectId,
+        mov.import.workingRelativePath,
+      );
       const movProbe = await ffmpeg.probe(movWorkingPath);
       expect(movProbe).toMatchObject({ width: 320, height: 180 });
       expect(movProbe.durationSeconds).toBeGreaterThan(0);
@@ -152,7 +160,12 @@ describe("H6 Windows real-media smoke", () => {
       const image = await importFixture(imagePath, "tiny image.png", "image/png", "h6-media-image");
       expect(image.import).toMatchObject({ kind: "image", normalized: false });
 
-      const audio = await importFixture(audioPath, "tiny audio.flac", "audio/flac", "h6-media-audio");
+      const audio = await importFixture(
+        audioPath,
+        "tiny audio.flac",
+        "audio/flac",
+        "h6-media-audio",
+      );
       expect(audio.import).toMatchObject({ kind: "audio", normalized: true });
       expect(audio.import.workingRelativePath).toMatch(/^assets\/.+\.m4a$/);
       const audioProbe = await ffmpeg.probe(

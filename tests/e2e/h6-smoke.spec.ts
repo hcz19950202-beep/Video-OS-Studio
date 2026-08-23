@@ -36,7 +36,8 @@ const applyCommand = async (
         }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.message || result.error || `Command failed: ${response.status}`);
+      if (!response.ok)
+        throw new Error(result.message || result.error || `Command failed: ${response.status}`);
       return result.project;
     },
     {
@@ -81,7 +82,8 @@ test("H6 Create/Open/Import/Caption/Canvas/AI/Undo/Redo/Save/Reopen", async ({ p
   await page.getByLabel("Project name").fill(PROJECT_NAME);
 
   const createResponse = page.waitForResponse(
-    (response) => response.request().method() === "POST" && response.url().endsWith("/api/projects"),
+    (response) =>
+      response.request().method() === "POST" && response.url().endsWith("/api/projects"),
   );
   await page.getByRole("button", { name: "Create Project", exact: true }).click();
   const created = await createResponse;
@@ -145,7 +147,9 @@ test("H6 Create/Open/Import/Caption/Canvas/AI/Undo/Redo/Save/Reopen", async ({ p
   await expect
     .poll(async () => {
       const project = await readProject(page, projectId);
-      const caption = project.tracks.flatMap((track) => track.clips).find((clip) => clip.id === CAPTION_ID);
+      const caption = project.tracks
+        .flatMap((track) => track.clips)
+        .find((clip) => clip.id === CAPTION_ID);
       return caption?.type === "caption" ? caption.style?.fontSize : undefined;
     })
     .toBe(64);
@@ -206,6 +210,8 @@ test("H6 Create/Open/Import/Caption/Canvas/AI/Undo/Redo/Save/Reopen", async ({ p
   const reopenedCaption = reopened.tracks
     .flatMap((track) => track.clips)
     .find((clip) => clip.id === CAPTION_ID);
-  expect(reopenedCaption?.type === "caption" ? reopenedCaption.style?.fontSize : undefined).toBe(64);
+  expect(reopenedCaption?.type === "caption" ? reopenedCaption.style?.fontSize : undefined).toBe(
+    64,
+  );
   expect(motionClipIds(reopened)).toContain(appliedMotionId);
 });
