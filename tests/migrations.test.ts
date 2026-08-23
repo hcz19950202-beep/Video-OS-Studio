@@ -50,6 +50,11 @@ describe("project migrations",()=>{
     expect(()=>migrateProject({version:"0.8.0"})).toThrow(InvalidProjectMigrationError);
   });
 
+  it("rejects duplicate migration registration for the same source version",()=>{
+    registerProjectMigration("0.7.0","1.0.0",()=>({...legacyFixture,version:"1.0.0"}));
+    expect(()=>registerProjectMigration("0.7.0","2.0.0",input=>input)).toThrow(InvalidProjectMigrationError);
+  });
+
   it("fails explicitly for unknown versions",()=>{
     expect(()=>migrateProject({version:"99.0.0"})).toThrow(UnsupportedProjectVersionError);
   });
