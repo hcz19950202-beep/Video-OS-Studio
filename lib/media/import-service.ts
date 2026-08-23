@@ -14,9 +14,15 @@ const sanitizeFileName=(name:string)=>{const n=name.replaceAll("\\","/").split("
 const withoutExtension=(name:string)=>name.replace(/\.[^.]+$/,"")||"media";
 const operationAssetId=(operationId:string)=>`media-${createHash("sha256").update(operationId).digest("hex").slice(0,20)}`;
 
-export type ImportMediaInput={projectId:string;fileName:string;mimeType?:string;bytes:Uint8Array;expectedRevision?:number;operationId?:string};
+type ImportMediaCommon={projectId:string;fileName:string;mimeType?:string;expectedRevision?:number;operationId?:string};
+export type ImportMediaInput=ImportMediaCommon&(
+  |{bytes:Uint8Array;sourcePath?:never;sizeBytes?:never}
+  |{sourcePath:string;sizeBytes:number;bytes?:never}
+);
 export type MediaImportReport={kind:MediaImportKind;strategy:MediaImportStrategy;normalized:boolean;assetId:string;originalRelativePath?:string;workingRelativePath:string;workingFileName:string;};
 export type MediaImportResult={project:Project;import:MediaImportReport;alreadyApplied?:boolean};
+
+const inputSizeBytes=(input:ImportMediaInput)=>"bytes" in input?input.bytes.byteLength:input.sizeBytes;
 
 export class MediaImportService{
   private readonly mutations:ProjectMutationCoordinator;
@@ -31,17 +37,27 @@ export class MediaImportService{
     const plan=planMediaImport(input.fileName,input.mimeType);
     const assetId=input.operationId?operationAssetId(operationId):`media-${this.idFactory()}`;
     const safeName=sanitizeFileName(input.fileName);
+    const sizeBytes=inputSizeBytes(input);
+    if(!Number.isSafeInteger(sizeBytes)||sizeBytes<=0)throw new Error("The selected file is empty or has an invalid size.");
+    let stagedConsumed=false;
+    const place=async(targetPath:string)=>{
+      if("bytes" in input){await this.fs.writeBinary(targetPath,input.bytes);return;}
+      if(stagedConsumed)throw new Error("The staged upload was already consumed.");
+      await this.fs.moveFile(input.sourcePath,targetPath);
+      stagedConsumed=true;
+    };
+
     let relativePath:string;
     let originalRelativePath:string|undefined;
     let workingFileName=safeName;
 
     if(plan.kind==="subtitle"){
       relativePath=`captions/${assetId}-${safeName}`;
-      await this.fs.writeBinary(this.repository.resolveProjectFile(baseline.project.id,relativePath),input.bytes);
+      await place(this.repository.resolveProjectFile(baseline.project.id,relativePath));
     }else if(plan.strategy==="normalize-video"||plan.strategy==="normalize-audio"){
       originalRelativePath=`original/${assetId}-${safeName}`;
       const sourcePath=this.repository.resolveProjectFile(baseline.project.id,originalRelativePath);
-      await this.fs.writeBinary(sourcePath,input.bytes);
+      await place(sourcePath);
       const extension=plan.strategy==="normalize-video"?"mp4":"m4a";
       const folder=plan.kind==="video"?"input":"assets";
       workingFileName=`${withoutExtension(safeName)}-working.${extension}`;
@@ -53,12 +69,12 @@ export class MediaImportService{
     }else{
       const folder=plan.kind==="video"?"input":"assets";
       relativePath=`${folder}/${assetId}-${safeName}`;
-      await this.fs.writeBinary(this.repository.resolveProjectFile(baseline.project.id,relativePath),input.bytes);
+      await place(this.repository.resolveProjectFile(baseline.project.id,relativePath));
     }
 
     const absolutePath=this.repository.resolveProjectFile(baseline.project.id,relativePath);
     const normalizedMime=plan.strategy==="normalize-video"?"video/mp4":plan.strategy==="normalize-audio"?"audio/mp4":plan.mimeType;
-    let asset:Asset={id:assetId,kind:plan.kind,relativePath,originalRelativePath,label:safeName,originalName:input.fileName,mimeType:normalizedMime,originalMimeType:input.mimeType||plan.mimeType,sizeBytes:input.bytes.byteLength};
+    let asset:Asset={id:assetId,kind:plan.kind,relativePath,originalRelativePath,label:safeName,originalName:input.fileName,mimeType:normalizedMime,originalMimeType:input.mimeType||plan.mimeType,sizeBytes};
 
     if(plan.kind==="video"){
       let probe;
@@ -68,14 +84,14 @@ export class MediaImportService{
       try{const probe=await this.ffmpeg.probe(absolutePath);asset={...asset,durationInFrames:Math.max(1,Math.round(probe.durationSeconds*baseline.canvas.fps)),hasAudio:true};}catch{/* Asset remains importable if a specific audio codec cannot be probed in cloud/mock environments. */}
     }
 
-    const commandsFor=(current:Project):ProjectCommand[]=>{
+    const commandsFor=async(current:Project):Promise<ProjectCommand[]>=>{
       const commands:ProjectCommand[]=[];
       if(plan.kind==="video"){
         const durationInFrames=asset.durationInFrames??current.canvas.durationInFrames;
         for(const clip of current.tracks.find(track=>track.id==="video-main")?.clips??[])commands.push({type:"remove-clip",clipId:clip.id});
         commands.push({type:"set-duration",durationInFrames},{type:"add-asset",asset},{type:"add-clip",trackId:"video-main",clip:{id:`clip-${assetId}`,type:"video",assetId,startFrame:0,durationInFrames,sourceStartFrame:0,volume:1,enabled:true,layer:0}});
       }else if(plan.kind==="subtitle"){
-        const parsed=parseSubtitleText(new TextDecoder().decode(input.bytes));
+        const parsed=parseSubtitleText(await this.fs.readText(absolutePath));
         if(parsed.length===0)throw new Error("No valid subtitle cues were found. Verify SRT/VTT timestamps and retry.");
         for(const clip of current.tracks.find(track=>track.id==="captions-main")?.clips??[])commands.push({type:"remove-clip",clipId:clip.id});
         commands.push({type:"add-asset",asset});
@@ -86,8 +102,8 @@ export class MediaImportService{
 
     const committed=await this.mutations.mutate({
       projectId:input.projectId,expectedRevision,operationId,kind:"media",
-      payload:{fileName:input.fileName,mimeType:input.mimeType,sizeBytes:input.bytes.byteLength,assetId,plan},
-      apply:current=>applyProjectCommandTransaction(current,{id:operationId,label:`Import ${safeName}`,commands:commandsFor(current)}),
+      payload:{fileName:input.fileName,mimeType:input.mimeType,sizeBytes,assetId,plan},
+      apply:async current=>applyProjectCommandTransaction(current,{id:operationId,label:`Import ${safeName}`,commands:await commandsFor(current)}),
     });
     return{project:committed.project,alreadyApplied:committed.alreadyApplied,import:{kind:plan.kind,strategy:plan.strategy,normalized:plan.strategy==="normalize-video"||plan.strategy==="normalize-audio",assetId,originalRelativePath,workingRelativePath:relativePath,workingFileName}};
   }
