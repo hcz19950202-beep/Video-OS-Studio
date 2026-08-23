@@ -582,3 +582,51 @@ MERGE RECOMMENDATION: YES/NO
 ```
 
 If validation documentation creates the last commit, report that documentation commit as FINAL HEAD.
+
+## Actual Results / Final Result — 2026-08-23
+
+The following results are from the frozen H4 Windows run. All large media and
+validation harnesses stayed outside Git under the isolated E: data root.
+
+```text
+BRANCH: hardening/v2.1.1-h4-streaming-media
+FINAL HEAD: eb308a9752af911b0d1e3d2d1ebce9607389df15 before this documentation commit; the documentation commit is the final pushed HEAD reported in the handoff
+FROZEN INPUT HEAD: eb308a9752af911b0d1e3d2d1ebce9607389df15
+LOCAL WORKTREE: E:\Video-OS-Studio-H4-Validation
+LOCAL DATA ROOT: E:\Video-OS-Data\v2.1.1-h4-validation-eb308a97
+WINDOWS: Windows 10 Home Simplified Chinese 10.0.19045 x64
+NODE/NPM: Node v25.2.1 / npm 11.6.2 (project declares Node 24.x)
+CHROME: 151.0.7922.138 via local Chrome CDP/browser-use
+FFMPEG/FFPROBE: 8.1.1-full_build-www.gyan.dev
+REMOTION VERSIONS: remotion 4.0.513; @remotion/player 4.0.513; @remotion/cli 4.0.513
+HYPERFRAMES VERSION: 0.8.10 exact local npm package
+
+CLEAN NPM CI: PASS — 681 packages installed from lock; only the known Node engine/deprecation warnings appeared
+CODE CHECKS: PASS — lint 0 errors / 2 pre-existing no-img-element warnings, typecheck, 43 test files / 179 tests, build
+BROWSER RAW UPLOAD: PASS — browser instrumentation captured POST /api/projects/h4-browser-regression-6abbb8b5/media with raw File body, bodyIsFormData=false, bodySize 3211911, and fileName/expectedRevision/operationId query metadata; MOV likewise used raw File
+LARGE UPLOAD STREAMING: PASS — 398313071-byte / 379.86MB valid MP4 imported through raw stream; fs.watch observed .uploads/<uuid>.part creation and progressive change events up to 396886016 bytes, then successful consume/cleanup; Asset.sizeBytes exactly matched source
+UPLOAD MEMORY/RSS: PASS — file 379.86MB; server baseline RSS 107.72MB, peak 122.94MB, delta 15.22MB, ratio 0.0401; real streamRequestBodyToFile helper baseline RSS 75.66MB, peak 143.50MB, delta 67.84MB, RSS/file ratio 0.1786, heap delta 0MB, heap/file ratio 0.0000
+UPLOAD ABORT CLEANUP: PASS — real AbortController client returned AbortError; Project stayed revision 0 with zero assets and zero .part; subsequent normal upload succeeded; no H4-owned process remained
+UPLOAD LIMIT/413: PASS — declared Content-Length 2147483649 returned HTTP 413 with MEDIA_UPLOAD_TOO_LARGE; no .part and no Project mutation; small-maxBytes helper returned UploadTooLargeError and deleted partial output
+MP4 IMPORT: PASS — native h4-small.mp4 raw upload probed valid H.264/AAC 1280x720 and registered Asset/revision
+MOV NORMALIZATION: PASS — h4-small.MOV preserved under original/, working MP4 generated under input/, paths survived Project persistence and Asset metadata remained valid
+STALE REVISION SAFETY: PASS — long raw upload with expectedRevision 0 returned 409 PROJECT_REVISION_CONFLICT after legitimate rename to revision 1; newer name remained, zero Asset registered, no .part remained; any orphan cleanup remains H5
+ASSET GET/HEAD: PASS — large Asset media-06a023e2a8e11b572280 returned 200/HEAD with Content-Length 398313071, Accept-Ranges bytes, video/mp4, Cache-Control no-store and nosniff; HEAD body was null
+ASSET RANGE MATRIX: PASS — first, middle, open-ended, suffix and last-byte ranges returned 206; all Content-Range/Length values and bytes matched disk; beyond EOF, malformed and multiple ranges returned 416 with bytes */398313071 and Content-Length 0
+ASSET MEMORY/RSS: PASS — full curl stream file 379.86MB; server baseline RSS 127.23MB, peak 137.37MB, delta 10.14MB, ratio 0.0267; real createStreamingFileResponse helper baseline RSS 77.55MB, peak 149.07MB, delta 71.52MB, RSS/file ratio 0.1883, heap delta 2.98MB, heap/file ratio 0.0078; aborted curl was followed by a successful Range request
+BROWSER PLAYBACK/SEEK: PASS — activated real Chrome tab; video duration 8s/readyState 4, seeked to non-adjacent positions, and CDP captured Asset request Range bytes=0- with 206 response
+RENDER OUTPUT GET/HEAD: PASS — durable Final Render job 2dfd7b5f-b6a3-4828-bb2e-4b31ee50205f served video/mp4 with Content-Length, Content-Disposition attachment, Accept-Ranges and nosniff; HEAD had no body
+RENDER RANGE MATRIX: PASS — same first/middle/open-ended/suffix/last/invalid matrix matched the on-disk render output bytes and returned correct 206/416 headers
+RENDER MEMORY/RSS: NOT MATERIAL — short 3.59MB Final output; streaming helper and large Asset server measurements provide the meaningful H4 memory evidence
+CANONICAL MIME/NOSNIFF: PASS — real headers used server-side video/mp4; helper mapping verified .mp4, .mov, .webm, .jpg/.jpeg, .png, .srt and .vtt; streamed successes/416 retained nosniff
+TEMP FILE CLEANUP: PASS — all Project .uploads directories and recursive H4 data root contain zero *.part files; server, curl, Node helper and FFmpeg processes stopped/absent
+APP REGRESSION: PASS — Chrome opened the H4 project, imported MP4 and MOV through normal UI, edited Caption and Canvas, Save/Reopen, Undo/Redo, Preview/playback/seek, triggered durable Final Render and downloaded/read output, and added a representative HyperFrames operation; H0/H1/H2/H3 behavior remained healthy
+FINAL GITHUB VERIFY: PASS — frozen cloud baseline Run 32613654579 was green; final documentation commit triggers the same CI and final head is reported in the handoff
+
+DEFECTS FIXED: None. No H4 product defect required a code change. The first PowerShell part sampler missed the transient file due timing; the required fs.watch retest captured progressive staging. One transient Controller-is-closed terminal diagnostic was not reproduced in the final production abort rerun; server remained alive and cleanup/retry passed.
+COMMITS PUSHED: this final H4 Actual Results documentation commit; no H4 code fix commit was necessary
+REMAINING FAILURES: No blocking H4 acceptance failures. Non-blocking notes: local Node is newer than the declared 24.x engine, two pre-existing lint warnings remain, and the browser CDP permission popup required one user Allow confirmation.
+RESIDUAL TEMP/PROCESSES: none — no H4-owned *.part, upload temp, server, Node, FFmpeg or curl process remains
+
+MERGE RECOMMENDATION: YES — H4 local Windows/large-media acceptance passed. Keep PR #23 open/draft/unmerged for GPT Web review; do not start H5.
+```
