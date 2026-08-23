@@ -84,7 +84,7 @@ jobs:
   windows-media-smoke:
     needs: windows-verify
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -100,6 +100,9 @@ jobs:
         run: |
           "H6_WINDOWS_MEDIA_SMOKE=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "VIDEO_OS_DATA_ROOT=$env:RUNNER_TEMP\video-os-h6-windows-media" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Install pinned FFmpeg
+        shell: pwsh
+        run: choco install ffmpeg --version=9.0.1 -y --no-progress
       - name: Verify media runtime
         shell: pwsh
         run: |
