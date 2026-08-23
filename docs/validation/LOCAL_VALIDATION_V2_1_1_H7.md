@@ -489,9 +489,64 @@ Do not use H7 validation to implement V2.2 or unrelated UI features.
 
 ## 16. Actual Results
 
-Local Codex appends actual evidence below this heading after completing the frozen-SHA acceptance.
+Local Windows/browser acceptance was completed from the frozen input in the isolated worktree.
 
-Do not rewrite the validation contract above. Include exact environment versions, measurements/observations, defects, commits, residual processes, and merge recommendation.
+BRANCH: hardening/v2.1.1-h7-frontend-consolidation
+FINAL HEAD: final documentation commit (code checkpoint before this commit: 042dcd18252ca333f8b2c3c4de9c1a1f99eaae59)
+FROZEN INPUT HEAD: e1b1675001c3b62e113f94650c86e9326303f214
+LOCAL WORKTREE: E:\Video-OS-Studio-H7-Validation
+LOCAL DATA ROOT: E:\Video-OS-Data\v2.1.1-h7-validation-e1b1675
+WINDOWS: Windows 10 家庭中文版 10.0.19045, build 19045, x64
+NODE/NPM: Node v25.2.1 / npm 11.6.2 (project engine declares Node 24.x; engine warning only)
+CHROME: Google Chrome 151.0.7922.138
+FFMPEG/FFPROBE: 8.1.1-full_build-www.gyan.dev
+REMOTION VERSIONS: remotion 4.0.513; @remotion/player 4.0.513; @remotion/cli 4.0.513
+HYPERFRAMES VERSION: 0.8.10
+PLAYWRIGHT VERSION: @playwright/test 1.62.1
+
+CLEAN NPM CI: PASS — 684 packages installed after each code-fix checkpoint; only the declared Node engine warning and package deprecation warnings.
+CODE CHECKS: PASS — format:check, lint, typecheck, build, and npm test; 57 test files passed, 238 tests passed, 1 test file/test skipped. Lint has only the two pre-existing no-img warnings in EffectLibrary.tsx and HyperFramesLibrary.tsx.
+PLAYWRIGHT H6 SMOKE: PASS — pinned Chromium, isolated 3012-port rerun, 1/1 passed in 16.8s. The exact standard npm run test:e2e command was also run and stopped before tests because an unrelated pre-existing service already occupied 127.0.0.1:3000.
+TYPED CLIENT NORMAL FLOWS: PASS — real Chrome Create/Recent/Open/Import MP4+MOV+PNG+FLAC+SRT, caption mutation, Save/Reopen, planner, Final Render, and HyperFrames Process Flow. H6 Windows media smoke also covered Range/raw media and normalized working assets.
+STRUCTURED ERROR PATH: PASS — two snapshots at revision 11; client A committed revision 12, stale client B received HTTP 409 PROJECT_REVISION_CONFLICT with structured details, and the UI showed the sanitized reload/retry text. No [object Object], absolute path, stack, raw stderr, or unhandled error was observed; latest revision 12 remained intact.
+PLAYER EVENT SYNC: PASS — Remotion event bridge exercised in real Chrome; no legacy 100ms polling symptom observed. Readout, timeline playhead, and canvas stayed aligned during playback and seek.
+PLAY/PAUSE/SEEK/END: PASS — initial 300-frame run: playback reached about 00:00.9/frame 27, pause held, seeks landed at frames 60 and 180, replay advanced, and end reset to frame 0 with Play restored. Final 150-frame run also reached frame 58 during play and ended with no browser error.
+WORKSPACE FRAME ISOLATION: PASS
+ADD B-ROLL/AUDIO PLAYHEAD: PASS — at currentFrame 60, expected image/audio startFrame 60; actual image startFrame 60 and audio startFrame 60, committed in the same project revision.
+CANVAS DRAG RAF: PASS — one rapid browser pointer-event gesture produced one durable commit, revision 15→16; x/y changed from 29.36/29.36 to 208.44/208.44.
+CANVAS RESIZE RAF: PASS — one rapid resize gesture produced one durable commit, revision 17→18; scale changed from 1.1939 to 1.3464.
+CANVAS ROTATE RAF: PASS — one rapid rotate gesture produced one durable commit, revision 19→20; rotation changed from 95° to 141°.
+CANVAS CANCEL/ERROR CLEANUP: PASS — cancel left the revision unchanged, restored the last durable transform, cleared the draft/guides, and produced no app error. The native Windows/browser pointer-capture path was not modified; the browser harness's synthetic pointer path required a test-only capture stub.
+UNDO/REDO GESTURE BOUNDARY: PASS — revision 20→21→22 restored rotation 141°→95°→141°; one gesture remained one undo unit.
+PLANNER I18N ZH/EN: PASS — rules analysis executed in Chinese and English with two scene suggestions; translated controls, review, density, diff, and activity surfaces rendered without browser errors.
+CSS/VISUAL 1920x929: PASS — workspace exactly 1920×929, body scrollWidth/clientWidth both 1920; player shell 654×368 and timeline region 300px high, with no page-level overflow.
+CSS/VISUAL 1440x900: PASS — workspace exactly 1440×900, body scrollWidth/clientWidth both 1440; player shell 602×339 and timeline region 300px high.
+CSS/VISUAL 1280x720: PASS — workspace exactly 1280×720, body scrollWidth/clientWidth both 1280; player shell 284×160 and timeline region 300px high.
+DARK/LIGHT THEME: PASS — dark body background observed as rgb(11,12,14); light as rgb(238,234,228); both retained exact viewport dimensions without page overflow.
+SHORT FINAL RENDER UI: PASS — typed render client/job polling reached queued→running→completed 100%; output HEAD returned 200 video/mp4, 241353 bytes. FFprobe: H.264+AAC, 1920×1080, 5.056s.
+HYPERFRAMES UI REGRESSION: PASS — real UI Process Flow at HyperFrames 0.8.10 committed revision 24→25 and created animations/hf-process-flow-e2dbe3d8347bb474.webm. FFprobe: VP9, 1920×1080, 4.000s, 210603 bytes.
+VIDEO-USE: NOT CONFIGURED — VIDEO_USE_ROOT was not configured on this Windows machine; no Video-Use claim is made.
+APP REGRESSION: PASS — fresh Chrome reopened revision 25, saved/reopened the project, played and sought to frames 25 and 98, rendered image B-roll as a native image at 320×180, and showed no console warning/error or unhandled rejection other than the informational Remotion license note.
+FINAL GITHUB VERIFY: PASS for code checkpoint — CI Run 32639750945 had ubuntu-verify, windows-verify, browser-smoke, and windows-media-smoke SUCCESS. PR #26 remained OPEN, Draft, unmerged, with the H7 branch at 042dcd18252ca333f8b2c3c4de9c1a1f99eaae59 before this documentation commit.
+
+DEFECTS FIXED:
+- V2.1.1-H7-LV-001 — AssetLibraryPanel exposed image B-roll, but MasterComposition routed every B-roll asset to OffthreadVideo, causing a real Chrome MediaPlaybackError for the PNG path. B-roll now routes image assets to a native still-image renderer and video assets to OffthreadVideo.
+- The Remotion Img decode fallback emitted an EncodingError console warning for the valid PNG. The image branch now uses a native image element; fresh Chrome repeated frame 98 with no warning/error.
+
+COMMITS PUSHED:
+- 946b1c8 — fix: route image b-roll through still renderer
+- 042dcd1 — fix: avoid image b-roll decode warnings
+- Final documentation commit: docs: record H7 Windows acceptance (this commit)
+
+REMAINING FAILURES:
+- No H7 product failure remains in the tested scope.
+- The exact standard Playwright command remains environment-blocked before test startup by the unrelated existing 3000-port service; the same pinned test passed on isolated port 3012.
+- Video-Use remains NOT CONFIGURED and was intentionally not claimed.
+- The Canvas gesture evidence uses the browser harness's rapid PointerEvent/rAF path; native pointer capture behavior was left untouched, and the harness-only capture limitation is not a product failure.
+
+RESIDUAL TEMP/PROCESSES: H7 dev server and the isolated Playwright server were stopped; temporary Playwright config and test-results were removed. The H7 data root, fixtures, imported project, render output, and HyperFrames output remain intentionally as local acceptance evidence. The unrelated original worktree/service on port 3000 was not touched.
+
+MERGE RECOMMENDATION: NO — keep PR #26 Draft/Open/Unmerged per instruction; do not start V2.2.
 
 ## 17. Final report format
 
