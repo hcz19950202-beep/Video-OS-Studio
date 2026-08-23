@@ -21,6 +21,7 @@ const readVersion=(input:unknown):unknown=>input&&typeof input==="object"?Reflec
 export const registerProjectMigration=(fromVersion:string,toVersion:string,migration:ProjectMigration):void=>{
   if(!fromVersion||!toVersion)throw new InvalidProjectMigrationError("Migration versions must be non-empty.");
   if(fromVersion===toVersion)throw new InvalidProjectMigrationError(`Migration ${fromVersion} cannot target the same version.`);
+  if(migrations.has(fromVersion))throw new InvalidProjectMigrationError(`Migration from ${fromVersion} is already registered.`);
   migrations.set(fromVersion,{toVersion,migrate:migration});
 };
 
