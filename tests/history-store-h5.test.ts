@@ -51,7 +51,7 @@ describe("H5 history store",()=>{
 
   it("drops a single history entry that exceeds the byte budget",()=>{
     const huge=entry(0);
-    huge.after.script.segments=[{id:"segment",startFrame:0,endFrame:1,text:"x".repeat(MAX_HISTORY_BYTES+1024),sourceStartFrame:0,sourceEndFrame:1}];
+    huge.label="x".repeat(MAX_HISTORY_BYTES+1024);
     useHistoryStore.getState().push(huge);
     expect(useHistoryStore.getState().undoStack).toHaveLength(0);
   });
