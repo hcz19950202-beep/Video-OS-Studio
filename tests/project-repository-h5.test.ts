@@ -28,4 +28,13 @@ describe("H5 ProjectRepository recent summary index",()=>{
     await repo.save(project);
     expect((await repo.listRecent())[0]).toEqual({id:"summary-save",name:"After",updatedAt:"2026-08-23T02:00:00.000Z",revision:3});
   });
+
+  it("removes a stale summary instead of listing a project whose project.json is missing",async()=>{
+    const fs=new InMemoryFileSystemAdapter();const repo=new ProjectRepository(fs,"/data");
+    await repo.create({id:"ghost-summary",name:"Ghost",now:"2026-08-23T03:00:00.000Z"});
+    await fs.removeFile("/data/projects/ghost-summary/project.json");
+    expect(await fs.exists("/data/projects/ghost-summary/project.summary.json")).toBe(true);
+    expect(await repo.listRecent()).toEqual([]);
+    expect(await fs.exists("/data/projects/ghost-summary/project.summary.json")).toBe(false);
+  });
 });
