@@ -9,6 +9,7 @@ import {HyperFramesRenderService} from "@/lib/hyperframes/render-service";
 import {createJobExecutors} from "@/lib/jobs/executors";
 import {DurableJobRuntime} from "@/lib/jobs/runtime";
 import {FileJobStore} from "@/lib/jobs/store";
+import {MediaDataMaintenanceService} from "@/lib/media/data-maintenance";
 import {MediaImportService} from "@/lib/media/import-service";
 import {WaveformService} from "@/lib/media/waveform-service";
 import {ProjectMutationCoordinator} from "@/lib/project/mutation-coordinator";
@@ -35,6 +36,7 @@ export const hyperFramesRenderService=new HyperFramesRenderService(fileSystem,hy
 export const videoUseService=new VideoUseService(fileSystem,videoUseAdapter,projectRepository,projectMutations);
 
 export const jobStore=getGlobalRuntime(`${dataRoot}:job-store`,()=>new FileJobStore(dataRoot));
+export const mediaDataMaintenanceService=new MediaDataMaintenanceService(fileSystem,projectRepository,jobStore);
 export const jobRuntime=getGlobalRuntime(`${dataRoot}:job-runtime`,()=>new DurableJobRuntime(jobStore,createJobExecutors({
   fs:fileSystem,
   repository:projectRepository,
