@@ -320,7 +320,57 @@ Do not fix unrelated H7/UI debt during H6 acceptance.
 
 > Local Codex appends evidence here. Do not replace the contract above.
 
-Pending.
+Validation date: 2026-08-23 (Asia/Shanghai)
+
+BRANCH: hardening/v2.1.1-h6-automated-acceptance (detached validation worktree; push target preserved)
+FINAL HEAD: documentation commit created after this section; exact SHA recorded in final handoff
+FROZEN INPUT HEAD: c019689884877a12660e73e1ec8ba81aa9e76e69
+LOCAL WORKTREE: E:\Video-OS-Studio-H6-Validation
+LOCAL DATA ROOT: E:\Video-OS-Data\v2.1.1-h6-validation-c0196898
+WINDOWS: Microsoft Windows 10 家庭中文版 10.0.19045, x64
+NODE/NPM: v25.2.1 / 11.6.2; repository engine is 24.x; bundled Node v24.19.0 was available
+CHROME: Installed Chrome 151.0.7922.138 at C:\Program Files\Google\Chrome\Application\chrome.exe
+FFMPEG/FFPROBE: 8.1.1-full_build-www.gyan.dev at C:\Users\hcz\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin
+REMOTION VERSIONS: remotion 4.0.513; @remotion/player 4.0.513; @remotion/cli 4.0.513
+HYPERFRAMES VERSION: 0.8.10
+PLAYWRIGHT VERSION: @playwright/test 1.62.1; pinned browser chromium-1234 available
+PYTHON / VIDEO-USE: Python 3.12.10; VIDEO_USE_ROOT NOT CONFIGURED
+
+CLEAN NPM CI: PASS — 684 packages installed from frozen lock; only Node engine/deprecation warnings
+FORMAT CHECK: PASS — H6 format check passed for 9 files
+LINT: PASS — 0 errors; only the two pre-existing no-img-element warnings
+TYPECHECK: PASS
+UNIT TESTS: PASS — 51 files / 222 passed tests; 1 H6 Windows-media test skipped in the normal matrix
+BUILD: PASS
+
+PLAYWRIGHT H6 SMOKE: PASS — exact 1.62.1, 1/1. The repository's standard port 3000 was occupied by the unrelated E:\Video-OS-Studio service; the identical checked-in test ran on temporary local port 3010 with the same pinned package and was deleted afterward.
+CREATE/OPEN: PASS
+TINY IMPORT: PASS — real UI imported tiny PNG; Project Asset kind=image
+CAPTION EDIT: PASS — Playwright committed Font Size 64; real Chrome selected Caption and committed the same editor path; no unhandled browser errors
+CANVAS CHANGE: PASS — real Chrome previewed and applied 1080x1920 9:16 Canvas
+AI ANALYZE/APPLY: PASS — after deterministic public Command API fixture seeding, real UI Rules Analyze produced one actionable metric-focus recommendation and Apply created one transaction/motion clip
+UNDO/REDO: PASS — AI Apply Undo reached rev13 with the motion removed; Redo reached rev14 with it restored
+SAVE/REOPEN: PASS — project reopened with Canvas, Caption and motion state intact
+
+MP4: PASS — real 320x180 H.264/AAC MP4 imported and probed at 2.000s; Asset/Video Clip references valid
+MOV NORMALIZATION: PASS — real MOV preserved at original/media-4bcd7e8f3a2a43a82398-h6-local.MOV; working MP4 at input/media-4bcd7e8f3a2a43a82398-h6-local-working.mp4; ffprobe 320x180, positive duration, AAC audio
+IMAGE: PASS — real PNG imported as image Asset without video normalization
+AUDIO: PASS — real FLAC retained under original/ and normalized to assets/media-acdc406fc914e6bc8ed1-h6-local-working.m4a; ffprobe reports AAC audio and 2.000s
+SUBTITLE: PASS — real SRT parsed into two Caption clips, visible on Timeline/Preview; SRT Asset retained through later Project saves
+ASSET RANGE: PASS — valid GET Range bytes=0-31 returned HTTP 206, Content-Range bytes 0-31/34664, 32 bytes and nosniff; invalid 999999-1000000 returned HTTP 416 with bytes */34664
+
+FFMPEG/FFPROBE: PASS — local 8.1.1 exercised by import/probe/normalization, Range and render checks
+SHORT FINAL RENDER: PASS — real UI Final Render job 115711a9-7146-4c17-a54f-68c340f28aec completed in 13.3s; 18,677-byte MP4, 1080x1920, 30fps, 3.000s, no audio stream; H6 Windows-media smoke also passed a real muted 320x180 render
+HYPERFRAMES REGRESSION: PASS — pinned 0.8.10 doctor exit 0; lint 0 errors/0 warnings; check passed with 0 errors/0 warnings and 2 informational layout-overflow notes; CLI process-flow render produced 124,945-byte 1080x1920 30fps 3.000s VP9 WebM; real Chrome UI add/render completed and added one HyperFrames clip
+VIDEO-USE: NOT CONFIGURED
+APP REGRESSION: PASS — final real Chrome path covered Create/Open, MP4, MOV, PNG, FLAC, SRT, Caption, Canvas, AI Analyze/Apply, Timeline, Undo/Redo, Save/Reopen, seek to 1.0s, play/pause, Final Render and HyperFrames add/render. Final Project h6-local-windows-acceptance-4c507aae was valid at revision 16 with 6 Assets, 1 Caption, 2 motion clips and 1 HyperFrames Asset.
+
+DEFECTS FIXED: None. No H6 product defect was reproduced. The initial standard Playwright command was blocked only by the unrelated port-3000 service; the HyperFrames check retry removed an unsupported CLI flag; neither changed repository code.
+COMMITS PUSHED: Documentation commit only, pushed with git push origin HEAD:hardening/v2.1.1-h6-automated-acceptance
+REMAINING FAILURES: None in H6 product scope. Environment notes: system Node 25.2.1 versus declared 24.x; HyperFrames doctor reported low available memory, missing optional Docker/whisper/TTS/BGM and stale optional skill manifest, while required Node/FFmpeg/ffprobe/Chrome health and all required lint/check/render gates passed. Standard Playwright port 3000 remained occupied by an unrelated service. Video-use was not configured.
+RESIDUAL TEMP/PROCESSES: No H6 data-root .tmp/.part/.partial files; Windows-media temp roots were cleaned; no H6-owned Node, Chrome, FFmpeg, ffprobe, Python or HyperFrames process remained after stop. Successful HyperFrames .hf-work design files, Project render output, jobs metadata and fixture media remain intentionally as validation evidence; unrelated user processes were not killed.
+
+MERGE RECOMMENDATION: NO — local H6 acceptance is PASS, but PR #25 must remain Draft/unmerged pending GPT Web frozen-to-final diff review and final GitHub CI; do not start H7 or V2.2
 
 ## 12. Required final report
 
