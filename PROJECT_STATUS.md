@@ -13,7 +13,7 @@ last_completed_workstream: H7 Frontend Consolidation
 accepted_h7_main: 06481c1d78c93bcadfa4be7ec58dd4c250cc19c3
 active_phase: V2.1.1 Final Release Acceptance
 release_acceptance_branch: release/v2.1.1-final-acceptance
-release_acceptance_pr: PENDING
+release_acceptance_pr: 27
 release_acceptance_status: ACTIVE
 next_gate: frozen-SHA isolated Windows final release smoke
 v2_2_status: BLOCKED until V2.1.1 Final Release Acceptance is accepted
@@ -33,7 +33,7 @@ H4 Streaming Media Pipeline             → PR #23 COMPLETE
 H5 Project / Data Hardening             → PR #24 COMPLETE
 H6 Automated Acceptance                 → PR #25 COMPLETE
 H7 Frontend Consolidation               → PR #26 COMPLETE
-V2.1.1 Final Release Acceptance         → ACTIVE
+V2.1.1 Final Release Acceptance         → ACTIVE / PR #27 DRAFT
 ```
 
 ## Accepted H7 checkpoint
@@ -84,6 +84,8 @@ H7 local Windows/browser acceptance also found and fixed image B-roll compositio
 ## V2.1.1 Final Release Acceptance
 
 This is a release gate, not a new feature workstream.
+
+Draft PR: **#27 `chore: V2.1.1 final release acceptance`**.
 
 Allowed work on `release/v2.1.1-final-acceptance`:
 
