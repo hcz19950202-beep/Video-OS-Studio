@@ -9,7 +9,7 @@ When read from `main`, this file describes the accepted checkpoint and the next 
 
 When read from a feature branch, status changes are proposed until the PR merges. Resolve live GitHub `main`, branch, PR, CI, and final handoff SHAs at runtime rather than making this file self-reference the SHA of the commit that contains it.
 
-## Current H7 checkpoint
+## Current V2.1.1 checkpoint
 
 ```yaml
 product_version: 2.1.0
@@ -17,16 +17,19 @@ released_v2_1_sha: fcfb341367b6ff5e8911693483c14196386c5a93
 project_schema: 2.0.0
 current_milestone: V2.1.1 Engineering Hardening
 accepted_h6_main: 11aafb2ab634ce06c5aa032382cc4263f9749f2d
-last_completed_workstream: H6 Automated Acceptance
-active_workstream: H7 Frontend Consolidation
+last_completed_workstream: H7 Frontend Consolidation
+active_workstream: V2.1.1 Final Release Acceptance
 h7_branch: hardening/v2.1.1-h7-frontend-consolidation
 h7_pr: 26
 h7_cloud_implementation: COMPLETE
-h7_local_validation: PENDING
-h7_cloud_code_gate_sha: 0ed249406297fd382d0aade311f8566a6f4d462d
-h7_cloud_code_gate_ci: 32635740757 PASS
-h7_cloud_tests: 56 passed files / 236 passed tests / 1 skipped file / 1 skipped test
-next_gate: H7 isolated Windows/browser acceptance
+h7_local_validation: COMPLETE
+h7_frozen_input_sha: e1b1675001c3b62e113f94650c86e9326303f214
+h7_local_code_checkpoint_sha: 042dcd18252ca333f8b2c3c4de9c1a1f99eaae59
+h7_local_validation_head: 879379b7517c17ed8cc8bbc3eb68feb1136de03e
+h7_final_exact_head_ci: 32640006356 PASS
+h7_final_tests: 57 passed files / 238 passed tests / 1 skipped file / 1 skipped test
+h7_merge_status: PENDING final status-checkpoint CI and PR merge
+next_gate: merge PR #26, then V2.1.1 Final Release Acceptance
 v2_2_status: BLOCKED until V2.1.1 release acceptance
 ```
 
@@ -41,22 +44,24 @@ H3 Durable Job Runtime                  → PR #22 COMPLETE
 H4 Streaming Media Pipeline             → PR #23 COMPLETE
 H5 Project / Data Hardening             → PR #24 COMPLETE
 H6 Automated Acceptance                 → PR #25 COMPLETE
-H7 Frontend Consolidation               → CLOUD COMPLETE / LOCAL PENDING
+H7 Frontend Consolidation               → ACCEPTANCE COMPLETE / MERGE PENDING
 ```
 
-## H7 cloud checkpoint
+## H7 accepted validation checkpoint
 
-Cloud implementation authority:
+H7 implementation and local acceptance authority:
 
 ```text
-PR #26 — Draft / unmerged
+PR #26 — Draft / unmerged until the final status checkpoint passes CI
 Base accepted H6 main: 11aafb2ab634ce06c5aa032382cc4263f9749f2d
-Cloud code gate SHA: 0ed249406297fd382d0aade311f8566a6f4d462d
-Cloud code gate CI: Run 32635740757 PASS
+Frozen local-validation input: e1b1675001c3b62e113f94650c86e9326303f214
+Local code checkpoint after H7 fixes: 042dcd18252ca333f8b2c3c4de9c1a1f99eaae59
+Local validation documentation head: 879379b7517c17ed8cc8bbc3eb68feb1136de03e
+Final exact-head CI: Run 32640006356 PASS
 Validation authority: docs/validation/LOCAL_VALIDATION_V2_1_1_H7.md
 ```
 
-All four H7 cloud gates passed:
+All four final H7 gates passed on the exact local-validation head:
 
 ```text
 ubuntu-verify:       PASS
@@ -65,28 +70,35 @@ browser-smoke:       PASS
 windows-media-smoke: PASS
 ```
 
-Cloud unit/build evidence:
+Final unit/build evidence:
 
 ```text
 format-check: PASS
 lint: PASS with exactly 2 pre-existing @next/next/no-img-element warnings
 typecheck: PASS
-unit: 56 passed files + 1 skipped / 236 passed tests + 1 skipped
+unit: 57 passed files + 1 skipped / 238 passed tests + 1 skipped
 build: PASS
 ```
 
-H7 cloud implementation completed the release-critical frontend consolidation targets:
+H7 local Windows/browser acceptance passed the release-critical frontend consolidation surfaces:
 
-- shared typed API/error boundary and typed project/media/job/planner/render/HyperFrames/video-use clients;
-- `StudioWorkspaceV21` network/mutation orchestration extracted to `useWorkspaceProjectRuntime`;
-- consolidated target UI surfaces no longer use ad-hoc raw `fetch()` paths;
-- Remotion Player frame/play state uses supported Player events instead of the previous 100 ms polling loop;
-- only leaf consumers subscribe to live frame state; top-level Workspace reads playhead only at user action boundaries;
-- Canvas pointer draft publishing is latest-value rAF-coalesced while durable mutation remains one commit at gesture completion;
-- VisualPlanner uses the shared typed Studio dictionary rather than its own locale map;
-- V2.1 shell CSS uses existing shared tokens incrementally without a visual/layout redesign.
+- typed project/media/job/planner/render/HyperFrames clients and centralized structured API errors;
+- `StudioWorkspaceV21` responsibility extraction without introducing a whole-Project PUT editing path;
+- Remotion Player event-driven frame/play state with no legacy 100 ms polling dependency;
+- top-level Workspace frame isolation while action-boundary playhead reads remain correct;
+- Canvas drag/resize/rotate latest-value rAF previews with one durable gesture commit and correct Undo/Redo boundaries;
+- VisualPlanner shared typed Studio i18n in Chinese and English;
+- V2.1 token consolidation across dark/light themes and 1920×929, 1440×900, and 1280×720 layouts;
+- typed Final Render UI and HyperFrames UI regression;
+- H0–H6 representative application regression.
 
-The large historical CSS/i18n cleanup allowed to remain gradual by the Master PRD is not being expanded into a risky late-stage rewrite. H7 local Windows/browser acceptance must complete before PR #26 can merge.
+H7 local validation also found and fixed one real media-composition defect: image B-roll was incorrectly routed through `OffthreadVideo`. Image Assets now use the still-image path while video Assets remain on video playback. The follow-up removed the valid-PNG Remotion decode warning, and regression coverage was added in `tests/h7/master-composition-media.test.ts`.
+
+The validation report's literal `MERGE RECOMMENDATION: NO` was procedural: Local Codex was explicitly instructed not to merge PR #26 itself. The same report states that no H7 product failure remains in the tested scope. GPT Web reviewed the frozen-to-final diff, the two local code fixes, the validation evidence, and exact-head CI before preparing this H7 COMPLETE checkpoint.
+
+Video-Use was not configured on the local Windows machine, so no local Video-Use runtime claim is made. Existing automated `tests/video-use.test.ts` remained green. This is not treated as an H7 product failure.
+
+After this status-checkpoint commit itself passes the full CI matrix, PR #26 may be marked Ready and merged with an exact expected-head guard. V2.2 remains blocked. The only next allowed phase after the H7 merge is V2.1.1 Final Release Acceptance.
 
 ## H6 accepted checkpoint
 
@@ -173,7 +185,7 @@ Cloud acceptance must prove:
 - typed i18n dictionaries typecheck and preserve current locale behavior;
 - Ubuntu/Windows H6 CI matrix remains green.
 
-The cloud gate above satisfies these source/automation requirements. Local/browser acceptance remains required because H7 changes live Player events, gesture behavior, editor interaction timing, and visual token usage.
+The final H7 cloud and local gates above satisfy these requirements. H7 is complete once PR #26 merges; no further H7 feature expansion is allowed during V2.1.1 Final Release Acceptance.
 
 ## Accepted prior foundations
 
