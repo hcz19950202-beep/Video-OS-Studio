@@ -12,14 +12,14 @@ release_status: COMPLETE
 release_main_sha: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
 release_tag: v2.1.1
 release_tag_sha: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
-accepted_main_at_v2_2_start: 6f0487f6b5b65d85083c96bc54e14bca37fb5704
+v2_2_baseline_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
 current_milestone: V2.2 WORKFLOW RUNTIME
-v2_2_status: PLANNING / R0 REPOSITORY ROADMAP SYNC ACTIVE
-active_workstream: V2.2-R0 Repository / Roadmap Sync
-active_branch: planning/v2.2-workflow-runtime
-active_pr: 30
-local_validation_required: NO for R0
-next_workstream_after_r0: W0 Workflow Contract
+v2_2_status: W0 WORKFLOW CONTRACT ACTIVE
+active_workstream: V2.2-W0 Workflow Contract
+active_branch: feature/v2.2-w0-workflow-contract
+active_pr: 31
+local_validation_required: NO for W0
+next_workstream_after_w0: W1 Workflow Runtime Core
 future_milestone: V2.3 Real AI Director / AI Editing Agent
 ```
 
@@ -55,8 +55,6 @@ RESTART RECOVERY: PASS
 V2.1 REGRESSION: PASS
 ```
 
-Final local release evidence also passed complete browser flow, real encoded image B-roll proof, Remotion `4.0.513`, HyperFrames `0.8.10`, real video-use and sanitized runtime/security boundaries.
-
 Historical authority:
 
 - `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`
@@ -68,13 +66,13 @@ Historical authority:
 
 ## V2.2 product decision
 
-V2.2 is now the active planned milestone.
+V2.2 is the active milestone.
 
-The V2.2 objective is:
+The objective is:
 
-> Connect the existing Video OS capabilities into a durable, visible, reviewable and retryable production Workflow so a user can import a real video and generate an editable first draft without manually triggering every subsystem.
+> Connect existing Video OS capabilities into a durable, visible, reviewable and retryable production Workflow so a user can import a real video and generate an editable first draft without manually triggering every subsystem.
 
-Target flow:
+Target product flow:
 
 ```text
 Create Project
@@ -89,51 +87,53 @@ Create Project
 → Final Render
 ```
 
-V2.2 deliberately keeps the existing deterministic/rules Director as the planning source where applicable. A production Real AI Provider / multi-turn AI Editing Agent is **not V2.2 scope** and remains V2.3.
+A production Real AI Provider / multi-turn AI Editing Agent is not V2.2 scope and remains V2.3.
 
 ## Active V2.2 documents
-
-Authoritative V2.2 documents:
 
 ```text
 docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md
 docs/prd/Video_OS_Studio_V2_2_Development_Plan.md
 ```
 
-The first workstream is documentation/governance only:
-
-```text
-V2.2-R0 Repository / Roadmap Sync
-```
-
-R0 must not add product code and does not require local Codex validation.
-
 ## V2.2 delivery sequence
 
 ```text
-R0 Repository / Roadmap Sync
-→ W0 Workflow Contract
-→ W1 Workflow Runtime Core
-→ W2 Existing Capability Stage Integration
-→ W3 Human Review + Invalidation
-→ W4 Workflow UI
-→ W5 Failure / Retry / Restart Hardening
-→ W6 End-to-End Release Acceptance
-→ V2.2 Release Finalization
+R0 Repository / Roadmap Sync              → PR #30 COMPLETE
+W0 Workflow Contract                      → PR #31 ACTIVE
+W1 Workflow Runtime Core                  → NEXT
+W2 Existing Capability Stage Integration  → FUTURE
+W3 Human Review + Invalidation            → FUTURE
+W4 Workflow UI                            → FUTURE
+W5 Failure / Retry / Restart Hardening    → FUTURE
+W6 End-to-End Release Acceptance          → FUTURE
+V2.2 Release Finalization                 → FUTURE
 ```
 
-Local validation policy:
+## W0 scope contract
+
+W0 establishes only the durable Workflow domain contract:
 
 ```text
-R0: NO
-W0: NO
-W1: normally NO; real process recovery is proven later in W5
-W2: YES for FFmpeg/video-use/HyperFrames/Remotion/real media
-W3: conditional; otherwise covered with W4/W5
-W4: YES for real Windows browser/media flow
-W5: YES and release-blocking
-W6: YES and release-blocking
+WorkflowDefinition / versioning
+WorkflowRun
+WorkflowStageDefinition / Execution
+WorkflowCheckpoint
+WorkflowArtifactReference
+WorkflowError
+legal run/stage transitions
+dependency integrity validation
+independent workflow persistence under VIDEO_OS_DATA_ROOT/workflows
 ```
+
+Important repository compatibility decision:
+
+- existing `schemas/workflow.ts` remains the V2.1 Scenario Starter stored in Project Schema `2.0.0`;
+- V2.2 Workflow Runtime state is separate and must not repurpose the Project `workflow` field;
+- new WorkflowRun persistence lives outside Project JSON;
+- no scheduler, Job orchestration, API, UI, engine integration or real media belongs in W0.
+
+W0 does **not** require local Codex validation. Cloud unit/type/lint/build/CI evidence is sufficient.
 
 ## Development ownership
 
@@ -145,7 +145,20 @@ Local Codex on Windows
 → exact-SHA real browser/media/engine/restart acceptance + in-scope fixes + evidence
 ```
 
-GitHub is the single code source of truth. Local Codex validates the exact active branch/SHA supplied by GPT Web and pushes fixes back to that same branch. It does not start a parallel implementation, merge, or start the next workstream.
+Local Codex is intentionally not activated for W0.
+
+## Local validation policy
+
+```text
+R0: NO
+W0: NO
+W1: normally NO; real process recovery is proven later in W5
+W2: YES for FFmpeg/video-use/HyperFrames/Remotion/real media
+W3: conditional; otherwise covered with W4/W5
+W4: YES for real Windows browser/media flow
+W5: YES and release-blocking
+W6: YES and release-blocking
+```
 
 ## Delivery history
 
@@ -162,8 +175,8 @@ V2.1.1 H7 Frontend Consolidation               → PR #26 COMPLETE
 V2.1.1 Final Release Acceptance                → PR #27 COMPLETE
 V2.1.1 Release Finalization                    → PR #28 COMPLETE
 V2.1.1 Tag                                     → v2.1.1 COMPLETE
-V2.1.1 released-status repository sync         → COMPLETE on main 6f0487f...
-V2.2 R0 Repository / Roadmap Sync              → PR #30 ACTIVE
+V2.2 R0 Repository / Roadmap Sync              → PR #30 COMPLETE
+V2.2 W0 Workflow Contract                      → PR #31 ACTIVE
 ```
 
 ## Accepted engine / schema invariants
@@ -202,20 +215,20 @@ And:
 
 ## PR #18 disposition
 
-PR #18 is not an implementation base for V2.2. Its useful selection-aware Agent / Tool Registry / Plan-Diff-Confirm / Real Provider concepts are retained as **future V2.3 architecture input**.
-
-Do not merge PR #18 into V2.2 and do not branch V2.2 work from it.
+PR #18 is closed/unmerged and retained only as future V2.3 AI Agent architecture input. Do not branch V2.2 implementation from it.
 
 ## Next allowed phase
 
-While R0 is active:
+While W0 is active:
 
-- documentation/governance changes only;
-- no Workflow product implementation yet;
+- domain schema/state/persistence/tests only;
+- no Workflow scheduler/runtime orchestration yet;
+- no API/UI;
+- no engine integration;
 - no Real AI Provider;
 - no Project Schema or engine-pin changes.
 
-After R0 is reviewed and merged, create W0 from the new accepted `main` and implement only the Workflow Contract defined by the active V2.2 PRD.
+After W0 is reviewed and merged, create W1 from the new accepted `main` and implement only Workflow Runtime Core.
 
 ## Read order for agents
 
