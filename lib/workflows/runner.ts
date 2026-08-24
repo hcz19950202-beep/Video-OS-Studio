@@ -1,4 +1,4 @@
-import {randomUUID} from "node:crypto";
+import {createHash,randomUUID} from "node:crypto";
 import {JobIdSchema,isTerminalJobStatus,type JobRecord} from "@/lib/jobs/schema";
 import {WorkflowActivitySchema,type WorkflowActivityEvent} from "@/lib/workflows/activity";
 import {WorkflowDefinitionRegistry,WorkflowStageRegistry,type WorkflowStageCompletion,type WorkflowStageExecutionContext} from "@/lib/workflows/registry";
@@ -9,6 +9,8 @@ import {FileWorkflowStore,WorkflowNotFoundError} from "@/lib/workflows/store";
 const nowIso=()=>new Date().toISOString();
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 const completedDependencyStatuses=new Set(["completed","skipped"]);
+const stableValue=(value:unknown):unknown=>Array.isArray(value)?value.map(stableValue):value&&typeof value==="object"?Object.fromEntries(Object.entries(value as Record<string,unknown>).sort(([a],[b])=>a.localeCompare(b)).map(([key,item])=>[key,stableValue(item)])):value;
+const digest=(value:unknown)=>createHash("sha256").update(JSON.stringify(stableValue(value))).digest("hex");
 
 export type WorkflowJobRuntimePort={
   get:(jobId:string)=>Promise<JobRecord|null>;
@@ -40,6 +42,27 @@ const getExecution=(run:WorkflowRun,stageId:string)=>{
   const execution=run.stageExecutions.find(item=>item.stageId===stageId);
   if(!execution)throw new WorkflowRuntimeStateError(`Workflow ${run.id} has no execution record for stage ${stageId}.`,run.id);
   return execution;
+};
+const stageInputDigest=(run:WorkflowRun,stage:WorkflowStageDefinition)=>digest({
+  projectRevision:run.lastKnownProjectRevision,
+  dependencies:stage.dependsOn.map(stageId=>{const execution=getExecution(run,stageId);return{stageId,status:execution.status,outputDigest:execution.outputDigest??null};}),
+});
+const collectInvalidationStageIds=(definition:WorkflowDefinition,startStageId:string)=>{
+  const selected=new Set<string>([startStageId]);
+  let changed=true;
+  while(changed){
+    changed=false;
+    for(const stage of definition.stages){
+      if(selected.has(stage.id))for(const explicit of stage.invalidates)if(!selected.has(explicit)){selected.add(explicit);changed=true;}
+      if(!selected.has(stage.id)&&stage.dependsOn.some(dependency=>selected.has(dependency))){selected.add(stage.id);changed=true;}
+    }
+  }
+  return definition.stages.map(stage=>stage.id).filter(stageId=>selected.has(stageId));
+};
+const invalidateExecution=(execution:WorkflowStageExecution,workflowId:string)=>{
+  if(execution.status==="running"||execution.status==="failed"||execution.status==="interrupted"||execution.status==="cancelled")throw new WorkflowRuntimeStateError(`Workflow stage ${execution.stageId} cannot be invalidated from ${execution.status}.`,workflowId);
+  if(execution.status!=="invalidated")assertWorkflowStageStatusTransition(execution.status,"invalidated");
+  return WorkflowStageExecutionSchema.parse({...execution,status:"invalidated",attemptId:undefined,startedAt:undefined,completedAt:undefined,baseProjectRevision:undefined,inputDigest:undefined,outputDigest:undefined,artifactIds:[],error:undefined});
 };
 
 export class WorkflowRunner{
@@ -97,14 +120,25 @@ export class WorkflowRunner{
     await this.activity(workflowId,"workflow-paused");return run;
   }
 
-  async resume(workflowId:string){
+  async resume(workflowId:string,projectRevision?:number){
+    const invalidatedStageIds:string[]=[];
     const run=await this.withRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);
       if(current.status!=="paused")throw new WorkflowRuntimeStateError(`Workflow ${workflowId} can only resume from paused.`,workflowId);
+      const revision=projectRevision??current.lastKnownProjectRevision;
+      if(revision<current.lastKnownProjectRevision)throw new WorkflowRuntimeStateError(`Workflow ${workflowId} cannot resume with project revision ${revision} behind ${current.lastKnownProjectRevision}.`,workflowId);
+      let stageExecutions=current.stageExecutions;
+      if(revision>current.lastKnownProjectRevision){
+        stageExecutions=stageExecutions.map(execution=>{
+          if(execution.status!=="ready")return execution;
+          invalidatedStageIds.push(execution.stageId);return invalidateExecution(execution,workflowId);
+        });
+      }
       assertWorkflowRunStatusTransition(current.status,"running");
-      return this.store.save(WorkflowRunSchema.parse({...current,status:"running",updatedAt:nowIso()}));
+      return this.store.save(WorkflowRunSchema.parse({...current,status:"running",stageExecutions,lastKnownProjectRevision:revision,updatedAt:nowIso()}));
     });
-    await this.activity(workflowId,"workflow-resumed");this.schedule(workflowId);return run;
+    for(const stageId of invalidatedStageIds)await this.activity(workflowId,"stage-invalidated",{stageId,data:{reason:"project-revision-changed-on-resume",projectRevision:run.lastKnownProjectRevision}});
+    await this.activity(workflowId,"workflow-resumed",{data:{projectRevision:run.lastKnownProjectRevision}});this.schedule(workflowId);return run;
   }
 
   async cancel(workflowId:string){
@@ -144,8 +178,36 @@ export class WorkflowRunner{
     await this.activity(workflowId,"stage-retried",{stageId});this.schedule(workflowId);return run;
   }
 
+  async replayFromStage(workflowId:string,stageId:string,projectRevision:number){
+    const invalidatedStageIds:string[]=[];const supersededCheckpointIds:string[]=[];
+    const run=await this.withRunLock(workflowId,async()=>{
+      const current=await this.requireRun(workflowId);
+      if(current.status!=="waiting_review")throw new WorkflowRuntimeStateError(`Workflow ${workflowId} can only replay completed work while waiting for review.`,workflowId);
+      if(projectRevision<current.lastKnownProjectRevision)throw new WorkflowRuntimeStateError(`Workflow ${workflowId} cannot replay from project revision ${projectRevision} behind ${current.lastKnownProjectRevision}.`,workflowId);
+      const definition=this.definitionFor(current);const stage=definition.stages.find(item=>item.id===stageId);
+      if(!stage)throw new WorkflowRuntimeStateError(`Workflow ${workflowId} has no stage ${stageId}.`,workflowId);
+      if(!stage.retryable)throw new WorkflowRuntimeStateError(`Workflow stage ${stageId} is not replayable.`,workflowId);
+      const activeCheckpoint=current.checkpoints.find(item=>item.status==="waiting_review");
+      if(!activeCheckpoint)throw new WorkflowRuntimeStateError(`Workflow ${workflowId} has no active review checkpoint.`,workflowId);
+      const invalidationIds=collectInvalidationStageIds(definition,stageId);
+      if(!invalidationIds.includes(activeCheckpoint.stageId))throw new WorkflowRuntimeStateError(`Workflow stage ${stageId} is downstream of the active review checkpoint and cannot be replayed from this review.`,workflowId);
+      const invalidationSet=new Set(invalidationIds);invalidatedStageIds.push(...invalidationIds);
+      const stageExecutions=current.stageExecutions.map(execution=>invalidationSet.has(execution.stageId)?invalidateExecution(execution,workflowId):execution);
+      const at=nowIso();
+      const checkpoints=current.checkpoints.map(checkpoint=>{
+        if(!invalidationSet.has(checkpoint.stageId)||(checkpoint.status!=="waiting_review"&&checkpoint.status!=="approved"))return checkpoint;
+        supersededCheckpointIds.push(checkpoint.id);return{...checkpoint,status:"superseded" as const,resolvedAt:checkpoint.resolvedAt??at,resolvedProjectRevision:checkpoint.resolvedProjectRevision??projectRevision};
+      });
+      assertWorkflowRunStatusTransition(current.status,"running");
+      return this.store.save(WorkflowRunSchema.parse({...current,status:"running",stageExecutions,checkpoints,artifacts:current.artifacts.filter(artifact=>!invalidationSet.has(artifact.stageId)),currentStageId:undefined,lastKnownProjectRevision:projectRevision,error:undefined,updatedAt:at}));
+    });
+    for(const invalidatedStageId of invalidatedStageIds)await this.activity(workflowId,"stage-invalidated",{stageId:invalidatedStageId,data:{reason:"human-review-replay",replayFromStageId:stageId,projectRevision}});
+    for(const checkpointId of supersededCheckpointIds)await this.activity(workflowId,"review-superseded",{data:{checkpointId,replayFromStageId:stageId,projectRevision}});
+    this.schedule(workflowId);return run;
+  }
+
   async approveCheckpoint(workflowId:string,checkpointId:string,projectRevision?:number){
-    let approvedStageId:string|undefined;
+    let approvedStageId:string|undefined;const invalidatedStageIds:string[]=[];
     const run=await this.withRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);
       if(current.status!=="waiting_review")throw new WorkflowRuntimeStateError(`Workflow ${workflowId} is not waiting for review.`,workflowId);
@@ -154,13 +216,23 @@ export class WorkflowRunner{
       approvedStageId=checkpoint.stageId;
       const execution=getExecution(current,checkpoint.stageId);
       if(execution.status!=="waiting_review")throw new WorkflowRuntimeStateError(`Workflow stage ${checkpoint.stageId} is not waiting for review.`,workflowId);
+      const revision=projectRevision??current.lastKnownProjectRevision;
+      if(revision<checkpoint.baseProjectRevision||revision<current.lastKnownProjectRevision)throw new WorkflowRuntimeStateError(`Workflow checkpoint ${checkpointId} cannot approve project revision ${revision} behind its review base.`,workflowId);
+      let stageExecutions=current.stageExecutions;
+      if(revision>current.lastKnownProjectRevision){
+        stageExecutions=stageExecutions.map(item=>{
+          if(item.status!=="ready")return item;
+          invalidatedStageIds.push(item.stageId);return invalidateExecution(item,workflowId);
+        });
+      }
       assertWorkflowStageStatusTransition(execution.status,"completed");assertWorkflowRunStatusTransition(current.status,"running");
-      const at=nowIso();const revision=projectRevision===undefined?current.lastKnownProjectRevision:Math.max(current.lastKnownProjectRevision,projectRevision);
-      const completedExecution=WorkflowStageExecutionSchema.parse({...execution,status:"completed",completedAt:at,error:undefined});
+      const at=nowIso();const completedExecution=WorkflowStageExecutionSchema.parse({...execution,status:"completed",completedAt:at,outputDigest:digest({inputDigest:execution.inputDigest??null,approvedProjectRevision:revision}),error:undefined});
+      stageExecutions=stageExecutions.map(item=>item.stageId===checkpoint.stageId?completedExecution:item);
       const checkpoints=current.checkpoints.map(item=>item.id===checkpointId?{...item,status:"approved" as const,resolvedAt:at,resolvedProjectRevision:revision}:item);
-      return this.store.save(WorkflowRunSchema.parse({...current,status:"running",stageExecutions:replaceExecution(current,completedExecution),checkpoints,currentStageId:undefined,lastKnownProjectRevision:revision,error:undefined,updatedAt:at}));
+      return this.store.save(WorkflowRunSchema.parse({...current,status:"running",stageExecutions,checkpoints,currentStageId:undefined,lastKnownProjectRevision:revision,error:undefined,updatedAt:at}));
     });
-    await this.activity(workflowId,"review-approved",{stageId:approvedStageId,data:{checkpointId}});this.schedule(workflowId);return run;
+    for(const stageId of invalidatedStageIds)await this.activity(workflowId,"stage-invalidated",{stageId,data:{reason:"project-revision-changed-during-review",projectRevision:run.lastKnownProjectRevision}});
+    await this.activity(workflowId,"review-approved",{stageId:approvedStageId,data:{checkpointId,resolvedProjectRevision:run.lastKnownProjectRevision,projectChanged:run.checkpoints.find(item=>item.id===checkpointId)?.baseProjectRevision!==run.lastKnownProjectRevision}});this.schedule(workflowId);return run;
   }
 
   async recover(){
@@ -192,10 +264,12 @@ export class WorkflowRunner{
     const updated=await this.withRunLock(run.id,async()=>{
       const current=await this.requireRun(run.id);if(current.status!=="running")return current;let stageExecutions=current.stageExecutions;
       for(const stage of definition.stages){
-        const execution=stageExecutions.find(item=>item.stageId===stage.id);if(!execution||execution.status!=="pending")continue;
+        const execution=stageExecutions.find(item=>item.stageId===stage.id);if(!execution||(execution.status!=="pending"&&execution.status!=="invalidated"))continue;
         const dependenciesReady=stage.dependsOn.every(dependencyId=>{const dependency=stageExecutions.find(item=>item.stageId===dependencyId);return dependency!==undefined&&completedDependencyStatuses.has(dependency.status);});
         if(!dependenciesReady)continue;
-        assertWorkflowStageStatusTransition(execution.status,"ready");const ready=WorkflowStageExecutionSchema.parse({...execution,status:"ready"});
+        let pending=execution;
+        if(execution.status==="invalidated"){assertWorkflowStageStatusTransition(execution.status,"pending");pending=WorkflowStageExecutionSchema.parse({...execution,status:"pending"});}
+        assertWorkflowStageStatusTransition(pending.status,"ready");const ready=WorkflowStageExecutionSchema.parse({...pending,status:"ready"});
         stageExecutions=stageExecutions.map(item=>item.stageId===stage.id?ready:item);readyStageIds.push(stage.id);
       }
       if(!readyStageIds.length)return current;
@@ -210,11 +284,11 @@ export class WorkflowRunner{
       const current=await this.requireRun(run.id);if(current.status!=="running")return null;
       const execution=getExecution(current,stage.id);if(execution.status!=="ready")return null;
       assertWorkflowStageStatusTransition(execution.status,"running");const previousJobIds=[...execution.jobIds];
-      const running=WorkflowStageExecutionSchema.parse({...execution,status:"running",attempt:execution.attempt+1,attemptId,startedAt:nowIso(),completedAt:undefined,baseProjectRevision:current.lastKnownProjectRevision,outputDigest:undefined,jobIds:previousJobIds,artifactIds:[],operationIds:[...execution.operationIds,operationId],error:undefined});
+      const running=WorkflowStageExecutionSchema.parse({...execution,status:"running",attempt:execution.attempt+1,attemptId,startedAt:nowIso(),completedAt:undefined,baseProjectRevision:current.lastKnownProjectRevision,inputDigest:stageInputDigest(current,stage),outputDigest:undefined,jobIds:previousJobIds,artifactIds:[],operationIds:[...execution.operationIds,operationId],error:undefined});
       const updated=await this.store.save(WorkflowRunSchema.parse({...current,stageExecutions:replaceExecution(current,running),currentStageId:stage.id,updatedAt:nowIso()}));
       return{run:updated,execution:running,previousJobIds};
     });
-    if(!started)return;await this.activity(run.id,"stage-started",{stageId:stage.id,data:{attempt:started.execution.attempt,attemptId,operationId}});
+    if(!started)return;await this.activity(run.id,"stage-started",{stageId:stage.id,data:{attempt:started.execution.attempt,attemptId,operationId,inputDigest:started.execution.inputDigest}});
     const executor=this.stages.get(stage.executorKey);const context:WorkflowStageExecutionContext={run:started.run,definition,stage,execution:started.execution,attemptId,operationId,previousJobIds:started.previousJobIds};
     try{
       const result=await executor.start(context);
@@ -320,11 +394,11 @@ export class WorkflowRunner{
     const waiting=await this.withRunLock(run.id,async()=>{
       const current=await this.requireRun(run.id);if(current.status!=="running")return current;const execution=getExecution(current,stage.id);if(execution.status!=="ready")return current;
       assertWorkflowStageStatusTransition(execution.status,"running");assertWorkflowStageStatusTransition("running","waiting_review");assertWorkflowRunStatusTransition(current.status,"waiting_review");
-      const at=nowIso();const reviewExecution=WorkflowStageExecutionSchema.parse({...execution,status:"waiting_review",attempt:execution.attempt+1,attemptId:randomUUID(),startedAt:at,baseProjectRevision:current.lastKnownProjectRevision,error:undefined});
+      const at=nowIso();const reviewExecution=WorkflowStageExecutionSchema.parse({...execution,status:"waiting_review",attempt:execution.attempt+1,attemptId:randomUUID(),startedAt:at,baseProjectRevision:current.lastKnownProjectRevision,inputDigest:stageInputDigest(current,stage),error:undefined});
       const checkpoint={id:checkpointId,stageId:stage.id,status:"waiting_review" as const,createdAt:at,baseProjectRevision:current.lastKnownProjectRevision};
       return this.store.save(WorkflowRunSchema.parse({...current,status:"waiting_review",stageExecutions:replaceExecution(current,reviewExecution),checkpoints:[...current.checkpoints,checkpoint],currentStageId:stage.id,updatedAt:at}));
     });
-    if(waiting.status==="waiting_review")await this.activity(run.id,"review-requested",{stageId:stage.id,data:{checkpointId}});return waiting;
+    if(waiting.status==="waiting_review")await this.activity(run.id,"review-requested",{stageId:stage.id,data:{checkpointId,baseProjectRevision:waiting.lastKnownProjectRevision}});return waiting;
   }
 
   private async completeWorkflow(workflowId:string){
