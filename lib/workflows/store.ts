@@ -70,7 +70,7 @@ export class FileWorkflowStore{
       try{previous=JSON.parse(await readFile(ownerPath,"utf8")) as {ownerPid?:unknown;runtimeStartedAt?:unknown};}catch(error){if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;}
       const sameOwner=previous?.ownerPid===ownerPid&&typeof previous.runtimeStartedAt==="number";
       const runtimeStartedAt=sameOwner?previous!.runtimeStartedAt as number:Date.now()-process.uptime()*1000;
-      await writeFile(ownerPath,JSON.stringify({ownerPid,pid:process.pid,runtimeStartedAt,updatedAt:new Date().toISOString()},null,2)+"\n","utf8");
+      await this.atomicWrite(ownerPath,JSON.stringify({ownerPid,pid:process.pid,runtimeStartedAt,updatedAt:new Date().toISOString()},null,2)+"\n");
       return runtimeStartedAt;
     }finally{await handle.close();await rm(lockPath,{force:true});}
   }
