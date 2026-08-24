@@ -74,17 +74,21 @@ export class ProjectMutationCoordinator{
   private operationLogPath(projectId:string){return this.repository.resolveProjectFile(projectId,"operations.jsonl");}
 
   private async withProjectLock<T>(projectId:string,work:()=>Promise<T>):Promise<T>{
-    const previous=this.projectChains.get(projectId)??Promise.resolve();
-    let release!:()=>void;
-    const gate=new Promise<void>(resolve=>{release=resolve;});
-    const current=previous.catch(()=>undefined).then(()=>gate);
-    this.projectChains.set(projectId,current);
-    await previous.catch(()=>undefined);
-    try{return await work();}
-    finally{
-      release();
-      if(this.projectChains.get(projectId)===current)this.projectChains.delete(projectId);
-    }
+    const local=async()=>{
+      const previous=this.projectChains.get(projectId)??Promise.resolve();
+      let release!:()=>void;
+      const gate=new Promise<void>(resolve=>{release=resolve;});
+      const current=previous.catch(()=>undefined).then(()=>gate);
+      this.projectChains.set(projectId,current);
+      await previous.catch(()=>undefined);
+      try{return await work();}
+      finally{
+        release();
+        if(this.projectChains.get(projectId)===current)this.projectChains.delete(projectId);
+      }
+    };
+    const lockPath=`${this.operationLogPath(projectId)}.lock`;
+    return this.fs.withExclusiveLock?this.fs.withExclusiveLock(lockPath,local):local();
   }
 
   private async readRecords(projectId:string):Promise<ProjectOperationRecord[]>{
