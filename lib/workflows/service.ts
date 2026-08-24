@@ -5,7 +5,7 @@ import {WorkflowActivitySchema} from "@/lib/workflows/activity";
 import {WorkflowDefinitionRegistry} from "@/lib/workflows/registry";
 import {WorkflowRunner} from "@/lib/workflows/runner";
 import {WorkflowRunIdSchema,WorkflowRunSchema,type WorkflowRun} from "@/lib/workflows/schema";
-import {FileWorkflowStore} from "@/lib/workflows/store";
+import {FileWorkflowStore,WorkflowNotFoundError} from "@/lib/workflows/store";
 
 export type WorkflowProjectReader={load:(projectId:string)=>Promise<Project>};
 
@@ -75,14 +75,20 @@ export class WorkflowService{
     return created;
   }
 
+  private async latestProjectRevision(workflowId:string){
+    const id=WorkflowRunIdSchema.parse(workflowId);const run=await this.store.get(id);if(!run)throw new WorkflowNotFoundError(id);
+    return(await this.projects.load(run.projectId)).project.revision;
+  }
+
   get(workflowId:string){return this.store.get(WorkflowRunIdSchema.parse(workflowId));}
   list(){return this.store.list();}
   activity(workflowId:string){return this.store.readActivity(WorkflowRunIdSchema.parse(workflowId));}
   start(workflowId:string){return this.runner.start(WorkflowRunIdSchema.parse(workflowId));}
   pause(workflowId:string){return this.runner.pause(WorkflowRunIdSchema.parse(workflowId));}
-  resume(workflowId:string){return this.runner.resume(WorkflowRunIdSchema.parse(workflowId));}
+  async resume(workflowId:string){const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.resume(id,await this.latestProjectRevision(id));}
   cancel(workflowId:string){return this.runner.cancel(WorkflowRunIdSchema.parse(workflowId));}
   retryStage(workflowId:string,stageId:string){return this.runner.retryStage(WorkflowRunIdSchema.parse(workflowId),stageId);}
-  approveCheckpoint(workflowId:string,checkpointId:string,projectRevision?:number){return this.runner.approveCheckpoint(WorkflowRunIdSchema.parse(workflowId),checkpointId,projectRevision);}
+  async replayFromStage(workflowId:string,stageId:string){const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.replayFromStage(id,stageId,await this.latestProjectRevision(id));}
+  async approveCheckpoint(workflowId:string,checkpointId:string){const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.approveCheckpoint(id,checkpointId,await this.latestProjectRevision(id));}
   recover(){return this.runner.recover();}
 }
