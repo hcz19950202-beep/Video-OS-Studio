@@ -17,7 +17,7 @@ const capabilityStages=():WorkflowDefinition["stages"]=>[
   stage("BROLL_ASSEMBLY",W2_EXECUTOR_KEYS.brollAssembly,["MOTION_GENERATION"],"mutation",true),
   stage("AUDIO_ASSEMBLY",W2_EXECUTOR_KEYS.audioAssembly,["BROLL_ASSEMBLY"],"mutation",true),
   stage("TIMELINE_ASSEMBLY",W2_EXECUTOR_KEYS.timelineAssembly,["AUDIO_ASSEMBLY"],"mutation",true),
-  stage("PREVIEW",W2_EXECUTOR_KEYS.preview,["TIMELINE_ASSEMBLY"],"render",true),
+  stage("PREVIEW",W2_EXECUTOR_KEYS.preview,["TIMELINE_ASSEMBLY"],"analysis",true),
   stage("FINAL_RENDER",W2_EXECUTOR_KEYS.finalRender,["PREVIEW"],"render",true),
 ];
 
@@ -28,7 +28,7 @@ export const createW2CapabilityWorkflowDefinition=(scenario:"talking-head"|"prod
   scenario,
   stages:capabilityStages(),
   entryStageIds:["MEDIA_IMPORT"],
-  metadata:{description:"Internal V2.2-W2 capability-integration workflow. It exists to prove Stage adapters and engines before W3 human-review/invalidation and W4 Generate First Draft UI are introduced."},
+  metadata:{description:"Internal V2.2-W2 capability-integration workflow. It proves Stage adapters and real engines before W3 human-review/invalidation and W4 Generate First Draft UI are introduced. PREVIEW is a Project readiness barrier; FINAL_RENDER is the encoded render Stage."},
 });
 
 export const W2_CAPABILITY_WORKFLOW_DEFINITIONS=[
