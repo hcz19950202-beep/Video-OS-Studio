@@ -7,45 +7,33 @@
 ```yaml
 product_version: 2.1.1
 project_schema: 2.0.0
-current_milestone: V2.1.1 RELEASED
+released_baseline: v2.1.1
 release_status: COMPLETE
 release_main_sha: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
 release_tag: v2.1.1
 release_tag_sha: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
-accepted_h7_main: 06481c1d78c93bcadfa4be7ec58dd4c250cc19c3
-final_release_acceptance_pr: 27
-accepted_release_acceptance_main: d4a55629b3f28b83fc71ef27ebb9acd8ec7bfcce
-final_release_frozen_input: d0d85fe8ea0fe85956ffb50c70fe58b81f6681cf
-final_release_validation_head: 6171ad92a6396a82582f893c90d15b283e09d7eb
-final_release_ci: 32645693957 PASS
-release_finalization_pr: 28
-release_finalization_head: 8322602d306117a5f824d90e7d05e00048960d20
-release_finalization_ci: 32648843962 PASS
-v2_2_status: NOT STARTED; eligible for planning under a new PRD/workstream
+accepted_main_at_v2_2_start: 6f0487f6b5b65d85083c96bc54e14bca37fb5704
+current_milestone: V2.2 WORKFLOW RUNTIME
+v2_2_status: PLANNING / R0 REPOSITORY ROADMAP SYNC ACTIVE
+active_workstream: V2.2-R0 Repository / Roadmap Sync
+active_branch: planning/v2.2-workflow-runtime
+active_pr: PENDING
+local_validation_required: NO for R0
+next_workstream_after_r0: W0 Workflow Contract
+future_milestone: V2.3 Real AI Director / AI Editing Agent
 ```
 
-## Release decision
+## V2.1.1 release truth
 
 Video OS Studio **V2.1.1 is released and accepted**.
 
-The release tag `v2.1.1` resolves exactly to the accepted release main commit:
+The release tag `v2.1.1` resolves to:
 
 ```text
 223b66799baf5b5faf1d1321a671d3fb5c6a0930
 ```
 
-V2.1.1 Final Release Acceptance is **PASS**.
-
-Authority:
-
-- `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`
-- `docs/validation/LOCAL_VALIDATION_V2_1_1_FINAL_RELEASE.md`
-- accepted H0–H7 validation reports
-- PR #27 exact-head CI Run `32645693957`
-- PR #28 release-finalization CI Run `32648843962`
-- tag `v2.1.1`
-
-The final acceptance established:
+V2.1.1 Final Release Acceptance established:
 
 ```text
 REPOSITORY TRUTH: PASS
@@ -67,40 +55,115 @@ RESTART RECOVERY: PASS
 V2.1 REGRESSION: PASS
 ```
 
-Final local release evidence also passed:
+Final local release evidence also passed complete browser flow, real encoded image B-roll proof, Remotion `4.0.513`, HyperFrames `0.8.10`, real video-use and sanitized runtime/security boundaries.
 
-- complete real-browser release flow;
-- encoded Final Render proof that image B-roll is present in the exported MP4;
-- Remotion Final Render on pinned `4.0.513`;
-- HyperFrames on pinned `0.8.10`;
-- real local video-use evidence;
-- sanitized security/error boundaries.
+Historical authority:
 
-Release acceptance found and fixed two release blockers before approval:
+- `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`
+- `docs/validation/LOCAL_VALIDATION_V2_1_1_FINAL_RELEASE.md`
+- accepted H0–H7 validation reports
+- PR #27 final release acceptance
+- PR #28 release finalization
+- tag `v2.1.1`
 
-1. `V2.1.1-REL-001` — video-use follows the active video clip on `video-main` when multiple video Assets exist.
-2. `V2.1.1-REL-002` — image B-roll remains above same-layer video B-roll in final composition/render order.
+## V2.2 product decision
 
-Regression coverage exists in:
+V2.2 is now the active planned milestone.
 
-- `tests/video-use.test.ts`
-- `tests/h7/master-composition-media.test.ts`
+The V2.2 objective is:
+
+> Connect the existing Video OS capabilities into a durable, visible, reviewable and retryable production Workflow so a user can import a real video and generate an editable first draft without manually triggering every subsystem.
+
+Target flow:
+
+```text
+Create Project
+→ Import source video
+→ Select Scenario
+→ Generate First Draft
+→ Media / Transcript / Script / Scenes / Captions / Visual Plan
+→ Human Review
+→ Motion / B-roll / Audio / Timeline Assembly
+→ Preview
+→ Human Review
+→ Final Render
+```
+
+V2.2 deliberately keeps the existing deterministic/rules Director as the planning source where applicable. A production Real AI Provider / multi-turn AI Editing Agent is **not V2.2 scope** and remains V2.3.
+
+## Active V2.2 documents
+
+Authoritative V2.2 documents:
+
+```text
+docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md
+docs/prd/Video_OS_Studio_V2_2_Development_Plan.md
+```
+
+The first workstream is documentation/governance only:
+
+```text
+V2.2-R0 Repository / Roadmap Sync
+```
+
+R0 must not add product code and does not require local Codex validation.
+
+## V2.2 delivery sequence
+
+```text
+R0 Repository / Roadmap Sync
+→ W0 Workflow Contract
+→ W1 Workflow Runtime Core
+→ W2 Existing Capability Stage Integration
+→ W3 Human Review + Invalidation
+→ W4 Workflow UI
+→ W5 Failure / Retry / Restart Hardening
+→ W6 End-to-End Release Acceptance
+→ V2.2 Release Finalization
+```
+
+Local validation policy:
+
+```text
+R0: NO
+W0: NO
+W1: normally NO; real process recovery is proven later in W5
+W2: YES for FFmpeg/video-use/HyperFrames/Remotion/real media
+W3: conditional; otherwise covered with W4/W5
+W4: YES for real Windows browser/media flow
+W5: YES and release-blocking
+W6: YES and release-blocking
+```
+
+## Development ownership
+
+```text
+GPT Web + GitHub
+→ PRD / architecture / cloud-safe code / tests / branch / PR / CI / review / merge / status
+
+Local Codex on Windows
+→ exact-SHA real browser/media/engine/restart acceptance + in-scope fixes + evidence
+```
+
+GitHub is the single code source of truth. Local Codex validates the exact active branch/SHA supplied by GPT Web and pushes fixes back to that same branch. It does not start a parallel implementation, merge, or start the next workstream.
 
 ## Delivery history
 
 ```text
-R0 Repository Truth / Agent Guardrails  → PR #17 COMPLETE
-H0 Correctness Hotfix                   → PR #19 COMPLETE
-H1 Project Transaction Safety           → PR #20 COMPLETE
-H2 Engine Process Runtime               → PR #21 COMPLETE
-H3 Durable Job Runtime                  → PR #22 COMPLETE
-H4 Streaming Media Pipeline             → PR #23 COMPLETE
-H5 Project / Data Hardening             → PR #24 COMPLETE
-H6 Automated Acceptance                 → PR #25 COMPLETE
-H7 Frontend Consolidation               → PR #26 COMPLETE
-V2.1.1 Final Release Acceptance         → PR #27 COMPLETE
-V2.1.1 Release Finalization             → PR #28 COMPLETE
-V2.1.1 Tag                              → v2.1.1 COMPLETE
+V2.1.1 R0 Repository Truth / Agent Guardrails  → PR #17 COMPLETE
+V2.1.1 H0 Correctness Hotfix                   → PR #19 COMPLETE
+V2.1.1 H1 Project Transaction Safety           → PR #20 COMPLETE
+V2.1.1 H2 Engine Process Runtime               → PR #21 COMPLETE
+V2.1.1 H3 Durable Job Runtime                  → PR #22 COMPLETE
+V2.1.1 H4 Streaming Media Pipeline             → PR #23 COMPLETE
+V2.1.1 H5 Project / Data Hardening             → PR #24 COMPLETE
+V2.1.1 H6 Automated Acceptance                 → PR #25 COMPLETE
+V2.1.1 H7 Frontend Consolidation               → PR #26 COMPLETE
+V2.1.1 Final Release Acceptance                → PR #27 COMPLETE
+V2.1.1 Release Finalization                    → PR #28 COMPLETE
+V2.1.1 Tag                                     → v2.1.1 COMPLETE
+V2.1.1 released-status repository sync         → COMPLETE on main 6f0487f...
+V2.2 R0 Repository / Roadmap Sync              → ACTIVE
 ```
 
 ## Accepted engine / schema invariants
@@ -118,6 +181,7 @@ Always preserve:
 
 ```text
 Source Media != Project Canvas != Export Profile
+Project != Workflow != Job
 ```
 
 And:
@@ -125,30 +189,42 @@ And:
 1. Project JSON is the durable Project source of truth.
 2. Canonical internal timeline timing is frame-based.
 3. Durable edits use validated Commands / Transactions / bounded services.
-4. Agents do not directly hand-edit runtime `project.json`.
-5. UI modules do not spawn FFmpeg, Remotion, HyperFrames, or video-use directly.
-6. Remotion remains the master composition/render engine.
-7. HyperFrames remains the deterministic complex-motion asset engine.
-8. video-use and FFmpeg/ffprobe remain behind adapters/services.
-9. `VIDEO_OS_DATA_ROOT` remains outside repository code by default.
-10. Studio theme/locale remains separate from generated-video Brand.
-11. `REUSE > MODIFY > CREATE`.
+4. Workflow orchestrates existing capabilities; it does not become a second Job system.
+5. Agents do not directly hand-edit runtime `project.json`.
+6. UI/Workflow modules do not spawn FFmpeg, Remotion, HyperFrames or video-use directly.
+7. Remotion remains the master composition/render engine.
+8. HyperFrames remains the deterministic complex-motion asset engine.
+9. video-use and FFmpeg/ffprobe remain behind adapters/services.
+10. `VIDEO_OS_DATA_ROOT` remains outside repository code by default.
+11. Studio theme/locale remains separate from generated-video Brand.
+12. Project Schema and engine pins are not changed incidentally.
+13. `REUSE > MODIFY > CREATE`.
+
+## PR #18 disposition
+
+PR #18 is not an implementation base for V2.2. Its useful selection-aware Agent / Tool Registry / Plan-Diff-Confirm / Real Provider concepts are retained as **future V2.3 architecture input**.
+
+Do not merge PR #18 into V2.2 and do not branch V2.2 work from it.
 
 ## Next allowed phase
 
-V2.1.1 hardening branches and release branches are closed work. Do not reuse them for new feature development.
+While R0 is active:
 
-V2.2 is **not started**, but the V2.1.1 release gate no longer blocks planning. Any V2.2 work must begin with a new PRD/workstream and a new branch from accepted `main`.
+- documentation/governance changes only;
+- no Workflow product implementation yet;
+- no Real AI Provider;
+- no Project Schema or engine-pin changes.
 
-Do not change Project Schema `2.0.0`, engine pins, or accepted runtime boundaries merely because V2.2 planning starts; those changes require explicit design decisions and migrations where applicable.
+After R0 is reviewed and merged, create W0 from the new accepted `main` and implement only the Workflow Contract defined by the active V2.2 PRD.
 
 ## Read order for agents
 
-1. resolve live GitHub `main`, tag, active PR, and CI state;
+1. resolve live GitHub `main`, active branch/PR and CI state;
 2. `PROJECT_STATUS.md`;
 3. `AGENTS.md`;
 4. `SYSTEM.md`;
-5. the active PRD/workstream contract;
-6. `docs/validation/LOCAL_VALIDATION_V2_1_1_FINAL_RELEASE.md` for V2.1.1 final release evidence when needed.
+5. `docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md`;
+6. `docs/prd/Video_OS_Studio_V2_2_Development_Plan.md`;
+7. active local validation contract only when the workstream requires local evidence.
 
-If live GitHub state conflicts with this file, stop and resolve the conflict instead of guessing.
+If live GitHub state conflicts with this file, stop and resolve the conflict rather than guessing.
