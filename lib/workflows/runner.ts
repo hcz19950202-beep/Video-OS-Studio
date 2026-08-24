@@ -59,10 +59,10 @@ const collectInvalidationStageIds=(definition:WorkflowDefinition,startStageId:st
   }
   return definition.stages.map(stage=>stage.id).filter(stageId=>selected.has(stageId));
 };
-const invalidateExecution=(execution:WorkflowStageExecution,workflowId:string)=>{
+const invalidateExecution=(execution:WorkflowStageExecution,workflowId:string,clearDurableAttemptRefs=false)=>{
   if(execution.status==="running"||execution.status==="failed"||execution.status==="interrupted"||execution.status==="cancelled")throw new WorkflowRuntimeStateError(`Workflow stage ${execution.stageId} cannot be invalidated from ${execution.status}.`,workflowId);
   if(execution.status!=="invalidated")assertWorkflowStageStatusTransition(execution.status,"invalidated");
-  return WorkflowStageExecutionSchema.parse({...execution,status:"invalidated",attemptId:undefined,startedAt:undefined,completedAt:undefined,baseProjectRevision:undefined,inputDigest:undefined,outputDigest:undefined,artifactIds:[],error:undefined});
+  return WorkflowStageExecutionSchema.parse({...execution,status:"invalidated",attemptId:undefined,startedAt:undefined,completedAt:undefined,baseProjectRevision:undefined,inputDigest:undefined,outputDigest:undefined,jobIds:clearDurableAttemptRefs?[]:execution.jobIds,operationIds:clearDurableAttemptRefs?[]:execution.operationIds,artifactIds:[],error:undefined});
 };
 
 export class WorkflowRunner{
@@ -192,7 +192,7 @@ export class WorkflowRunner{
       const invalidationIds=collectInvalidationStageIds(definition,stageId);
       if(!invalidationIds.includes(activeCheckpoint.stageId))throw new WorkflowRuntimeStateError(`Workflow stage ${stageId} is downstream of the active review checkpoint and cannot be replayed from this review.`,workflowId);
       const invalidationSet=new Set(invalidationIds);invalidatedStageIds.push(...invalidationIds);
-      const stageExecutions=current.stageExecutions.map(execution=>invalidationSet.has(execution.stageId)?invalidateExecution(execution,workflowId):execution);
+      const stageExecutions=current.stageExecutions.map(execution=>invalidationSet.has(execution.stageId)?invalidateExecution(execution,workflowId,true):execution);
       const at=nowIso();
       const checkpoints=current.checkpoints.map(checkpoint=>{
         if(!invalidationSet.has(checkpoint.stageId)||(checkpoint.status!=="waiting_review"&&checkpoint.status!=="approved"))return checkpoint;
