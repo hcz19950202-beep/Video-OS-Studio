@@ -28,6 +28,7 @@ const ProjectOperationRecordSchema=z.object({
   recordedAt:z.string().datetime(),
 });
 type ProjectOperationRecord=z.infer<typeof ProjectOperationRecordSchema>;
+export type ProjectOperationState=Pick<ProjectOperationRecord,"operationId"|"kind"|"expectedRevision"|"appliedRevision"|"status"|"recordedAt">;
 
 export class ProjectRevisionConflictError extends Error{
   readonly code="PROJECT_REVISION_CONFLICT";
@@ -114,6 +115,19 @@ export class ProjectMutationCoordinator{
       const status:ProjectOperationRecord["status"]=current.project.revision>=record.appliedRevision?"applied":"aborted";
       await this.appendRecord(projectId,{...record,status,recordedAt:new Date().toISOString()});
     }
+  }
+
+  async getOperation(projectId:string,operationId:string):Promise<ProjectOperationState|null>{
+    return this.withProjectLock(projectId,async()=>{
+      const current=await this.repository.load(projectId);
+      let records=await this.readRecords(projectId);
+      await this.reconcilePending(projectId,current,records);
+      records=await this.readRecords(projectId);
+      const record=this.latestRecords(records).get(operationId);
+      if(!record)return null;
+      const{fingerprint:_,...state}=record;
+      return state;
+    });
   }
 
   async mutate(input:CoordinatedProjectMutation):Promise<ProjectMutationResponse>{
