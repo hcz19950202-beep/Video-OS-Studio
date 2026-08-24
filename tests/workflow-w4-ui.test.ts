@@ -3,7 +3,7 @@ import {mkdtemp,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {createProject} from "@/lib/project/factory";
-import {JobRecordSchema,type JobRecord} from "@/lib/jobs/schema";
+import {JobRecordSchema,type CreateJobInput,type JobRecord} from "@/lib/jobs/schema";
 import {CreateWorkflowRequestSchema,WorkflowActionRequestSchema} from "@/lib/workflows/http";
 import {registerProductionWorkflowDefinitions} from "@/lib/workflows/production-definitions";
 import {WorkflowDefinitionRegistry,WorkflowStageRegistry,type WorkflowStageExecutionContext} from "@/lib/workflows/registry";
@@ -11,7 +11,7 @@ import {WorkflowRunner} from "@/lib/workflows/runner";
 import {WorkflowService} from "@/lib/workflows/service";
 import {FileWorkflowStore} from "@/lib/workflows/store";
 import {W4_WORKFLOW_DEFINITIONS,registerW4WorkflowDefinitions} from "@/lib/workflows/w4-definitions";
-import {W4_FINAL_RENDER_EXECUTOR_KEY,registerW4WorkflowStages} from "@/lib/workflows/w4-stages";
+import {W4_FINAL_RENDER_EXECUTOR_KEY,registerW4WorkflowStages,type W4WorkflowJobRuntime} from "@/lib/workflows/w4-stages";
 
 const roots:string[]=[];
 afterEach(async()=>{await Promise.all(roots.splice(0).map(root=>rm(root,{recursive:true,force:true})));});
@@ -54,12 +54,12 @@ describe("V2.2 W4 user-facing workflow contract",()=>{
 
   it("creates a fresh final render after W3 invalidation instead of reusing a historical completed MP4",async()=>{
     const priorId="11111111-1111-4111-8111-111111111111";const nextId="22222222-2222-4222-8222-222222222222";const prior=completedRenderJob(priorId);let creates=0;let retries=0;
-    const jobs={
+    const jobs:W4WorkflowJobRuntime={
       get:async(id:string)=>id===priorId?prior:null,
-      cancel:async()=>prior,
-      retry:async()=>{retries++;return prior;},
-      create:async(input:Parameters<typeof JobRecordSchema.parse>[0])=>{creates++;return JobRecordSchema.parse({id:nextId,type:"render-final",projectId:"w4-project",status:"queued",stage:"queued",progress:0,attempt:1,input:(input as {input:Record<string,unknown>}).input,createdAt:"2026-08-24T00:00:02.000Z",updatedAt:"2026-08-24T00:00:02.000Z"});},
-      getArtifacts:async()=>[],
+      cancel:async(_id:string)=>prior,
+      retry:async(_id:string)=>{retries++;return prior;},
+      create:async(input:CreateJobInput)=>{creates++;return JobRecordSchema.parse({id:nextId,type:"render-final",projectId:"w4-project",status:"queued",stage:"queued",progress:0,attempt:1,input:input.input,createdAt:"2026-08-24T00:00:02.000Z",updatedAt:"2026-08-24T00:00:02.000Z"});},
+      getArtifacts:async(_id:string)=>[],
     };
     const registry=registerW4WorkflowStages(new WorkflowStageRegistry(),{repository:{load:async()=>projectFixture()},jobs,fallbackAssetBaseUrl:"http://127.0.0.1:3000"});
     const definition=W4_WORKFLOW_DEFINITIONS[0];const stage=definition.stages.find(item=>item.id==="FINAL_RENDER")!;
