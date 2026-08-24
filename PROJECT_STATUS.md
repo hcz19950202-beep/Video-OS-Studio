@@ -17,7 +17,7 @@ current_milestone: V2.2 WORKFLOW RUNTIME
 v2_2_status: W0 WORKFLOW CONTRACT ACTIVE
 active_workstream: V2.2-W0 Workflow Contract
 active_branch: feature/v2.2-w0-workflow-contract
-active_pr: PENDING
+active_pr: 31
 local_validation_required: NO for W0
 next_workstream_after_w0: W1 Workflow Runtime Core
 future_milestone: V2.3 Real AI Director / AI Editing Agent
@@ -100,7 +100,7 @@ docs/prd/Video_OS_Studio_V2_2_Development_Plan.md
 
 ```text
 R0 Repository / Roadmap Sync              → PR #30 COMPLETE
-W0 Workflow Contract                      → ACTIVE
+W0 Workflow Contract                      → PR #31 ACTIVE
 W1 Workflow Runtime Core                  → NEXT
 W2 Existing Capability Stage Integration  → FUTURE
 W3 Human Review + Invalidation            → FUTURE
@@ -176,7 +176,7 @@ V2.1.1 Final Release Acceptance                → PR #27 COMPLETE
 V2.1.1 Release Finalization                    → PR #28 COMPLETE
 V2.1.1 Tag                                     → v2.1.1 COMPLETE
 V2.2 R0 Repository / Roadmap Sync              → PR #30 COMPLETE
-V2.2 W0 Workflow Contract                      → ACTIVE
+V2.2 W0 Workflow Contract                      → PR #31 ACTIVE
 ```
 
 ## Accepted engine / schema invariants
