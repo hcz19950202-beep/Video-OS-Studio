@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import type { Project } from "@/schemas/project";
 import type { WorkflowRun } from "@/lib/workflows/schema";
 
