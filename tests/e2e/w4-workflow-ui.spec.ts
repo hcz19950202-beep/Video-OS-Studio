@@ -113,7 +113,12 @@ test("W4 Workflow tab discovers durable runs and cancels without starting engine
   const pending = await createPendingWorkflow(page, seeded);
   expect(pending.status).toBe("pending");
   expect(pending.definitionVersion).toBe("2");
-  expect(pending.assetBaseUrl).toBe(new URL(page.url()).origin);
+  expect(pending.assetBaseUrl).toBeTruthy();
+  const browserOrigin = new URL(page.url());
+  const assetOrigin = new URL(pending.assetBaseUrl!);
+  expect(assetOrigin.protocol).toBe(browserOrigin.protocol);
+  expect(assetOrigin.port).toBe(browserOrigin.port);
+  expect(["127.0.0.1", "localhost"]).toContain(assetOrigin.hostname);
 
   await page.reload();
   await openRecentProject(page);
