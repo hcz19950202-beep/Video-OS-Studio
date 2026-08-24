@@ -53,13 +53,14 @@ export const WorkflowPanel=({project,onProjectChange}:{project:Project;onProject
     }catch(cause){setError(toClientErrorState(cause).message);}
   },[project.project.id,syncProject]);
 
-  useEffect(()=>{setWorkflow(null);setActivity([]);setCurrentJob(null);setNotice("");setError("");void discover();},[project.project.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(()=>{void discover();},[discover]);
+  const workflowId=workflow?.id;const workflowStatus=workflow?.status;
   useEffect(()=>{
-    if(!workflow||TERMINAL_RUNS.has(workflow.status))return;
-    const delay=workflow.status==="running"?1000:workflow.status==="waiting_review"?2500:3500;
-    const timer=window.setInterval(()=>{void refreshRun(workflow.id,false).catch(cause=>setError(toClientErrorState(cause).message));},delay);
+    if(!workflowId||!workflowStatus||TERMINAL_RUNS.has(workflowStatus))return;
+    const delay=workflowStatus==="running"?1000:workflowStatus==="waiting_review"?2500:3500;
+    const timer=window.setInterval(()=>{void refreshRun(workflowId,false).catch(cause=>setError(toClientErrorState(cause).message));},delay);
     return()=>window.clearInterval(timer);
-  },[refreshRun,workflow?.id,workflow?.status]);
+  },[refreshRun,workflowId,workflowStatus]);
 
   const runAction=async(action:WorkflowAction)=>{
     if(!workflow)return;setBusyAction(action.action);setError("");setNotice("");
