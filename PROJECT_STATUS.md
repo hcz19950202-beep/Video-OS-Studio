@@ -15,10 +15,12 @@ release_tag_sha: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
 v2_2_r0_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
 v2_2_w0_main: 9914b1e65d27a7d40e997295d94eeb5ce4c3deea
 current_milestone: V2.2 WORKFLOW RUNTIME
-v2_2_status: W1 WORKFLOW RUNTIME CORE ACTIVE
+v2_2_status: W1 WORKFLOW RUNTIME CORE ACTIVE / CLOUD VERIFIED
 active_workstream: V2.2-W1 Workflow Runtime Core
 active_branch: feature/v2.2-w1-workflow-runtime
-active_pr: PENDING
+active_pr: 32
+last_verified_w1_head: 670c957e4a07a5a7be2e4e9abf2cda2ae1be4b17
+last_verified_w1_ci: 32701265586 PASS
 local_validation_required: NO for W1
 next_workstream_after_w1: W2 Existing Capability Stage Integration
 future_milestone: V2.3 Real AI Director / AI Editing Agent
@@ -31,10 +33,12 @@ V2.1.1 Engineering Hardening / Final Release  → COMPLETE
 V2.1.1 tag v2.1.1                            → COMPLETE
 V2.2 R0 Repository / Roadmap Sync             → PR #30 COMPLETE
 V2.2 W0 Workflow Contract                     → PR #31 COMPLETE
-V2.2 W1 Workflow Runtime Core                 → ACTIVE
+V2.2 W1 Workflow Runtime Core                 → PR #32 ACTIVE / CLOUD VERIFIED
 ```
 
 W0 established the independent durable Workflow contract under `lib/workflows/*` and `VIDEO_OS_DATA_ROOT/workflows`. The existing Project `workflow` field remains the V2.1 Scenario Starter. Project Schema remains `2.0.0`.
+
+W1 now provides the cloud-safe orchestration core: definition/stage registries, WorkflowService, WorkflowRunner, dependency readiness, pause/resume/cancel, checkpoint approval, retry, activity logging and durable Job reconciliation through a narrow runtime port.
 
 ## Active V2.2 documents
 
@@ -69,7 +73,7 @@ A production Real AI Provider / multi-turn AI Editing Agent is not V2.2 scope an
 ```text
 R0 Repository / Roadmap Sync              → PR #30 COMPLETE
 W0 Workflow Contract                      → PR #31 COMPLETE
-W1 Workflow Runtime Core                  → ACTIVE
+W1 Workflow Runtime Core                  → PR #32 ACTIVE / CLOUD VERIFIED
 W2 Existing Capability Stage Integration  → NEXT
 W3 Human Review + Invalidation            → FUTURE
 W4 Workflow UI                            → FUTURE
@@ -80,7 +84,7 @@ V2.2 Release Finalization                 → FUTURE
 
 ## W1 scope contract
 
-W1 may implement only cloud-safe orchestration/runtime behavior on top of the accepted W0 contract:
+W1 implements only cloud-safe orchestration/runtime behavior on top of the accepted W0 contract:
 
 ```text
 WorkflowDefinitionRegistry
@@ -97,7 +101,7 @@ restart reconciliation for persisted Workflow state
 unit/integration tests using deterministic fake Stage/Job implementations
 ```
 
-W1 must **not** implement:
+W1 does **not** implement:
 
 ```text
 real FFmpeg/video-use/HyperFrames/Remotion stages
@@ -112,7 +116,19 @@ Pause semantics: do not start a new Stage while paused; an already-running Stage
 
 Recovery semantics: a persisted running job-backed Stage is reconciled from Durable Job truth. A persisted running non-job Stage with no durable external truth is marked interrupted rather than guessed successful.
 
-W1 normally requires no Local Codex gate. Real Windows/process/media/restart evidence is reserved for W2/W4/W5/W6 according to the active development plan.
+Cloud verification on W1 head `670c957e4a07a5a7be2e4e9abf2cda2ae1be4b17`:
+
+```text
+CI run 32701265586
+Ubuntu format/lint/typecheck/unit/build: PASS
+Windows format/lint/typecheck/unit: PASS
+Browser smoke: PASS
+Windows media smoke: PASS
+```
+
+The initial W1 CI caught Zod/default-array TypeScript errors. They were corrected by parsing stage executions through the explicit `WorkflowStageExecutionSchema`; the final verified head above is clean. Pause-to-failure/interruption transitions were also made explicit so active work can finish or fail safely while the Workflow is paused.
+
+W1 requires no Local Codex gate. Real Windows/process/media/restart evidence begins with W2 and later release-blocking workstreams.
 
 ## Local validation policy
 
@@ -161,7 +177,7 @@ And:
 
 1. Project JSON is the durable Project source of truth.
 2. Workflow state is independent orchestration state under `VIDEO_OS_DATA_ROOT/workflows`.
-3. Durable Job state represents concrete execution work; W1 must not create a second Job system.
+3. Durable Job state represents concrete execution work; Workflow does not create a second Job system.
 4. Canonical internal timeline timing is frame-based.
 5. Durable Project edits use validated Commands / Transactions / bounded services.
 6. Workflow code does not directly hand-edit runtime `project.json`.
@@ -178,15 +194,9 @@ PR #18 is closed/unmerged and retained only as future V2.3 AI Agent architecture
 
 ## Next allowed phase
 
-While W1 is active:
+While PR #32 remains open, no W2 implementation may be merged or locally validated from a floating branch. After the final PR #32 head is CI-clean and merged, create W2 from the new accepted `main`.
 
-- finish Workflow Runtime Core and deterministic cloud tests only;
-- no real engine Stage integration;
-- no API/UI;
-- no Real AI Provider;
-- no Project Schema or engine-pin changes.
-
-After W1 is reviewed, CI-clean and merged, create W2 from the new accepted `main`. W2 is the first workstream that requires an exact-SHA Local Codex handoff for real Windows/media/engine validation.
+W2 is the first workstream that requires an exact-SHA Local Codex handoff for real Windows/media/engine validation.
 
 ## Read order for agents
 
