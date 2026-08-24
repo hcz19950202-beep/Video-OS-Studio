@@ -13,10 +13,9 @@ test.skip(
   "Set W4_WINDOWS_WORKFLOW_UI_SMOKE=1 and W4_SOURCE_VIDEO to run the real W4 Windows acceptance.",
 );
 
-test("W4 real browser Generate First Draft review edit approve and final render", async (
-  { page },
-  testInfo,
-) => {
+test("W4 real browser Generate First Draft review edit approve and final render", async ({
+  page,
+}, testInfo) => {
   test.setTimeout(15 * 60_000);
   const source = process.env.W4_SOURCE_VIDEO!;
   const projectName = `W4 Real ${Date.now()}`;
@@ -94,7 +93,9 @@ test("W4 real browser Generate First Draft review edit approve and final render"
           const response = await fetch(`/api/projects/${encodeURIComponent(id)}`, {
             cache: "no-store",
           });
-          return ((await response.json()) as { project: Project }).project.project.revision > revision;
+          return (
+            ((await response.json()) as { project: Project }).project.project.revision > revision
+          );
         },
         { id: projectId, revision: beforeEdit.project.revision },
       ),
@@ -119,7 +120,9 @@ test("W4 real browser Generate First Draft review edit approve and final render"
       (stage) => stage.status === "completed" || stage.status === "skipped",
     ),
   ).toBeTruthy();
-  expect(finalRun.checkpoints.filter((checkpoint) => checkpoint.status === "approved")).toHaveLength(2);
+  expect(
+    finalRun.checkpoints.filter((checkpoint) => checkpoint.status === "approved"),
+  ).toHaveLength(2);
   const finalStage = finalRun.stageExecutions.find((stage) => stage.stageId === "FINAL_RENDER");
   const finalJobId = finalStage?.jobIds.at(-1);
   expect(finalJobId).toBeTruthy();
@@ -186,7 +189,8 @@ test("W4 real browser Generate First Draft review edit approve and final render"
           resolvedProjectRevision: item.resolvedProjectRevision,
         })),
         finalJobId,
-        finalArtifact: finalRun.artifacts.find((item) => item.stageId === "FINAL_RENDER")?.relativePath,
+        finalArtifact: finalRun.artifacts.find((item) => item.stageId === "FINAL_RENDER")
+          ?.relativePath,
         reopenDurability: "PASS",
         probe,
       },
