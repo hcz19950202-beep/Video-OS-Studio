@@ -59,9 +59,13 @@ export type WorkflowStageStartResult=
   |({kind:"completed"}&WorkflowStageCompletion)
   |{kind:"job";jobId:string};
 
+export type WorkflowStageJobReconcileResult=
+  |WorkflowStageCompletion
+  |{kind:"job";jobId:string};
+
 export type WorkflowStageExecutor={
   start:(context:WorkflowStageExecutionContext)=>Promise<WorkflowStageStartResult>;
-  reconcileJob?:(context:WorkflowStageExecutionContext,job:JobRecord)=>Promise<WorkflowStageCompletion>;
+  reconcileJob?:(context:WorkflowStageExecutionContext,job:JobRecord)=>Promise<WorkflowStageJobReconcileResult>;
 };
 
 export class WorkflowStageRegistry{
