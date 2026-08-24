@@ -123,7 +123,9 @@ test("W4 Workflow tab discovers durable runs and cancels without starting engine
   await expect(panel).toHaveAttribute("data-workflow-state", "pending");
   await expect(page.locator('[data-workflow-stage="CONTENT_REVIEW"]')).toBeVisible();
   await expect(page.locator('[data-workflow-stage="ASSEMBLY_REVIEW"]')).toBeVisible();
-  await expect(page.getByRole("button", { name: "Generate First Draft", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Generate First Draft", exact: true }),
+  ).toBeVisible();
 
   const cancelResponse = page.waitForResponse(
     (response) =>
