@@ -111,7 +111,7 @@ In addition to the automated assertions, visually inspect the final MP4 (or at l
 
 ## Request-origin / port check
 
-W4 introduces persisted Workflow `assetBaseUrl` so final render follows the active Studio request origin instead of permanently assuming `127.0.0.1:3000`.
+W4 introduces persisted Workflow `assetBaseUrl` so final render follows the active Studio request origin instead of permanently assuming port 3000.
 
 The default Playwright config uses port 3000, so perform one additional bounded manual/API check on a different port when practical:
 
@@ -119,7 +119,17 @@ The default Playwright config uses port 3000, so perform one additional bounded 
 npm run dev -- --hostname 127.0.0.1 --port 3017
 ```
 
-Create or resume a W4 Workflow through `http://127.0.0.1:3017` and confirm its stored `assetBaseUrl` is `http://127.0.0.1:3017`. A full second render is not required if the automated run already proved final rendering; this check exists to validate the W4 origin-binding contract.
+Create or resume a W4 Workflow through the Studio served on port `3017` and inspect its stored `assetBaseUrl`.
+
+Acceptance rule:
+
+```text
+protocol: must match the active local Studio request (normally http)
+port:     MUST be 3017 for this check, proving W4 does not hard-code 3000
+host:     localhost and 127.0.0.1 are equivalent accepted loopback aliases
+```
+
+A full second render is not required if the automated run already proved final rendering. Do not weaken the port assertion: the purpose of this check is specifically to prove request-origin port binding.
 
 ## Failure / fix policy
 
@@ -169,7 +179,7 @@ Stage status table
 Checkpoint A/B revisions and status
 manual edit performed + Project revision before/after
 Durable Job table for Workflow-linked jobs
-assetBaseUrl evidence
+assetBaseUrl evidence (including non-3000 port check)
 Final Render Job ID
 final MP4 relative path / downloaded file evidence
 ffprobe result
