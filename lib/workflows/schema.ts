@@ -175,6 +175,7 @@ export const WorkflowRunSchema=z.object({
   scenario:WorkflowScenarioSchema,
   currentStageId:WorkflowStageIdSchema.optional(),
   sourceAssetIds:z.array(z.string().min(1)).default([]),
+  assetBaseUrl:z.string().url().optional(),
   canvasSnapshot:WorkflowCanvasSnapshotSchema,
   stageExecutions:z.array(WorkflowStageExecutionSchema).default([]),
   checkpoints:z.array(WorkflowCheckpointSchema).default([]),
