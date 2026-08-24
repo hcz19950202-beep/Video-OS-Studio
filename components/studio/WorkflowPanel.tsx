@@ -18,6 +18,8 @@ const TERMINAL_RUNS=new Set(["completed","cancelled"]);
 const scenarioLabel=(scenario:WorkflowScenario,zh:boolean)=>scenario==="talking-head"?(zh?"口播视频":"Talking Head"):scenario==="product-ad"?(zh?"产品广告":"Product Ad"):(zh?"解释视频":"Explainer");
 const statusGlyph=(status:WorkflowStageExecution["status"])=>status==="completed"?"✓":status==="running"?"●":status==="waiting_review"?"◉":status==="failed"?"!":status==="interrupted"?"!":status==="invalidated"?"↻":status==="ready"?"→":status==="cancelled"?"×":status==="skipped"?"–":"○";
 
+type WorkflowDiscovery={latest:WorkflowRun|null;activity:WorkflowActivity[]};
+
 export const WorkflowPanel=({project,onProjectChange}:{project:Project;onProjectChange:(project:Project)=>void})=>{
   const{locale}=useStudioPreferences();const zh=locale==="zh-CN";const m=workflowMessages(locale);
   const[scenario,setScenario]=useState<WorkflowScenario>(SCENARIOS.includes(project.workflow.scenario as WorkflowScenario)?project.workflow.scenario as WorkflowScenario:"talking-head");
@@ -44,16 +46,30 @@ export const WorkflowPanel=({project,onProjectChange}:{project:Project;onProject
     return run;
   },[syncProject]);
 
+  const loadDiscovery=useCallback(async():Promise<WorkflowDiscovery>=>{
+    const runs=await listWorkflows(project.project.id);
+    const latest=runs.find(run=>run.definitionVersion==="2"&&run.definitionId.startsWith("video-production-"))??null;
+    if(!latest)return{latest:null,activity:[]};
+    try{return{latest,activity:await getWorkflowActivity(latest.id)};}catch{return{latest,activity:[]};}
+  },[project.project.id]);
+
   const discover=useCallback(async()=>{
     try{
-      const runs=await listWorkflows(project.project.id);
-      const latest=runs.find(run=>run.definitionVersion==="2"&&run.definitionId.startsWith("video-production-"))??null;
-      setWorkflow(latest);setActivity([]);setCurrentJob(null);setError("");
-      if(latest){await syncProject(latest);try{setActivity(await getWorkflowActivity(latest.id));}catch{setActivity([]);}}
+      const next=await loadDiscovery();
+      setWorkflow(next.latest);setActivity(next.activity);setCurrentJob(null);setError("");
+      if(next.latest)await syncProject(next.latest);
     }catch(cause){setError(toClientErrorState(cause).message);}
-  },[project.project.id,syncProject]);
+  },[loadDiscovery,syncProject]);
 
-  useEffect(()=>{void discover();},[discover]);
+  useEffect(()=>{
+    let cancelled=false;
+    void loadDiscovery().then(async next=>{
+      if(cancelled)return;
+      setWorkflow(next.latest);setActivity(next.activity);setCurrentJob(null);setError("");
+      if(next.latest)await syncProject(next.latest);
+    }).catch(cause=>{if(!cancelled)setError(toClientErrorState(cause).message);});
+    return()=>{cancelled=true;};
+  },[loadDiscovery,syncProject]);
   const workflowId=workflow?.id;const workflowStatus=workflow?.status;
   useEffect(()=>{
     if(!workflowId||!workflowStatus||TERMINAL_RUNS.has(workflowStatus))return;
