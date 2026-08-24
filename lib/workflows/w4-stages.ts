@@ -29,14 +29,19 @@ const mapArtifact=(stageId:string,jobId:string,artifact:JobArtifact,index:number
   digest:artifact.relativePath?digest({relativePath:artifact.relativePath,sizeBytes:artifact.sizeBytes}):undefined,
 });
 
-const reusableRenderJob=async(deps:Dependencies,previousJobIds:string[],input:CreateJobInput)=>{
+const renderJobForAttempt=async(deps:Dependencies,previousJobIds:string[],input:CreateJobInput)=>{
   const prior=previousJobIds.at(-1);
   if(prior){
     const job=await deps.jobs.get(prior);
     if(job){
-      if(["queued","preparing","running","completed"].includes(job.status))return job;
-      if(job.error?.retryable===false)throw Object.assign(new Error(job.error.message),{code:job.error.code,retryable:false});
-      return deps.jobs.retry(prior);
+      if(["queued","preparing","running"].includes(job.status))return job;
+      if(["failed","cancelled","interrupted"].includes(job.status)){
+        if(job.error?.retryable===false)throw Object.assign(new Error(job.error.message),{code:job.error.code,retryable:false});
+        return deps.jobs.retry(prior);
+      }
+      // A completed render belongs to an older Stage attempt. W3 keeps historical
+      // jobIds for audit when downstream work is invalidated, so a new Stage
+      // attempt must create a fresh render instead of silently reusing stale MP4.
     }
   }
   return deps.jobs.create(input);
@@ -46,7 +51,7 @@ const finalRenderExecutor=(deps:Dependencies):WorkflowStageExecutor=>({
   start:async context=>{
     const project=await deps.repository.load(context.run.projectId);
     const assetBaseUrl=context.run.assetBaseUrl??deps.fallbackAssetBaseUrl;
-    const job=await reusableRenderJob(deps,context.previousJobIds,{type:"render-final",projectId:project.project.id,input:{assetBaseUrl}});
+    const job=await renderJobForAttempt(deps,context.previousJobIds,{type:"render-final",projectId:project.project.id,input:{assetBaseUrl}});
     return{kind:"job",jobId:job.id};
   },
   reconcileJob:async(context,job)=>{
