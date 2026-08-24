@@ -55,8 +55,17 @@ const finalRenderExecutor=(deps:Dependencies):WorkflowStageExecutor=>({
     return{kind:"job",jobId:job.id};
   },
   reconcileJob:async(context,job)=>{
+    const project=await deps.repository.load(context.run.projectId);
+    const sourceProjectRevision=typeof job.output?.sourceProjectRevision==="number"?job.output.sourceProjectRevision:context.execution.baseProjectRevision;
+    if(sourceProjectRevision!==undefined&&project.project.revision!==sourceProjectRevision){
+      throw Object.assign(new Error(`Project changed from revision ${sourceProjectRevision} to ${project.project.revision} while Final Render was running. The completed MP4 is stale and must be rendered again.`),{
+        code:"WORKFLOW_RENDER_STALE",
+        retryable:true,
+        details:{sourceProjectRevision,currentProjectRevision:project.project.revision,jobId:job.id},
+      });
+    }
     const artifacts=(await deps.jobs.getArtifacts(job.id)).map((artifact,index)=>mapArtifact(context.stage.id,job.id,artifact,index));
-    return{artifacts,outputDigest:digest({outputRelativePath:job.output?.outputRelativePath,mode:job.output?.mode,profile:job.output?.profile,assetBaseUrl:context.run.assetBaseUrl??deps.fallbackAssetBaseUrl})};
+    return{artifacts,outputDigest:digest({outputRelativePath:job.output?.outputRelativePath,mode:job.output?.mode,profile:job.output?.profile,sourceProjectRevision,assetBaseUrl:context.run.assetBaseUrl??deps.fallbackAssetBaseUrl})};
   },
 });
 
