@@ -128,6 +128,8 @@ export const WorkflowStageExecutionSchema=z.object({
   outputDigest:z.string().min(1).optional(),
   jobIds:z.array(z.string().uuid()).default([]),
   operationIds:z.array(z.string().min(1)).default([]),
+  historicalJobIds:z.array(z.string().uuid()).optional(),
+  historicalOperationIds:z.array(z.string().min(1)).optional(),
   artifactIds:z.array(WorkflowArtifactIdSchema).default([]),
   error:WorkflowErrorSchema.optional(),
 });

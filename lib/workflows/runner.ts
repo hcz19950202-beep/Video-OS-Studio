@@ -62,7 +62,8 @@ const collectInvalidationStageIds=(definition:WorkflowDefinition,startStageId:st
 const invalidateExecution=(execution:WorkflowStageExecution,workflowId:string,clearDurableAttemptRefs=false)=>{
   if(execution.status==="running"||execution.status==="failed"||execution.status==="interrupted"||execution.status==="cancelled")throw new WorkflowRuntimeStateError(`Workflow stage ${execution.stageId} cannot be invalidated from ${execution.status}.`,workflowId);
   if(execution.status!=="invalidated")assertWorkflowStageStatusTransition(execution.status,"invalidated");
-  return WorkflowStageExecutionSchema.parse({...execution,status:"invalidated",attemptId:undefined,startedAt:undefined,completedAt:undefined,baseProjectRevision:undefined,inputDigest:undefined,outputDigest:undefined,jobIds:clearDurableAttemptRefs?[]:execution.jobIds,operationIds:clearDurableAttemptRefs?[]:execution.operationIds,artifactIds:[],error:undefined});
+  const historicalJobIds=execution.historicalJobIds??[];const historicalOperationIds=execution.historicalOperationIds??[];
+  return WorkflowStageExecutionSchema.parse({...execution,status:"invalidated",attemptId:undefined,startedAt:undefined,completedAt:undefined,baseProjectRevision:undefined,inputDigest:undefined,outputDigest:undefined,jobIds:clearDurableAttemptRefs?[]:execution.jobIds,operationIds:clearDurableAttemptRefs?[]:execution.operationIds,historicalJobIds:clearDurableAttemptRefs?[...historicalJobIds,...execution.jobIds]:execution.historicalJobIds,historicalOperationIds:clearDurableAttemptRefs?[...historicalOperationIds,...execution.operationIds]:execution.historicalOperationIds,artifactIds:[],error:undefined});
 };
 
 export class WorkflowRunner{
@@ -280,14 +281,14 @@ export class WorkflowRunner{
 
   private async executeStage(run:WorkflowRun,definition:WorkflowDefinition,stage:WorkflowStageDefinition){
     const attemptId=randomUUID();const operationId=`workflow:${run.id}:stage:${stage.id}:attempt:${attemptId}`;
-    const started=await this.withRunLock(run.id,async()=>{
+    const started=await this.store.withRunLock(run.id,()=>this.withRunLock(run.id,async()=>{
       const current=await this.requireRun(run.id);if(current.status!=="running")return null;
       const execution=getExecution(current,stage.id);if(execution.status!=="ready")return null;
       assertWorkflowStageStatusTransition(execution.status,"running");const previousJobIds=[...execution.jobIds];
       const running=WorkflowStageExecutionSchema.parse({...execution,status:"running",attempt:execution.attempt+1,attemptId,startedAt:nowIso(),completedAt:undefined,baseProjectRevision:current.lastKnownProjectRevision,inputDigest:stageInputDigest(current,stage),outputDigest:undefined,jobIds:previousJobIds,artifactIds:[],operationIds:[...execution.operationIds,operationId],error:undefined});
       const updated=await this.store.save(WorkflowRunSchema.parse({...current,stageExecutions:replaceExecution(current,running),currentStageId:stage.id,updatedAt:nowIso()}));
       return{run:updated,execution:running,previousJobIds};
-    });
+    }));
     if(!started)return;await this.activity(run.id,"stage-started",{stageId:stage.id,data:{attempt:started.execution.attempt,attemptId,operationId,inputDigest:started.execution.inputDigest}});
     const executor=this.stages.get(stage.executorKey);const context:WorkflowStageExecutionContext={run:started.run,definition,stage,execution:started.execution,attemptId,operationId,previousJobIds:started.previousJobIds};
     try{

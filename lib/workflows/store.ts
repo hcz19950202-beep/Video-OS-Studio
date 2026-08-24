@@ -1,10 +1,11 @@
 import {randomUUID} from "node:crypto";
-import {appendFile,mkdir,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
+import {appendFile,mkdir,open,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {WorkflowActivitySchema,type WorkflowActivity} from "@/lib/workflows/activity";
 import {WorkflowRunIdSchema,WorkflowRunSchema,type WorkflowRun} from "@/lib/workflows/schema";
 
 const parseWorkflow=(text:string)=>WorkflowRunSchema.parse(JSON.parse(text));
+const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
 export class WorkflowNotFoundError extends Error{
   readonly code="WORKFLOW_NOT_FOUND";
@@ -50,6 +51,26 @@ export class FileWorkflowStore{
   }
 
   async ensure(){await mkdir(this.workflowsRoot,{recursive:true});}
+
+  async withRunLock<T>(workflowRunId:string,fn:()=>Promise<T>):Promise<T>{
+    const id=WorkflowRunIdSchema.parse(workflowRunId);
+    const lockPath=join(this.runDir(id),".workflow-run.lock");
+    let handle:Awaited<ReturnType<typeof open>>|undefined;
+    for(;;){
+      try{handle=await open(lockPath,"wx");break;}
+      catch(error){
+        if((error as NodeJS.ErrnoException).code!=="EEXIST")throw error;
+        try{
+          const lockHandle=await open(lockPath,"r");
+          try{if(Date.now()-(await lockHandle.stat()).mtimeMs>30_000)await rm(lockPath,{force:true});}
+          finally{await lockHandle.close();}
+        }catch(lockError){if((lockError as NodeJS.ErrnoException).code!=="ENOENT")throw lockError;}
+        await sleep(5);
+      }
+    }
+    try{return await fn();}
+    finally{await handle.close();await rm(lockPath,{force:true});}
+  }
 
   async create(run:WorkflowRun){
     const parsed=WorkflowRunSchema.parse(run);
