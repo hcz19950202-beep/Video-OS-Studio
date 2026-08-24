@@ -65,7 +65,11 @@ describe("V2.2 W5 failure retry and restart hardening",()=>{
 
   it("does not duplicate a Project mutation when the Project committed before Workflow stage completion persisted",async()=>{
     const root=await makeRoot();const fs=new NodeFileSystemAdapter();const repository=new ProjectRepository(fs,root);const coordinator=new ProjectMutationCoordinator(fs,repository);await repository.create({id:"demo",name:"Demo",now:at,width:1920,height:1080,fps:30,durationInFrames:120});
-    await coordinator.applyTransaction("demo",{expectedRevision:0,transactionId:"seed-script",transaction:{label:"Seed transcript",commands:[{type:"set-script-document",script:{baseSourceRanges:[{startFrame:0,endFrame:120}],segments:[{id:"seg-1",status:"active",semanticTags:[],words:[{id:"w1",text:"hello",startFrame:0,endFrame:30,confidence:.99},{id:"w2",text:"world",startFrame:30,endFrame:60,confidence:.99}]}]}}]}});
+    await coordinator.applyTransaction("demo",{expectedRevision:0,transactionId:"seed-script",transaction:{label:"Seed source and transcript",commands:[
+      {type:"add-asset",asset:{id:"source-video",kind:"video",relativePath:"media/source.mp4",label:"source",mimeType:"video/mp4",durationInFrames:120,width:1920,height:1080,sourceFps:30,hasAudio:true,sizeBytes:1024}},
+      {type:"add-clip",trackId:"video-main",clip:{id:"source-clip",type:"video",assetId:"source-video",sourceStartFrame:0,volume:1,startFrame:0,durationInFrames:120,enabled:true,layer:0}},
+      {type:"set-script-document",script:{baseSourceRanges:[{startFrame:0,endFrame:120}],segments:[{id:"seg-1",status:"active",semanticTags:[],words:[{id:"w1",text:"hello",startFrame:0,endFrame:30,confidence:.99},{id:"w2",text:"world",startFrame:30,endFrame:60,confidence:.99}]}]}},
+    ]}});
     let mutationCalls=0;let crashAfterCommit=true;const mutations={
       getOperation:(projectId:string,operationId:string)=>coordinator.getOperation(projectId,operationId),
       applyTransaction:async(projectId:string,input:Parameters<ProjectMutationCoordinator["applyTransaction"]>[1])=>{mutationCalls++;const committed=await coordinator.applyTransaction(projectId,input);if(crashAfterCommit){crashAfterCommit=false;throw Object.assign(new Error("simulated crash after Project commit"),{code:"SIMULATED_COMMIT_GAP",retryable:true});}return committed;},
