@@ -12,63 +12,42 @@ release_status: COMPLETE
 release_main_sha: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
 release_tag: v2.1.1
 release_tag_sha: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
-v2_2_baseline_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
+v2_2_r0_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
+v2_2_w0_main: 9914b1e65d27a7d40e997295d94eeb5ce4c3deea
 current_milestone: V2.2 WORKFLOW RUNTIME
-v2_2_status: W0 WORKFLOW CONTRACT ACTIVE
-active_workstream: V2.2-W0 Workflow Contract
-active_branch: feature/v2.2-w0-workflow-contract
-active_pr: 31
-local_validation_required: NO for W0
-next_workstream_after_w0: W1 Workflow Runtime Core
+v2_2_status: W1 WORKFLOW RUNTIME CORE ACTIVE / CLOUD VERIFIED
+active_workstream: V2.2-W1 Workflow Runtime Core
+active_branch: feature/v2.2-w1-workflow-runtime
+active_pr: 32
+last_verified_w1_head: 670c957e4a07a5a7be2e4e9abf2cda2ae1be4b17
+last_verified_w1_ci: 32701265586 PASS
+local_validation_required: NO for W1
+next_workstream_after_w1: W2 Existing Capability Stage Integration
 future_milestone: V2.3 Real AI Director / AI Editing Agent
 ```
 
-## V2.1.1 release truth
-
-Video OS Studio **V2.1.1 is released and accepted**.
-
-The release tag `v2.1.1` resolves to:
+## Accepted delivery history
 
 ```text
-223b66799baf5b5faf1d1321a671d3fb5c6a0930
+V2.1.1 Engineering Hardening / Final Release  → COMPLETE
+V2.1.1 tag v2.1.1                            → COMPLETE
+V2.2 R0 Repository / Roadmap Sync             → PR #30 COMPLETE
+V2.2 W0 Workflow Contract                     → PR #31 COMPLETE
+V2.2 W1 Workflow Runtime Core                 → PR #32 ACTIVE / CLOUD VERIFIED
 ```
 
-V2.1.1 Final Release Acceptance established:
+W0 established the independent durable Workflow contract under `lib/workflows/*` and `VIDEO_OS_DATA_ROOT/workflows`. The existing Project `workflow` field remains the V2.1 Scenario Starter. Project Schema remains `2.0.0`.
+
+W1 now provides the cloud-safe orchestration core: definition/stage registries, WorkflowService, WorkflowRunner, dependency readiness, pause/resume/cancel, checkpoint approval, retry, activity logging and durable Job reconciliation through a narrow runtime port.
+
+## Active V2.2 documents
 
 ```text
-REPOSITORY TRUTH: PASS
-DATA CORRECTNESS: PASS
-TRANSACTION SAFETY: PASS
-ENGINE RUNTIME: PASS
-DURABLE JOBS: PASS
-STREAMING MEDIA: PASS
-DATA HARDENING: PASS
-AUTOMATED ACCEPTANCE: PASS
-ZERO KNOWN SILENT DATA LOSS: PASS
-ZERO UNBOUNDED RENDER CONCURRENCY: PASS
-ZERO DEFAULT RUNTIME REMOTION DOWNLOAD: PASS
-ZERO FULL-FILE RANGE BUFFERING: PASS
-UBUNTU CI: PASS
-WINDOWS CI: PASS
-LOCAL WINDOWS MEDIA/ENGINE SMOKE: PASS
-RESTART RECOVERY: PASS
-V2.1 REGRESSION: PASS
+docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md
+docs/prd/Video_OS_Studio_V2_2_Development_Plan.md
 ```
 
-Historical authority:
-
-- `docs/prd/Video_OS_Studio_V2_1_1_Engineering_Hardening_Master_PRD.md`
-- `docs/validation/LOCAL_VALIDATION_V2_1_1_FINAL_RELEASE.md`
-- accepted H0–H7 validation reports
-- PR #27 final release acceptance
-- PR #28 release finalization
-- tag `v2.1.1`
-
-## V2.2 product decision
-
-V2.2 is the active milestone.
-
-The objective is:
+## V2.2 product objective
 
 > Connect existing Video OS capabilities into a durable, visible, reviewable and retryable production Workflow so a user can import a real video and generate an editable first draft without manually triggering every subsystem.
 
@@ -89,20 +68,13 @@ Create Project
 
 A production Real AI Provider / multi-turn AI Editing Agent is not V2.2 scope and remains V2.3.
 
-## Active V2.2 documents
-
-```text
-docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md
-docs/prd/Video_OS_Studio_V2_2_Development_Plan.md
-```
-
 ## V2.2 delivery sequence
 
 ```text
 R0 Repository / Roadmap Sync              → PR #30 COMPLETE
-W0 Workflow Contract                      → PR #31 ACTIVE
-W1 Workflow Runtime Core                  → NEXT
-W2 Existing Capability Stage Integration  → FUTURE
+W0 Workflow Contract                      → PR #31 COMPLETE
+W1 Workflow Runtime Core                  → PR #32 ACTIVE / CLOUD VERIFIED
+W2 Existing Capability Stage Integration  → NEXT
 W3 Human Review + Invalidation            → FUTURE
 W4 Workflow UI                            → FUTURE
 W5 Failure / Retry / Restart Hardening    → FUTURE
@@ -110,30 +82,66 @@ W6 End-to-End Release Acceptance          → FUTURE
 V2.2 Release Finalization                 → FUTURE
 ```
 
-## W0 scope contract
+## W1 scope contract
 
-W0 establishes only the durable Workflow domain contract:
+W1 implements only cloud-safe orchestration/runtime behavior on top of the accepted W0 contract:
 
 ```text
-WorkflowDefinition / versioning
-WorkflowRun
-WorkflowStageDefinition / Execution
-WorkflowCheckpoint
-WorkflowArtifactReference
-WorkflowError
-legal run/stage transitions
-dependency integrity validation
-independent workflow persistence under VIDEO_OS_DATA_ROOT/workflows
+WorkflowDefinitionRegistry
+WorkflowStageRegistry
+WorkflowService
+WorkflowRunner
+Stage dependency readiness
+start / pause / resume / cancel
+stage retry
+human checkpoint wait / approve
+activity log
+Job-runtime port + durable Job reconciliation
+restart reconciliation for persisted Workflow state
+unit/integration tests using deterministic fake Stage/Job implementations
 ```
 
-Important repository compatibility decision:
+W1 does **not** implement:
 
-- existing `schemas/workflow.ts` remains the V2.1 Scenario Starter stored in Project Schema `2.0.0`;
-- V2.2 Workflow Runtime state is separate and must not repurpose the Project `workflow` field;
-- new WorkflowRun persistence lives outside Project JSON;
-- no scheduler, Job orchestration, API, UI, engine integration or real media belongs in W0.
+```text
+real FFmpeg/video-use/HyperFrames/Remotion stages
+real video production workflow definitions
+Workflow API/UI
+Real AI Provider / Agent
+Project Schema changes
+replacement Durable Job runtime
+```
 
-W0 does **not** require local Codex validation. Cloud unit/type/lint/build/CI evidence is sufficient.
+Pause semantics: do not start a new Stage while paused; an already-running Stage/Job may reach terminal state. Cancel requests cancellation of the active attached Durable Job where present.
+
+Recovery semantics: a persisted running job-backed Stage is reconciled from Durable Job truth. A persisted running non-job Stage with no durable external truth is marked interrupted rather than guessed successful.
+
+Cloud verification on W1 head `670c957e4a07a5a7be2e4e9abf2cda2ae1be4b17`:
+
+```text
+CI run 32701265586
+Ubuntu format/lint/typecheck/unit/build: PASS
+Windows format/lint/typecheck/unit: PASS
+Browser smoke: PASS
+Windows media smoke: PASS
+```
+
+The initial W1 CI caught Zod/default-array TypeScript errors. They were corrected by parsing stage executions through the explicit `WorkflowStageExecutionSchema`; the final verified head above is clean. Pause-to-failure/interruption transitions were also made explicit so active work can finish or fail safely while the Workflow is paused.
+
+W1 requires no Local Codex gate. Real Windows/process/media/restart evidence begins with W2 and later release-blocking workstreams.
+
+## Local validation policy
+
+```text
+R0: NO
+W0: NO
+W1: NO (cloud-safe runtime contract only)
+W2: YES for FFmpeg/video-use/HyperFrames/Remotion/real media
+W3: conditional; otherwise covered with W4/W5
+W4: YES for real Windows browser/media flow
+W5: YES and release-blocking
+W6: YES and release-blocking
+```
 
 ## Development ownership
 
@@ -145,39 +153,7 @@ Local Codex on Windows
 → exact-SHA real browser/media/engine/restart acceptance + in-scope fixes + evidence
 ```
 
-Local Codex is intentionally not activated for W0.
-
-## Local validation policy
-
-```text
-R0: NO
-W0: NO
-W1: normally NO; real process recovery is proven later in W5
-W2: YES for FFmpeg/video-use/HyperFrames/Remotion/real media
-W3: conditional; otherwise covered with W4/W5
-W4: YES for real Windows browser/media flow
-W5: YES and release-blocking
-W6: YES and release-blocking
-```
-
-## Delivery history
-
-```text
-V2.1.1 R0 Repository Truth / Agent Guardrails  → PR #17 COMPLETE
-V2.1.1 H0 Correctness Hotfix                   → PR #19 COMPLETE
-V2.1.1 H1 Project Transaction Safety           → PR #20 COMPLETE
-V2.1.1 H2 Engine Process Runtime               → PR #21 COMPLETE
-V2.1.1 H3 Durable Job Runtime                  → PR #22 COMPLETE
-V2.1.1 H4 Streaming Media Pipeline             → PR #23 COMPLETE
-V2.1.1 H5 Project / Data Hardening             → PR #24 COMPLETE
-V2.1.1 H6 Automated Acceptance                 → PR #25 COMPLETE
-V2.1.1 H7 Frontend Consolidation               → PR #26 COMPLETE
-V2.1.1 Final Release Acceptance                → PR #27 COMPLETE
-V2.1.1 Release Finalization                    → PR #28 COMPLETE
-V2.1.1 Tag                                     → v2.1.1 COMPLETE
-V2.2 R0 Repository / Roadmap Sync              → PR #30 COMPLETE
-V2.2 W0 Workflow Contract                      → PR #31 ACTIVE
-```
+GitHub is the single code source of truth. Local Codex validates only the exact branch/SHA handed off by GPT Web and pushes any in-scope fixes back to that same branch.
 
 ## Accepted engine / schema invariants
 
@@ -200,18 +176,17 @@ Project != Workflow != Job
 And:
 
 1. Project JSON is the durable Project source of truth.
-2. Canonical internal timeline timing is frame-based.
-3. Durable edits use validated Commands / Transactions / bounded services.
-4. Workflow orchestrates existing capabilities; it does not become a second Job system.
-5. Agents do not directly hand-edit runtime `project.json`.
-6. UI/Workflow modules do not spawn FFmpeg, Remotion, HyperFrames or video-use directly.
-7. Remotion remains the master composition/render engine.
-8. HyperFrames remains the deterministic complex-motion asset engine.
-9. video-use and FFmpeg/ffprobe remain behind adapters/services.
-10. `VIDEO_OS_DATA_ROOT` remains outside repository code by default.
-11. Studio theme/locale remains separate from generated-video Brand.
-12. Project Schema and engine pins are not changed incidentally.
-13. `REUSE > MODIFY > CREATE`.
+2. Workflow state is independent orchestration state under `VIDEO_OS_DATA_ROOT/workflows`.
+3. Durable Job state represents concrete execution work; Workflow does not create a second Job system.
+4. Canonical internal timeline timing is frame-based.
+5. Durable Project edits use validated Commands / Transactions / bounded services.
+6. Workflow code does not directly hand-edit runtime `project.json`.
+7. UI/Workflow modules do not spawn FFmpeg, Remotion, HyperFrames or video-use directly.
+8. Remotion remains the master composition/render engine.
+9. HyperFrames remains the deterministic complex-motion asset engine.
+10. video-use and FFmpeg/ffprobe remain behind adapters/services.
+11. Project Schema and engine pins are not changed incidentally.
+12. `REUSE > MODIFY > CREATE`.
 
 ## PR #18 disposition
 
@@ -219,16 +194,9 @@ PR #18 is closed/unmerged and retained only as future V2.3 AI Agent architecture
 
 ## Next allowed phase
 
-While W0 is active:
+While PR #32 remains open, no W2 implementation may be merged or locally validated from a floating branch. After the final PR #32 head is CI-clean and merged, create W2 from the new accepted `main`.
 
-- domain schema/state/persistence/tests only;
-- no Workflow scheduler/runtime orchestration yet;
-- no API/UI;
-- no engine integration;
-- no Real AI Provider;
-- no Project Schema or engine-pin changes.
-
-After W0 is reviewed and merged, create W1 from the new accepted `main` and implement only Workflow Runtime Core.
+W2 is the first workstream that requires an exact-SHA Local Codex handoff for real Windows/media/engine validation.
 
 ## Read order for agents
 
