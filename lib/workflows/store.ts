@@ -1,9 +1,18 @@
 import {randomUUID} from "node:crypto";
-import {mkdir,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
+import {appendFile,mkdir,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
+import {WorkflowActivitySchema,type WorkflowActivity} from "@/lib/workflows/activity";
 import {WorkflowRunIdSchema,WorkflowRunSchema,type WorkflowRun} from "@/lib/workflows/schema";
 
 const parseWorkflow=(text:string)=>WorkflowRunSchema.parse(JSON.parse(text));
+
+export class WorkflowNotFoundError extends Error{
+  readonly code="WORKFLOW_NOT_FOUND";
+  constructor(readonly workflowRunId:string){
+    super(`Workflow ${workflowRunId} was not found.`);
+    this.name="WorkflowNotFoundError";
+  }
+}
 
 export class FileWorkflowStore{
   readonly workflowsRoot:string;
@@ -69,11 +78,7 @@ export class FileWorkflowStore{
   async save(run:WorkflowRun){
     const parsed=WorkflowRunSchema.parse(run);
     const existing=await this.get(parsed.id);
-    if(!existing){
-      const error=new Error(`Workflow ${parsed.id} was not found.`);
-      error.name="WorkflowNotFoundError";
-      throw error;
-    }
+    if(!existing)throw new WorkflowNotFoundError(parsed.id);
     await this.atomicWrite(this.workflowPath(parsed.id),JSON.stringify(parsed,null,2)+"\n");
     return parsed;
   }
@@ -83,5 +88,23 @@ export class FileWorkflowStore{
     const entries=await readdir(this.workflowsRoot,{withFileTypes:true});
     const runs=await Promise.all(entries.filter(entry=>entry.isDirectory()).map(entry=>this.get(entry.name)));
     return runs.filter((run):run is WorkflowRun=>run!==null).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async appendActivity(activity:WorkflowActivity){
+    const parsed=WorkflowActivitySchema.parse(activity);
+    if(!(await this.get(parsed.workflowId)))throw new WorkflowNotFoundError(parsed.workflowId);
+    const path=this.activityPath(parsed.workflowId);
+    await this.withPathLock(path,()=>appendFile(path,JSON.stringify(parsed)+"\n","utf8"));
+    return parsed;
+  }
+
+  async readActivity(workflowRunId:string):Promise<WorkflowActivity[]>{
+    const id=WorkflowRunIdSchema.parse(workflowRunId);
+    if(!(await this.get(id)))throw new WorkflowNotFoundError(id);
+    const path=this.activityPath(id);
+    return this.withPathLock(path,async()=>{
+      const text=await readFile(path,"utf8");
+      return text.split("\n").filter(Boolean).map(line=>WorkflowActivitySchema.parse(JSON.parse(line)));
+    });
   }
 }
