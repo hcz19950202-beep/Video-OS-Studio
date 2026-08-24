@@ -27,6 +27,9 @@ export class ProjectRepository {
     return join(this.projectDir(projectId), "project.json");
   }
 
+  private projectLockPath(projectId:string):string{return `${this.projectPath(projectId)}.lock`;}
+  private async withProjectFileLock<T>(projectId:string,work:()=>Promise<T>):Promise<T>{return this.fs.withExclusiveLock?this.fs.withExclusiveLock(this.projectLockPath(projectId),work):work();}
+
   private backupPath(projectId: string): string {
     return join(this.projectDir(projectId), "project.backup.json");
   }
@@ -44,27 +47,34 @@ export class ProjectRepository {
   async create(input: CreateProjectInput): Promise<Project> {
     const project = createProject(input);
     await this.fs.ensureDir(this.projectDir(project.project.id));
-    await this.fs.writeTextAtomic(this.projectPath(project.project.id), serializeProject(project));
-    await this.writeSummary(project).catch(()=>undefined);
-    return project;
+    return this.withProjectFileLock(project.project.id,async()=>{
+      await this.fs.writeTextAtomic(this.projectPath(project.project.id), serializeProject(project));
+      await this.writeSummary(project).catch(()=>undefined);
+      return project;
+    });
   }
 
   async load(projectId: string): Promise<Project> {
-    const text = await this.fs.readText(this.projectPath(projectId));
-    return deserializeProject(text);
+    const id=ProjectIdSchema.parse(projectId);
+    return this.withProjectFileLock(id,async()=>{
+      const text = await this.fs.readText(this.projectPath(id));
+      return deserializeProject(text);
+    });
   }
 
   async save(project: Project): Promise<void> {
-    // Summary is a rebuildable cache, never a second Project truth. Removing the
-    // old summary before durable Project save guarantees a crash cannot leave a
-    // stale summary that looks current.
-    await this.fs.removeFile(this.summaryPath(project.project.id));
-    await this.fs.writeTextAtomic(
-      this.projectPath(project.project.id),
-      serializeProject(project),
-      this.backupPath(project.project.id),
-    );
-    await this.writeSummary(project).catch(()=>undefined);
+    await this.withProjectFileLock(project.project.id,async()=>{
+      // Summary is a rebuildable cache, never a second Project truth. Removing the
+      // old summary before durable Project save guarantees a crash cannot leave a
+      // stale summary that looks current.
+      await this.fs.removeFile(this.summaryPath(project.project.id));
+      await this.fs.writeTextAtomic(
+        this.projectPath(project.project.id),
+        serializeProject(project),
+        this.backupPath(project.project.id),
+      );
+      await this.writeSummary(project).catch(()=>undefined);
+    });
   }
 
   async cleanupUnreferencedProjectFiles(projectId:string,candidateRelativePaths:string[]):Promise<string[]>{
