@@ -91,8 +91,11 @@ Implementation rules:
 3. Scene/Caption/visual mutations use `ProjectMutationCoordinator` / Project Transactions; Workflow never writes `project.json` directly.
 4. Rules Visual Planner remains the V2.2 planning source. No Real AI Provider is introduced.
 5. W2 internal capability definitions exist for Stage/engine acceptance only. User-facing Human Review and Generate First Draft definitions are completed in W3/W4.
-6. One Motion Stage may apply deterministic Remotion suggestions and at most one Durable HyperFrames render; additional HyperFrames suggestions remain in the Visual Plan for future review rather than being silently run outside Durable Jobs.
-7. Project Schema remains `2.0.0` and engine pins remain unchanged.
+6. One Workflow Stage may own a sequential chain of multiple Durable Jobs. `MOTION_GENERATION` must execute every selected HyperFrames suggestion through its own Durable Job before the Stage completes; it must not silently defer planned HyperFrames work.
+7. Stage retry/recovery reuses durable Job truth where possible. Job IDs remain attached to the Stage as audit history and content digests exclude incidental execution timestamps/attempt IDs.
+8. `PREVIEW` in W2 is a Project preview-readiness barrier, not a second encoded render. `FINAL_RENDER` remains the encoded Remotion render Stage.
+9. B-roll and Audio stages only apply/reconcile available configured Project/Visual Plan assets; W2 does not silently fetch external media or generate audio.
+10. Project Schema remains `2.0.0` and engine pins remain unchanged.
 
 ## W2 merge gates
 
@@ -101,9 +104,10 @@ Cloud gate:
 ```text
 format / lint / typecheck / unit / build
 Stage registration and definition tests
+sequential Durable Job-chain tests
 Durable Job delegation tests
 Project transaction / revision tests
-full fake-engine capability workflow test
+full fake-engine capability workflow test with multiple HyperFrames Jobs
 existing browser/media regression smoke
 ```
 
