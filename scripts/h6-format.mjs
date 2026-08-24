@@ -74,15 +74,7 @@ for (const file of [...files].sort()) {
   const formatted = await prettier.format(source, { ...config, filepath: file });
   if (formatted === source) continue;
   if (write) await writeFile(file, formatted, "utf8");
-  else {
-    const name = relative(ROOT, file);
-    changed.push(name);
-    if (name.startsWith("tests/e2e/w4-")) {
-      console.error(`W4_FORMAT_BEGIN ${name}`);
-      console.error(formatted);
-      console.error(`W4_FORMAT_END ${name}`);
-    }
-  }
+  else changed.push(relative(ROOT, file));
 }
 
 if (changed.length) {
