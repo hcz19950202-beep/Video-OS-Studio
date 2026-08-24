@@ -100,7 +100,16 @@ export class WorkflowService{
   async pause(workflowId:string){await this.ready();return this.runner.pause(WorkflowRunIdSchema.parse(workflowId));}
   async resume(workflowId:string){await this.ready();const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.resume(id,await this.latestProjectRevision(id));}
   async cancel(workflowId:string){await this.ready();return this.runner.cancel(WorkflowRunIdSchema.parse(workflowId));}
-  async retryStage(workflowId:string,stageId:string){await this.ready();return this.runner.retryStage(WorkflowRunIdSchema.parse(workflowId),stageId);}
+  async retryStage(workflowId:string,stageId:string){
+    await this.ready();
+    const id=WorkflowRunIdSchema.parse(workflowId);
+    const run=await this.requireRun(id);
+    const projectRevision=(await this.projects.load(run.projectId)).project.revision;
+    if(projectRevision>run.lastKnownProjectRevision){
+      await this.store.save(WorkflowRunSchema.parse({...run,lastKnownProjectRevision:projectRevision,updatedAt:nowIso()}));
+    }
+    return this.runner.retryStage(id,stageId);
+  }
   async replayFromStage(workflowId:string,stageId:string){await this.ready();const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.replayFromStage(id,stageId,await this.latestProjectRevision(id));}
   async approveCheckpoint(workflowId:string,checkpointId:string){await this.ready();const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.approveCheckpoint(id,checkpointId,await this.latestProjectRevision(id));}
   async recover(){await this.ready();return this.runner.recover();}
