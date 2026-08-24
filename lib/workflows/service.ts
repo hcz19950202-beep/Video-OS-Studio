@@ -1,0 +1,88 @@
+import {randomUUID} from "node:crypto";
+import {z} from "zod";
+import type {Project} from "@/schemas/project";
+import {WorkflowActivitySchema} from "@/lib/workflows/activity";
+import {WorkflowDefinitionRegistry} from "@/lib/workflows/registry";
+import {WorkflowRunner} from "@/lib/workflows/runner";
+import {WorkflowRunIdSchema,WorkflowRunSchema,type WorkflowRun} from "@/lib/workflows/schema";
+import {FileWorkflowStore} from "@/lib/workflows/store";
+
+export type WorkflowProjectReader={load:(projectId:string)=>Promise<Project>};
+
+export const CreateWorkflowRunInputSchema=z.object({
+  projectId:z.string().min(1),
+  definitionId:z.string().min(1),
+  definitionVersion:z.string().min(1),
+  sourceAssetIds:z.array(z.string().min(1)).default([]),
+  expectedProjectRevision:z.number().int().nonnegative().optional(),
+});
+export type CreateWorkflowRunInput=z.infer<typeof CreateWorkflowRunInputSchema>;
+
+export class WorkflowProjectRevisionConflictError extends Error{
+  readonly code="WORKFLOW_PROJECT_REVISION_CONFLICT";
+  readonly retryable=false;
+  constructor(readonly expectedRevision:number,readonly currentRevision:number){
+    super(`Workflow creation expected project revision ${expectedRevision}, but the current revision is ${currentRevision}.`);
+    this.name="WorkflowProjectRevisionConflictError";
+  }
+}
+
+export class WorkflowSourceAssetNotFoundError extends Error{
+  readonly code="WORKFLOW_SOURCE_ASSET_NOT_FOUND";
+  readonly retryable=false;
+  constructor(readonly assetId:string){super(`Workflow source asset ${assetId} was not found in the project.`);this.name="WorkflowSourceAssetNotFoundError";}
+}
+
+const nowIso=()=>new Date().toISOString();
+
+export class WorkflowService{
+  constructor(
+    readonly projects:WorkflowProjectReader,
+    readonly store:FileWorkflowStore,
+    readonly definitions:WorkflowDefinitionRegistry,
+    readonly runner:WorkflowRunner,
+  ){}
+
+  async create(input:CreateWorkflowRunInput):Promise<WorkflowRun>{
+    const parsed=CreateWorkflowRunInputSchema.parse(input);
+    const definition=this.definitions.get(parsed.definitionId,parsed.definitionVersion);
+    const project=await this.projects.load(parsed.projectId);
+    const revision=project.project.revision;
+    if(parsed.expectedProjectRevision!==undefined&&parsed.expectedProjectRevision!==revision)throw new WorkflowProjectRevisionConflictError(parsed.expectedProjectRevision,revision);
+
+    const assetIds=new Set(project.assets.map(asset=>asset.id));
+    for(const assetId of parsed.sourceAssetIds)if(!assetIds.has(assetId))throw new WorkflowSourceAssetNotFoundError(assetId);
+
+    const at=nowIso();
+    const run=WorkflowRunSchema.parse({
+      id:randomUUID(),
+      definitionId:definition.id,
+      definitionVersion:definition.version,
+      projectId:project.project.id,
+      createdAt:at,
+      updatedAt:at,
+      status:"pending",
+      scenario:definition.scenario,
+      sourceAssetIds:parsed.sourceAssetIds,
+      canvasSnapshot:{width:project.canvas.width,height:project.canvas.height,fps:project.canvas.fps},
+      stageExecutions:definition.stages.map(stage=>({stageId:stage.id,status:"pending",attempt:0,jobIds:[],operationIds:[],artifactIds:[]})),
+      checkpoints:[],
+      artifacts:[],
+      lastKnownProjectRevision:revision,
+    });
+    const created=await this.store.create(run);
+    await this.store.appendActivity(WorkflowActivitySchema.parse({id:randomUUID(),workflowId:created.id,at:nowIso(),event:"workflow-created",details:{definitionId:definition.id,definitionVersion:definition.version,projectRevision:revision}}));
+    return created;
+  }
+
+  get(workflowId:string){return this.store.get(WorkflowRunIdSchema.parse(workflowId));}
+  list(){return this.store.list();}
+  activity(workflowId:string){return this.store.readActivity(WorkflowRunIdSchema.parse(workflowId));}
+  start(workflowId:string){return this.runner.start(WorkflowRunIdSchema.parse(workflowId));}
+  pause(workflowId:string){return this.runner.pause(WorkflowRunIdSchema.parse(workflowId));}
+  resume(workflowId:string){return this.runner.resume(WorkflowRunIdSchema.parse(workflowId));}
+  cancel(workflowId:string){return this.runner.cancel(WorkflowRunIdSchema.parse(workflowId));}
+  retryStage(workflowId:string,stageId:string){return this.runner.retryStage(WorkflowRunIdSchema.parse(workflowId),stageId);}
+  approveCheckpoint(workflowId:string,checkpointId:string,projectRevision?:number){return this.runner.approveCheckpoint(WorkflowRunIdSchema.parse(workflowId),checkpointId,projectRevision);}
+  recover(){return this.runner.recover();}
+}
