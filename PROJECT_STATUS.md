@@ -14,15 +14,14 @@ release_tag_sha: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
 v2_2_r0_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
 v2_2_w0_main: 9914b1e65d27a7d40e997295d94eeb5ce4c3deea
 v2_2_w1_main: 5c98117a2ca30217ac8865e99eb87fe410ee7192
+v2_2_w2_main: bfcc862aed29969e61c5c3723179585e6c583a07
 current_milestone: V2.2 WORKFLOW RUNTIME
-v2_2_status: W2 EXISTING CAPABILITY STAGE INTEGRATION ACTIVE
-active_workstream: V2.2-W2 Existing Capability Stage Integration
-active_branch: feature/v2.2-w2-stage-integration
-active_pr: 33
-local_validation_required: YES after cloud-green exact head
-local_validation_contract: docs/validation/LOCAL_VALIDATION_V2_2_W2_CONTRACT.md
-local_validation_test: tests/w2/windows-workflow-smoke.test.ts
-next_workstream_after_w2: W3 Human Review + Invalidation
+v2_2_status: W3 HUMAN REVIEW + INVALIDATION ACTIVE
+active_workstream: V2.2-W3 Human Review + Invalidation
+active_branch: feature/v2.2-w3-human-review-invalidation
+active_pr: 34
+local_validation_required: NO by default for W3; real browser review validation belongs to W4
+next_workstream_after_w3: W4 Workflow UI
 future_milestone: V2.3 Real AI Director / AI Editing Agent
 ```
 
@@ -33,11 +32,12 @@ V2.1.1 Engineering Hardening / Final Release  → COMPLETE
 V2.1.1 tag v2.1.1                            → COMPLETE
 V2.2 R0 Repository / Roadmap Sync             → PR #30 COMPLETE
 V2.2 W0 Workflow Contract                     → PR #31 COMPLETE
-V2.2 W1 Workflow Runtime Core                 → PR #32 COMPLETE / main 5c98117a...
-V2.2 W2 Existing Capability Stage Integration → PR #33 ACTIVE
+V2.2 W1 Workflow Runtime Core                 → PR #32 COMPLETE
+V2.2 W2 Existing Capability Stage Integration → PR #33 COMPLETE / main bfcc862a...
+V2.2 W3 Human Review + Invalidation            → PR #34 ACTIVE
 ```
 
-W1 established the durable cloud-safe orchestration core: Definition/Stage registries, WorkflowService, WorkflowRunner, dependency scheduling, pause/resume/cancel/retry, checkpoints, activity logging and Durable Job reconciliation.
+W2 was accepted after cloud CI plus exact-SHA Local Codex Windows validation on code SHA `5b13234d9e512adf57f486767d36552fa6d254c7`. Real MOV import/normalization, video-use, HyperFrames, Remotion final render, Workflow artifacts/revisions and encoded MP4 all passed. The evidence report is `docs/validation/LOCAL_VALIDATION_V2_2_W2.md`.
 
 ## Active V2.2 documents
 
@@ -45,6 +45,7 @@ W1 established the durable cloud-safe orchestration core: Definition/Stage regis
 docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md
 docs/prd/Video_OS_Studio_V2_2_Development_Plan.md
 docs/validation/LOCAL_VALIDATION_V2_2_W2_CONTRACT.md
+docs/validation/LOCAL_VALIDATION_V2_2_W2.md
 ```
 
 ## V2.2 product objective
@@ -59,16 +60,18 @@ A production Real AI Provider / multi-turn AI Editing Agent is not V2.2 scope an
 R0 Repository / Roadmap Sync              → PR #30 COMPLETE
 W0 Workflow Contract                      → PR #31 COMPLETE
 W1 Workflow Runtime Core                  → PR #32 COMPLETE
-W2 Existing Capability Stage Integration  → PR #33 ACTIVE
-W3 Human Review + Invalidation            → NEXT AFTER W2
-W4 Workflow UI                            → FUTURE
+W2 Existing Capability Stage Integration  → PR #33 COMPLETE
+W3 Human Review + Invalidation            → PR #34 ACTIVE
+W4 Workflow UI                            → NEXT AFTER W3
 W5 Failure / Retry / Restart Hardening    → FUTURE
 W6 End-to-End Release Acceptance          → FUTURE
 ```
 
-## W2 scope contract
+## W3 scope contract
 
-W2 integrates the system already built. Target Stage adapters:
+W3 adds durable human-in-the-loop behavior without adding the W4 UI/API surface.
+
+Canonical production Workflow definitions become:
 
 ```text
 MEDIA_IMPORT
@@ -79,63 +82,61 @@ SCRIPT_ANALYSIS
 SCENE_DETECTION
 CAPTION_GENERATION
 VISUAL_PLANNING
+CONTENT_REVIEW
 MOTION_GENERATION
 BROLL_ASSEMBLY
 AUDIO_ASSEMBLY
 TIMELINE_ASSEMBLY
 PREVIEW
+ASSEMBLY_REVIEW
 FINAL_RENDER
 ```
 
 Implementation rules:
 
-1. Media import/probe/normalization provenance reuses `MediaImportService`; Workflow does not create a second import pipeline. Generate First Draft begins after media is imported into Project.
-2. `video-use-transcribe`, HyperFrames and final Remotion render delegate to the accepted V2.1.1 Durable Job Runtime.
-3. Scene/Caption/visual mutations use `ProjectMutationCoordinator` / Project Transactions; Workflow never writes `project.json` directly.
-4. Rules Visual Planner remains the V2.2 planning source. No Real AI Provider is introduced.
-5. W2 internal capability definitions exist for Stage/engine acceptance only. User-facing Human Review and Generate First Draft definitions are completed in W3/W4.
-6. One Workflow Stage may own a sequential chain of multiple Durable Jobs. `MOTION_GENERATION` must execute every selected HyperFrames suggestion through its own Durable Job before the Stage completes; it must not silently defer planned HyperFrames work.
-7. Stage retry/recovery reuses durable Job truth where possible. Job IDs remain attached to the Stage as audit history and content digests exclude incidental execution timestamps/attempt IDs.
-8. `PREVIEW` in W2 is a Project preview-readiness barrier, not a second encoded render. `FINAL_RENDER` remains the encoded Remotion render Stage.
-9. B-roll and Audio stages only apply/reconcile available configured Project/Visual Plan assets; W2 does not silently fetch external media or generate audio.
-10. Project Schema remains `2.0.0` and engine pins remain unchanged.
+1. Accepted `w2-capability-* @1` definitions remain registered and immutable for persisted W2 runs.
+2. New `video-production-* @1` definitions add `CONTENT_REVIEW` and `ASSEMBLY_REVIEW` durable checkpoints.
+3. Human-reviewed Project state is authoritative. Approving a checkpoint does not automatically regenerate Script/Scenes/Captions and overwrite human edits.
+4. `WorkflowService` resolves the latest Project revision itself for approve/resume/replay actions; UI-supplied revision state is not trusted as truth.
+5. Each executed Stage records input identity from current Project revision plus dependency output digests.
+6. Human-requested recalculation uses explicit `replayFromStage`: invalidate only the selected retryable Stage and transitive downstream dependents; unrelated accepted upstream work remains intact.
+7. Affected old checkpoints become `superseded`; when recalculation reaches review again, a fresh checkpoint is created.
+8. Stale Workflow artifacts belonging to invalidated Stages are removed, while historical Job IDs / operation IDs remain available for audit/reuse semantics.
+9. Manual Project edits while Workflow is paused are reflected on resume before new Stages start.
+10. No Project Schema or engine-pin changes are allowed.
 
-## W2 merge gates
+## W3 merge gates
 
 Cloud gate:
 
 ```text
 format / lint / typecheck / unit / build
-Stage registration and definition tests
-sequential Durable Job-chain tests
-Durable Job delegation tests
-Project transaction / revision tests
-full fake-engine capability workflow test with multiple HyperFrames Jobs
+W2 definition immutability tests
+16-stage production definition tests
+Checkpoint A/B wait + approval tests
+latest Project revision approval tests
+Stage inputDigest tests
+selective transitive invalidation tests
+checkpoint supersession tests
+stale Workflow artifact removal tests
+pause/manual-edit/resume revision refresh tests
 existing browser/media regression smoke
 ```
 
-Local exact-SHA gate is mandatory before merge:
+Local Codex is not mandatory for W3 unless review uncovers platform-specific behavior. W4 owns real Windows browser/review interaction acceptance; W5 owns crash/restart chaos acceptance.
 
-```text
-Windows real media import/probe/normalization
-real FFmpeg/ffprobe
-real video-use transcription
-real HyperFrames render through Durable Job
-real Remotion final render through Durable Job
-Project/Workflow artifact and revision evidence
-no direct engine spawn from Workflow
-```
+## Carry-forward requirement for W4
 
-GPT Web must first produce a cloud-green exact W2 head. Only then hand that exact SHA to Local Codex. Codex must follow `docs/validation/LOCAL_VALIDATION_V2_2_W2_CONTRACT.md`; any in-scope fix must be pushed to this same branch and the resulting new exact SHA must pass CI and local acceptance again before merge.
+`lib/server/runtime.ts` currently has an internal fallback asset base URL of `http://127.0.0.1:3000`. W4 user-facing Workflow/API rendering must model request origin / asset-base URL explicitly rather than permanently assuming port 3000.
 
 ## Development ownership
 
 ```text
 GPT Web + GitHub
-→ architecture / stage adapters / workflow definitions / cloud-safe code / tests / PR / CI / review / merge / status
+→ architecture / Workflow semantics / definitions / tests / PR / CI / review / merge / status
 
 Local Codex on Windows
-→ exact-SHA real media/FFmpeg/video-use/HyperFrames/Remotion acceptance + in-scope fixes + evidence
+→ only when an exact-SHA workstream gate depends on real Windows/browser/media/engine behavior
 ```
 
 ## Accepted engine / schema invariants
@@ -171,7 +172,7 @@ PR #18 remains closed/unmerged and is future V2.3 Agent architecture input only.
 
 ## Next allowed phase
 
-While W2 is active, do not begin W3. Finish online W2, obtain a cloud-green exact SHA, execute the mandatory Local Codex W2 acceptance contract, review any returned fixes and re-run CI before merge.
+While PR #34 is active, do not begin W4 implementation. Finish W3 cloud review/CI and merge it first. Start W4 only from the new accepted `main`.
 
 ## Read order for agents
 
@@ -181,4 +182,4 @@ While W2 is active, do not begin W3. Finish online W2, obtain a cloud-green exac
 4. `SYSTEM.md`;
 5. `docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md`;
 6. `docs/prd/Video_OS_Studio_V2_2_Development_Plan.md`;
-7. `docs/validation/LOCAL_VALIDATION_V2_2_W2_CONTRACT.md` once GPT Web freezes a cloud-green exact SHA.
+7. W2 validation reports when real-engine history is relevant.
