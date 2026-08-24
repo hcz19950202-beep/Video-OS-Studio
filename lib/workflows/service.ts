@@ -84,13 +84,13 @@ export class WorkflowService{
     return created;
   }
 
-  private async requireRun(workflowId:string){await this.ready();const id=WorkflowRunIdSchema.parse(workflowId);const run=await this.store.get(id);if(!run)throw new WorkflowNotFoundError(id);return run;}
+  private async requireRun(workflowId:string,skipRunLock=false){await this.ready();const id=WorkflowRunIdSchema.parse(workflowId);const run=await this.store.get(id,{skipRunLock});if(!run)throw new WorkflowNotFoundError(id);return run;}
   private async latestProjectRevision(workflowId:string){const run=await this.requireRun(workflowId);return(await this.projects.load(run.projectId)).project.revision;}
 
   async bindAssetBaseUrl(workflowId:string,assetBaseUrl:string){
     const id=WorkflowRunIdSchema.parse(workflowId);const url=z.string().url().parse(assetBaseUrl);
     return this.store.withRunLock(id,async()=>{
-      const run=await this.requireRun(id);
+      const run=await this.requireRun(id,true);
       if(run.assetBaseUrl===url)return run;
       return this.store.save(WorkflowRunSchema.parse({...run,assetBaseUrl:url,updatedAt:nowIso()}));
     });
@@ -107,7 +107,7 @@ export class WorkflowService{
     await this.ready();
     const id=WorkflowRunIdSchema.parse(workflowId);
     await this.store.withRunLock(id,async()=>{
-      const run=await this.requireRun(id);
+      const run=await this.requireRun(id,true);
       const projectRevision=(await this.projects.load(run.projectId)).project.revision;
       if(projectRevision>run.lastKnownProjectRevision){
         await this.store.save(WorkflowRunSchema.parse({...run,lastKnownProjectRevision:projectRevision,updatedAt:nowIso()}));

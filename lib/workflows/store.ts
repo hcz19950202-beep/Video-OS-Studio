@@ -88,21 +88,24 @@ export class FileWorkflowStore{
     return parsed;
   }
 
-  async get(workflowRunId:string):Promise<WorkflowRun|null>{
+  async get(workflowRunId:string,options:{skipRunLock?:boolean}={}):Promise<WorkflowRun|null>{
     const id=WorkflowRunIdSchema.parse(workflowRunId);
     const path=this.workflowPath(id);
-    return this.withPathLock(path,async()=>{
+    const read=()=>this.withPathLock(path,async()=>{
       try{return parseWorkflow(await readFile(path,"utf8"));}
       catch(error){
         if((error as NodeJS.ErrnoException).code==="ENOENT")return null;
         throw error;
       }
     });
+    if(options.skipRunLock)return read();
+    try{return await this.withRunLock(id,read);}
+    catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return null;throw error;}
   }
 
   async save(run:WorkflowRun){
     const parsed=WorkflowRunSchema.parse(run);
-    const existing=await this.get(parsed.id);
+    const existing=await this.get(parsed.id,{skipRunLock:true});
     if(!existing)throw new WorkflowNotFoundError(parsed.id);
     await this.atomicWrite(this.workflowPath(parsed.id),JSON.stringify(parsed,null,2)+"\n");
     return parsed;
