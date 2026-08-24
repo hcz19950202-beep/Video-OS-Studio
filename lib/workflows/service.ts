@@ -15,6 +15,7 @@ export const CreateWorkflowRunInputSchema=z.object({
   definitionVersion:z.string().min(1),
   sourceAssetIds:z.array(z.string().min(1)).default([]),
   expectedProjectRevision:z.number().int().nonnegative().optional(),
+  assetBaseUrl:z.string().url().optional(),
 });
 export type CreateWorkflowRunInput=z.infer<typeof CreateWorkflowRunInputSchema>;
 
@@ -64,6 +65,7 @@ export class WorkflowService{
       status:"pending",
       scenario:definition.scenario,
       sourceAssetIds:parsed.sourceAssetIds,
+      assetBaseUrl:parsed.assetBaseUrl,
       canvasSnapshot:{width:project.canvas.width,height:project.canvas.height,fps:project.canvas.fps},
       stageExecutions:definition.stages.map(stage=>({stageId:stage.id,status:"pending",attempt:0,jobIds:[],operationIds:[],artifactIds:[]})),
       checkpoints:[],
@@ -71,13 +73,17 @@ export class WorkflowService{
       lastKnownProjectRevision:revision,
     });
     const created=await this.store.create(run);
-    await this.store.appendActivity(WorkflowActivitySchema.parse({id:randomUUID(),workflowId:created.id,at:nowIso(),event:"workflow-created",details:{definitionId:definition.id,definitionVersion:definition.version,projectRevision:revision}}));
+    await this.store.appendActivity(WorkflowActivitySchema.parse({id:randomUUID(),workflowId:created.id,at:nowIso(),event:"workflow-created",details:{definitionId:definition.id,definitionVersion:definition.version,projectRevision:revision,assetBaseUrl:parsed.assetBaseUrl}}));
     return created;
   }
 
-  private async latestProjectRevision(workflowId:string){
-    const id=WorkflowRunIdSchema.parse(workflowId);const run=await this.store.get(id);if(!run)throw new WorkflowNotFoundError(id);
-    return(await this.projects.load(run.projectId)).project.revision;
+  private async requireRun(workflowId:string){const id=WorkflowRunIdSchema.parse(workflowId);const run=await this.store.get(id);if(!run)throw new WorkflowNotFoundError(id);return run;}
+  private async latestProjectRevision(workflowId:string){const run=await this.requireRun(workflowId);return(await this.projects.load(run.projectId)).project.revision;}
+
+  async bindAssetBaseUrl(workflowId:string,assetBaseUrl:string){
+    const id=WorkflowRunIdSchema.parse(workflowId);const url=z.string().url().parse(assetBaseUrl);const run=await this.requireRun(id);
+    if(run.assetBaseUrl===url)return run;
+    return this.store.save(WorkflowRunSchema.parse({...run,assetBaseUrl:url,updatedAt:nowIso()}));
   }
 
   get(workflowId:string){return this.store.get(WorkflowRunIdSchema.parse(workflowId));}
