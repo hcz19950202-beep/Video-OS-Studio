@@ -1,3 +1,4 @@
+import {createHash} from "node:crypto";
 import {mkdtemp,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
@@ -21,7 +22,6 @@ const roots:string[]=[];
 afterEach(async()=>{await Promise.all(roots.splice(0).map(root=>rm(root,{recursive:true,force:true})));});
 const makeRoot=async()=>{const root=await mkdtemp(join(tmpdir(),"video-os-w5-"));roots.push(root);return root;};
 const at="2026-08-24T00:00:00.000Z";
-const waitFor=async<T>(read:()=>Promise<T>,predicate:(value:T)=>boolean,timeoutMs=3000)=>{const started=Date.now();while(Date.now()-started<timeoutMs){const value=await read();if(predicate(value))return value;await new Promise(resolve=>setTimeout(resolve,10));}throw new Error("Timed out waiting for W5 workflow state.");};
 const definition=(stages:WorkflowDefinition["stages"]):WorkflowDefinition=>WorkflowDefinitionSchema.parse({id:"w5-test-flow",version:"1",name:"W5 Test Flow",scenario:"talking-head",stages,entryStageIds:stages.filter(stage=>stage.dependsOn.length===0).map(stage=>stage.id)});
 const stage=(id:string,executorKey=`executor-${id}`,kind:WorkflowDefinition["stages"][number]["kind"]="analysis"):WorkflowDefinition["stages"][number]=>({id,kind,dependsOn:[],optional:false,retryable:true,reviewRequired:false,invalidates:[],executorKey});
 
