@@ -56,10 +56,10 @@ describe("V2.2 W4 user-facing workflow contract",()=>{
     const priorId="11111111-1111-4111-8111-111111111111";const nextId="22222222-2222-4222-8222-222222222222";const prior=completedRenderJob(priorId);let creates=0;let retries=0;
     const jobs:W4WorkflowJobRuntime={
       get:async(id:string)=>id===priorId?prior:null,
-      cancel:async(_id:string)=>prior,
-      retry:async(_id:string)=>{retries++;return prior;},
+      cancel:async()=>prior,
+      retry:async()=>{retries++;return prior;},
       create:async(input:CreateJobInput)=>{creates++;return JobRecordSchema.parse({id:nextId,type:"render-final",projectId:"w4-project",status:"queued",stage:"queued",progress:0,attempt:1,input:input.input,createdAt:"2026-08-24T00:00:02.000Z",updatedAt:"2026-08-24T00:00:02.000Z"});},
-      getArtifacts:async(_id:string)=>[],
+      getArtifacts:async()=>[],
     };
     const registry=registerW4WorkflowStages(new WorkflowStageRegistry(),{repository:{load:async()=>projectFixture()},jobs,fallbackAssetBaseUrl:"http://127.0.0.1:3000"});
     const definition=W4_WORKFLOW_DEFINITIONS[0];const stage=definition.stages.find(item=>item.id==="FINAL_RENDER")!;
