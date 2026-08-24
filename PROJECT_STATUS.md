@@ -17,7 +17,7 @@ current_milestone: V2.2 WORKFLOW RUNTIME
 v2_2_status: PLANNING / R0 REPOSITORY ROADMAP SYNC ACTIVE
 active_workstream: V2.2-R0 Repository / Roadmap Sync
 active_branch: planning/v2.2-workflow-runtime
-active_pr: PENDING
+active_pr: 30
 local_validation_required: NO for R0
 next_workstream_after_r0: W0 Workflow Contract
 future_milestone: V2.3 Real AI Director / AI Editing Agent
@@ -163,7 +163,7 @@ V2.1.1 Final Release Acceptance                → PR #27 COMPLETE
 V2.1.1 Release Finalization                    → PR #28 COMPLETE
 V2.1.1 Tag                                     → v2.1.1 COMPLETE
 V2.1.1 released-status repository sync         → COMPLETE on main 6f0487f...
-V2.2 R0 Repository / Roadmap Sync              → ACTIVE
+V2.2 R0 Repository / Roadmap Sync              → PR #30 ACTIVE
 ```
 
 ## Accepted engine / schema invariants
