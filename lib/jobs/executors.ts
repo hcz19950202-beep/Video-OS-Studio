@@ -33,6 +33,7 @@ const renderExecutor=(deps:JobExecutorDependencies):JobExecutor=>async(job,conte
   const mode=job.type==="render-overlay"?"overlay":"final";
   await context.update("load-project",.1);
   const sourceProject=await deps.repository.load(projectId);
+  const sourceProjectRevision=sourceProject.project.revision;
   const prepared=mode==="final"?projectForExportProfile(sourceProject,input.profile as Partial<ExportProfile>|undefined):{project:sourceProject,profile:undefined};
   const profile=prepared.profile;
   const ext=mode==="overlay"?"webm":"mp4";
@@ -40,11 +41,11 @@ const renderExecutor=(deps:JobExecutorDependencies):JobExecutor=>async(job,conte
   const relativePath=`render/${mode}${suffix}-${job.id}.${ext}`;
   const outputPath=deps.repository.resolveProjectFile(projectId,relativePath);
   await deps.fs.ensureDir(dirname(outputPath));
-  await context.update("rendering",.2,{outputRelativePath:relativePath,mode,...(profile?{profile}:{})});
+  await context.update("rendering",.2,{outputRelativePath:relativePath,mode,sourceProjectRevision,...(profile?{profile}:{})});
   await deps.remotion.render({project:prepared.project,outputPath,mode,assetBaseUrl:input.assetBaseUrl,quality:profile?.quality,includeAudio:profile?.audio!=="none"},{signal:context.signal,onLog:context.onToolLog});
   await context.addArtifact({id:"render-output",kind:"render",label:`${mode} render`,relativePath,mimeType:mode==="overlay"?"video/webm":"video/mp4"});
   await context.update("finalizing",.95);
-  return{outputRelativePath:relativePath,mode,...(profile?{profile}:{})};
+  return{outputRelativePath:relativePath,mode,sourceProjectRevision,...(profile?{profile}:{})};
 };
 
 const hyperFramesExecutor=(deps:JobExecutorDependencies):JobExecutor=>async(job,context)=>{
