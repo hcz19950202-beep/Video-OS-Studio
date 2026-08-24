@@ -18,8 +18,10 @@ current_milestone: V2.2 WORKFLOW RUNTIME
 v2_2_status: W2 EXISTING CAPABILITY STAGE INTEGRATION ACTIVE
 active_workstream: V2.2-W2 Existing Capability Stage Integration
 active_branch: feature/v2.2-w2-stage-integration
-active_pr: PENDING
+active_pr: 33
 local_validation_required: YES after cloud-green exact head
+local_validation_contract: docs/validation/LOCAL_VALIDATION_V2_2_W2_CONTRACT.md
+local_validation_test: tests/w2/windows-workflow-smoke.test.ts
 next_workstream_after_w2: W3 Human Review + Invalidation
 future_milestone: V2.3 Real AI Director / AI Editing Agent
 ```
@@ -32,7 +34,7 @@ V2.1.1 tag v2.1.1                            → COMPLETE
 V2.2 R0 Repository / Roadmap Sync             → PR #30 COMPLETE
 V2.2 W0 Workflow Contract                     → PR #31 COMPLETE
 V2.2 W1 Workflow Runtime Core                 → PR #32 COMPLETE / main 5c98117a...
-V2.2 W2 Existing Capability Stage Integration → ACTIVE
+V2.2 W2 Existing Capability Stage Integration → PR #33 ACTIVE
 ```
 
 W1 established the durable cloud-safe orchestration core: Definition/Stage registries, WorkflowService, WorkflowRunner, dependency scheduling, pause/resume/cancel/retry, checkpoints, activity logging and Durable Job reconciliation.
@@ -42,6 +44,7 @@ W1 established the durable cloud-safe orchestration core: Definition/Stage regis
 ```text
 docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md
 docs/prd/Video_OS_Studio_V2_2_Development_Plan.md
+docs/validation/LOCAL_VALIDATION_V2_2_W2_CONTRACT.md
 ```
 
 ## V2.2 product objective
@@ -56,7 +59,7 @@ A production Real AI Provider / multi-turn AI Editing Agent is not V2.2 scope an
 R0 Repository / Roadmap Sync              → PR #30 COMPLETE
 W0 Workflow Contract                      → PR #31 COMPLETE
 W1 Workflow Runtime Core                  → PR #32 COMPLETE
-W2 Existing Capability Stage Integration  → ACTIVE
+W2 Existing Capability Stage Integration  → PR #33 ACTIVE
 W3 Human Review + Invalidation            → NEXT AFTER W2
 W4 Workflow UI                            → FUTURE
 W5 Failure / Retry / Restart Hardening    → FUTURE
@@ -123,7 +126,7 @@ Project/Workflow artifact and revision evidence
 no direct engine spawn from Workflow
 ```
 
-GPT Web must first produce a cloud-green exact W2 head. Only then hand that exact SHA to Local Codex. Codex may fix only W2-scope defects and must push fixes to the same branch.
+GPT Web must first produce a cloud-green exact W2 head. Only then hand that exact SHA to Local Codex. Codex must follow `docs/validation/LOCAL_VALIDATION_V2_2_W2_CONTRACT.md`; any in-scope fix must be pushed to this same branch and the resulting new exact SHA must pass CI and local acceptance again before merge.
 
 ## Development ownership
 
@@ -178,4 +181,4 @@ While W2 is active, do not begin W3. Finish online W2, obtain a cloud-green exac
 4. `SYSTEM.md`;
 5. `docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md`;
 6. `docs/prd/Video_OS_Studio_V2_2_Development_Plan.md`;
-7. W2 local validation contract only after GPT Web freezes a cloud-green exact SHA.
+7. `docs/validation/LOCAL_VALIDATION_V2_2_W2_CONTRACT.md` once GPT Web freezes a cloud-green exact SHA.
