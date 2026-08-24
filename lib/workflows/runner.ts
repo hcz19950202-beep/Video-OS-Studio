@@ -90,6 +90,10 @@ export class WorkflowRunner{
     finally{release();if(this.runLocks.get(workflowId)===tail)this.runLocks.delete(workflowId);}
   }
 
+  private async withDurableRunLock<T>(workflowId:string,fn:()=>Promise<T>):Promise<T>{
+    return this.store.withRunLock(workflowId,()=>this.withRunLock(workflowId,fn));
+  }
+
   private async requireRun(workflowId:string){const run=await this.store.get(workflowId);if(!run)throw new WorkflowNotFoundError(workflowId);return run;}
   private definitionFor(run:WorkflowRun){return this.definitions.get(run.definitionId,run.definitionVersion);}
   private async activity(workflowId:string,event:WorkflowActivityEvent,details:Partial<{stageId:string;jobId:string;data:Record<string,unknown>}>= {}){
@@ -104,7 +108,7 @@ export class WorkflowRunner{
   async waitForIdle(workflowId:string){for(;;){const loop=this.activeLoops.get(workflowId);if(!loop)return;await loop;}}
 
   async start(workflowId:string){
-    const run=await this.withRunLock(workflowId,async()=>{
+    const run=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);assertWorkflowRunStatusTransition(current.status,"running");
       return this.store.save(WorkflowRunSchema.parse({...current,status:"running",updatedAt:nowIso(),error:undefined}));
     });
@@ -112,7 +116,7 @@ export class WorkflowRunner{
   }
 
   async pause(workflowId:string){
-    const run=await this.withRunLock(workflowId,async()=>{
+    const run=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);
       if(current.status!=="running")throw new WorkflowRuntimeStateError(`Workflow ${workflowId} can only be paused while running.`,workflowId);
       assertWorkflowRunStatusTransition(current.status,"paused");
@@ -123,7 +127,7 @@ export class WorkflowRunner{
 
   async resume(workflowId:string,projectRevision?:number){
     const invalidatedStageIds:string[]=[];
-    const run=await this.withRunLock(workflowId,async()=>{
+    const run=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);
       if(current.status!=="paused")throw new WorkflowRuntimeStateError(`Workflow ${workflowId} can only resume from paused.`,workflowId);
       const revision=projectRevision??current.lastKnownProjectRevision;
@@ -144,7 +148,7 @@ export class WorkflowRunner{
 
   async cancel(workflowId:string){
     const jobIds:string[]=[];
-    const run=await this.withRunLock(workflowId,async()=>{
+    const run=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);
       if(current.status==="completed"||current.status==="cancelled")return current;
       assertWorkflowRunStatusTransition(current.status,"cancelled");
@@ -164,7 +168,7 @@ export class WorkflowRunner{
   }
 
   async retryStage(workflowId:string,stageId:string){
-    const run=await this.withRunLock(workflowId,async()=>{
+    const run=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);
       if(current.status!=="failed"&&current.status!=="interrupted")throw new WorkflowRuntimeStateError(`Workflow ${workflowId} is not in a retryable run state.`,workflowId);
       const definition=this.definitionFor(current);const stage=definition.stages.find(item=>item.id===stageId);
@@ -181,7 +185,7 @@ export class WorkflowRunner{
 
   async replayFromStage(workflowId:string,stageId:string,projectRevision:number){
     const invalidatedStageIds:string[]=[];const supersededCheckpointIds:string[]=[];
-    const run=await this.withRunLock(workflowId,async()=>{
+    const run=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);
       if(current.status!=="waiting_review")throw new WorkflowRuntimeStateError(`Workflow ${workflowId} can only replay completed work while waiting for review.`,workflowId);
       if(projectRevision<current.lastKnownProjectRevision)throw new WorkflowRuntimeStateError(`Workflow ${workflowId} cannot replay from project revision ${projectRevision} behind ${current.lastKnownProjectRevision}.`,workflowId);
@@ -209,7 +213,7 @@ export class WorkflowRunner{
 
   async approveCheckpoint(workflowId:string,checkpointId:string,projectRevision?:number){
     let approvedStageId:string|undefined;const invalidatedStageIds:string[]=[];
-    const run=await this.withRunLock(workflowId,async()=>{
+    const run=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);
       if(current.status!=="waiting_review")throw new WorkflowRuntimeStateError(`Workflow ${workflowId} is not waiting for review.`,workflowId);
       const checkpoint=current.checkpoints.find(item=>item.id===checkpointId);
@@ -262,7 +266,7 @@ export class WorkflowRunner{
 
   private async markReadyStages(run:WorkflowRun,definition:WorkflowDefinition){
     const readyStageIds:string[]=[];
-    const updated=await this.withRunLock(run.id,async()=>{
+    const updated=await this.withDurableRunLock(run.id,async()=>{
       const current=await this.requireRun(run.id);if(current.status!=="running")return current;let stageExecutions=current.stageExecutions;
       for(const stage of definition.stages){
         const execution=stageExecutions.find(item=>item.stageId===stage.id);if(!execution||(execution.status!=="pending"&&execution.status!=="invalidated"))continue;
@@ -281,14 +285,14 @@ export class WorkflowRunner{
 
   private async executeStage(run:WorkflowRun,definition:WorkflowDefinition,stage:WorkflowStageDefinition){
     const attemptId=randomUUID();const operationId=`workflow:${run.id}:stage:${stage.id}:attempt:${attemptId}`;
-    const started=await this.store.withRunLock(run.id,()=>this.withRunLock(run.id,async()=>{
+    const started=await this.withDurableRunLock(run.id,async()=>{
       const current=await this.requireRun(run.id);if(current.status!=="running")return null;
       const execution=getExecution(current,stage.id);if(execution.status!=="ready")return null;
       assertWorkflowStageStatusTransition(execution.status,"running");const previousJobIds=[...execution.jobIds];
       const running=WorkflowStageExecutionSchema.parse({...execution,status:"running",attempt:execution.attempt+1,attemptId,startedAt:nowIso(),completedAt:undefined,baseProjectRevision:current.lastKnownProjectRevision,inputDigest:stageInputDigest(current,stage),outputDigest:undefined,jobIds:previousJobIds,artifactIds:[],operationIds:[...execution.operationIds,operationId],error:undefined});
       const updated=await this.store.save(WorkflowRunSchema.parse({...current,stageExecutions:replaceExecution(current,running),currentStageId:stage.id,updatedAt:nowIso()}));
       return{run:updated,execution:running,previousJobIds};
-    }));
+    });
     if(!started)return;await this.activity(run.id,"stage-started",{stageId:stage.id,data:{attempt:started.execution.attempt,attemptId,operationId,inputDigest:started.execution.inputDigest}});
     const executor=this.stages.get(stage.executorKey);const context:WorkflowStageExecutionContext={run:started.run,definition,stage,execution:started.execution,attemptId,operationId,previousJobIds:started.previousJobIds};
     try{
@@ -304,7 +308,7 @@ export class WorkflowRunner{
 
   private async attachJob(workflowId:string,stageId:string,jobId:string){
     let accepted=false;let changed=false;
-    await this.withRunLock(workflowId,async()=>{
+    await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);const execution=getExecution(current,stageId);
       if(!["running","paused"].includes(current.status)||execution.status!=="running")return;
       accepted=true;
@@ -354,7 +358,7 @@ export class WorkflowRunner{
     const parsedArtifacts=(completion.artifacts??[]).map(artifact=>WorkflowArtifactReferenceSchema.parse(artifact));
     for(const artifact of parsedArtifacts)if(artifact.stageId!==stageId)throw new WorkflowRuntimeStateError(`Workflow artifact ${artifact.id} belongs to ${artifact.stageId}, expected ${stageId}.`,workflowId);
     let changed=false;
-    const completed=await this.withRunLock(workflowId,async()=>{
+    const completed=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);const execution=getExecution(current,stageId);if(execution.status!=="running")return current;
       assertWorkflowStageStatusTransition(execution.status,"completed");const at=nowIso();changed=true;
       const done=WorkflowStageExecutionSchema.parse({...execution,status:"completed",completedAt:at,outputDigest:completion.outputDigest,artifactIds:parsedArtifacts.map(item=>item.id),error:undefined});
@@ -367,7 +371,7 @@ export class WorkflowRunner{
 
   private async failStage(workflowId:string,stage:WorkflowStageDefinition,error:unknown){
     const normalized=normalizeError(error,stage.retryable);let changed=false;
-    const failed=await this.withRunLock(workflowId,async()=>{
+    const failed=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);if(current.status==="cancelled"||current.status==="completed")return current;
       if(current.status!=="running"&&current.status!=="paused")return current;
       const execution=getExecution(current,stage.id);if(execution.status!=="running")return current;
@@ -380,7 +384,7 @@ export class WorkflowRunner{
 
   private async markInterrupted(workflowId:string,stageId:string,error:WorkflowError){
     let changed=false;
-    const interrupted=await this.withRunLock(workflowId,async()=>{
+    const interrupted=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);if(current.status!=="running"&&current.status!=="paused")return current;
       const execution=getExecution(current,stageId);if(execution.status!=="running")return current;
       assertWorkflowStageStatusTransition(execution.status,"interrupted");assertWorkflowRunStatusTransition(current.status,"interrupted");const at=nowIso();changed=true;
@@ -392,7 +396,7 @@ export class WorkflowRunner{
 
   private async enterCheckpoint(run:WorkflowRun,stage:WorkflowStageDefinition){
     const checkpointId=randomUUID();
-    const waiting=await this.withRunLock(run.id,async()=>{
+    const waiting=await this.withDurableRunLock(run.id,async()=>{
       const current=await this.requireRun(run.id);if(current.status!=="running")return current;const execution=getExecution(current,stage.id);if(execution.status!=="ready")return current;
       assertWorkflowStageStatusTransition(execution.status,"running");assertWorkflowStageStatusTransition("running","waiting_review");assertWorkflowRunStatusTransition(current.status,"waiting_review");
       const at=nowIso();const reviewExecution=WorkflowStageExecutionSchema.parse({...execution,status:"waiting_review",attempt:execution.attempt+1,attemptId:randomUUID(),startedAt:at,baseProjectRevision:current.lastKnownProjectRevision,inputDigest:stageInputDigest(current,stage),error:undefined});
@@ -404,7 +408,7 @@ export class WorkflowRunner{
 
   private async completeWorkflow(workflowId:string){
     let changed=false;
-    const completed=await this.withRunLock(workflowId,async()=>{
+    const completed=await this.withDurableRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);if(current.status!=="running")return current;
       if(!current.stageExecutions.every(item=>item.status==="completed"||item.status==="skipped"))return current;
       assertWorkflowRunStatusTransition(current.status,"completed");changed=true;
