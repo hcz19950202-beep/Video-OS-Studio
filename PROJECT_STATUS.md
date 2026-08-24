@@ -20,7 +20,7 @@ current_milestone: V2.2 WORKFLOW RUNTIME
 v2_2_status: W4 WORKFLOW UI ACTIVE
 active_workstream: V2.2-W4 Workflow UI
 active_branch: feature/v2.2-w4-workflow-ui
-active_pr: NOT OPENED YET
+active_pr: 35
 local_validation_required: YES after cloud-green exact head
 local_validation_contract: docs/validation/LOCAL_VALIDATION_V2_2_W4_CONTRACT.md
 local_validation_test: tests/e2e/w4-local-real.spec.ts
@@ -38,7 +38,7 @@ V2.2 W0 Workflow Contract                     → PR #31 COMPLETE
 V2.2 W1 Workflow Runtime Core                 → PR #32 COMPLETE
 V2.2 W2 Existing Capability Stage Integration → PR #33 COMPLETE / main bfcc862a...
 V2.2 W3 Human Review + Invalidation            → PR #34 COMPLETE / main 23193e53...
-V2.2 W4 Workflow UI                            → ACTIVE
+V2.2 W4 Workflow UI                            → PR #35 ACTIVE
 ```
 
 W2 was accepted after cloud CI plus exact-SHA Local Codex Windows validation. Real MOV import/normalization, video-use, HyperFrames, Remotion final render, Workflow artifacts/revisions and encoded MP4 passed. Evidence: `docs/validation/LOCAL_VALIDATION_V2_2_W2.md`.
