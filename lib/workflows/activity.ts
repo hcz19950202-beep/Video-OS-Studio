@@ -18,8 +18,10 @@ export const WorkflowActivityEventSchema=z.enum([
   "stage-failed",
   "stage-interrupted",
   "stage-retried",
+  "stage-invalidated",
   "review-requested",
   "review-approved",
+  "review-superseded",
 ]);
 export type WorkflowActivityEvent=z.infer<typeof WorkflowActivityEventSchema>;
 
