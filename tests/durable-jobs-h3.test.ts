@@ -1,4 +1,4 @@
-import {mkdtemp,readFile,rm} from "node:fs/promises";
+import {access,mkdtemp,readFile,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {afterEach,describe,expect,it} from "vitest";
@@ -32,6 +32,10 @@ describe("H3 durable job runtime",()=>{
     expect(await store.claimRuntimeOwner(1001)).toBe(false);
     expect(await store.claimRuntimeOwner(1001)).toBe(true);
     expect(await store.claimRuntimeOwner(1002)).toBe(false);
+  });
+
+  it("atomically serializes concurrent runtime-owner claims",async()=>{
+    const{root}=await makeStore();const ownerPid=2001;const starts=await Promise.all(Array.from({length:16},()=>new FileJobStore(root).claimRuntimeOwner(ownerPid)));expect(starts.filter(value=>value===false)).toHaveLength(1);expect(starts.filter(value=>value===true)).toHaveLength(15);const persisted=JSON.parse(await readFile(join(root,"jobs",".runtime-owner.json"),"utf8")) as {ownerPid:number};expect(persisted.ownerPid).toBe(ownerPid);await expect(access(join(root,"jobs",".runtime-owner.lock"))).rejects.toMatchObject({code:"ENOENT"});
   });
 
   it("keeps concurrent job reads from colliding with Windows atomic metadata writes",async()=>{

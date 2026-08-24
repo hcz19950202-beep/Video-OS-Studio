@@ -1,10 +1,12 @@
 import {randomUUID} from "node:crypto";
-import {appendFile,mkdir,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
+import {appendFile,mkdir,open,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {JobArtifactsSchema,JobIdSchema,JobRecordSchema,type JobArtifact,type JobRecord} from "@/lib/jobs/schema";
 
 export type JobLogStream="stdout"|"stderr";
 const parseJson=<T>(text:string,parser:(value:unknown)=>T)=>parser(JSON.parse(text));
+const lockSleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+const lockContention=(code:string|undefined)=>code==="EEXIST"||code==="EPERM"||code==="EACCES";
 
 export class FileJobStore{
   readonly jobsRoot:string;
@@ -44,16 +46,19 @@ export class FileJobStore{
   async claimRuntimeOwner(ownerPid=process.ppid){
     if(process.env.NEXT_PHASE==="phase-production-build")return false;
     const ownerPath=join(this.jobsRoot,".runtime-owner.json");
-    let previousOwnerPid:number|undefined;
-    try{
-      const parsed=JSON.parse(await readFile(ownerPath,"utf8")) as {ownerPid?:unknown;pid?:unknown};
-      if(typeof parsed.ownerPid==="number")previousOwnerPid=parsed.ownerPid;
-      else if(typeof parsed.pid==="number")previousOwnerPid=parsed.pid;
-    }catch(error){if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;}
-    const sameProcess=previousOwnerPid===ownerPid;
     await mkdir(this.jobsRoot,{recursive:true});
-    await writeFile(ownerPath,JSON.stringify({pid:process.pid,ownerPid,updatedAt:new Date().toISOString()},null,2)+"\n","utf8");
-    return sameProcess;
+    const lockPath=join(this.jobsRoot,".runtime-owner.lock");let handle:Awaited<ReturnType<typeof open>>|undefined;
+    for(;;){
+      try{handle=await open(lockPath,"wx");break;}
+      catch(error){const code=(error as NodeJS.ErrnoException).code;if(!lockContention(code))throw error;try{const existing=await open(lockPath,"r");try{if(Date.now()-(await existing.stat()).mtimeMs>30_000)await rm(lockPath,{force:true});}finally{await existing.close();}}catch(lockError){const lockCode=(lockError as NodeJS.ErrnoException).code;if(lockCode!=="ENOENT"&&!lockContention(lockCode))throw lockError;}await lockSleep(5);}
+    }
+    try{
+      let previousOwnerPid:number|undefined;
+      try{const parsed=JSON.parse(await readFile(ownerPath,"utf8")) as {ownerPid?:unknown;pid?:unknown};if(typeof parsed.ownerPid==="number")previousOwnerPid=parsed.ownerPid;else if(typeof parsed.pid==="number")previousOwnerPid=parsed.pid;}catch(error){if((error as NodeJS.ErrnoException).code!=="ENOENT"&&!(error instanceof SyntaxError))throw error;}
+      const sameProcess=previousOwnerPid===ownerPid;const tempPath=`${ownerPath}.${randomUUID()}.tmp`;
+      try{await writeFile(tempPath,JSON.stringify({pid:process.pid,ownerPid,updatedAt:new Date().toISOString()},null,2)+"\n","utf8");await rename(tempPath,ownerPath);}finally{await rm(tempPath,{force:true});}
+      return sameProcess;
+    }finally{await handle.close();await rm(lockPath,{force:true});}
   }
 
   async create(record:JobRecord){
