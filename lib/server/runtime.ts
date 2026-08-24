@@ -18,6 +18,12 @@ import {RenderJobManager} from "@/lib/render/render-jobs";
 import {VideoUseService} from "@/lib/video-use/service";
 import {RulesVisualPlannerAdapter} from "@/lib/visual-planner/rules";
 import {VisualPlanService} from "@/lib/visual-planner/service";
+import {registerW2CapabilityWorkflowDefinitions} from "@/lib/workflows/production-definitions";
+import {registerProductionWorkflowStages} from "@/lib/workflows/production-stages";
+import {WorkflowDefinitionRegistry,WorkflowStageRegistry} from "@/lib/workflows/registry";
+import {WorkflowRunner} from "@/lib/workflows/runner";
+import {WorkflowService} from "@/lib/workflows/service";
+import {FileWorkflowStore} from "@/lib/workflows/store";
 import {getGlobalRuntime} from "@/lib/server/global-runtime";
 
 export const dataRoot=process.env.VIDEO_OS_DATA_ROOT||join(process.cwd(),".video-os-data");
@@ -50,3 +56,16 @@ export const renderJobs=new RenderJobManager(jobRuntime);
 export const visualPlannerAdapter=new RulesVisualPlannerAdapter();
 export const visualPlanService=new VisualPlanService(fileSystem,projectRepository,visualPlannerAdapter,hyperFramesRenderService,projectMutations);
 export const assetLibraryService=new AssetLibraryService(fileSystem,dataRoot,projectRepository,hyperFramesRenderService,projectMutations);
+
+export const workflowStore=getGlobalRuntime(`${dataRoot}:workflow-store`,()=>new FileWorkflowStore(dataRoot));
+export const workflowDefinitions=getGlobalRuntime(`${dataRoot}:workflow-definitions`,()=>registerW2CapabilityWorkflowDefinitions(new WorkflowDefinitionRegistry()));
+export const workflowStages=getGlobalRuntime(`${dataRoot}:workflow-stages`,()=>registerProductionWorkflowStages(new WorkflowStageRegistry(),{
+  fs:fileSystem,
+  repository:projectRepository,
+  mutations:projectMutations,
+  jobs:jobRuntime,
+  visualPlan:visualPlanService,
+  assetBaseUrl:process.env.VIDEO_OS_ASSET_BASE_URL||"http://127.0.0.1:3000",
+}));
+export const workflowRunner=getGlobalRuntime(`${dataRoot}:workflow-runner`,()=>new WorkflowRunner(workflowStore,workflowDefinitions,workflowStages,jobRuntime));
+export const workflowService=getGlobalRuntime(`${dataRoot}:workflow-service`,()=>new WorkflowService(projectRepository,workflowStore,workflowDefinitions,workflowRunner));

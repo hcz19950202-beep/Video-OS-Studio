@@ -210,7 +210,7 @@ export class WorkflowRunner{
       const current=await this.requireRun(run.id);if(current.status!=="running")return null;
       const execution=getExecution(current,stage.id);if(execution.status!=="ready")return null;
       assertWorkflowStageStatusTransition(execution.status,"running");const previousJobIds=[...execution.jobIds];
-      const running=WorkflowStageExecutionSchema.parse({...execution,status:"running",attempt:execution.attempt+1,attemptId,startedAt:nowIso(),completedAt:undefined,baseProjectRevision:current.lastKnownProjectRevision,outputDigest:undefined,jobIds:[],artifactIds:[],operationIds:[...execution.operationIds,operationId],error:undefined});
+      const running=WorkflowStageExecutionSchema.parse({...execution,status:"running",attempt:execution.attempt+1,attemptId,startedAt:nowIso(),completedAt:undefined,baseProjectRevision:current.lastKnownProjectRevision,outputDigest:undefined,jobIds:previousJobIds,artifactIds:[],operationIds:[...execution.operationIds,operationId],error:undefined});
       const updated=await this.store.save(WorkflowRunSchema.parse({...current,stageExecutions:replaceExecution(current,running),currentStageId:stage.id,updatedAt:nowIso()}));
       return{run:updated,execution:running,previousJobIds};
     });
@@ -219,18 +219,27 @@ export class WorkflowRunner{
     try{
       const result=await executor.start(context);
       if(result.kind==="completed"){await this.completeStage(run.id,stage.id,result);return;}
-      const jobId=JobIdSchema.parse(result.jobId);await this.attachJob(run.id,stage.id,jobId);
-      const latest=await this.requireRun(run.id);await this.reconcileJobStage(latest,definition,getExecution(latest,stage.id));
+      const jobId=JobIdSchema.parse(result.jobId);const attached=await this.attachJob(run.id,stage.id,jobId);
+      if(!attached){await this.cancelUnattachedJob(jobId);return;}
+      const latest=await this.requireRun(run.id);if(latest.status==="running")await this.reconcileJobStage(latest,definition,getExecution(latest,stage.id));
     }catch(error){await this.failStage(run.id,stage,error);}
   }
 
+  private async cancelUnattachedJob(jobId:string){if(!this.jobs)return;try{await this.jobs.cancel(jobId);}catch{return;}}
+
   private async attachJob(workflowId:string,stageId:string,jobId:string){
+    let accepted=false;let changed=false;
     await this.withRunLock(workflowId,async()=>{
-      const current=await this.requireRun(workflowId);const execution=getExecution(current,stageId);if(current.status!=="running"||execution.status!=="running")return;
+      const current=await this.requireRun(workflowId);const execution=getExecution(current,stageId);
+      if(!["running","paused"].includes(current.status)||execution.status!=="running")return;
+      accepted=true;
+      if(execution.jobIds.includes(jobId))return;
+      changed=true;
       const attached=WorkflowStageExecutionSchema.parse({...execution,jobIds:[...execution.jobIds,jobId]});
       await this.store.save(WorkflowRunSchema.parse({...current,stageExecutions:replaceExecution(current,attached),updatedAt:nowIso()}));
     });
-    await this.activity(workflowId,"job-attached",{stageId,jobId});
+    if(changed)await this.activity(workflowId,"job-attached",{stageId,jobId});
+    return accepted;
   }
 
   private async reconcileJobStage(run:WorkflowRun,definition:WorkflowDefinition,execution:WorkflowStageExecution){
@@ -246,11 +255,17 @@ export class WorkflowRunner{
     }
     if(job.status==="completed"){
       try{
-        const executor=this.stages.get(stage.executorKey);const latest=await this.requireRun(run.id);const currentExecution=getExecution(latest,stage.id);
+        const latest=await this.requireRun(run.id);if(latest.status==="paused")return;if(latest.status!=="running")return;
+        const executor=this.stages.get(stage.executorKey);const currentExecution=getExecution(latest,stage.id);
         const attemptId=currentExecution.attemptId;const operationId=currentExecution.operationIds[currentExecution.operationIds.length-1];
         if(!attemptId||!operationId)throw new WorkflowRuntimeStateError(`Workflow stage ${stage.id} is missing durable attempt identity.`,run.id);
-        const completion=executor.reconcileJob?await executor.reconcileJob({run:latest,definition,stage,execution:currentExecution,attemptId,operationId,previousJobIds:[]},job):{};
-        await this.completeStage(run.id,stage.id,completion);
+        const reconciliation=executor.reconcileJob?await executor.reconcileJob({run:latest,definition,stage,execution:currentExecution,attemptId,operationId,previousJobIds:currentExecution.jobIds.slice(0,-1)},job):{};
+        if("kind" in reconciliation&&reconciliation.kind==="job"){
+          const nextJobId=JobIdSchema.parse(reconciliation.jobId);const attached=await this.attachJob(run.id,stage.id,nextJobId);
+          if(!attached)await this.cancelUnattachedJob(nextJobId);
+          return;
+        }
+        await this.completeStage(run.id,stage.id,reconciliation as WorkflowStageCompletion);
       }catch(error){await this.failStage(run.id,stage,error);}
       return;
     }
@@ -268,7 +283,7 @@ export class WorkflowRunner{
       const current=await this.requireRun(workflowId);const execution=getExecution(current,stageId);if(execution.status!=="running")return current;
       assertWorkflowStageStatusTransition(execution.status,"completed");const at=nowIso();changed=true;
       const done=WorkflowStageExecutionSchema.parse({...execution,status:"completed",completedAt:at,outputDigest:completion.outputDigest,artifactIds:parsedArtifacts.map(item=>item.id),error:undefined});
-      const artifactIds=new Set(parsedArtifacts.map(item=>item.id));const artifacts=[...current.artifacts.filter(item=>!artifactIds.has(item.id)),...parsedArtifacts];
+      const artifacts=[...current.artifacts.filter(item=>item.stageId!==stageId),...parsedArtifacts];
       const lastKnownProjectRevision=completion.projectRevision===undefined?current.lastKnownProjectRevision:Math.max(current.lastKnownProjectRevision,completion.projectRevision);
       return this.store.save(WorkflowRunSchema.parse({...current,stageExecutions:replaceExecution(current,done),artifacts,lastKnownProjectRevision,currentStageId:current.currentStageId===stageId?undefined:current.currentStageId,updatedAt:at}));
     });
@@ -279,10 +294,9 @@ export class WorkflowRunner{
     const normalized=normalizeError(error,stage.retryable);let changed=false;
     const failed=await this.withRunLock(workflowId,async()=>{
       const current=await this.requireRun(workflowId);if(current.status==="cancelled"||current.status==="completed")return current;
-      const execution=getExecution(current,stage.id);if(execution.status!=="running")return current;
-      assertWorkflowStageStatusTransition(execution.status,"failed");
       if(current.status!=="running"&&current.status!=="paused")return current;
-      assertWorkflowRunStatusTransition(current.status,"failed");const at=nowIso();changed=true;
+      const execution=getExecution(current,stage.id);if(execution.status!=="running")return current;
+      assertWorkflowStageStatusTransition(execution.status,"failed");assertWorkflowRunStatusTransition(current.status,"failed");const at=nowIso();changed=true;
       const failedExecution=WorkflowStageExecutionSchema.parse({...execution,status:"failed",completedAt:at,error:normalized});
       return this.store.save(WorkflowRunSchema.parse({...current,status:"failed",stageExecutions:replaceExecution(current,failedExecution),currentStageId:stage.id,error:normalized,updatedAt:at}));
     });
@@ -292,8 +306,8 @@ export class WorkflowRunner{
   private async markInterrupted(workflowId:string,stageId:string,error:WorkflowError){
     let changed=false;
     const interrupted=await this.withRunLock(workflowId,async()=>{
-      const current=await this.requireRun(workflowId);const execution=getExecution(current,stageId);if(execution.status!=="running")return current;
-      if(current.status!=="running"&&current.status!=="paused")return current;
+      const current=await this.requireRun(workflowId);if(current.status!=="running"&&current.status!=="paused")return current;
+      const execution=getExecution(current,stageId);if(execution.status!=="running")return current;
       assertWorkflowStageStatusTransition(execution.status,"interrupted");assertWorkflowRunStatusTransition(current.status,"interrupted");const at=nowIso();changed=true;
       const interruptedExecution=WorkflowStageExecutionSchema.parse({...execution,status:"interrupted",completedAt:at,error});
       return this.store.save(WorkflowRunSchema.parse({...current,status:"interrupted",stageExecutions:replaceExecution(current,interruptedExecution),currentStageId:stageId,error,updatedAt:at}));
