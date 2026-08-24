@@ -18,11 +18,13 @@ v2_2_w2_main: bfcc862aed29969e61c5c3723179585e6c583a07
 v2_2_w3_main: 23193e537a2c403f8d3c82806db991603cb27dca
 v2_2_w4_main: 6a443e56c10b4935efedd65293b6dbd5584cbda1
 current_milestone: V2.2 WORKFLOW RUNTIME
-v2_2_status: W5 FAILURE / RETRY / RESTART HARDENING ACTIVE
+v2_2_status: W5 LOCAL CHAOS VALIDATION REQUIRED
 active_workstream: V2.2-W5 Failure / Retry / Restart Hardening
 active_branch: feature/v2.2-w5-failure-retry-restart
-active_pr: PENDING
-local_validation_required: YES after cloud-green exact head
+active_pr: 36
+cloud_green_code_head: a239a0ca620a14920fed66ecc66080ecb6d5c7d8
+cloud_green_ci_run: 32718411327
+local_validation_required: YES NOW after final status-only CI
 local_validation_contract: docs/validation/LOCAL_VALIDATION_V2_2_W5_CONTRACT.md
 next_workstream_after_w5: W6 End-to-End Release Acceptance
 future_milestone: V2.3 Real AI Director / AI Editing Agent
@@ -39,12 +41,14 @@ V2.2 W1 Workflow Runtime Core                 → PR #32 COMPLETE
 V2.2 W2 Existing Capability Stage Integration → PR #33 COMPLETE / main bfcc862a...
 V2.2 W3 Human Review + Invalidation            → PR #34 COMPLETE / main 23193e53...
 V2.2 W4 Workflow UI                            → PR #35 COMPLETE / main 6a443e56...
-V2.2 W5 Failure / Retry / Restart Hardening    → ACTIVE
+V2.2 W5 Failure / Retry / Restart Hardening    → PR #36 CLOUD GREEN / LOCAL VALIDATION REQUIRED
 ```
 
 W2 exact-SHA Local Codex evidence: `docs/validation/LOCAL_VALIDATION_V2_2_W2.md`.
 
 W4 exact-SHA Windows browser/media acceptance is complete. Tested code SHA `99a4476613e77563861601eaa07ecb3881bc6219`; formal report `docs/validation/LOCAL_VALIDATION_V2_2_W4.md`; PR-head report commit `fa018c32364d713a73279ade69926611720b4bf0`; PR #35 merged as accepted main `6a443e56c10b4935efedd65293b6dbd5584cbda1` after final cloud CI passed.
+
+W5 code head `a239a0ca620a14920fed66ecc66080ecb6d5c7d8` passed CI Run `32718411327`: Ubuntu verify, Windows verify, browser smoke, and Windows media smoke all succeeded. The only remaining merge gate is exact-SHA Local Codex Windows chaos acceptance followed by final GitHub CI on any report-only or bounded-fix commit.
 
 ## Delivery sequence
 
@@ -55,7 +59,7 @@ W1 Workflow Runtime Core                  → COMPLETE
 W2 Existing Capability Stage Integration  → COMPLETE
 W3 Human Review + Invalidation            → COMPLETE
 W4 Workflow UI                            → COMPLETE
-W5 Failure / Retry / Restart Hardening    → ACTIVE
+W5 Failure / Retry / Restart Hardening    → LOCAL VALIDATION REQUIRED
 W6 End-to-End Release Acceptance          → NEXT AFTER W5
 ```
 
@@ -68,12 +72,13 @@ Required safety properties:
 1. `WorkflowService` automatically recovers persisted running Workflows on process startup; normal reads do not require a manual recovery action.
 2. Durable Job ownership remains Job truth. Active Jobs from a dead runtime are recovered as interrupted/terminal truth rather than guessed successful.
 3. Project operation-log state is queryable so a mutation Stage can detect that an earlier Workflow attempt already committed its Project transaction.
-4. Retry preserves historical Workflow operation IDs and skips an already-applied Project mutation instead of duplicating Caption/Motion/B-roll/Timeline output.
-5. A Job that failed because its `expectedRevision` became stale remains non-retryable with the same Job input, while the Workflow can start a fresh Job using the latest Project revision.
-6. Workflow retry refreshes `lastKnownProjectRevision` before a new Stage attempt.
-7. Final Render records `sourceProjectRevision`; a completed MP4 produced from an older revision is rejected as stale and a retry creates a fresh render Job.
-8. Existing W4 UI/API/Workflow behavior, Project Schema `2.0.0`, and engine pins remain unchanged.
-9. No Real AI Provider / V2.3 Agent work enters W5.
+4. Failure Retry preserves historical Workflow operation IDs and skips an already-applied Project mutation instead of duplicating Caption/Motion/B-roll/Timeline output.
+5. Human Review Replay is distinct from failure Retry: replay clears prior durable attempt references for invalidated stages so requested regeneration actually runs again.
+6. A Job that failed because its `expectedRevision` became stale remains non-retryable with the same Job input, while the Workflow can start a fresh Job using the latest Project revision.
+7. Workflow retry refreshes `lastKnownProjectRevision` before a new Stage attempt.
+8. Final Render records `sourceProjectRevision`; a completed MP4 produced from an older revision is rejected as stale and a retry creates a fresh render Job.
+9. Existing W4 UI/API/Workflow behavior, Project Schema `2.0.0`, and engine pins remain unchanged.
+10. No Real AI Provider / V2.3 Agent work enters W5.
 
 ## W5 cloud gate
 
@@ -85,13 +90,16 @@ Project operation-state/idempotency tests
 commit-gap retry test proving no duplicate Project mutation
 stale Project Job → fresh Workflow Job semantics
 stale Final Render rejection + fresh render retry
+W3 explicit replay regression
 existing H6/W4 browser regression
 Windows media regression smoke
 ```
 
+Cloud code gate passed on `a239a0ca620a14920fed66ecc66080ecb6d5c7d8` in CI Run `32718411327`.
+
 ## Mandatory W5 Local Codex gate before merge
 
-GPT Web must first produce a fully cloud-green exact W5 SHA. Local Codex then follows:
+Local Codex must follow:
 
 `docs/validation/LOCAL_VALIDATION_V2_2_W5_CONTRACT.md`
 
@@ -152,7 +160,7 @@ PR #18 remains closed/unmerged and is future V2.3 Agent architecture input only.
 
 ## Next allowed phase
 
-Continue W5 online through code review, tests, PR, and CI until an exact cloud-green W5 SHA is frozen. Only then stop for Local Codex. Do not merge W5 before exact-SHA Windows chaos acceptance. Do not begin W6 before W5 merge.
+Run the exact-SHA W5 Local Codex chaos acceptance now. If Local Codex makes any in-scope fix, it must push to the same W5 branch and report the new exact SHA for GPT Web review + CI; the full affected local acceptance must be rerun on that new SHA. If no code fix is required, commit only the formal validation report to this branch, then GPT Web will run final CI and merge PR #36. Do not begin W6 before W5 merge.
 
 ## Read order for agents
 
@@ -162,4 +170,4 @@ Continue W5 online through code review, tests, PR, and CI until an exact cloud-g
 4. `SYSTEM.md`;
 5. `docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md`;
 6. `docs/prd/Video_OS_Studio_V2_2_Development_Plan.md`;
-7. `docs/validation/LOCAL_VALIDATION_V2_2_W5_CONTRACT.md` only after GPT Web supplies an exact cloud-green SHA.
+7. `docs/validation/LOCAL_VALIDATION_V2_2_W5_CONTRACT.md`.
