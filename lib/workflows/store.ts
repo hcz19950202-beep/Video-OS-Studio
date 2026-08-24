@@ -6,6 +6,7 @@ import {WorkflowRunIdSchema,WorkflowRunSchema,type WorkflowRun} from "@/lib/work
 
 const parseWorkflow=(text:string)=>WorkflowRunSchema.parse(JSON.parse(text));
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+const lockContention=(code:string|undefined)=>code==="EEXIST"||code==="EPERM"||code==="EACCES";
 
 export class WorkflowNotFoundError extends Error{
   readonly code="WORKFLOW_NOT_FOUND";
@@ -52,6 +53,28 @@ export class FileWorkflowStore{
 
   async ensure(){await mkdir(this.workflowsRoot,{recursive:true});}
 
+  async claimRuntimeOwner(ownerPid=process.ppid){
+    await this.ensure();
+    const ownerPath=join(this.workflowsRoot,".runtime-owner.json");const lockPath=join(this.workflowsRoot,".runtime-owner.lock");let handle:Awaited<ReturnType<typeof open>>|undefined;
+    for(;;){
+      try{handle=await open(lockPath,"wx");break;}
+      catch(error){
+        const code=(error as NodeJS.ErrnoException).code;if(!lockContention(code))throw error;
+        try{const existing=await open(lockPath,"r");try{if(Date.now()-(await existing.stat()).mtimeMs>30_000)await rm(lockPath,{force:true});}finally{await existing.close();}}
+        catch(lockError){const lockCode=(lockError as NodeJS.ErrnoException).code;if(lockCode!=="ENOENT"&&!lockContention(lockCode))throw lockError;}
+        await sleep(5);
+      }
+    }
+    try{
+      let previous:{ownerPid?:unknown;runtimeStartedAt?:unknown}|undefined;
+      try{previous=JSON.parse(await readFile(ownerPath,"utf8")) as {ownerPid?:unknown;runtimeStartedAt?:unknown};}catch(error){if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;}
+      const sameOwner=previous?.ownerPid===ownerPid&&typeof previous.runtimeStartedAt==="number";
+      const runtimeStartedAt=sameOwner?previous!.runtimeStartedAt as number:Date.now()-process.uptime()*1000;
+      await writeFile(ownerPath,JSON.stringify({ownerPid,pid:process.pid,runtimeStartedAt,updatedAt:new Date().toISOString()},null,2)+"\n","utf8");
+      return runtimeStartedAt;
+    }finally{await handle.close();await rm(lockPath,{force:true});}
+  }
+
   async withRunLock<T>(workflowRunId:string,fn:()=>Promise<T>):Promise<T>{
     const id=WorkflowRunIdSchema.parse(workflowRunId);
     const lockPath=join(this.runDir(id),".workflow-run.lock");
@@ -60,14 +83,14 @@ export class FileWorkflowStore{
       try{handle=await open(lockPath,"wx");break;}
       catch(error){
         const code=(error as NodeJS.ErrnoException).code;
-        if(code!=="EEXIST"&&code!=="EPERM"&&code!=="EACCES")throw error;
+        if(!lockContention(code))throw error;
         try{
           const lockHandle=await open(lockPath,"r");
           try{if(Date.now()-(await lockHandle.stat()).mtimeMs>30_000)await rm(lockPath,{force:true});}
           finally{await lockHandle.close();}
         }catch(lockError){
           const lockCode=(lockError as NodeJS.ErrnoException).code;
-          if(lockCode!=="ENOENT"&&lockCode!=="EPERM"&&lockCode!=="EACCES")throw lockError;
+          if(lockCode!=="ENOENT"&&!lockContention(lockCode))throw lockError;
         }
         await sleep(5);
       }

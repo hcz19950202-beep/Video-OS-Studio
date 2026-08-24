@@ -8,7 +8,6 @@ import {FileWorkflowStore,WorkflowNotFoundError} from "@/lib/workflows/store";
 
 const nowIso=()=>new Date().toISOString();
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
-const processStartedAt=Date.now()-process.uptime()*1000;
 const completedDependencyStatuses=new Set(["completed","skipped"]);
 const stableValue=(value:unknown):unknown=>Array.isArray(value)?value.map(stableValue):value&&typeof value==="object"?Object.fromEntries(Object.entries(value as Record<string,unknown>).sort(([a],[b])=>a.localeCompare(b)).map(([key,item])=>[key,stableValue(item)])):value;
 const digest=(value:unknown)=>createHash("sha256").update(JSON.stringify(stableValue(value))).digest("hex");
@@ -242,6 +241,7 @@ export class WorkflowRunner{
   }
 
   async recover(){
+    const processStartedAt=await this.store.claimRuntimeOwner();
     for(const run of await this.store.list()){
       if(run.status!=="running")continue;
       const active=run.currentStageId?getExecution(run,run.currentStageId):run.stageExecutions.find(item=>item.status==="running");
