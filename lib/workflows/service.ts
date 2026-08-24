@@ -88,9 +88,12 @@ export class WorkflowService{
   private async latestProjectRevision(workflowId:string){const run=await this.requireRun(workflowId);return(await this.projects.load(run.projectId)).project.revision;}
 
   async bindAssetBaseUrl(workflowId:string,assetBaseUrl:string){
-    const id=WorkflowRunIdSchema.parse(workflowId);const url=z.string().url().parse(assetBaseUrl);const run=await this.requireRun(id);
-    if(run.assetBaseUrl===url)return run;
-    return this.store.save(WorkflowRunSchema.parse({...run,assetBaseUrl:url,updatedAt:nowIso()}));
+    const id=WorkflowRunIdSchema.parse(workflowId);const url=z.string().url().parse(assetBaseUrl);
+    return this.store.withRunLock(id,async()=>{
+      const run=await this.requireRun(id);
+      if(run.assetBaseUrl===url)return run;
+      return this.store.save(WorkflowRunSchema.parse({...run,assetBaseUrl:url,updatedAt:nowIso()}));
+    });
   }
 
   async get(workflowId:string){await this.ready();return this.store.get(WorkflowRunIdSchema.parse(workflowId));}
@@ -103,11 +106,13 @@ export class WorkflowService{
   async retryStage(workflowId:string,stageId:string){
     await this.ready();
     const id=WorkflowRunIdSchema.parse(workflowId);
-    const run=await this.requireRun(id);
-    const projectRevision=(await this.projects.load(run.projectId)).project.revision;
-    if(projectRevision>run.lastKnownProjectRevision){
-      await this.store.save(WorkflowRunSchema.parse({...run,lastKnownProjectRevision:projectRevision,updatedAt:nowIso()}));
-    }
+    await this.store.withRunLock(id,async()=>{
+      const run=await this.requireRun(id);
+      const projectRevision=(await this.projects.load(run.projectId)).project.revision;
+      if(projectRevision>run.lastKnownProjectRevision){
+        await this.store.save(WorkflowRunSchema.parse({...run,lastKnownProjectRevision:projectRevision,updatedAt:nowIso()}));
+      }
+    });
     return this.runner.retryStage(id,stageId);
   }
   async replayFromStage(workflowId:string,stageId:string){await this.ready();const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.replayFromStage(id,stageId,await this.latestProjectRevision(id));}

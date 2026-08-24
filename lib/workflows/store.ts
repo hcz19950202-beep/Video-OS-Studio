@@ -59,12 +59,16 @@ export class FileWorkflowStore{
     for(;;){
       try{handle=await open(lockPath,"wx");break;}
       catch(error){
-        if((error as NodeJS.ErrnoException).code!=="EEXIST")throw error;
+        const code=(error as NodeJS.ErrnoException).code;
+        if(code!=="EEXIST"&&code!=="EPERM"&&code!=="EACCES")throw error;
         try{
           const lockHandle=await open(lockPath,"r");
           try{if(Date.now()-(await lockHandle.stat()).mtimeMs>30_000)await rm(lockPath,{force:true});}
           finally{await lockHandle.close();}
-        }catch(lockError){if((lockError as NodeJS.ErrnoException).code!=="ENOENT")throw lockError;}
+        }catch(lockError){
+          const lockCode=(lockError as NodeJS.ErrnoException).code;
+          if(lockCode!=="ENOENT"&&lockCode!=="EPERM"&&lockCode!=="EACCES")throw lockError;
+        }
         await sleep(5);
       }
     }
