@@ -18,7 +18,7 @@ import {RenderJobManager} from "@/lib/render/render-jobs";
 import {VideoUseService} from "@/lib/video-use/service";
 import {RulesVisualPlannerAdapter} from "@/lib/visual-planner/rules";
 import {VisualPlanService} from "@/lib/visual-planner/service";
-import {registerW2CapabilityWorkflowDefinitions} from "@/lib/workflows/production-definitions";
+import {registerProductionWorkflowDefinitions} from "@/lib/workflows/production-definitions";
 import {registerProductionWorkflowStages} from "@/lib/workflows/production-stages";
 import {WorkflowDefinitionRegistry,WorkflowStageRegistry} from "@/lib/workflows/registry";
 import {WorkflowRunner} from "@/lib/workflows/runner";
@@ -58,7 +58,7 @@ export const visualPlanService=new VisualPlanService(fileSystem,projectRepositor
 export const assetLibraryService=new AssetLibraryService(fileSystem,dataRoot,projectRepository,hyperFramesRenderService,projectMutations);
 
 export const workflowStore=getGlobalRuntime(`${dataRoot}:workflow-store`,()=>new FileWorkflowStore(dataRoot));
-export const workflowDefinitions=getGlobalRuntime(`${dataRoot}:workflow-definitions`,()=>registerW2CapabilityWorkflowDefinitions(new WorkflowDefinitionRegistry()));
+export const workflowDefinitions=getGlobalRuntime(`${dataRoot}:workflow-definitions`,()=>registerProductionWorkflowDefinitions(new WorkflowDefinitionRegistry()));
 export const workflowStages=getGlobalRuntime(`${dataRoot}:workflow-stages`,()=>registerProductionWorkflowStages(new WorkflowStageRegistry(),{
   fs:fileSystem,
   repository:projectRepository,
