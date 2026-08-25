@@ -27,6 +27,12 @@ describe("H3 durable job runtime",()=>{
     expect(JSON.parse(await readFile(join(root,"jobs",created.id,"artifacts.json"),"utf8"))).toHaveLength(1);
   });
 
+  it("persists the stable runtime owner pid for jobs created by a live worker",async()=>{
+    const{store}=await makeStore();const owner=await store.runtimeOwner.claimRuntimeOwner(process.ppid);let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;});
+    const runtime=new DurableJobRuntime(store,{"render-final":async()=>{await gate;return{};}});const created=await runtime.create({type:"render-final",projectId:"demo",input:{}});const running=await waitFor(()=>runtime.get(created.id),job=>job?.status==="running");
+    expect(running?.executorPid).toBe(owner.ownerPid);release();await waitFor(()=>runtime.get(created.id),job=>job?.status==="completed");
+  });
+
   it("distinguishes same-process route runtimes from a restarted process",async()=>{
     const{store}=await makeStore();
     expect((await store.runtimeOwner.claimRuntimeOwner(2_147_483_646)).isNewRuntime).toBe(true);
