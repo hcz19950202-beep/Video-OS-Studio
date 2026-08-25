@@ -111,14 +111,20 @@ export class RuntimeOwnerStore{
     return previous?Math.max(processStartedAt,previous.runtimeEpoch+1):processStartedAt;
   }
 
+  private previousOwnerIsAlive(previous:RuntimeOwner|null){
+    if(!previous)return false;
+    try{process.kill(previous.ownerPid,0);return true;}
+    catch(error){return(error as NodeJS.ErrnoException).code==="EPERM";}
+  }
+
   async claimRuntimeOwner(ownerPid=process.ppid):Promise<RuntimeOwnerClaim>{
     if(!Number.isInteger(ownerPid)||ownerPid<0)throw new Error("Runtime owner pid is invalid.");
     return this.withLock(async()=>{
       await this.cleanupTempFiles();
       const previous=await this.readOwnerForClaim();
-      const sameRuntime=previous?.ownerPid===ownerPid;
-      const runtimeEpoch=sameRuntime?previous.runtimeEpoch:this.nextRuntimeEpoch(previous);
-      const runtimeId=sameRuntime?previous.runtimeId:randomUUID();
+      const sameRuntime=previous?.ownerPid===ownerPid||this.previousOwnerIsAlive(previous);
+      const runtimeEpoch=sameRuntime?previous!.runtimeEpoch:this.nextRuntimeEpoch(previous);
+      const runtimeId=sameRuntime?previous!.runtimeId:randomUUID();
       const owner:RuntimeOwner={
         runtimeId,
         runtimeEpoch,
@@ -127,9 +133,9 @@ export class RuntimeOwnerStore{
         pid:process.pid,
         updatedAt:new Date().toISOString(),
         ...(sameRuntime?{
-          previousRuntimeId:previous.previousRuntimeId,
-          previousRuntimeEpoch:previous.previousRuntimeEpoch,
-          previousRuntimeStartedAt:previous.previousRuntimeStartedAt,
+          previousRuntimeId:previous!.previousRuntimeId,
+          previousRuntimeEpoch:previous!.previousRuntimeEpoch,
+          previousRuntimeStartedAt:previous!.previousRuntimeStartedAt,
         }:previous?{
           previousRuntimeId:previous.runtimeId,
           previousRuntimeEpoch:previous.runtimeEpoch,

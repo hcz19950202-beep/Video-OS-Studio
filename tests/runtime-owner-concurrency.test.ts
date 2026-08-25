@@ -46,6 +46,17 @@ describe("shared V2.2 W5 runtime owner",()=>{
     expect(await owner.isPreviousRuntime(newRuntime.runtimeId)).toBe(false);
   });
 
+  it("keeps one runtime epoch across a live Next worker parent handoff",async()=>{
+    const root=await makeRoot();const owner=new RuntimeOwnerStore(root);
+    const appRuntime=await owner.claimRuntimeOwner(process.pid);const lateWorker=await owner.claimRuntimeOwner(999999);
+    expect(lateWorker.isNewRuntime).toBe(false);
+    expect(lateWorker.runtimeId).toBe(appRuntime.runtimeId);
+    expect(lateWorker.runtimeEpoch).toBe(appRuntime.runtimeEpoch);
+    const restarted=await owner.claimRuntimeOwner(999998);
+    expect(restarted.isNewRuntime).toBe(true);
+    expect(restarted.runtimeId).not.toBe(appRuntime.runtimeId);
+  });
+
   it("repairs an interrupted owner write and removes orphaned temp files on restart",async()=>{
     const root=await makeRoot();const owner=new RuntimeOwnerStore(root);const oldRuntime=await owner.claimRuntimeOwner(3401);
     await writeFile(ownerFile(root),"{\"runtimeId\":\"partial\"","utf8");
