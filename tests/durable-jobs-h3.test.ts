@@ -45,6 +45,15 @@ describe("H3 durable job runtime",()=>{
     expect(recovered).toMatchObject({status:"interrupted",stage:"interrupted",error:{code:"JOB_INTERRUPTED",retryable:true}});
   });
 
+  it("recovers a same-runtime Job whose executor process has exited",async()=>{
+    const{store}=await makeStore();await store.ensure();await store.runtimeOwner.claimRuntimeOwner(process.pid);
+    const at=new Date().toISOString();
+    const active=JobRecordSchema.parse({id:"44444444-4444-4444-8444-444444444444",type:"video-use-transcribe",projectId:"demo",status:"running",stage:"transcribing",progress:.5,attempt:1,input:{expectedRevision:0,operationId:"same-runtime"},executorPid:2_147_483_646,createdAt:at,updatedAt:at,startedAt:at});
+    await store.create(active);
+    const jobRuntime=new DurableJobRuntime(store,{"video-use-transcribe":async()=>({recovered:true})});await jobRuntime.waitUntilReady();
+    expect(await store.get(active.id)).toMatchObject({status:"interrupted",error:{code:"JOB_INTERRUPTED",retryable:true}});
+  });
+
   it("atomically serializes concurrent runtime-owner claims",async()=>{
     const{root}=await makeStore();const ownerPid=process.pid;const claims=await Promise.all(Array.from({length:16},()=>new FileJobStore(root).runtimeOwner.claimRuntimeOwner(ownerPid)));expect(new Set(claims.map(claim=>claim.runtimeId)).size).toBe(1);expect(claims.filter(claim=>claim.isNewRuntime)).toHaveLength(1);const persisted=JSON.parse(await readFile(join(root,".runtime-owner.json"),"utf8")) as {ownerPid:number;runtimeId:string};expect(persisted).toMatchObject({ownerPid,runtimeId:claims[0].runtimeId});await expect(access(join(root,".runtime-owner.lock"))).rejects.toMatchObject({code:"ENOENT"});
   });

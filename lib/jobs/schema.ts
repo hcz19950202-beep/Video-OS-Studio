@@ -24,6 +24,7 @@ export const JobRecordSchema=z.object({
   attempt:z.number().int().positive(),
   input:z.record(z.string(),z.unknown()).default({}),
   output:z.record(z.string(),z.unknown()).optional(),
+  executorPid:z.number().int().positive().optional(),
   error:JobErrorSchema.optional(),
   cancellationRequestedAt:z.string().datetime().optional(),
   createdAt:z.string().datetime(),

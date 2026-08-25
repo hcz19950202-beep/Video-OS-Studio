@@ -12,7 +12,7 @@ import {createWorkflowJobRuntimePort} from "@/lib/workflows/job-port";
 import {W2_EXECUTOR_KEYS,registerProductionWorkflowStages,type ProductionWorkflowJobRuntime,type ProductionWorkflowVisualPlan} from "@/lib/workflows/production-stages";
 import {WorkflowDefinitionRegistry,WorkflowStageRegistry,type WorkflowStageExecutionContext} from "@/lib/workflows/registry";
 import {WorkflowRunner,type WorkflowJobRuntimePort} from "@/lib/workflows/runner";
-import {WorkflowDefinitionSchema,WorkflowRunSchema,type WorkflowDefinition} from "@/lib/workflows/schema";
+import {WorkflowDefinitionSchema,WorkflowRunSchema,WorkflowStageExecutionSchema,type WorkflowDefinition} from "@/lib/workflows/schema";
 import {WorkflowService} from "@/lib/workflows/service";
 import {FileWorkflowStore} from "@/lib/workflows/store";
 import {W4_WORKFLOW_DEFINITIONS} from "@/lib/workflows/w4-definitions";
@@ -46,6 +46,23 @@ describe("V2.2 W5 failure retry and restart hardening",()=>{
     const source:WorkflowJobRuntimePort={get:async()=>stale,cancel:async()=>stale,retry:async()=>stale};
     const port=createWorkflowJobRuntimePort(source);const adapted=await port.get(stale.id);
     expect(stale.error?.retryable).toBe(false);expect(adapted?.error).toMatchObject({code:"PROJECT_REVISION_CONFLICT",retryable:true,details:{workflowRetryMode:"fresh-input-job"}});
+  });
+
+  it("creates a fresh mutation Job when the prior attempt input revision is stale",async()=>{
+    let project=createProject({id:"demo",name:"Demo",now:at,width:1920,height:1080,fps:30,durationInFrames:300});project={...project,project:{...project.project,revision:2}};
+    const stale=JobRecordSchema.parse({id:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",type:"video-use-transcribe",projectId:"demo",status:"interrupted",stage:"interrupted",progress:.5,attempt:1,input:{expectedRevision:1,operationId:"old-transcribe"},error:{code:"JOB_INTERRUPTED",message:"old runtime",retryable:true},createdAt:at,updatedAt:at});
+    let creates=0;let retries=0;let createdInput:CreateJobInput|undefined;
+    const jobs:ProductionWorkflowJobRuntime={
+      create:async input=>{creates++;createdInput=input;return JobRecordSchema.parse({id:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",type:input.type,projectId:input.projectId,status:"queued",stage:"queued",progress:0,attempt:1,input:input.input,createdAt:at,updatedAt:at});},
+      get:async jobId=>jobId===stale.id?stale:null,
+      getArtifacts:async()=>[],
+      cancel:async()=>stale,
+      retry:async()=>{retries++;return stale;},
+    };
+    const registry=registerProductionWorkflowStages(new WorkflowStageRegistry(),{fs:new NodeFileSystemAdapter(),repository:{load:async()=>project,resolveProjectFile:(_projectId:string,relativePath:string)=>relativePath},mutations:{applyTransaction:async()=>{throw new Error("Unexpected mutation");}},jobs,visualPlan:noVisualPlan,assetBaseUrl:"http://127.0.0.1:3000"});
+    const flow=definition([stage("TRANSCRIBE",W2_EXECUTOR_KEYS.transcribe,"job")]);const stageDefinition=flow.stages[0]!;const run=WorkflowRunSchema.parse({id:"cccccccc-cccc-4ccc-8ccc-cccccccccccc",definitionId:flow.id,definitionVersion:flow.version,projectId:"demo",createdAt:at,updatedAt:at,status:"running",scenario:"talking-head",sourceAssetIds:[],canvasSnapshot:{width:1920,height:1080,fps:30},stageExecutions:[],checkpoints:[],artifacts:[],lastKnownProjectRevision:2});const execution=WorkflowStageExecutionSchema.parse({stageId:stageDefinition.id,status:"running",attempt:2,attemptId:"dddddddd-dddd-4ddd-8ddd-dddddddddddd",startedAt:at,baseProjectRevision:2,inputDigest:"input",jobIds:[stale.id],operationIds:["old-op"],artifactIds:[]});
+    const result=await registry.get(W2_EXECUTOR_KEYS.transcribe).start({run,definition:flow,stage:stageDefinition,execution,attemptId:execution.attemptId!,operationId:"new-op",previousJobIds:[stale.id]});
+    expect(result).toMatchObject({kind:"job",jobId:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"});expect(creates).toBe(1);expect(retries).toBe(0);expect(createdInput?.input).toMatchObject({expectedRevision:2});
   });
 
   it("runs Workflow recovery automatically before the first service read after process restart",async()=>{

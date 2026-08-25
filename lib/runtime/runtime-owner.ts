@@ -114,17 +114,19 @@ export class RuntimeOwnerStore{
     return previous?Math.max(processStartedAt,previous.runtimeEpoch+1):processStartedAt;
   }
 
-  private async previousOwnerIsAlive(previous:RuntimeOwner|null){
-    if(!previous)return false;
+  async isProcessAlive(pid:number){
+    if(!Number.isInteger(pid)||pid<=0)return false;
     if(process.platform==="win32"){
       try{
-        const{stdout}=await execFileAsync("tasklist.exe",["/FI",`PID eq ${previous.ownerPid}`,"/FO","CSV","/NH"],{windowsHide:true,timeout:2_000,maxBuffer:1024*1024});
-        return stdout.split(/\r?\n/u).some(line=>line.includes(`"${previous.ownerPid}"`));
+        const{stdout}=await execFileAsync("tasklist.exe",["/FI",`PID eq ${pid}`,"/FO","CSV","/NH"],{windowsHide:true,timeout:2_000,maxBuffer:1024*1024});
+        return stdout.split(/\r?\n/u).some(line=>line.includes(`"${pid}"`));
       }catch{return false;}
     }
-    try{process.kill(previous.ownerPid,0);return true;}
+    try{process.kill(pid,0);return true;}
     catch(error){return(error as NodeJS.ErrnoException).code==="EPERM";}
   }
+
+  private async previousOwnerIsAlive(previous:RuntimeOwner|null){return previous?this.isProcessAlive(previous.ownerPid):false;}
 
   async claimRuntimeOwner(ownerPid=process.ppid):Promise<RuntimeOwnerClaim>{
     if(!Number.isInteger(ownerPid)||ownerPid<0)throw new Error("Runtime owner pid is invalid.");

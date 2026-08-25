@@ -81,11 +81,13 @@ const jobArtifacts=async(deps:ProductionWorkflowDependencies,stageId:string,jobI
 const jobArtifactsForIds=async(deps:ProductionWorkflowDependencies,stageId:string,jobIds:string[])=>{const batches=await Promise.all(jobIds.map(jobId=>jobArtifacts(deps,stageId,jobId)));return batches.flat();};
 const nonRetryableJobError=(job:JobRecord)=>Object.assign(new Error(job.error?.message??`Durable job ${job.id} cannot be retried.`),{code:job.error?.code??"WORKFLOW_JOB_NON_RETRYABLE",retryable:false});
 const staleInputJob=(job:JobRecord)=>job.error?.code==="PROJECT_REVISION_CONFLICT";
+const expectedRevisionChanged=(job:JobRecord,input:CreateJobInput)=>typeof job.input.expectedRevision==="number"&&typeof input.input.expectedRevision==="number"&&job.input.expectedRevision!==input.input.expectedRevision;
 const reusableJob=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext,input:CreateJobInput)=>{
   const prior=context.previousJobIds.at(-1);
   if(prior){
     const job=await deps.jobs.get(prior);
     if(job){
+      if(expectedRevisionChanged(job,input))return deps.jobs.create(input);
       if(["queued","preparing","running","completed"].includes(job.status))return job;
       if(["failed","cancelled","interrupted"].includes(job.status)){
         if(staleInputJob(job))return deps.jobs.create(input);
