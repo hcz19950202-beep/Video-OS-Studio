@@ -1,6 +1,7 @@
 import {randomUUID} from "node:crypto";
 import {appendFile,mkdir,open,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
+import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 import {WorkflowActivitySchema,type WorkflowActivity} from "@/lib/workflows/activity";
 import {WorkflowRunIdSchema,WorkflowRunSchema,type WorkflowRun} from "@/lib/workflows/schema";
 
@@ -18,9 +19,13 @@ export class WorkflowNotFoundError extends Error{
 
 export class FileWorkflowStore{
   readonly workflowsRoot:string;
+  readonly runtimeOwner:RuntimeOwnerStore;
   private readonly pathChains=new Map<string,Promise<void>>();
 
-  constructor(dataRoot:string){this.workflowsRoot=join(dataRoot,"workflows");}
+  constructor(dataRoot:string,runtimeOwner=new RuntimeOwnerStore(dataRoot)){
+    this.workflowsRoot=join(dataRoot,"workflows");
+    this.runtimeOwner=runtimeOwner;
+  }
 
   private runDir(workflowRunId:string){return join(this.workflowsRoot,WorkflowRunIdSchema.parse(workflowRunId));}
   private workflowPath(workflowRunId:string){return join(this.runDir(workflowRunId),"workflow.json");}
@@ -52,28 +57,6 @@ export class FileWorkflowStore{
   }
 
   async ensure(){await mkdir(this.workflowsRoot,{recursive:true});}
-
-  async claimRuntimeOwner(ownerPid=process.ppid){
-    await this.ensure();
-    const ownerPath=join(this.workflowsRoot,".runtime-owner.json");const lockPath=join(this.workflowsRoot,".runtime-owner.lock");let handle:Awaited<ReturnType<typeof open>>|undefined;
-    for(;;){
-      try{handle=await open(lockPath,"wx");break;}
-      catch(error){
-        const code=(error as NodeJS.ErrnoException).code;if(!lockContention(code))throw error;
-        try{const existing=await open(lockPath,"r");try{if(Date.now()-(await existing.stat()).mtimeMs>30_000)await rm(lockPath,{force:true});}finally{await existing.close();}}
-        catch(lockError){const lockCode=(lockError as NodeJS.ErrnoException).code;if(lockCode!=="ENOENT"&&!lockContention(lockCode))throw lockError;}
-        await sleep(5);
-      }
-    }
-    try{
-      let previous:{ownerPid?:unknown;runtimeStartedAt?:unknown}|undefined;
-      try{previous=JSON.parse(await readFile(ownerPath,"utf8")) as {ownerPid?:unknown;runtimeStartedAt?:unknown};}catch(error){if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;}
-      const sameOwner=previous?.ownerPid===ownerPid&&typeof previous.runtimeStartedAt==="number";
-      const runtimeStartedAt=sameOwner?previous!.runtimeStartedAt as number:Date.now()-process.uptime()*1000;
-      await this.atomicWrite(ownerPath,JSON.stringify({ownerPid,pid:process.pid,runtimeStartedAt,updatedAt:new Date().toISOString()},null,2)+"\n");
-      return runtimeStartedAt;
-    }finally{await handle.close();await rm(lockPath,{force:true});}
-  }
 
   async withRunLock<T>(workflowRunId:string,fn:()=>Promise<T>):Promise<T>{
     const id=WorkflowRunIdSchema.parse(workflowRunId);

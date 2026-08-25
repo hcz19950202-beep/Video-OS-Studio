@@ -58,7 +58,7 @@ export class DurableJobRuntime{
 
   private async initialize(){
     await this.store.ensure();
-    const sameProcess=await this.store.claimRuntimeOwner();
+    const sameProcess=process.env.NEXT_PHASE==="phase-production-build"||!(await this.store.runtimeOwner.claimRuntimeOwner()).isNewRuntime;
     const jobs=await this.store.list();
     for(const job of jobs){
       if(job.status==="queued")this.enqueue(job);

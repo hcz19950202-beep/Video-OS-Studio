@@ -241,7 +241,7 @@ export class WorkflowRunner{
   }
 
   async recover(){
-    const processStartedAt=await this.store.claimRuntimeOwner();
+    const processStartedAt=(await this.store.runtimeOwner.claimRuntimeOwner()).runtimeStartedAt;
     for(const run of await this.store.list()){
       if(run.status!=="running")continue;
       const active=run.currentStageId?getExecution(run,run.currentStageId):run.stageExecutions.find(item=>item.status==="running");

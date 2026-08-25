@@ -29,13 +29,13 @@ describe("H3 durable job runtime",()=>{
 
   it("distinguishes same-process route runtimes from a restarted process",async()=>{
     const{store}=await makeStore();
-    expect(await store.claimRuntimeOwner(1001)).toBe(false);
-    expect(await store.claimRuntimeOwner(1001)).toBe(true);
-    expect(await store.claimRuntimeOwner(1002)).toBe(false);
+    expect((await store.runtimeOwner.claimRuntimeOwner(1001)).isNewRuntime).toBe(true);
+    expect((await store.runtimeOwner.claimRuntimeOwner(1001)).isNewRuntime).toBe(false);
+    expect((await store.runtimeOwner.claimRuntimeOwner(1002)).isNewRuntime).toBe(true);
   });
 
   it("atomically serializes concurrent runtime-owner claims",async()=>{
-    const{root}=await makeStore();const ownerPid=2001;const starts=await Promise.all(Array.from({length:16},()=>new FileJobStore(root).claimRuntimeOwner(ownerPid)));expect(starts.filter(value=>value===false)).toHaveLength(1);expect(starts.filter(value=>value===true)).toHaveLength(15);const persisted=JSON.parse(await readFile(join(root,"jobs",".runtime-owner.json"),"utf8")) as {ownerPid:number};expect(persisted.ownerPid).toBe(ownerPid);await expect(access(join(root,"jobs",".runtime-owner.lock"))).rejects.toMatchObject({code:"ENOENT"});
+    const{root}=await makeStore();const ownerPid=2001;const claims=await Promise.all(Array.from({length:16},()=>new FileJobStore(root).runtimeOwner.claimRuntimeOwner(ownerPid)));expect(new Set(claims.map(claim=>claim.runtimeId)).size).toBe(1);expect(claims.filter(claim=>claim.isNewRuntime)).toHaveLength(1);const persisted=JSON.parse(await readFile(join(root,".runtime-owner.json"),"utf8")) as {ownerPid:number;runtimeId:string};expect(persisted).toMatchObject({ownerPid,runtimeId:claims[0].runtimeId});await expect(access(join(root,".runtime-owner.lock"))).rejects.toMatchObject({code:"ENOENT"});
   });
 
   it("keeps concurrent job reads from colliding with Windows atomic metadata writes",async()=>{
