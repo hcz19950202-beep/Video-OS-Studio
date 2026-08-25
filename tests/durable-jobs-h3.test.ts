@@ -34,6 +34,17 @@ describe("H3 durable job runtime",()=>{
     expect((await store.runtimeOwner.claimRuntimeOwner(1002)).isNewRuntime).toBe(true);
   });
 
+  it("recovers old active Jobs when Workflow claims the new runtime first",async()=>{
+    const{store}=await makeStore();await store.ensure();
+    const runtime=await store.runtimeOwner.claimRuntimeOwner();
+    const oldAt=new Date(runtime.runtimeStartedAt-1_000).toISOString();
+    const active=JobRecordSchema.parse({id:"33333333-3333-4333-8333-333333333333",type:"video-use-transcribe",projectId:"demo",status:"running",stage:"transcribing",progress:.5,attempt:1,input:{expectedRevision:0,operationId:"old"},createdAt:oldAt,updatedAt:oldAt,startedAt:oldAt});
+    await store.create(active);
+    const jobRuntime=new DurableJobRuntime(store,{"video-use-transcribe":async()=>({recovered:true})});await jobRuntime.waitUntilReady();
+    const recovered=await store.get(active.id);
+    expect(recovered).toMatchObject({status:"interrupted",stage:"interrupted",error:{code:"JOB_INTERRUPTED",retryable:true}});
+  });
+
   it("atomically serializes concurrent runtime-owner claims",async()=>{
     const{root}=await makeStore();const ownerPid=2001;const claims=await Promise.all(Array.from({length:16},()=>new FileJobStore(root).runtimeOwner.claimRuntimeOwner(ownerPid)));expect(new Set(claims.map(claim=>claim.runtimeId)).size).toBe(1);expect(claims.filter(claim=>claim.isNewRuntime)).toHaveLength(1);const persisted=JSON.parse(await readFile(join(root,".runtime-owner.json"),"utf8")) as {ownerPid:number;runtimeId:string};expect(persisted).toMatchObject({ownerPid,runtimeId:claims[0].runtimeId});await expect(access(join(root,".runtime-owner.lock"))).rejects.toMatchObject({code:"ENOENT"});
   });

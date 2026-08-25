@@ -58,11 +58,15 @@ export class DurableJobRuntime{
 
   private async initialize(){
     await this.store.ensure();
-    const sameProcess=process.env.NEXT_PHASE==="phase-production-build"||!(await this.store.runtimeOwner.claimRuntimeOwner()).isNewRuntime;
+    const runtimeClaim=process.env.NEXT_PHASE==="phase-production-build"?null:await this.store.runtimeOwner.claimRuntimeOwner();
     const jobs=await this.store.list();
     for(const job of jobs){
       if(job.status==="queued")this.enqueue(job);
-      else if(!sameProcess&&(job.status==="preparing"||job.status==="running")){
+      else if(runtimeClaim&&(job.status==="preparing"||job.status==="running")&&(
+        runtimeClaim.isNewRuntime||
+        !Number.isFinite(Date.parse(job.startedAt??job.updatedAt??job.createdAt))||
+        Date.parse(job.startedAt??job.updatedAt??job.createdAt)<runtimeClaim.runtimeStartedAt
+      )){
         const at=nowIso();
         await this.store.save(JobRecordSchema.parse({...job,status:"interrupted",stage:"interrupted",error:{code:"JOB_INTERRUPTED",message:"The Video OS process stopped while this job was active. Retry after verifying local engine state.",retryable:true},updatedAt:at,finishedAt:at}));
       }
