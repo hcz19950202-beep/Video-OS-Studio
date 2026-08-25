@@ -14,3 +14,5 @@ export function createBuiltinWorkflowTemplateRegistry(): WorkflowTemplateRegistr
 export * from "./schema";
 export * from "./registry";
 export * from "./validator";
+export * from "./builder";
+export * from "./service";
