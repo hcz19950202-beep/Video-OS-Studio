@@ -1,10 +1,13 @@
 import {randomUUID} from "node:crypto";
+import {execFile} from "node:child_process";
 import {mkdir,open,readdir,readFile,rename,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
+import {promisify} from "node:util";
 
 const lockSleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 const lockContention=(code:string|undefined)=>code==="EEXIST"||code==="EPERM"||code==="EACCES";
 const ownerTempFile=(name:string)=>name.startsWith(".runtime-owner.json.")&&name.endsWith(".tmp");
+const execFileAsync=promisify(execFile);
 
 export type RuntimeOwner={
   runtimeId:string;
@@ -111,8 +114,14 @@ export class RuntimeOwnerStore{
     return previous?Math.max(processStartedAt,previous.runtimeEpoch+1):processStartedAt;
   }
 
-  private previousOwnerIsAlive(previous:RuntimeOwner|null){
+  private async previousOwnerIsAlive(previous:RuntimeOwner|null){
     if(!previous)return false;
+    if(process.platform==="win32"){
+      try{
+        const{stdout}=await execFileAsync("tasklist.exe",["/FI",`PID eq ${previous.ownerPid}`,"/FO","CSV","/NH"],{windowsHide:true,timeout:2_000,maxBuffer:1024*1024});
+        return stdout.split(/\r?\n/u).some(line=>line.includes(`"${previous.ownerPid}"`));
+      }catch{return false;}
+    }
     try{process.kill(previous.ownerPid,0);return true;}
     catch(error){return(error as NodeJS.ErrnoException).code==="EPERM";}
   }
@@ -122,7 +131,7 @@ export class RuntimeOwnerStore{
     return this.withLock(async()=>{
       await this.cleanupTempFiles();
       const previous=await this.readOwnerForClaim();
-      const sameRuntime=previous?.ownerPid===ownerPid||this.previousOwnerIsAlive(previous);
+      const sameRuntime=previous?.ownerPid===ownerPid||await this.previousOwnerIsAlive(previous);
       const runtimeEpoch=sameRuntime?previous!.runtimeEpoch:this.nextRuntimeEpoch(previous);
       const runtimeId=sameRuntime?previous!.runtimeId:randomUUID();
       const owner:RuntimeOwner={

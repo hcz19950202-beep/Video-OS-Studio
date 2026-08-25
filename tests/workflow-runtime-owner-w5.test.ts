@@ -10,7 +10,7 @@ const makeRoot=async()=>{const root=await mkdtemp(join(tmpdir(),"video-os-w5-run
 
 describe("V2.2 W5 durable Workflow runtime ownership",()=>{
   it("shares one runtime start time across stores owned by the same app runtime",async()=>{
-    const root=await makeRoot();const storeA=new FileWorkflowStore(root);const storeB=new FileWorkflowStore(root);const ownerPid=4242;
+    const root=await makeRoot();const storeA=new FileWorkflowStore(root);const storeB=new FileWorkflowStore(root);const ownerPid=process.pid;
     const first=await storeA.runtimeOwner.claimRuntimeOwner(ownerPid);const second=await storeB.runtimeOwner.claimRuntimeOwner(ownerPid);
     expect(second).toMatchObject({runtimeId:first.runtimeId,runtimeEpoch:first.runtimeEpoch,runtimeStartedAt:first.runtimeStartedAt,ownerPid});
     expect(second.isNewRuntime).toBe(false);
@@ -20,16 +20,16 @@ describe("V2.2 W5 durable Workflow runtime ownership",()=>{
 
   it("starts a new runtime epoch when the durable owner pid changes",async()=>{
     const root=await makeRoot();const store=new FileWorkflowStore(root);
-    const oldOwner=await store.runtimeOwner.claimRuntimeOwner(5151);const newOwner=await store.runtimeOwner.claimRuntimeOwner(6161);
+    const oldOwner=await store.runtimeOwner.claimRuntimeOwner(2_147_483_646);const newOwner=await store.runtimeOwner.claimRuntimeOwner(2_147_483_647);
     expect(newOwner.runtimeId).not.toBe(oldOwner.runtimeId);expect(newOwner.runtimeEpoch).toBeGreaterThan(oldOwner.runtimeEpoch);
     expect(await store.runtimeOwner.isCurrentRuntime(newOwner.runtimeId)).toBe(true);
     expect(await store.runtimeOwner.isPreviousRuntime(oldOwner.runtimeId)).toBe(true);
     const persisted=JSON.parse(await readFile(join(root,".runtime-owner.json"),"utf8")) as {ownerPid:number;runtimeId:string;previousRuntimeId:string};
-    expect(persisted).toMatchObject({ownerPid:6161,runtimeId:newOwner.runtimeId,previousRuntimeId:oldOwner.runtimeId});
+    expect(persisted).toMatchObject({ownerPid:2_147_483_647,runtimeId:newOwner.runtimeId,previousRuntimeId:oldOwner.runtimeId});
   });
 
   it("serializes concurrent runtime-owner claims and leaves no owner lock",async()=>{
-    const root=await makeRoot();const ownerPid=7171;
+    const root=await makeRoot();const ownerPid=process.pid;
     const claims=await Promise.all(Array.from({length:16},()=>new FileWorkflowStore(root).runtimeOwner.claimRuntimeOwner(ownerPid)));
     expect(new Set(claims.map(claim=>claim.runtimeId)).size).toBe(1);
     expect(new Set(claims.map(claim=>claim.runtimeEpoch)).size).toBe(1);

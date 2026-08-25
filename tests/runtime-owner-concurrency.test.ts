@@ -37,7 +37,7 @@ describe("shared V2.2 W5 runtime owner",()=>{
 
   it("identifies the previous runtime after an owner-pid restart",async()=>{
     const root=await makeRoot();const owner=new RuntimeOwnerStore(root);
-    const oldRuntime=await owner.claimRuntimeOwner(3301);const newRuntime=await owner.claimRuntimeOwner(3302);
+    const oldRuntime=await owner.claimRuntimeOwner(2_147_483_646);const newRuntime=await owner.claimRuntimeOwner(2_147_483_647);
     expect(newRuntime.runtimeId).not.toBe(oldRuntime.runtimeId);
     expect(newRuntime.runtimeEpoch).toBeGreaterThan(oldRuntime.runtimeEpoch);
     expect(await owner.isCurrentRuntime(newRuntime.runtimeId)).toBe(true);
@@ -48,11 +48,11 @@ describe("shared V2.2 W5 runtime owner",()=>{
 
   it("keeps one runtime epoch across a live Next worker parent handoff",async()=>{
     const root=await makeRoot();const owner=new RuntimeOwnerStore(root);
-    const appRuntime=await owner.claimRuntimeOwner(process.pid);const lateWorker=await owner.claimRuntimeOwner(999999);
+    const appRuntime=await owner.claimRuntimeOwner(process.pid);const lateWorker=await owner.claimRuntimeOwner(2_147_483_646);
     expect(lateWorker.isNewRuntime).toBe(false);
     expect(lateWorker.runtimeId).toBe(appRuntime.runtimeId);
     expect(lateWorker.runtimeEpoch).toBe(appRuntime.runtimeEpoch);
-    const restarted=await owner.claimRuntimeOwner(999998);
+    const restarted=await owner.claimRuntimeOwner(2_147_483_647);
     expect(restarted.isNewRuntime).toBe(true);
     expect(restarted.runtimeId).not.toBe(appRuntime.runtimeId);
   });
