@@ -24,7 +24,7 @@ current_milestone: V2.2 WORKFLOW RUNTIME
 v2_2_status: W6 END-TO-END PRODUCT ACCEPTANCE ACTIVE
 active_workstream: V2.2-W6 End-to-End Product Acceptance
 active_branch: release/v2.2-final-acceptance
-active_pr: PENDING
+active_pr: 37
 local_validation_required: YES after cloud-green exact head
 local_validation_contract: docs/validation/LOCAL_VALIDATION_V2_2_W6_CONTRACT.md
 next_after_w6: V2.2 release finalization
@@ -43,7 +43,7 @@ V2.2 W2 Existing Capability Stage Integration → PR #33 COMPLETE
 V2.2 W3 Human Review + Invalidation            → PR #34 COMPLETE
 V2.2 W4 Workflow UI                            → PR #35 COMPLETE
 V2.2 W5 Failure / Retry / Restart Hardening    → PR #36 COMPLETE / main 2bdbe3aa...
-V2.2 W6 End-to-End Product Acceptance          → ACTIVE
+V2.2 W6 End-to-End Product Acceptance          → PR #37 ACTIVE
 ```
 
 ## W5 accepted evidence
