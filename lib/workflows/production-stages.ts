@@ -2,6 +2,7 @@ import {createHash} from "node:crypto";
 import type {FileSystemAdapter} from "@/adapters/contracts";
 import type {CreateJobInput,JobArtifact,JobRecord} from "@/lib/jobs/schema";
 import type {ProjectMutationResponse,ProjectTransactionMutation} from "@/lib/project/mutation-contract";
+import type {ProjectOperationState} from "@/lib/project/mutation-coordinator";
 import type {ProjectRepository} from "@/lib/project/repository";
 import {buildAutoScenesTransaction} from "@/lib/scenes/model";
 import {getSegmentTimelineRange,segmentText} from "@/lib/script/model";
@@ -36,7 +37,10 @@ export type ProductionWorkflowJobRuntime=WorkflowJobRuntimePort&{
 };
 export type ProductionWorkflowRepository=Pick<ProjectRepository,"load"|"resolveProjectFile">;
 export type ProductionWorkflowFileSystem=Pick<FileSystemAdapter,"readText"|"writeTextAtomic">;
-export type ProductionWorkflowMutations={applyTransaction:(projectId:string,input:ProjectTransactionMutation)=>Promise<ProjectMutationResponse>};
+export type ProductionWorkflowMutations={
+  applyTransaction:(projectId:string,input:ProjectTransactionMutation)=>Promise<ProjectMutationResponse>;
+  getOperation?:(projectId:string,operationId:string)=>Promise<ProjectOperationState|null>;
+};
 export type ProductionWorkflowVisualPlan={
   generate:(projectId:string)=>Promise<VisualPlan>;
   apply:(projectId:string,plan:VisualPlan,selectedIds:string[],meta:{expectedRevision:number;operationId:string})=>Promise<VisualPlanApplyResult>;
@@ -50,9 +54,12 @@ export type ProductionWorkflowDependencies={
   assetBaseUrl:string;
 };
 
+type VisualApplyResult=Pick<VisualPlanApplyResult,"project"|"appliedIds"|"alreadyApplied">;
+
 const stableValue=(value:unknown):unknown=>Array.isArray(value)?value.map(stableValue):value&&typeof value==="object"?Object.fromEntries(Object.entries(value as Record<string,unknown>).sort(([a],[b])=>a.localeCompare(b)).map(([key,item])=>[key,stableValue(item)])):value;
 const digest=(value:unknown)=>createHash("sha256").update(JSON.stringify(stableValue(value))).digest("hex");
-const operationId=(context:WorkflowStageExecutionContext,suffix:string)=>`wf-${createHash("sha256").update(`${context.operationId}:${suffix}`).digest("hex").slice(0,32)}-${suffix}`.slice(0,160);
+const operationIdFromBase=(baseOperationId:string,suffix:string)=>`wf-${createHash("sha256").update(`${baseOperationId}:${suffix}`).digest("hex").slice(0,32)}-${suffix}`.slice(0,160);
+const operationId=(context:WorkflowStageExecutionContext,suffix:string)=>operationIdFromBase(context.operationId,suffix);
 const suggestionSuffix=(suggestion:VisualSuggestion)=>`hf-${createHash("sha256").update(suggestion.id).digest("hex").slice(0,16)}`;
 const latestProject=(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext)=>deps.repository.load(context.run.projectId);
 const selectedSourceAssets=(project:Project,context:WorkflowStageExecutionContext)=>{const requested=new Set(context.run.sourceAssetIds);return project.assets.filter(asset=>requested.has(asset.id));};
@@ -64,6 +71,8 @@ const primarySourceVideo=(project:Project,context:WorkflowStageExecutionContext)
   if(!asset)throw new Error("Workflow requires an imported source video before Generate First Draft.");
   return asset;
 };
+const projectChangedError=(context:WorkflowStageExecutionContext,expectedRevision:number,currentRevision:number)=>Object.assign(new Error(`Project changed from revision ${expectedRevision} to ${currentRevision} while workflow stage ${context.stage.id} was running. Retry the stage from the latest Project revision.`),{code:"WORKFLOW_PROJECT_CHANGED_DURING_STAGE",retryable:true,details:{stageId:context.stage.id,expectedRevision,currentRevision}});
+const assertRevision=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext,expectedRevision:number)=>{const project=await latestProject(deps,context);if(project.project.revision!==expectedRevision)throw projectChangedError(context,expectedRevision,project.project.revision);return project;};
 const artifactKind=(kind:JobArtifact["kind"]):WorkflowArtifactReference["kind"]=>kind==="transcript"?"transcript":kind==="render"?"final-render":kind==="overlay"?"motion":"other";
 const jobArtifacts=async(deps:ProductionWorkflowDependencies,stageId:string,jobId:string)=>{
   const artifacts=await deps.jobs.getArtifacts(jobId);
@@ -71,12 +80,30 @@ const jobArtifacts=async(deps:ProductionWorkflowDependencies,stageId:string,jobI
 };
 const jobArtifactsForIds=async(deps:ProductionWorkflowDependencies,stageId:string,jobIds:string[])=>{const batches=await Promise.all(jobIds.map(jobId=>jobArtifacts(deps,stageId,jobId)));return batches.flat();};
 const nonRetryableJobError=(job:JobRecord)=>Object.assign(new Error(job.error?.message??`Durable job ${job.id} cannot be retried.`),{code:job.error?.code??"WORKFLOW_JOB_NON_RETRYABLE",retryable:false});
+const staleInputJob=(job:JobRecord)=>job.error?.code==="PROJECT_REVISION_CONFLICT";
+const expectedRevisionChanged=(job:JobRecord,input:CreateJobInput)=>typeof job.input.expectedRevision==="number"&&typeof input.input.expectedRevision==="number"&&job.input.expectedRevision!==input.input.expectedRevision;
 const reusableJob=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext,input:CreateJobInput)=>{
   const prior=context.previousJobIds.at(-1);
   if(prior){
     const job=await deps.jobs.get(prior);
     if(job){
+      if(expectedRevisionChanged(job,input))return deps.jobs.create(input);
       if(["queued","preparing","running","completed"].includes(job.status))return job;
+      if(["failed","cancelled","interrupted"].includes(job.status)){
+        if(staleInputJob(job))return deps.jobs.create(input);
+        if(job.error?.retryable===false)throw nonRetryableJobError(job);
+        return deps.jobs.retry(prior);
+      }
+    }
+  }
+  return deps.jobs.create(input);
+};
+const renderJobForAttempt=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext,input:CreateJobInput)=>{
+  const prior=context.previousJobIds.at(-1);
+  if(prior){
+    const job=await deps.jobs.get(prior);
+    if(job){
+      if(["queued","preparing","running"].includes(job.status))return job;
       if(["failed","cancelled","interrupted"].includes(job.status)){
         if(job.error?.retryable===false)throw nonRetryableJobError(job);
         return deps.jobs.retry(prior);
@@ -85,9 +112,28 @@ const reusableJob=async(deps:ProductionWorkflowDependencies,context:WorkflowStag
   }
   return deps.jobs.create(input);
 };
+const appliedHistoricalOperation=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext,suffix:string)=>{
+  if(!deps.mutations.getOperation)return null;
+  for(const baseOperationId of [...context.execution.operationIds].reverse()){
+    const state=await deps.mutations.getOperation(context.run.projectId,operationIdFromBase(baseOperationId,suffix));
+    if(state?.status==="applied")return state;
+  }
+  return null;
+};
+const stageOwnedProjectRevision=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext)=>{
+  let revision=context.execution.baseProjectRevision??context.run.lastKnownProjectRevision;
+  for(const jobId of context.execution.jobIds){
+    const job=await deps.jobs.get(jobId);
+    if(job?.status==="completed"&&typeof job.output?.projectRevision==="number")revision=Math.max(revision,job.output.projectRevision);
+  }
+  return revision;
+};
 const transactionPayload=(transaction:ProjectCommandTransaction):ProjectTransactionMutation["transaction"]=>({label:transaction.label,commands:transaction.commands});
 const applyTransaction=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext,transaction:ProjectCommandTransaction,suffix:string)=>{
-  const project=await latestProject(deps,context);
+  const recovered=await appliedHistoricalOperation(deps,context,suffix);
+  if(recovered){const project=await latestProject(deps,context);return{project,operationId:recovered.operationId,appliedRevision:recovered.appliedRevision,alreadyApplied:true};}
+  const expectedRevision=context.execution.baseProjectRevision??context.run.lastKnownProjectRevision;
+  const project=await assertRevision(deps,context,expectedRevision);
   return deps.mutations.applyTransaction(project.project.id,{expectedRevision:project.project.revision,transactionId:operationId(context,suffix),transaction:transactionPayload(transaction)});
 };
 const scriptDigestInput=(project:Project)=>project.script.segments.filter(segment=>segment.status==="active").map(segment=>({id:segment.id,status:segment.status,words:segment.words.map(word=>({text:word.text,startFrame:word.startFrame,endFrame:word.endFrame}))}));
@@ -130,7 +176,7 @@ const mediaNormalizeExecutor=(deps:ProductionWorkflowDependencies):WorkflowStage
   return{kind:"completed",outputDigest:digest({assetId:asset.id,workingRelativePath:asset.relativePath,originalRelativePath:asset.originalRelativePath??null,mimeType:asset.mimeType,normalized:Boolean(asset.originalRelativePath)})};
 }});
 const transcribeExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({
-  start:async context=>{const project=await latestProject(deps,context);const job=await reusableJob(deps,context,{type:"video-use-transcribe",projectId:project.project.id,input:{expectedRevision:project.project.revision,operationId:operationId(context,"transcribe")}});return{kind:"job",jobId:job.id};},
+  start:async context=>{const expectedRevision=context.execution.baseProjectRevision??context.run.lastKnownProjectRevision;const project=await assertRevision(deps,context,expectedRevision);const job=await reusableJob(deps,context,{type:"video-use-transcribe",projectId:project.project.id,input:{expectedRevision:project.project.revision,operationId:operationId(context,"transcribe")}});return{kind:"job",jobId:job.id};},
   reconcileJob:async(context,job)=>{const project=await latestProject(deps,context);return{projectRevision:project.project.revision,artifacts:await jobArtifacts(deps,context.stage.id,job.id),outputDigest:digest({script:scriptDigestInput(project),transcriptRelativePath:job.output?.transcriptRelativePath,packedTranscriptRelativePath:job.output?.packedTranscriptRelativePath})};},
 });
 const scriptAnalysisExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{
@@ -140,10 +186,17 @@ const scriptAnalysisExecutor=(deps:ProductionWorkflowDependencies):WorkflowStage
   const analysis={...stableAnalysis,generatedAt:new Date().toISOString()};const relativePath="edit/workflow-script-analysis.json";await deps.fs.writeTextAtomic(deps.repository.resolveProjectFile(project.project.id,relativePath),JSON.stringify(analysis,null,2)+"\n");
   return{kind:"completed",outputDigest:digest(stableAnalysis),artifacts:[{id:`wf-script-analysis-${context.run.id}`,stageId:context.stage.id,kind:"script-analysis",createdAt:new Date().toISOString(),projectRevision:project.project.revision,relativePath,digest:digest(stableAnalysis)}]};
 }});
-const sceneDetectionExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{const project=await latestProject(deps,context);const committed=await applyTransaction(deps,context,buildAutoScenesTransaction(project),"scenes");return{kind:"completed",projectRevision:committed.appliedRevision,outputDigest:digest(committed.project.scenes.map(scene=>({id:scene.id,type:scene.semanticType,start:scene.startFrame,end:scene.endFrame,summary:scene.summary})))};}});
-const captionGenerationExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{const project=await latestProject(deps,context);const committed=await applyTransaction(deps,context,buildCaptionTransaction(project,operationId(context,"captions")),"captions");const captions=committed.project.tracks.find(track=>track.id==="captions-main")?.clips??[];return{kind:"completed",projectRevision:committed.appliedRevision,outputDigest:digest(captions.map(clip=>({id:clip.id,start:clip.startFrame,duration:clip.durationInFrames,...(clip.type==="caption"?{text:clip.text}:{})})))};}});
+const sceneDetectionExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{const project=await latestProject(deps,context);const committed=await applyTransaction(deps,context,buildAutoScenesTransaction(project),"scenes");return{kind:"completed",projectRevision:committed.project.project.revision,outputDigest:digest(committed.project.scenes.map(scene=>({id:scene.id,type:scene.semanticType,start:scene.startFrame,end:scene.endFrame,summary:scene.summary})))};}});
+const captionGenerationExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{const project=await latestProject(deps,context);const committed=await applyTransaction(deps,context,buildCaptionTransaction(project,operationId(context,"captions")),"captions");const captions=committed.project.tracks.find(track=>track.id==="captions-main")?.clips??[];return{kind:"completed",projectRevision:committed.project.project.revision,outputDigest:digest(captions.map(clip=>({id:clip.id,start:clip.startFrame,duration:clip.durationInFrames,...(clip.type==="caption"?{text:clip.text}:{})})))};}});
 const visualPlanningExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{const plan=await deps.visualPlan.generate(context.run.projectId);const relativePath="edit/ai-director-plan.json";const contentDigest=digest(visualPlanDigestInput(plan));return{kind:"completed",outputDigest:contentDigest,artifacts:[{id:`wf-visual-plan-${context.run.id}`,stageId:context.stage.id,kind:"visual-plan",createdAt:new Date().toISOString(),projectRevision:(await latestProject(deps,context)).project.revision,relativePath,digest:contentDigest}]};}});
-const applyVisualIds=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext,plan:VisualPlan,ids:string[],suffix:string)=>{if(ids.length===0)return null;const project=await latestProject(deps,context);return deps.visualPlan.apply(project.project.id,plan,ids,{expectedRevision:project.project.revision,operationId:operationId(context,suffix)});};
+const applyVisualIds=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext,plan:VisualPlan,ids:string[],suffix:string):Promise<VisualApplyResult|null>=>{
+  if(ids.length===0)return null;
+  const recovered=await appliedHistoricalOperation(deps,context,suffix);
+  if(recovered){const project=await latestProject(deps,context);return{project,appliedIds:ids,alreadyApplied:true};}
+  const expectedRevision=await stageOwnedProjectRevision(deps,context);
+  const project=await assertRevision(deps,context,expectedRevision);
+  return deps.visualPlan.apply(project.project.id,plan,ids,{expectedRevision:project.project.revision,operationId:operationId(context,suffix)});
+};
 
 const hyperframesSignature=(suggestion:VisualSuggestion)=>digest({effectId:suggestion.recommendation.effectId,props:suggestion.recommendation.props??{},startFrame:suggestion.startFrame,durationInFrames:suggestion.endFrame-suggestion.startFrame});
 const jobHyperframesSignature=(job:JobRecord)=>job.type==="hyperframes-render"?digest({effectId:job.input.effectId,props:job.input.props??{},startFrame:job.input.startFrame,durationInFrames:job.input.durationInFrames}):null;
@@ -154,13 +207,16 @@ const knownHyperframesJob=async(deps:ProductionWorkflowDependencies,jobIds:strin
 };
 const ensureHyperframesJob=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext,suggestion:VisualSuggestion)=>{
   const existing=await knownHyperframesJob(deps,context.execution.jobIds,suggestion);
+  const effectId=suggestion.recommendation.effectId;if(!effectId)throw new Error(`HyperFrames suggestion ${suggestion.id} has no effectId.`);
   if(existing){
     if(["queued","preparing","running","completed"].includes(existing.status))return existing;
-    if(existing.error?.retryable===false)throw nonRetryableJobError(existing);
-    return deps.jobs.retry(existing.id);
+    if(!staleInputJob(existing)){
+      if(existing.error?.retryable===false)throw nonRetryableJobError(existing);
+      return deps.jobs.retry(existing.id);
+    }
   }
-  const effectId=suggestion.recommendation.effectId;if(!effectId)throw new Error(`HyperFrames suggestion ${suggestion.id} has no effectId.`);
-  const project=await latestProject(deps,context);
+  const expectedRevision=await stageOwnedProjectRevision(deps,context);
+  const project=await assertRevision(deps,context,expectedRevision);
   return deps.jobs.create({type:"hyperframes-render",projectId:project.project.id,input:{expectedRevision:project.project.revision,operationId:operationId(context,suggestionSuffix(suggestion)),effectId,props:suggestion.recommendation.props??{},startFrame:suggestion.startFrame,durationInFrames:suggestion.endFrame-suggestion.startFrame}});
 };
 const nextPendingHyperframesJob=async(deps:ProductionWorkflowDependencies,context:WorkflowStageExecutionContext,hyperframes:VisualSuggestion[])=>{
@@ -175,13 +231,13 @@ const motionGenerationExecutor=(deps:ProductionWorkflowDependencies):WorkflowSta
   start:async context=>{const plan=await readVisualPlan(deps,context.run.projectId);const hyperframes=suggestionsFor(plan,"hyperframes");const next=await nextPendingHyperframesJob(deps,context,hyperframes);if(next)return{kind:"job",jobId:next.id};return{kind:"completed",...await completeMotionPlan(deps,context,plan)};},
   reconcileJob:async(context,_job)=>{const plan=await readVisualPlan(deps,context.run.projectId);const latestExecution={...context.execution,jobIds:[...context.execution.jobIds]};const next=await nextPendingHyperframesJob(deps,{...context,execution:latestExecution},suggestionsFor(plan,"hyperframes"));if(next)return{kind:"job",jobId:next.id};return completeMotionPlan(deps,context,plan);},
 });
-const brollAssemblyExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{const plan=await readVisualPlan(deps,context.run.projectId);const ids=suggestionsFor(plan,"broll").map(item=>item.id);const applied=await applyVisualIds(deps,context,plan,ids,"broll");const project=applied?.project??await latestProject(deps,context);return{kind:"completed",projectRevision:applied?.project.project.revision,outputDigest:digest({appliedIds:applied?.appliedIds??[],brollClips:project.tracks.find(track=>track.id==="broll-main")?.clips.map(clip=>clip.id)??[]})};}});
+const brollAssemblyExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{const plan=await readVisualPlan(deps,context.run.projectId);const ids=suggestionsFor(plan,"broll").map(item=>item.id);const applied=await applyVisualIds(deps,context,plan,ids,"broll");const project=applied?.project??await latestProject(deps,context);return{kind:"completed",projectRevision:project.project.revision,outputDigest:digest({appliedIds:applied?.appliedIds??[],brollClips:project.tracks.find(track=>track.id==="broll-main")?.clips.map(clip=>clip.id)??[]})};}});
 const audioAssemblyExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{const project=await latestProject(deps,context);const audio=project.tracks.find(track=>track.id==="audio-main")?.clips??[];return{kind:"completed",outputDigest:digest(audio.map(clip=>({id:clip.id,start:clip.startFrame,duration:clip.durationInFrames,enabled:clip.enabled})))};}});
 const timelineAssemblyExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{const project=await latestProject(deps,context);const timeline=project.tracks.map(track=>({id:track.id,type:track.type,clips:track.clips.map(clip=>({id:clip.id,type:clip.type,start:clip.startFrame,duration:clip.durationInFrames,enabled:clip.enabled,layer:clip.layer}))}));return{kind:"completed",outputDigest:digest({durationInFrames:project.canvas.durationInFrames,timeline})};}});
 const previewExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({start:async context=>{const project=await latestProject(deps,context);const video=project.tracks.find(track=>track.id==="video-main")?.clips.filter(clip=>clip.type==="video"&&clip.enabled)??[];if(video.length===0)throw new Error("Preview requires at least one enabled video clip on video-main.");return{kind:"completed",outputDigest:digest({canvas:project.canvas,projectRevision:project.project.revision,videoClips:video.map(clip=>clip.id),captionCount:project.tracks.find(track=>track.id==="captions-main")?.clips.length??0,motionCount:project.tracks.find(track=>track.id==="motion-main")?.clips.length??0,brollCount:project.tracks.find(track=>track.id==="broll-main")?.clips.length??0,audioCount:project.tracks.find(track=>track.id==="audio-main")?.clips.length??0})};}});
 const finalRenderExecutor=(deps:ProductionWorkflowDependencies):WorkflowStageExecutor=>({
-  start:async context=>{const project=await latestProject(deps,context);const job=await reusableJob(deps,context,{type:"render-final",projectId:project.project.id,input:{assetBaseUrl:deps.assetBaseUrl}});return{kind:"job",jobId:job.id};},
-  reconcileJob:async(context,job)=>({artifacts:await jobArtifacts(deps,context.stage.id,job.id),outputDigest:digest({outputRelativePath:job.output?.outputRelativePath,mode:job.output?.mode,profile:job.output?.profile})}),
+  start:async context=>{const expectedRevision=context.execution.baseProjectRevision??context.run.lastKnownProjectRevision;const project=await assertRevision(deps,context,expectedRevision);const job=await renderJobForAttempt(deps,context,{type:"render-final",projectId:project.project.id,input:{assetBaseUrl:deps.assetBaseUrl}});return{kind:"job",jobId:job.id};},
+  reconcileJob:async(context,job)=>{const project=await latestProject(deps,context);const sourceProjectRevision=typeof job.output?.sourceProjectRevision==="number"?job.output.sourceProjectRevision:context.execution.baseProjectRevision;if(sourceProjectRevision!==undefined&&project.project.revision!==sourceProjectRevision)throw projectChangedError(context,sourceProjectRevision,project.project.revision);return{artifacts:await jobArtifacts(deps,context.stage.id,job.id),outputDigest:digest({outputRelativePath:job.output?.outputRelativePath,mode:job.output?.mode,profile:job.output?.profile,sourceProjectRevision})};},
 });
 
 export const registerProductionWorkflowStages=(registry:WorkflowStageRegistry,deps:ProductionWorkflowDependencies)=>{

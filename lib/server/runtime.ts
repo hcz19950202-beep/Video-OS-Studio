@@ -18,6 +18,7 @@ import {RenderJobManager} from "@/lib/render/render-jobs";
 import {VideoUseService} from "@/lib/video-use/service";
 import {RulesVisualPlannerAdapter} from "@/lib/visual-planner/rules";
 import {VisualPlanService} from "@/lib/visual-planner/service";
+import {createWorkflowJobRuntimePort} from "@/lib/workflows/job-port";
 import {registerProductionWorkflowDefinitions} from "@/lib/workflows/production-definitions";
 import {registerProductionWorkflowStages} from "@/lib/workflows/production-stages";
 import {WorkflowDefinitionRegistry,WorkflowStageRegistry} from "@/lib/workflows/registry";
@@ -73,5 +74,6 @@ export const workflowStages=getGlobalRuntime(`${dataRoot}:workflow-stages`,()=>{
   });
   return registerW4WorkflowStages(registry,{repository:projectRepository,jobs:jobRuntime,fallbackAssetBaseUrl:fallbackWorkflowAssetBaseUrl});
 });
-export const workflowRunner=getGlobalRuntime(`${dataRoot}:workflow-runner`,()=>new WorkflowRunner(workflowStore,workflowDefinitions,workflowStages,jobRuntime));
+export const workflowJobRuntime=getGlobalRuntime(`${dataRoot}:workflow-job-runtime`,()=>createWorkflowJobRuntimePort(jobRuntime));
+export const workflowRunner=getGlobalRuntime(`${dataRoot}:workflow-runner`,()=>new WorkflowRunner(workflowStore,workflowDefinitions,workflowStages,workflowJobRuntime));
 export const workflowService=getGlobalRuntime(`${dataRoot}:workflow-service`,()=>new WorkflowService(projectRepository,workflowStore,workflowDefinitions,workflowRunner));

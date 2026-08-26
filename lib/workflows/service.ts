@@ -37,14 +37,21 @@ export class WorkflowSourceAssetNotFoundError extends Error{
 const nowIso=()=>new Date().toISOString();
 
 export class WorkflowService{
+  private readonly startupRecovery:Promise<void>;
+
   constructor(
     readonly projects:WorkflowProjectReader,
     readonly store:FileWorkflowStore,
     readonly definitions:WorkflowDefinitionRegistry,
     readonly runner:WorkflowRunner,
-  ){}
+  ){
+    this.startupRecovery=this.runner.recover();
+  }
+
+  private ready(){return this.startupRecovery;}
 
   async create(input:CreateWorkflowRunInput):Promise<WorkflowRun>{
+    await this.ready();
     const parsed=CreateWorkflowRunInputSchema.parse(input);
     const definition=this.definitions.get(parsed.definitionId,parsed.definitionVersion);
     const project=await this.projects.load(parsed.projectId);
@@ -77,24 +84,38 @@ export class WorkflowService{
     return created;
   }
 
-  private async requireRun(workflowId:string){const id=WorkflowRunIdSchema.parse(workflowId);const run=await this.store.get(id);if(!run)throw new WorkflowNotFoundError(id);return run;}
+  private async requireRun(workflowId:string,skipRunLock=false){await this.ready();const id=WorkflowRunIdSchema.parse(workflowId);const run=await this.store.get(id,{skipRunLock});if(!run)throw new WorkflowNotFoundError(id);return run;}
   private async latestProjectRevision(workflowId:string){const run=await this.requireRun(workflowId);return(await this.projects.load(run.projectId)).project.revision;}
 
   async bindAssetBaseUrl(workflowId:string,assetBaseUrl:string){
-    const id=WorkflowRunIdSchema.parse(workflowId);const url=z.string().url().parse(assetBaseUrl);const run=await this.requireRun(id);
-    if(run.assetBaseUrl===url)return run;
-    return this.store.save(WorkflowRunSchema.parse({...run,assetBaseUrl:url,updatedAt:nowIso()}));
+    const id=WorkflowRunIdSchema.parse(workflowId);const url=z.string().url().parse(assetBaseUrl);
+    return this.store.withRunLock(id,async()=>{
+      const run=await this.requireRun(id,true);
+      if(run.assetBaseUrl===url)return run;
+      return this.store.save(WorkflowRunSchema.parse({...run,assetBaseUrl:url,updatedAt:nowIso()}));
+    });
   }
 
-  get(workflowId:string){return this.store.get(WorkflowRunIdSchema.parse(workflowId));}
-  list(){return this.store.list();}
-  activity(workflowId:string){return this.store.readActivity(WorkflowRunIdSchema.parse(workflowId));}
-  start(workflowId:string){return this.runner.start(WorkflowRunIdSchema.parse(workflowId));}
-  pause(workflowId:string){return this.runner.pause(WorkflowRunIdSchema.parse(workflowId));}
-  async resume(workflowId:string){const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.resume(id,await this.latestProjectRevision(id));}
-  cancel(workflowId:string){return this.runner.cancel(WorkflowRunIdSchema.parse(workflowId));}
-  retryStage(workflowId:string,stageId:string){return this.runner.retryStage(WorkflowRunIdSchema.parse(workflowId),stageId);}
-  async replayFromStage(workflowId:string,stageId:string){const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.replayFromStage(id,stageId,await this.latestProjectRevision(id));}
-  async approveCheckpoint(workflowId:string,checkpointId:string){const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.approveCheckpoint(id,checkpointId,await this.latestProjectRevision(id));}
-  recover(){return this.runner.recover();}
+  async get(workflowId:string){await this.ready();return this.store.get(WorkflowRunIdSchema.parse(workflowId));}
+  async list(){await this.ready();return this.store.list();}
+  async activity(workflowId:string){await this.ready();return this.store.readActivity(WorkflowRunIdSchema.parse(workflowId));}
+  async start(workflowId:string){await this.ready();return this.runner.start(WorkflowRunIdSchema.parse(workflowId));}
+  async pause(workflowId:string){await this.ready();return this.runner.pause(WorkflowRunIdSchema.parse(workflowId));}
+  async resume(workflowId:string){await this.ready();const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.resume(id,await this.latestProjectRevision(id));}
+  async cancel(workflowId:string){await this.ready();return this.runner.cancel(WorkflowRunIdSchema.parse(workflowId));}
+  async retryStage(workflowId:string,stageId:string){
+    await this.ready();
+    const id=WorkflowRunIdSchema.parse(workflowId);
+    await this.store.withRunLock(id,async()=>{
+      const run=await this.requireRun(id,true);
+      const projectRevision=(await this.projects.load(run.projectId)).project.revision;
+      if(projectRevision>run.lastKnownProjectRevision){
+        await this.store.save(WorkflowRunSchema.parse({...run,lastKnownProjectRevision:projectRevision,updatedAt:nowIso()}));
+      }
+    });
+    return this.runner.retryStage(id,stageId);
+  }
+  async replayFromStage(workflowId:string,stageId:string){await this.ready();const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.replayFromStage(id,stageId,await this.latestProjectRevision(id));}
+  async approveCheckpoint(workflowId:string,checkpointId:string){await this.ready();const id=WorkflowRunIdSchema.parse(workflowId);return this.runner.approveCheckpoint(id,checkpointId,await this.latestProjectRevision(id));}
+  async recover(){await this.ready();return this.runner.recover();}
 }

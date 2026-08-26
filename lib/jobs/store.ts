@@ -2,14 +2,19 @@ import {randomUUID} from "node:crypto";
 import {appendFile,mkdir,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {JobArtifactsSchema,JobIdSchema,JobRecordSchema,type JobArtifact,type JobRecord} from "@/lib/jobs/schema";
+import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 
 export type JobLogStream="stdout"|"stderr";
 const parseJson=<T>(text:string,parser:(value:unknown)=>T)=>parser(JSON.parse(text));
 
 export class FileJobStore{
   readonly jobsRoot:string;
+  readonly runtimeOwner:RuntimeOwnerStore;
   private readonly pathChains=new Map<string,Promise<void>>();
-  constructor(dataRoot:string){this.jobsRoot=join(dataRoot,"jobs");}
+  constructor(dataRoot:string,runtimeOwner=new RuntimeOwnerStore(dataRoot)){
+    this.jobsRoot=join(dataRoot,"jobs");
+    this.runtimeOwner=runtimeOwner;
+  }
 
   private dir(jobId:string){return join(this.jobsRoot,JobIdSchema.parse(jobId));}
   private path(jobId:string,name:"job.json"|"stdout.log"|"stderr.log"|"artifacts.json"){return join(this.dir(jobId),name);}
@@ -40,21 +45,6 @@ export class FileJobStore{
   }
 
   async ensure(){await mkdir(this.jobsRoot,{recursive:true});}
-
-  async claimRuntimeOwner(ownerPid=process.ppid){
-    if(process.env.NEXT_PHASE==="phase-production-build")return false;
-    const ownerPath=join(this.jobsRoot,".runtime-owner.json");
-    let previousOwnerPid:number|undefined;
-    try{
-      const parsed=JSON.parse(await readFile(ownerPath,"utf8")) as {ownerPid?:unknown;pid?:unknown};
-      if(typeof parsed.ownerPid==="number")previousOwnerPid=parsed.ownerPid;
-      else if(typeof parsed.pid==="number")previousOwnerPid=parsed.pid;
-    }catch(error){if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;}
-    const sameProcess=previousOwnerPid===ownerPid;
-    await mkdir(this.jobsRoot,{recursive:true});
-    await writeFile(ownerPath,JSON.stringify({pid:process.pid,ownerPid,updatedAt:new Date().toISOString()},null,2)+"\n","utf8");
-    return sameProcess;
-  }
 
   async create(record:JobRecord){
     const parsed=JobRecordSchema.parse(record);

@@ -1,4 +1,4 @@
-import {mkdtemp,readFile,rm} from "node:fs/promises";
+import {access,mkdtemp,readFile,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {afterEach,describe,expect,it} from "vitest";
@@ -27,11 +27,41 @@ describe("H3 durable job runtime",()=>{
     expect(JSON.parse(await readFile(join(root,"jobs",created.id,"artifacts.json"),"utf8"))).toHaveLength(1);
   });
 
+  it("persists the stable runtime owner pid for jobs created by a live worker",async()=>{
+    const{store}=await makeStore();const owner=await store.runtimeOwner.claimRuntimeOwner(process.ppid);let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;});
+    const runtime=new DurableJobRuntime(store,{"render-final":async()=>{await gate;return{};}});const created=await runtime.create({type:"render-final",projectId:"demo",input:{}});const running=await waitFor(()=>runtime.get(created.id),job=>job?.status==="running");
+    expect(running?.executorPid).toBe(owner.ownerPid);release();await waitFor(()=>runtime.get(created.id),job=>job?.status==="completed");
+  });
+
   it("distinguishes same-process route runtimes from a restarted process",async()=>{
     const{store}=await makeStore();
-    expect(await store.claimRuntimeOwner(1001)).toBe(false);
-    expect(await store.claimRuntimeOwner(1001)).toBe(true);
-    expect(await store.claimRuntimeOwner(1002)).toBe(false);
+    expect((await store.runtimeOwner.claimRuntimeOwner(2_147_483_646)).isNewRuntime).toBe(true);
+    expect((await store.runtimeOwner.claimRuntimeOwner(2_147_483_646)).isNewRuntime).toBe(false);
+    expect((await store.runtimeOwner.claimRuntimeOwner(2_147_483_647)).isNewRuntime).toBe(true);
+  });
+
+  it("recovers old active Jobs when Workflow claims the new runtime first",async()=>{
+    const{store}=await makeStore();await store.ensure();
+    const runtime=await store.runtimeOwner.claimRuntimeOwner();
+    const oldAt=new Date(runtime.runtimeStartedAt-1_000).toISOString();
+    const active=JobRecordSchema.parse({id:"33333333-3333-4333-8333-333333333333",type:"video-use-transcribe",projectId:"demo",status:"running",stage:"transcribing",progress:.5,attempt:1,input:{expectedRevision:0,operationId:"old"},createdAt:oldAt,updatedAt:oldAt,startedAt:oldAt});
+    await store.create(active);
+    const jobRuntime=new DurableJobRuntime(store,{"video-use-transcribe":async()=>({recovered:true})});await jobRuntime.waitUntilReady();
+    const recovered=await store.get(active.id);
+    expect(recovered).toMatchObject({status:"interrupted",stage:"interrupted",error:{code:"JOB_INTERRUPTED",retryable:true}});
+  });
+
+  it("recovers a same-runtime Job whose executor process has exited",async()=>{
+    const{store}=await makeStore();await store.ensure();await store.runtimeOwner.claimRuntimeOwner(process.pid);
+    const at=new Date().toISOString();
+    const active=JobRecordSchema.parse({id:"44444444-4444-4444-8444-444444444444",type:"video-use-transcribe",projectId:"demo",status:"running",stage:"transcribing",progress:.5,attempt:1,input:{expectedRevision:0,operationId:"same-runtime"},executorPid:2_147_483_646,createdAt:at,updatedAt:at,startedAt:at});
+    await store.create(active);
+    const jobRuntime=new DurableJobRuntime(store,{"video-use-transcribe":async()=>({recovered:true})});await jobRuntime.waitUntilReady();
+    expect(await store.get(active.id)).toMatchObject({status:"interrupted",error:{code:"JOB_INTERRUPTED",retryable:true}});
+  });
+
+  it("atomically serializes concurrent runtime-owner claims",async()=>{
+    const{root}=await makeStore();const ownerPid=process.pid;const claims=await Promise.all(Array.from({length:16},()=>new FileJobStore(root).runtimeOwner.claimRuntimeOwner(ownerPid)));expect(new Set(claims.map(claim=>claim.runtimeId)).size).toBe(1);expect(claims.filter(claim=>claim.isNewRuntime)).toHaveLength(1);const persisted=JSON.parse(await readFile(join(root,".runtime-owner.json"),"utf8")) as {ownerPid:number;runtimeId:string};expect(persisted).toMatchObject({ownerPid,runtimeId:claims[0].runtimeId});await expect(access(join(root,".runtime-owner.lock"))).rejects.toMatchObject({code:"ENOENT"});
   });
 
   it("keeps concurrent job reads from colliding with Windows atomic metadata writes",async()=>{

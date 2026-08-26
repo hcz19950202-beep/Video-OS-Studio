@@ -61,10 +61,11 @@ describe("V2.2 W4 user-facing workflow contract",()=>{
       create:async(input:CreateJobInput)=>{creates++;return JobRecordSchema.parse({id:nextId,type:"render-final",projectId:"w4-project",status:"queued",stage:"queued",progress:0,attempt:1,input:input.input,createdAt:"2026-08-24T00:00:02.000Z",updatedAt:"2026-08-24T00:00:02.000Z"});},
       getArtifacts:async()=>[],
     };
-    const registry=registerW4WorkflowStages(new WorkflowStageRegistry(),{repository:{load:async()=>projectFixture()},jobs,fallbackAssetBaseUrl:"http://127.0.0.1:3000"});
+    const baseProject=projectFixture();const renderProject={...baseProject,project:{...baseProject.project,revision:5}};
+    const registry=registerW4WorkflowStages(new WorkflowStageRegistry(),{repository:{load:async()=>renderProject},jobs,fallbackAssetBaseUrl:"http://127.0.0.1:3000"});
     const definition=W4_WORKFLOW_DEFINITIONS[0];const stage=definition.stages.find(item=>item.id==="FINAL_RENDER")!;
     const run={id:"33333333-3333-4333-8333-333333333333",definitionId:definition.id,definitionVersion:definition.version,projectId:"w4-project",createdAt:"2026-08-24T00:00:00.000Z",updatedAt:"2026-08-24T00:00:00.000Z",status:"running" as const,scenario:"talking-head" as const,sourceAssetIds:[],assetBaseUrl:"http://127.0.0.1:3017",canvasSnapshot:{width:1920,height:1080,fps:30},stageExecutions:[],checkpoints:[],artifacts:[],lastKnownProjectRevision:5};
-    const context={run,definition,stage,execution:{stageId:"FINAL_RENDER",status:"running" as const,attempt:2,jobIds:[priorId],operationIds:["old","new"],artifactIds:[]},attemptId:"44444444-4444-4444-8444-444444444444",operationId:"workflow:new",previousJobIds:[priorId]} as WorkflowStageExecutionContext;
+    const context={run,definition,stage,execution:{stageId:"FINAL_RENDER",status:"running" as const,attempt:2,baseProjectRevision:5,jobIds:[priorId],operationIds:["old","new"],artifactIds:[]},attemptId:"44444444-4444-4444-8444-444444444444",operationId:"workflow:new",previousJobIds:[priorId]} as WorkflowStageExecutionContext;
     const result=await registry.get(W4_FINAL_RENDER_EXECUTOR_KEY).start(context);
     expect(result).toEqual({kind:"job",jobId:nextId});expect(creates).toBe(1);expect(retries).toBe(0);
   });

@@ -1,10 +1,13 @@
 import {randomUUID} from "node:crypto";
-import {appendFile,mkdir,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
+import {appendFile,mkdir,open,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
+import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 import {WorkflowActivitySchema,type WorkflowActivity} from "@/lib/workflows/activity";
 import {WorkflowRunIdSchema,WorkflowRunSchema,type WorkflowRun} from "@/lib/workflows/schema";
 
 const parseWorkflow=(text:string)=>WorkflowRunSchema.parse(JSON.parse(text));
+const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+const lockContention=(code:string|undefined)=>code==="EEXIST"||code==="EPERM"||code==="EACCES";
 
 export class WorkflowNotFoundError extends Error{
   readonly code="WORKFLOW_NOT_FOUND";
@@ -16,9 +19,13 @@ export class WorkflowNotFoundError extends Error{
 
 export class FileWorkflowStore{
   readonly workflowsRoot:string;
+  readonly runtimeOwner:RuntimeOwnerStore;
   private readonly pathChains=new Map<string,Promise<void>>();
 
-  constructor(dataRoot:string){this.workflowsRoot=join(dataRoot,"workflows");}
+  constructor(dataRoot:string,runtimeOwner=new RuntimeOwnerStore(dataRoot)){
+    this.workflowsRoot=join(dataRoot,"workflows");
+    this.runtimeOwner=runtimeOwner;
+  }
 
   private runDir(workflowRunId:string){return join(this.workflowsRoot,WorkflowRunIdSchema.parse(workflowRunId));}
   private workflowPath(workflowRunId:string){return join(this.runDir(workflowRunId),"workflow.json");}
@@ -51,6 +58,30 @@ export class FileWorkflowStore{
 
   async ensure(){await mkdir(this.workflowsRoot,{recursive:true});}
 
+  async withRunLock<T>(workflowRunId:string,fn:()=>Promise<T>):Promise<T>{
+    const id=WorkflowRunIdSchema.parse(workflowRunId);
+    const lockPath=join(this.runDir(id),".workflow-run.lock");
+    let handle:Awaited<ReturnType<typeof open>>|undefined;
+    for(;;){
+      try{handle=await open(lockPath,"wx");break;}
+      catch(error){
+        const code=(error as NodeJS.ErrnoException).code;
+        if(!lockContention(code))throw error;
+        try{
+          const lockHandle=await open(lockPath,"r");
+          try{if(Date.now()-(await lockHandle.stat()).mtimeMs>30_000)await rm(lockPath,{force:true});}
+          finally{await lockHandle.close();}
+        }catch(lockError){
+          const lockCode=(lockError as NodeJS.ErrnoException).code;
+          if(lockCode!=="ENOENT"&&!lockContention(lockCode))throw lockError;
+        }
+        await sleep(5);
+      }
+    }
+    try{return await fn();}
+    finally{await handle.close();await rm(lockPath,{force:true});}
+  }
+
   async create(run:WorkflowRun){
     const parsed=WorkflowRunSchema.parse(run);
     await this.ensure();
@@ -63,21 +94,24 @@ export class FileWorkflowStore{
     return parsed;
   }
 
-  async get(workflowRunId:string):Promise<WorkflowRun|null>{
+  async get(workflowRunId:string,options:{skipRunLock?:boolean}={}):Promise<WorkflowRun|null>{
     const id=WorkflowRunIdSchema.parse(workflowRunId);
     const path=this.workflowPath(id);
-    return this.withPathLock(path,async()=>{
+    const read=()=>this.withPathLock(path,async()=>{
       try{return parseWorkflow(await readFile(path,"utf8"));}
       catch(error){
         if((error as NodeJS.ErrnoException).code==="ENOENT")return null;
         throw error;
       }
     });
+    if(options.skipRunLock)return read();
+    try{return await this.withRunLock(id,read);}
+    catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return null;throw error;}
   }
 
   async save(run:WorkflowRun){
     const parsed=WorkflowRunSchema.parse(run);
-    const existing=await this.get(parsed.id);
+    const existing=await this.get(parsed.id,{skipRunLock:true});
     if(!existing)throw new WorkflowNotFoundError(parsed.id);
     await this.atomicWrite(this.workflowPath(parsed.id),JSON.stringify(parsed,null,2)+"\n");
     return parsed;

@@ -35,6 +35,7 @@ export class DurableJobRuntime{
   private readonly activeControllers=new Map<string,AbortController>();
   private readonly stateLocks=new Map<string,Promise<void>>();
   private readonly limits:Record<JobConcurrencyGroup,number>;
+  private runtimeExecutorPid=process.pid;
   private readonly ready:Promise<void>;
 
   constructor(readonly store:FileJobStore,executors:Partial<Record<JobType,JobExecutor>>={},limits:Partial<Record<JobConcurrencyGroup,number>>={}){
@@ -58,11 +59,16 @@ export class DurableJobRuntime{
 
   private async initialize(){
     await this.store.ensure();
-    const sameProcess=await this.store.claimRuntimeOwner();
+    const runtimeClaim=process.env.NEXT_PHASE==="phase-production-build"?null:await this.store.runtimeOwner.claimRuntimeOwner();
+    if(runtimeClaim&&runtimeClaim.ownerPid>0)this.runtimeExecutorPid=runtimeClaim.ownerPid;
     const jobs=await this.store.list();
     for(const job of jobs){
       if(job.status==="queued")this.enqueue(job);
-      else if(!sameProcess&&(job.status==="preparing"||job.status==="running")){
+      else if(runtimeClaim&&(job.status==="preparing"||job.status==="running")){
+        const startedAt=Date.parse(job.startedAt??job.updatedAt??job.createdAt);
+        const priorRuntime=runtimeClaim.isNewRuntime||!Number.isFinite(startedAt)||startedAt<runtimeClaim.runtimeStartedAt;
+        const executorExited=job.executorPid===undefined||!(await this.store.runtimeOwner.isProcessAlive(job.executorPid));
+        if(!priorRuntime&&!executorExited)continue;
         const at=nowIso();
         await this.store.save(JobRecordSchema.parse({...job,status:"interrupted",stage:"interrupted",error:{code:"JOB_INTERRUPTED",message:"The Video OS process stopped while this job was active. Retry after verifying local engine state.",retryable:true},updatedAt:at,finishedAt:at}));
       }
@@ -126,7 +132,7 @@ export class DurableJobRuntime{
         const queued=await this.store.get(jobId);
         if(!queued||queued.status!=="queued")return null;
         const startedAt=nowIso();
-        return this.store.save(JobRecordSchema.parse({...queued,status:"preparing",stage:"preparing",progress:.02,startedAt,error:undefined,cancellationRequestedAt:undefined,finishedAt:undefined,updatedAt:startedAt}));
+        return this.store.save(JobRecordSchema.parse({...queued,status:"preparing",stage:"preparing",progress:.02,startedAt,executorPid:this.runtimeExecutorPid,error:undefined,cancellationRequestedAt:undefined,finishedAt:undefined,updatedAt:startedAt}));
       });
       if(!current)return;
       const executor=this.executors.get(current.type);
@@ -194,7 +200,7 @@ export class DurableJobRuntime{
       if(job.error?.retryable===false)throw new JobStateError(`Job ${jobId} failed with a non-retryable error (${job.error.code}). Create a new job with corrected input/state.`,job.status);
       const at=nowIso();
       await this.store.saveArtifacts(jobId,[]);
-      return this.store.save(JobRecordSchema.parse({...job,status:"queued",stage:"queued",progress:0,attempt:job.attempt+1,error:undefined,output:undefined,finishedAt:undefined,startedAt:undefined,cancellationRequestedAt:undefined,updatedAt:at}));
+      return this.store.save(JobRecordSchema.parse({...job,status:"queued",stage:"queued",progress:0,attempt:job.attempt+1,error:undefined,output:undefined,executorPid:undefined,finishedAt:undefined,startedAt:undefined,cancellationRequestedAt:undefined,updatedAt:at}));
     });
     await this.store.appendLog(jobId,"stdout",`\n[video-os] retry attempt ${retried.attempt}\n`);
     this.enqueue(retried);
