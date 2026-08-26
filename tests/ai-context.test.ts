@@ -50,6 +50,12 @@ describe("V2.3 A1 agent context",()=>{
     expect(context.selectedClips[0]?.text).toBe("15 days");
   });
 
+  it("does not materialize stale or unknown selection ids",()=>{
+    const context=buildAgentContextSnapshot(buildProject(),{selectedClipIds:["missing-clip"],selectedSceneId:"missing-scene"});
+    expect(context.selectedClips).toEqual([]);
+    expect(context.selectedScene).toBeNull();
+  });
+
   it("never exposes Project asset paths or machine absolute paths",()=>{
     const context=buildAgentContextSnapshot(buildProject());
     const serialized=JSON.stringify(context);
