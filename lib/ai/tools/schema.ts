@@ -1,6 +1,6 @@
 import {z} from "zod";
-import type {AgentContextSnapshot} from "@/lib/ai/context";
-import type {AgentToolDefinition} from "@/lib/ai/schema";
+import {AgentContextSnapshotSchema,type AgentContextSnapshot} from "@/lib/ai/context";
+import {AgentProposalSchema,type AgentToolDefinition} from "@/lib/ai/schema";
 
 export type AgentToolExecutionContext={
   sessionId:string;
@@ -25,5 +25,5 @@ export const ProposeVisualPlanInputSchema=z.object({
   selectedSuggestionIds:z.array(z.string().min(1)).max(128).optional(),
 }).strict();
 
-export const ProjectContextToolOutputSchema=z.object({context:z.unknown()}).strict();
-export const VisualPlanProposalToolOutputSchema=z.object({proposal:z.unknown()}).strict();
+export const ProjectContextToolOutputSchema=z.object({context:AgentContextSnapshotSchema}).strict();
+export const VisualPlanProposalToolOutputSchema=z.object({proposal:AgentProposalSchema}).strict();
