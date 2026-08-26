@@ -24,12 +24,14 @@ v2_2_w6_main: d629249f9dbc877eadc68ce61f47c16f80a883b1
 v2_2_release_main: 0e813e5e1360318211e05c1c5fec5eb82be00224
 v2_2_post_release_docs_main: 85adebdac436b33b3a737536f32363bfc8e22465
 
+v2_3_r0_main: 34ebc73b8998854e3ee8a067dc547cc158d156b8
+
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
-active_workstream: V2.3 R0 REPOSITORY / PRD / RUNTIME TRUTH SYNC
-active_branch: planning/v2.3-real-ai-agent
-active_pr: 40
+active_workstream: V2.3 A0 AGENT CONTRACTS + PROVIDER ABSTRACTION
+active_branch: feature/v2.3-a0-agent-contracts
+active_pr: 41
 local_action_required: NONE
-next_workstream: A0 Agent Contracts + Provider Abstraction
+next_workstream: A1 Context Builder + Allow-listed Tool Registry
 ```
 
 ## V2.2 delivery status
@@ -45,74 +47,86 @@ W5 Failure / Retry / Restart Hardening    → COMPLETE / PR #36
 W6 End-to-End Product Acceptance          → COMPLETE / PR #37
 V2.2.0 Release Finalization               → COMPLETE / PR #38
 Release tag v2.2.0                        → VERIFIED
-Post-release truth sync                   → COMPLETE / PR #39
 ```
 
-## V2.3 authoritative documents
+## V2.3 delivery status
 
 ```text
-docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md
-docs/prd/Video_OS_Studio_V2_3_Development_Plan.md
+R0 Repository / PRD / Runtime Truth Sync  → COMPLETE / PR #40
+A0 Agent Contracts + Provider Abstraction → ACTIVE / PR #41
+A1 Context Builder + Tool Registry        → NOT STARTED
+A2 Session Store + Multi-turn Runner      → NOT STARTED
+A3 Production Real Provider               → NOT STARTED
+A4 AI Workspace Agent UX + Review / Apply → NOT STARTED
+A5 Agent ↔ Workflow Integration           → NOT STARTED
+A6 Failure / Revision / Restart Hardening → NOT STARTED
+A7 End-to-End Product Acceptance          → NOT STARTED
 ```
 
-V2.3 delivery sequence:
+## Release truth
 
-```text
-R0 Repository / PRD / Runtime Truth Sync
-→ A0 Agent Contracts + Provider Abstraction
-→ A1 Context Builder + Allow-listed Tool Registry
-→ A2 Agent Session Store + Multi-turn Runner
-→ A3 Production Real Provider Adapter
-→ A4 AI Workspace Agent UX + Review / Apply
-→ A5 Agent ↔ Workflow Integration
-→ A6 Failure / Revision / Retry / Restart Hardening
-→ A7 End-to-End Real Provider Product Acceptance
-→ V2.3 Release
-```
+The accepted V2.2.0 release commit is:
 
-## V2.3 product direction
+`0e813e5e1360318211e05c1c5fec5eb82be00224`
 
-V2.3 adds a production Real AI Director / multi-turn AI Editing Agent **above** the accepted V2.2 editor/runtime.
+The annotated release tag is:
 
-Target safety path:
+`v2.2.0`
 
-```text
-User goal
-→ bounded Project / Script / Scene / Selection / Workflow context
-→ provider-neutral Agent Runner
-→ allow-listed typed tools
-→ explanation + validated proposal
-→ Preview Diff
-→ User Confirm
-→ existing Command Transaction / bounded Service
-→ latest Project revision
-```
+Tag object:
 
-The Agent does not directly mutate Project state.
+`df1acb238838ed814b969e20fe85a49253a92861`
 
-## Reuse baseline
+The annotated tag dereferences exactly to the accepted release commit above. The tag is the immutable V2.2.0 release boundary; later documentation-only main commits do not change the tagged release contents.
 
-V2.3 must reuse:
+## W6 accepted release evidence
 
-- existing `AIWorkspacePanel` instead of creating a parallel Studio;
-- `VisualPlanService` and `RulesVisualPlannerAdapter` as the deterministic Rules Director baseline/fallback;
-- existing selection/context truth;
-- existing Project Commands / Transactions / `ProjectMutationCoordinator`;
-- V2.2 Workflow Runtime rather than a second workflow system;
-- Durable Jobs rather than a second execution runtime;
-- accepted Remotion / HyperFrames / video-use / FFmpeg service boundaries.
+Exact tested product-code SHA:
 
-## V2.3 durable-state decision
+`8b10a59496a21a4d34cb95b99d0bd496f82bfd92`
 
-Default decision:
+Formal local report:
 
-```text
-Project Schema = 2.0.0
-```
+`docs/validation/LOCAL_VALIDATION_V2_2_W6.md`
 
-Agent conversations/sessions/provider metadata live outside `project.json` under runtime data owned by a dedicated service/repository. Agent state is not Project state.
+Report-only commit:
 
-A schema change requires a separately explicit migration decision and may not be introduced incidentally.
+`b1c55f65bc37990242b215a3d015e8dae91ea835`
+
+Report-only GitHub CI:
+
+`32964002626` / #566 — Ubuntu, Windows, Browser smoke, Windows media smoke all PASS.
+
+Accepted W6 main:
+
+`d629249f9dbc877eadc68ce61f47c16f80a883b1`
+
+W6 proved on real Windows/browser/media/engines:
+
+- Talking Head / 9:16 — PASS;
+- Product Ad / 16:9 — PASS;
+- Restart Recovery / 1:1 — PASS;
+- all 16 Workflow Stages — PASS;
+- Content Review / Assembly Review — PASS;
+- real video-use transcription — PASS;
+- HyperFrames motion — PASS;
+- Remotion Final Render — PASS;
+- FFmpeg/ffprobe and actual encoded-frame inspection — PASS;
+- revision/idempotency/no-duplicate checks — PASS;
+- durable reload/reopen and restart recovery — PASS;
+- residual-process/lock cleanup — PASS.
+
+No W6 release-blocking product defect remained and no product-code/config/test/schema/pin change was required during formal acceptance.
+
+## V2.2.0 release metadata evidence
+
+`package.json`, the package-lock top-level version, and `packages[""]` are all `2.2.0`.
+
+The package-lock sync commit:
+
+`8bddb2c4a174da98cef9bad760ab93691bc4d0d0`
+
+changed exactly the two Video OS Studio version metadata fields. Local Codex verified `npm ci` and `npm run typecheck` with no additional lockfile drift. Final release-candidate GitHub CI Run #571 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke before PR #38 was merged.
 
 ## Accepted invariants
 
@@ -129,47 +143,21 @@ Project != Workflow != Job
 REUSE > MODIFY > CREATE
 ```
 
-Additional V2.3 invariants:
+- Project JSON remains durable editing truth.
+- Workflow durable state remains separate from Project Schema.
+- Durable Job runtime remains concrete execution truth.
+- Workflow Stages use registered services/jobs/transactions and do not directly spawn engines.
+- Long-running mutation work preserves Project revision and operation idempotency contracts.
 
-- Agent state != Project state.
-- No arbitrary shell/filesystem/Git/network tools for the Agent.
-- No provider secret in Project JSON, browser bundle, committed files or persisted session transcript.
-- Provider output/tool args are validated before use.
-- Durable edits remain reviewable and revision-safe.
-- Retry must not duplicate Project mutations.
+## V2.3 active boundary
 
-## Development ownership
+V2.3 Real AI Director / AI Editing Agent is now active under the authoritative documents:
 
-```text
-GPT Web + GitHub
-→ R0/A0/A1/A2 cloud-safe work continuously
-→ A3 provider adapter + mocked contract tests
-→ A4/A5/A6 cloud-safe implementation/tests
-→ PR/CI/review/merge/status truth
+- `docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md`;
+- `docs/prd/Video_OS_Studio_V2_3_Development_Plan.md`.
 
-Local Codex
-→ only after an exact green SHA when live provider credentials/network, real Windows browser/media/engines, process restart or encoded-video proof becomes mandatory
-```
+A0 is provider-neutral, cloud-safe work. It must not add a live provider, network calls, secrets, Project mutations, Project Schema changes, arbitrary shell/filesystem/Git/network Agent tools, or a second Workflow/Job system.
 
-Do not stop online development merely because a later Local Codex gate will exist.
+The first mandatory Local Codex gate remains A3 live-provider validation after the exact cloud-tested provider implementation SHA is green.
 
-## Current R0 gate
-
-R0 is documentation/governance/runtime-truth only. It must not add product behavior.
-
-Required before merge:
-
-- V2.3 Master PRD present;
-- V2.3 Development Plan present;
-- `PROJECT_STATUS.md`, `AGENTS.md`, `SYSTEM.md`, `GPT_WEB_HANDOFF.md`, README aligned;
-- stale accepted engine/config truth repaired if found;
-- GitHub CI green;
-- no Project Schema or dependency-pin change.
-
-After R0 merges, immediately begin A0 on a fresh branch from accepted `main`.
-
-## V2.2 immutable release boundary
-
-V2.2.0 remains closed and immutable at tag `v2.2.0` → `0e813e5e1360318211e05c1c5fec5eb82be00224`.
-
-The experimental `feature/v2.2-w55-workflow-template` branch was not part of V2.2 and must not be merged into V2.3 by default. Reuse only individual ideas if the V2.3 architecture independently requires them.
+The experimental branch `feature/v2.2-w55-workflow-template` was not part of the accepted V2.2 Master PRD release path and must not be merged into V2.3 implicitly. Re-evaluate any useful idea only under an explicit V2.3 workstream.
