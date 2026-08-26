@@ -18,9 +18,10 @@ export type RegisteredAgentTool={
 
 export const GetProjectContextInputSchema=z.object({}).strict();
 
+const SelectedSuggestionIdsSchema=z.array(z.string().min(1)).max(128).refine(ids=>new Set(ids).size===ids.length,"selectedSuggestionIds must not contain duplicates");
 export const ProposeVisualPlanInputSchema=z.object({
   intent:z.string().min(1).max(2_000),
-  selectedSuggestionIds:z.array(z.string().min(1)).max(128).optional(),
+  selectedSuggestionIds:SelectedSuggestionIdsSchema.optional(),
 }).strict();
 
 export const ProjectContextToolOutputSchema=z.object({context:AgentContextSnapshotSchema}).strict();
