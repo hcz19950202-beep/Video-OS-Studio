@@ -29,8 +29,8 @@ v2_3_a0_main: 64977b6b2fdf97224eefd0819c29fa2f0c8c52fd
 
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
 active_workstream: V2.3 A1 CONTEXT BUILDER + ALLOW-LISTED TOOL REGISTRY
-active_branch: feature/v2.3-a1-context-tools
-active_pr: 42
+active_branch: feature/v2.3-a1-context-tools-clean
+active_pr: 44
 local_action_required: NONE
 next_workstream: A2 Session Store + Multi-turn Agent Runner
 ```
@@ -55,7 +55,7 @@ Release tag v2.2.0                        → VERIFIED
 ```text
 R0 Repository / PRD / Runtime Truth Sync  → COMPLETE / PR #40
 A0 Agent Contracts + Provider Abstraction → COMPLETE / PR #41
-A1 Context Builder + Tool Registry        → ACTIVE / PR #42
+A1 Context Builder + Tool Registry        → ACTIVE / PR #44
 A2 Session Store + Multi-turn Runner      → NOT STARTED
 A3 Production Real Provider               → NOT STARTED
 A4 AI Workspace Agent UX + Review / Apply → NOT STARTED
