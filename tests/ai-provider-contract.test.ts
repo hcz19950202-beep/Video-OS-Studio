@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {AIProviderAbortError,MockAIProvider,normalizeAIProviderError,type AIProviderRequest} from "@/lib/ai";
+import {AIProviderAbortError,AIProviderRequestSchema,MockAIProvider,normalizeAIProviderError,type AIProviderRequest} from "@/lib/ai";
 
 const request:AIProviderRequest={
   system:"You are the Video OS editing agent.",
@@ -28,11 +28,33 @@ describe("AI provider contract",()=>{
     expect(()=>new MockAIProvider([{type:"tool-call",call:{id:"call_1",toolId:"Bad Tool",arguments:{}}} as never])).toThrow();
   });
 
+  it("validates provider requests before a provider can observe them",async()=>{
+    const provider=new MockAIProvider([{type:"completed"}]);
+    const invalidRequest={...request,unexpected:"must be rejected"} as AIProviderRequest;
+    const iterator=provider.run(invalidRequest)[Symbol.asyncIterator]();
+    await expect(iterator.next()).rejects.toThrow();
+    expect(provider.requests).toHaveLength(0);
+    expect(()=>AIProviderRequestSchema.parse(invalidRequest)).toThrow();
+  });
+
   it("honors AbortSignal before emitting provider events",async()=>{
     const provider=new MockAIProvider([{type:"text-delta",text:"hello"}]);
     const controller=new AbortController();
     controller.abort();
     const iterator=provider.run(request,controller.signal)[Symbol.asyncIterator]();
+    await expect(iterator.next()).rejects.toBeInstanceOf(AIProviderAbortError);
+  });
+
+  it("terminates a provider stream when AbortSignal fires between events",async()=>{
+    const provider=new MockAIProvider([
+      {type:"text-delta",text:"first"},
+      {type:"text-delta",text:"second"},
+      {type:"completed"},
+    ]);
+    const controller=new AbortController();
+    const iterator=provider.run(request,controller.signal)[Symbol.asyncIterator]();
+    await expect(iterator.next()).resolves.toMatchObject({done:false,value:{type:"text-delta",text:"first"}});
+    controller.abort();
     await expect(iterator.next()).rejects.toBeInstanceOf(AIProviderAbortError);
   });
 
