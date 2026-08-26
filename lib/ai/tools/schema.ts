@@ -16,9 +16,7 @@ export type RegisteredAgentTool={
   handler:(input:unknown,context:AgentToolExecutionContext)=>Promise<unknown>|unknown;
 };
 
-export const GetProjectContextInputSchema=z.object({
-  section:z.enum(["all","selection","overview"]).default("all"),
-}).strict();
+export const GetProjectContextInputSchema=z.object({}).strict();
 
 export const ProposeVisualPlanInputSchema=z.object({
   intent:z.string().min(1).max(2_000),
