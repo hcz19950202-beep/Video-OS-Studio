@@ -14,33 +14,33 @@ This repository is developed through two coordinated execution environments:
 
 ```text
 GPT Web + GitHub
-  architecture / cloud code / PR / CI / final review
+  architecture / cloud-safe code / tests / PR / CI / review / merge
 
 Local Codex on Windows
-  real media / browser / FFmpeg / Remotion / HyperFrames / video-use / local acceptance
+  real provider credentials / browser / real media / FFmpeg / Remotion / HyperFrames / video-use / restart acceptance
 ```
 
-GitHub branches and exact commit SHAs are the handoff boundary. Do not treat the environments as independent developers or maintain competing implementations.
+GitHub branches and exact commit SHAs are the handoff boundary. Never maintain competing implementations.
 
 ## 1. Mandatory boot sequence
 
 Before editing anything, read in order:
 
-1. live GitHub `main`, active branch/PR and CI state;
+1. live GitHub `main`, active branch/PR and CI;
 2. `PROJECT_STATUS.md`;
 3. this `AGENTS.md`;
 4. `SYSTEM.md`;
-5. the active PRD named by current status;
-6. the active development/validation contract when relevant.
+5. the active Master PRD;
+6. the active Development Plan / local validation contract.
 
-For V2.2, the authoritative product and delivery documents are:
+For V2.3 the authoritative documents are:
 
 ```text
-docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md
-docs/prd/Video_OS_Studio_V2_2_Development_Plan.md
+docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md
+docs/prd/Video_OS_Studio_V2_3_Development_Plan.md
 ```
 
-If files disagree about the current branch, milestone, release or PR state, do not guess. Treat `PROJECT_STATUS.md` as repository current-state truth after resolving the live GitHub state, and repair stale documentation in the active governance workstream.
+Historical V2.2 documents remain release evidence but do not override current status.
 
 ## 2. Architecture invariants
 
@@ -49,110 +49,127 @@ Always preserve:
 ```text
 Source Media != Project Canvas != Export Profile
 Project != Workflow != Job
+Agent Session != Project
 ```
 
 And:
 
 - canonical timeline time is frames;
-- Project JSON is the durable Project source of truth;
-- Workflow state is separate orchestration state and does not replace Project state;
-- Durable Job state represents concrete execution tasks and is not reimplemented by Workflow;
-- durable Project changes go through validated Commands / Transactions / bounded services;
-- UI and Workflow code must not spawn external CLIs directly;
-- Agent/Workflow code must not hand-edit runtime `project.json`;
-- long-running work must reload the latest Project before applying minimal validated mutation;
-- revision and idempotency contracts must be preserved;
-- Remotion is the master composition/render engine;
-- HyperFrames produces deterministic complex-motion assets behind adapters/services;
-- video-use is used for transcription / rough-cut / QA behind adapters/services;
-- FFmpeg / ffprobe remain behind adapters/services;
-- repository code and runtime media remain separated through `VIDEO_OS_DATA_ROOT`;
-- Studio UI theme/locale must not become generated-video Brand;
-- Project Schema and engine pins must not change incidentally;
+- Project JSON is durable editing truth;
+- Workflow state is separate orchestration truth;
+- Durable Job state is concrete execution truth;
+- Agent session/conversation state is separate orchestration/context state;
+- durable Project changes use validated Commands / Transactions / bounded services;
+- UI, Agent and Workflow code do not spawn external CLIs directly;
+- Agent/Workflow code never hand-edits runtime `project.json`;
+- long-running work captures base revision, does external work, reloads latest Project, checks expected revision and applies the minimal validated mutation;
+- revision and idempotency contracts are mandatory;
+- Remotion is the master renderer;
+- HyperFrames remains behind its adapter/service;
+- video-use and FFmpeg/ffprobe remain behind adapters/services;
+- runtime media/user data remains under `VIDEO_OS_DATA_ROOT`;
+- Studio theme/locale remains separate from generated-video Brand;
+- Project Schema `2.0.0` and engine pins do not change incidentally;
 - `REUSE > MODIFY > CREATE`.
 
-## 3. Development ownership
+## 3. V2.3 AI safety boundary
 
-### GPT Web + GitHub may
+The Real AI Director / Editing Agent is an application control layer, not a raw computer agent.
 
-- create milestone/workstream branches;
-- maintain PRDs and architecture contracts;
-- change cloud-safe schemas/APIs/implementation according to the active PRD;
-- add unit, route, contract, integration and pure-function tests;
-- add browser automation when cloud-safe;
-- review repository-wide diffs and GitHub CI;
-- create/update PRs and documentation;
-- review local Codex commits and decide merge readiness;
-- maintain `PROJECT_STATUS.md` and workstream truth.
-
-GPT Web must not claim successful Windows, real-browser, FFmpeg, Remotion, HyperFrames, video-use, restart or real-media validation unless the required local evidence exists for the exact tested SHA.
-
-### Local Codex may
-
-- pull the exact active branch/SHA supplied by GPT Web;
-- verify HEAD before testing;
-- use an isolated Windows worktree and isolated `VIDEO_OS_DATA_ROOT`;
-- run the active real browser/media/engine/restart acceptance contract;
-- fix defects discovered by that acceptance when they remain inside the active workstream;
-- add regression tests for those defects;
-- commit and push fixes to the same active branch;
-- return exact final SHA, commands, evidence, defects and remaining failures.
-
-Local Codex must not start the next workstream, redesign architecture, merge the PR or add unrelated product features unless the active PRD/status explicitly permits it.
-
-## 4. Branch / PR discipline
-
-One workstream = one branch/PR unless the active PRD explicitly says otherwise.
-
-V2.2 branch examples:
+Required mutation path:
 
 ```text
-planning/v2.2-workflow-runtime
-feature/v2.2-w0-workflow-contract
-feature/v2.2-w1-workflow-runtime
-feature/v2.2-w2-stage-integration
-feature/v2.2-w3-human-review
-feature/v2.2-w4-workflow-ui
-feature/v2.2-w5-recovery-hardening
-release/v2.2-final-acceptance
+User goal
+→ bounded context
+→ provider + allow-listed typed tools
+→ explanation / validated proposal
+→ Preview Diff
+→ user confirmation
+→ existing Command Transaction / bounded service
 ```
 
 Rules:
 
-- branch from the currently accepted `main` SHA;
-- do not develop directly on `main`;
-- do not continue product development on closed V2.1.1 hardening/release branches;
-- do not use PR #18 as the implementation base for V2.2;
-- do not mix unrelated workstreams;
-- push local Codex fixes instead of leaving critical changes only on the local machine;
-- after every pushed fix batch, re-check CI for that exact head;
-- merge only after cloud checks and required local gates pass;
-- keep current-state/status documentation truthful before the next workstream starts.
+- no direct Project mutation from model output;
+- no arbitrary shell / PowerShell / bash tool;
+- no arbitrary filesystem tool;
+- no arbitrary Git tool;
+- no arbitrary network-fetch tool;
+- no direct engine executable tool;
+- provider-generated tool args are untrusted until Zod/schema validation succeeds;
+- unknown tools are rejected;
+- durable edits require confirmation in V2.3 Core;
+- stale proposals cannot silently apply after Project revision changes;
+- retry must not duplicate mutations;
+- do not expose or persist hidden model chain-of-thought; store/show concise rationale and structured tool/proposal metadata only.
 
-## 5. Project mutation rules
+## 4. Provider / secret rules
 
-Never introduce a new direct whole-Project mutation path to bypass Commands/Transactions.
+Core Agent runtime depends on a provider-neutral interface.
 
-Long-running work must follow:
+Provider-specific API/SDK details stay inside the provider adapter.
+
+API keys/secrets:
 
 ```text
-capture deterministic input + baseProjectRevision
-→ run external/long work
-→ reload latest Project
-→ expectedRevision check
-→ apply minimal validated Command / Transaction
-→ save latest revision
+.env.local / server runtime only
 ```
 
-Do not persist stale Project snapshots after a long task finishes.
+Never put them in:
 
-Workflow retry/recovery must preserve idempotency and must not create duplicate captions, motion, B-roll, clips or other durable project mutations.
+- Project JSON;
+- Agent session JSON;
+- browser/client bundle;
+- repository files;
+- test snapshots;
+- logs/errors returned to users.
 
-If implementing Workflow requires a Project Schema version change, stop treating it as incidental. Document the requirement and make an explicit migration/version/backward-compatibility decision before changing durable schema semantics.
+Provider/model settings are runtime/user configuration, not durable generated-video Project semantics.
 
-## 6. Workflow runtime rules for V2.2
+## 5. Agent context rules
 
-The Workflow layer is orchestration only.
+Use a bounded Context Builder over existing truth:
+
+- Project ID/revision/canvas;
+- Script/selected Script range;
+- Scene/selected Scene;
+- selected Clip(s);
+- Brand/Linked Styles;
+- visual-plan summary;
+- Workflow status/reviews;
+- Project asset metadata.
+
+Do not send arbitrary repository/filesystem content. Do not automatically send raw media bytes. Prefer logical IDs and project-relative paths over machine-specific absolute paths.
+
+## 6. Agent tool registry
+
+Tool Registry is an allow-list with stable IDs and Zod input/output schemas.
+
+Tool classes:
+
+```text
+read
+proposal
+mutating-request
+```
+
+Proposal tools produce validated proposals, not direct durable mutation.
+
+Mutating requests use accepted application services and explicit confirmation/revision/idempotency rules.
+
+The existing Rules Director (`VisualPlanService` / `RulesVisualPlannerAdapter`) is reused as deterministic baseline/fallback/tool; do not fork another visual planning truth.
+
+## 7. Session persistence
+
+Agent sessions persist outside `project.json` using a dedicated runtime repository/service under `VIDEO_OS_DATA_ROOT` and accepted path-safety/atomic-write patterns.
+
+Session data may include normalized messages, tool calls/results, proposal refs, provider/model metadata without secrets, usage summary, status and errors.
+
+Project Schema remains `2.0.0` by default. Any schema change requires an explicit migration decision/workstream.
+
+## 8. Workflow runtime rules
+
+The accepted Workflow architecture remains:
 
 ```text
 WorkflowRun
@@ -160,50 +177,92 @@ WorkflowRun
 → existing Job / Service / Command / Transaction
 ```
 
-Do not create:
+The Agent may inspect/request Workflow actions through bounded services. It may not edit Workflow JSON, invent Stage completion, bypass reviews, spawn engines, or implement a second Job system.
 
-- a second Job system;
-- a second Project source of truth;
-- arbitrary shell/file-system stages;
-- direct engine-spawning stages.
+## 9. Development ownership
 
-Stage Registry is an allow-list. Stage executors reuse existing bounded application/runtime services.
+### GPT Web + GitHub
 
-Workflow runtime state belongs outside Project JSON under `VIDEO_OS_DATA_ROOT` unless a separately approved schema decision says otherwise.
+May and should continue without stopping through all cloud-safe work:
 
-## 7. Real media rules
+- PRD/architecture;
+- schemas/contracts;
+- provider abstraction;
+- context/tool registry;
+- deterministic session/runner implementation;
+- provider adapter mocked tests;
+- APIs/UI/browser automation supported by CI;
+- unit/contract/integration tests;
+- PR/CI review/fixes/merge;
+- current-state documentation.
 
-Never commit user or acceptance media to Git unless it is an intentionally tiny, versioned deterministic test fixture.
+Do not claim local/live-provider/Windows/media/engine evidence without exact-SHA proof.
 
-Keep real runtime assets under an isolated local data root such as:
+### Local Codex on Windows
+
+Is used only when correctness genuinely depends on:
+
+- live provider API key/network behavior;
+- real browser interaction;
+- real media/codecs;
+- FFmpeg/ffprobe;
+- video-use/Python;
+- HyperFrames;
+- Remotion/Chrome;
+- Windows process/restart behavior;
+- final encoded-video evidence.
+
+Codex works on the same active branch, pushes in-scope fixes, never merges, and never begins the next workstream.
+
+## 10. Branch / PR discipline
+
+One workstream = one branch/PR.
+
+V2.3 sequence/examples:
 
 ```text
-E:\Video-OS-Data\<milestone>-<timestamp>
+planning/v2.3-real-ai-agent
+feature/v2.3-a0-agent-contracts
+feature/v2.3-a1-context-tools
+feature/v2.3-a2-agent-runtime
+feature/v2.3-a3-real-provider
+feature/v2.3-a4-agent-workspace
+feature/v2.3-a5-agent-workflow
+feature/v2.3-a6-agent-hardening
+release/v2.3-final-acceptance
 ```
 
-Do not write machine-specific absolute paths into Project JSON.
+Rules:
 
-## 8. External engine rules
+- branch from currently accepted `main`;
+- no product development directly on `main`;
+- do not mix workstreams;
+- after every pushed fix batch, verify CI for exact HEAD;
+- merge only after cloud and required local gates pass;
+- update `PROJECT_STATUS.md` before the next workstream starts.
 
-- adapters/services own CLI execution;
-- UI/Workflow call application services/API, not executable files;
-- do not silently download/change deterministic production engine versions;
-- capture useful stdout/stderr locally without leaking raw machine paths in public errors;
-- Windows-specific launcher/process behavior requires Windows evidence before acceptance;
-- real final render must use the accepted Remotion master composition path.
+The experimental `feature/v2.2-w55-workflow-template` is not an implementation base for V2.3.
 
-Accepted V2.2-start pins include:
+## 11. Project mutation rules
+
+Never introduce a whole-Project mutation shortcut.
+
+Long-running mutation-capable work:
 
 ```text
-remotion / @remotion/player / @remotion/cli: 4.0.513
-hyperframes: 0.8.10
-@playwright/test: 1.62.1
-Project Schema: 2.0.0
+capture deterministic input + baseProjectRevision
+→ run provider/external work
+→ reload latest Project
+→ expectedRevision check
+→ apply minimal validated Command / Transaction
+→ save latest revision
 ```
 
-## 9. Testing rules
+Same confirmed operation retry uses a stable operation ID.
 
-For every code change, run or verify checks available in the current environment.
+No duplicate captions/motion/B-roll/assets/styles/script edits/operations.
+
+## 12. Testing rules
 
 Cloud baseline:
 
@@ -216,59 +275,35 @@ npm run test
 npm run build
 ```
 
-When browser flows are changed:
+When browser flows change:
 
 ```text
 npm run test:e2e
 ```
 
-Cloud CI does not substitute for local runtime evidence when the active workstream requires Windows/browser/media/engine/restart behavior.
+Every reasonably testable bug fix needs a regression test.
 
-Every bug fix requires a regression test when reasonably testable.
+Provider work requires deterministic/mock contract tests before live-provider validation.
 
-## 10. V2.2 stop rules
+## 13. V2.3 workstream gates
 
-Unless `PROJECT_STATUS.md` and the active V2.2 PRD are deliberately revised, do not add:
+```text
+R0  docs/runtime truth only — online
+A0  contracts/provider abstraction — online
+A1  context/tools — online
+A2  session/multi-turn runner — online first
+A3  real provider — cloud mocked tests, then live-provider Codex gate
+A4  Agent UX/review/apply — cloud browser first, then real browser/provider Codex gate
+A5  Agent↔Workflow — online first; local only when real runtime evidence required
+A6  hardening/restart — online chaos first + mandatory local restart cases
+A7  final product acceptance — mandatory local real provider/browser/media/encoded output
+```
 
-- real external AI provider;
-- broad/multi-turn AI Editing Agent runtime;
-- arbitrary Agent tool shell/filesystem execution;
-- replacement Durable Job runtime;
-- replacement Project persistence model;
-- Project Schema change without explicit migration decision;
-- engine pin changes without explicit engine/runtime decision;
-- multi-timeline;
-- arbitrary docking;
-- full Crop / Mask suite;
-- transition suite;
-- generated-media marketplace;
-- cloud collaboration;
-- HDR/pro color;
-- desktop packaging;
-- unrelated large UI redesign.
+Online work does not pause before the first genuinely mandatory Codex gate.
 
-PR #18 is retained only as future V2.3 architecture input.
+## 14. Handoff contract
 
-## 11. Local validation trigger
-
-Local Codex is required only when correctness depends on one or more of:
-
-- Windows process behavior;
-- real browser interaction;
-- real media/codecs;
-- FFmpeg / ffprobe;
-- Remotion / Chrome;
-- HyperFrames;
-- video-use / Python;
-- application/process interruption/restart;
-- large-media memory/performance;
-- final encoded-video evidence.
-
-Pure domain/state-machine/cloud-safe Workflow work should remain online until those boundaries are reached.
-
-## 12. Handoff report contract
-
-Whenever GPT Web hands work to local Codex, provide:
+Every GPT Web → Codex handoff includes:
 
 ```text
 Repository
@@ -276,31 +311,22 @@ Branch
 Exact SHA
 Active workstream
 Goal
-Files/areas allowed to change
+Allowed files/areas
 Forbidden scope
-Setup/data-root rules
-Local commands
-Required real-media fixtures
+Setup / isolated VIDEO_OS_DATA_ROOT
+Commands
+Real-provider/media fixtures
 Manual steps
 Acceptance gates
-Evidence to capture
-Stop rules
+Evidence
+Stop rule after any pushed fix
 Expected return format
 ```
 
-Local Codex returns:
+If Codex pushes code/config/test/runtime changes, the frozen SHA is invalid. GPT Web must review the new HEAD and CI before local validation continues.
 
-```text
-Final branch HEAD
-Commits pushed
-Environment summary
-Commands executed
-Automated test results
-Real-media/browser/engine evidence
-Defects found
-Fixes applied
-Regression tests added
-Remaining failed items
-```
+## 15. Release boundary
 
-No `PASS` may be claimed without the evidence required by the active workstream.
+V2.2.0 tag `v2.2.0` is immutable and must never move.
+
+Do not bump a V2.3 package release version until the final acceptance/release workstream explicitly begins.
