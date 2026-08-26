@@ -13,7 +13,7 @@ const buildProject=():Project=>{
     {id:"scene-hook",name:"Hook",semanticType:"hook",startFrame:0,endFrame:180,summary:"Lead with the strongest promise."},
     {id:"scene-proof",name:"Proof",semanticType:"proof",startFrame:180,endFrame:420,summary:"Show the measurable proof."},
   ];
-  project.script={segments:[
+  project.script={...project.script,segments:[
     {id:"segment-hook",sceneId:"scene-hook",status:"active",semanticTags:["hook"],words:[
       {id:"w1",text:"Build",startFrame:0,endFrame:10},
       {id:"w2",text:"faster",startFrame:10,endFrame:20},
