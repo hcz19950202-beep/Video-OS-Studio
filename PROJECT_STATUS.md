@@ -5,12 +5,10 @@
 ## Current checkpoint
 
 ```yaml
-product_version: 2.1.1
+product_version_candidate: 2.2.0
 project_schema: 2.0.0
 released_baseline: v2.1.1
-release_status: COMPLETE
-release_tag: v2.1.1
-release_tag_sha: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
+release_status: V2.2 FINALIZATION ACTIVE
 
 v2_2_r0_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
 v2_2_w0_main: 9914b1e65d27a7d40e997295d94eeb5ce4c3deea
@@ -19,124 +17,99 @@ v2_2_w2_main: bfcc862aed29969e61c5c3723179585e6c583a07
 v2_2_w3_main: 23193e537a2c403f8d3c82806db991603cb27dca
 v2_2_w4_main: 6a443e56c10b4935efedd65293b6dbd5584cbda1
 v2_2_w5_main: 2bdbe3aa229513e22da5bba51202609743a718b3
+v2_2_w6_main: d629249f9dbc877eadc68ce61f47c16f80a883b1
 
-current_milestone: V2.2 WORKFLOW RUNTIME
-v2_2_status: W6 END-TO-END PRODUCT ACCEPTANCE ACTIVE
-active_workstream: V2.2-W6 End-to-End Product Acceptance
-active_branch: release/v2.2-final-acceptance
-active_pr: 37
-local_validation_required: YES after cloud-green exact head
-local_validation_contract: docs/validation/LOCAL_VALIDATION_V2_2_W6_CONTRACT.md
-next_after_w6: V2.2 release finalization
-future_milestone: V2.3 Real AI Director / AI Editing Agent
+current_milestone: V2.2 RELEASE FINALIZATION
+active_workstream: V2.2.0 Release Finalization
+active_branch: release/v2.2.0
+active_pr: PENDING
+local_action_required: PACKAGE-LOCK VERSION SYNC ONLY
+next_after_release: V2.3 planning under a new approved PRD/workstream
 ```
 
-## Accepted delivery history
+## Accepted V2.2 delivery history
 
 ```text
-V2.1.1 Engineering Hardening / Final Release  → COMPLETE
-V2.1.1 tag v2.1.1                            → COMPLETE
-V2.2 R0 Repository / Roadmap Sync             → PR #30 COMPLETE
-V2.2 W0 Workflow Contract                     → PR #31 COMPLETE
-V2.2 W1 Workflow Runtime Core                 → PR #32 COMPLETE
-V2.2 W2 Existing Capability Stage Integration → PR #33 COMPLETE
-V2.2 W3 Human Review + Invalidation            → PR #34 COMPLETE
-V2.2 W4 Workflow UI                            → PR #35 COMPLETE
-V2.2 W5 Failure / Retry / Restart Hardening    → PR #36 COMPLETE / main 2bdbe3aa...
-V2.2 W6 End-to-End Product Acceptance          → PR #37 ACTIVE
+R0 Repository / Roadmap Sync              → COMPLETE / PR #30
+W0 Workflow Contract                      → COMPLETE / PR #31
+W1 Workflow Runtime Core                  → COMPLETE / PR #32
+W2 Existing Capability Stage Integration  → COMPLETE / PR #33
+W3 Human Review + Invalidation            → COMPLETE / PR #34
+W4 Workflow UI                            → COMPLETE / PR #35
+W5 Failure / Retry / Restart Hardening    → COMPLETE / PR #36
+W6 End-to-End Product Acceptance          → COMPLETE / PR #37 / main d629249f...
 ```
 
-## W5 accepted evidence
+## W6 accepted release evidence
 
-W5 exact tested product-code SHA:
+Exact tested product-code SHA:
 
-`b1cf950fe1fc7802a2e05c35a3ad0b00f16f1abc`
+`8b10a59496a21a4d34cb95b99d0bd496f82bfd92`
 
-Local Windows chaos acceptance:
+Formal local report:
 
-`docs/validation/LOCAL_VALIDATION_V2_2_W5.md`
+`docs/validation/LOCAL_VALIDATION_V2_2_W6.md`
 
-Final report-only head:
+Report-only commit:
 
-`64f9243ff6de0ef4336f20906905275ccae75b14`
+`b1c55f65bc37990242b215a3d015e8dae91ea835`
 
-Final CI:
+Report-only GitHub CI:
 
-`32843034099` — PASS.
+`32964002626` / #566 — Ubuntu, Windows, Browser smoke, Windows media smoke all PASS.
 
-Accepted W5 main:
+Accepted W6 main:
 
-`2bdbe3aa229513e22da5bba51202609743a718b3`
+`d629249f9dbc877eadc68ce61f47c16f80a883b1`
 
-The accepted W5 evidence includes real Windows browser/media/video-use/HyperFrames/Remotion/FFmpeg execution, C1-C6 chaos cases, exact revision/idempotency checks, final encoded MP4 proof, and zero W5-scoped residual processes.
+W6 proved on real Windows/browser/media/engines:
 
-## W6 authority and scope
+- Talking Head / 9:16 — PASS;
+- Product Ad / 16:9 — PASS;
+- Restart Recovery / 1:1 — PASS;
+- all 16 Workflow Stages — PASS;
+- Content Review / Assembly Review — PASS;
+- real video-use transcription — PASS;
+- HyperFrames motion — PASS;
+- Remotion Final Render — PASS;
+- FFmpeg/ffprobe — PASS;
+- actual encoded MP4 frame inspection — PASS;
+- revision/idempotency/no-duplicate checks — PASS;
+- durable reload/reopen and restart recovery — PASS;
+- residual-process/lock cleanup — PASS.
 
-W6 is the Master PRD's **End-to-End Product Acceptance** workstream. It is a release gate, not a new Workflow engine or a new large UI workstream.
+No W6 release-blocking product defect remained and no product-code/config/test/schema/pin change was required during formal acceptance.
 
-W6 must prove the released product flow on fresh isolated `VIDEO_OS_DATA_ROOT` roots:
+## V2.2 release finalization scope
 
-```text
-Open Video OS
-→ Create Project
-→ Import real source media
-→ Select Scenario
-→ Generate First Draft
-→ observe durable Workflow progress
-→ Content Review
-→ approve / continue
-→ Assembly Review
-→ approve / continue
-→ Final Render
-→ download/reopen/verify durable result
-```
+This workstream is release metadata only. It must not add product behavior.
 
-Required real cases:
+Required finalization:
 
-```text
-Case A — Talking Head — 9:16
-Case B — Product Ad — 16:9
-Case C — Restart Recovery — 1:1
-```
+1. package version `2.1.1` → `2.2.0`;
+2. package-lock root/package version synchronized by real npm tooling;
+3. repository status/readme updated to V2.2 released truth;
+4. GitHub CI green on the final release candidate;
+5. merge release PR;
+6. create tag `v2.2.0` on the accepted release-finalization main commit;
+7. verify the tag resolves exactly to accepted main.
 
-Final encoded output must be verified with `ffprobe` and extracted frames. Product Ad acceptance must include Brand, available B-roll, HyperFrames motion, Audio, proof/number treatment and CTA evidence in the final Project/output. Restart acceptance must prove no duplicate Caption/Motion/B-roll, no Project corruption and no lost completed Stage state.
+No additional real-media Local Codex acceptance is required because W6 already supplied the final exact-SHA Windows/browser/media/engine evidence. Local Codex is used in this workstream only to generate the npm lockfile version sync from the branch rather than hand-authoring lockfile contents.
 
-## W6 development model
+## Hard boundaries
 
-```text
-GPT Web + GitHub
-→ W6 branch / acceptance contract / cloud-safe checks / PR / CI / review / bounded fixes / merge / PROJECT_STATUS
+Do not introduce:
 
-Local Codex on Windows
-→ exact-SHA real browser / real media / FFmpeg / video-use / HyperFrames / Remotion / forced restart / final MP4 proof
-```
-
-Sequence:
-
-```text
-1. GPT Web prepares W6 release-acceptance branch and contract.
-2. GitHub CI must be green on an exact W6 head.
-3. Freeze that exact SHA.
-4. Local Codex executes the W6 contract on Windows using isolated data roots.
-5. Any demonstrated W6 release-blocker fix is pushed to this same branch with regression coverage.
-6. GPT Web reviews the new head and CI; affected local acceptance is rerun on the new exact SHA.
-7. When all W6 gates pass, commit the formal validation report, run final CI, merge W6, then perform V2.2 release finalization.
-```
-
-## W6 hard boundaries
-
-Do not introduce during W6 unless a demonstrated release blocker requires a bounded fix:
-
-- Real OpenAI / Claude / Gemini provider;
+- Real AI Provider / OpenAI / Claude / Gemini runtime;
 - multi-turn AI Editing Agent;
-- a second Workflow or Job system;
 - Project Schema migration;
-- large navigation/editor redesign;
-- arbitrary plugin/tool execution;
-- generated image/video provider;
-- unrelated template/productization architecture.
+- engine pin changes;
+- new Workflow or Job architecture;
+- template/productization experiments;
+- editor redesign;
+- unrelated fixes/refactors.
 
-The experimental branch `feature/v2.2-w55-workflow-template` is **not part of the authoritative V2.2 Master PRD W6 path and must not be merged into W6**. Re-evaluate it only after V2.2 release under a separately approved scope.
+The experimental `feature/v2.2-w55-workflow-template` branch remains outside the accepted V2.2 release and must not be merged into this release.
 
 ## Accepted invariants
 
@@ -153,23 +126,16 @@ Project != Workflow != Job
 REUSE > MODIFY > CREATE
 ```
 
-- Project JSON remains durable editing truth.
-- Workflow durable state remains under `VIDEO_OS_DATA_ROOT/workflows`.
-- Durable Job runtime remains concrete execution truth.
-- Workflow Stages use registered services/jobs/transactions and do not directly spawn engines.
-- Long-running mutation work preserves Project revision and operation idempotency contracts.
-- Workflow state does not enter Project Schema.
+## Development ownership
+
+```text
+GPT Web + GitHub
+→ release branch, package metadata, status/readme, PR, CI, review, merge, release truth
+
+Local Codex
+→ only the real npm-generated package-lock version sync on release/v2.2.0; no product changes, no merge
+```
 
 ## Current stop rule
 
-Continue GPT Web + GitHub preparation until the W6 branch has a cloud-green exact SHA. Only then hand that exact SHA to Local Codex. Local Codex must not merge the PR, start V2.3, or redesign architecture.
-
-## Read order for agents
-
-1. resolve live GitHub `main`, W6 branch/PR and CI state;
-2. this `PROJECT_STATUS.md`;
-3. `AGENTS.md`;
-4. `SYSTEM.md`;
-5. `docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md`;
-6. `docs/prd/Video_OS_Studio_V2_2_Development_Plan.md`;
-7. `docs/validation/LOCAL_VALIDATION_V2_2_W6_CONTRACT.md` once the exact cloud-green SHA is frozen.
+Do not start V2.3 before V2.2.0 release finalization is merged and tag `v2.2.0` is verified. Any unexpected product-code/config/test change invalidates this metadata-only release path and must be reviewed separately.
