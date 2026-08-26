@@ -1,7 +1,7 @@
 # Video OS Studio — GPT Web / Local Codex Handoff
 
-> Updated: 2026-08-24 (Asia/Shanghai)  
-> Current milestone: **V2.2 Workflow Runtime Planning / Implementation**  
+> Updated: 2026-08-26 (Asia/Shanghai)  
+> Current milestone: **V2.3 Real AI Director / AI Editing Agent**  
 > Current-state source of truth: [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 
 ## 1. Current truth
@@ -15,40 +15,36 @@ hcz19950202-beep/Video-OS-Studio
 Released baseline:
 
 ```text
-Video OS Studio v2.1.1
-Release tag: v2.1.1
-Release commit: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
+Video OS Studio v2.2.0
+Release tag: v2.2.0
+Release commit: 0e813e5e1360318211e05c1c5fec5eb82be00224
 Project Schema: 2.0.0
 ```
 
-Live accepted `main` at V2.2 planning start:
+V2.2 is closed. V2.3 is a new workstream for the production Real AI Director / multi-turn AI Editing Agent.
 
-```text
-6f0487f6b5b65d85083c96bc54e14bca37fb5704
-```
-
-V2.1.1 Engineering Hardening is complete and closed work. The active product direction is V2.2 Workflow Runtime. V2.3 Real AI Director / AI Editing Agent remains future work.
-
-## 2. Authoritative V2.2 documents
+## 2. Authoritative V2.3 documents
 
 Read after `PROJECT_STATUS.md`, `AGENTS.md` and `SYSTEM.md`:
 
 ```text
-docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md
-docs/prd/Video_OS_Studio_V2_2_Development_Plan.md
+docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md
+docs/prd/Video_OS_Studio_V2_3_Development_Plan.md
 ```
 
-V2.2 delivery sequence:
+V2.3 sequence:
 
 ```text
-R0 Repository / Roadmap Sync
-→ W0 Workflow Contract
-→ W1 Workflow Runtime Core
-→ W2 Existing Capability Stage Integration
-→ W3 Human Review + Invalidation
-→ W4 Workflow UI
-→ W5 Failure / Retry / Restart Hardening
-→ W6 End-to-End Release Acceptance
+R0 Repository / PRD / Runtime Truth Sync
+→ A0 Agent Contracts + Provider Abstraction
+→ A1 Context Builder + Allow-listed Tool Registry
+→ A2 Agent Session Store + Multi-turn Runner
+→ A3 Production Real Provider Adapter
+→ A4 AI Workspace Agent UX + Review / Apply
+→ A5 Agent ↔ Workflow Integration
+→ A6 Failure / Revision / Retry / Restart Hardening
+→ A7 End-to-End Real Provider Product Acceptance
+→ V2.3 Release
 ```
 
 ## 3. Development model
@@ -60,11 +56,13 @@ GPT Web + GitHub
     ├─ cloud-safe implementation
     ├─ branches / PRs / CI
     ├─ unit / route / contract / integration tests
+    ├─ mocked-provider tests
     ├─ browser automation when cloud-safe
     └─ review + merge + PROJECT_STATUS
 
 Local Codex on Windows
     │
+    ├─ live provider credential/network smoke
     ├─ real browser
     ├─ real media outside Git
     ├─ FFmpeg / ffprobe
@@ -72,18 +70,112 @@ Local Codex on Windows
     ├─ HyperFrames
     ├─ video-use / Python
     ├─ process termination / restart recovery
-    ├─ memory / performance / codec checks
     └─ in-scope local fixes + evidence
 ```
 
 GitHub is the only code source of truth. The two environments never maintain competing implementations.
 
-## 4. Local Codex trigger policy
+## 4. Online-first policy
 
-Do not hand a workstream to local Codex just because code exists.
+Do not hand a workstream to Local Codex just because code exists.
 
-Local evidence is required when correctness depends on:
+GPT Web continues all cloud-safe implementation, tests, CI fixes and merge work until the next unproven gate genuinely depends on local/live behavior.
 
+Expected ownership:
+
+```text
+R0: online only
+A0: online only
+A1: online only
+A2: online first; process-kill evidence can wait for A6
+A3: online implementation + mocked provider tests, then live-provider Codex gate
+A4: online UI/API/browser tests first, then real browser + real provider Codex gate
+A5: online first; local only for real workflow/media/engine evidence
+A6: online chaos tests + mandatory Windows/restart Codex gate
+A7: mandatory real provider/browser/media/encoded-output Codex acceptance
+```
+
+## 5. Permanent architecture invariants
+
+```text
+Source Media != Project Canvas != Export Profile
+Project != Workflow != Job
+Agent Session != Project
+```
+
+And:
+
+- Project JSON is durable editing truth;
+- internal time is frames;
+- Agent sessions live outside Project JSON;
+- Project Schema stays `2.0.0` by default;
+- durable changes use existing Commands / Transactions / bounded services;
+- Agent/Workflow never hand-edit runtime `project.json`;
+- UI/Agent/Workflow never spawn external CLIs directly;
+- long-running work preserves revision/idempotency;
+- Remotion remains master renderer;
+- HyperFrames/video-use/FFmpeg remain behind adapters/services;
+- `VIDEO_OS_DATA_ROOT` separates runtime data from repo code;
+- `REUSE > MODIFY > CREATE`.
+
+## 6. Real Agent safety contract
+
+Required mutation flow:
+
+```text
+User goal
+→ bounded context
+→ provider + typed allow-listed tools
+→ explanation / validated proposal
+→ Preview Diff
+→ user confirmation
+→ existing Command Transaction / bounded service
+```
+
+The Agent does not receive generic shell/filesystem/Git/network tools.
+
+Provider tool calls are schema-validated before execution. Unknown tools are rejected.
+
+Proposal generated at Project revision N cannot silently apply to revision N+1.
+
+Retry of one confirmed operation must not duplicate Project mutations.
+
+Provider secrets remain server-side in `.env.local` and never enter Project/session/browser/repository truth.
+
+## 7. Existing capabilities to reuse
+
+V2.3 should reuse rather than recreate:
+
+- `AIWorkspacePanel`;
+- Studio selection context;
+- `VisualPlanService` / `RulesVisualPlannerAdapter`;
+- Project Commands / Transactions / `ProjectMutationCoordinator`;
+- Workflow Runtime;
+- Durable Jobs;
+- Remotion / HyperFrames / video-use / FFmpeg services.
+
+The Rules Director remains deterministic fallback/baseline and can be exposed as an Agent tool.
+
+## 8. GPT Web workstream protocol
+
+Before editing:
+
+1. resolve live GitHub main/PR/CI;
+2. read current status/constitution/system/active PRD;
+3. inspect existing implementation;
+4. create one bounded branch;
+5. implement cloud-safe scope;
+6. add tests;
+7. open/update PR;
+8. fix CI until green;
+9. merge when all required gates pass;
+10. update current status and immediately continue to the next cloud-safe workstream.
+
+## 9. Exact Local Codex trigger
+
+Local evidence is required when correctness depends on one or more of:
+
+- live provider API key/network/tool-calling behavior;
 - Windows process semantics;
 - real browser interaction;
 - real media/codecs;
@@ -91,215 +183,98 @@ Local evidence is required when correctness depends on:
 - video-use / Python;
 - HyperFrames runtime;
 - Remotion / Chromium final rendering;
-- filesystem/path behavior not reproducible in cloud tests;
-- application/process interruption and restart;
-- large-media memory/performance;
-- visual/encoded MP4 proof.
+- application/process interruption/restart;
+- final encoded-video proof.
 
-Expected V2.2 ownership:
+## 10. Exact handoff contract
 
-```text
-R0: online only
-W0: online only
-W1: online first; real restart proof deferred to W5
-W2: online + mandatory local engine/media gate
-W3: online first; local only if required by implementation, otherwise W4/W5
-W4: online + mandatory local browser/media gate
-W5: online + mandatory local restart/chaos gate
-W6: mandatory local end-to-end acceptance
-```
-
-## 5. GPT Web workstream protocol
-
-Before editing:
-
-1. Resolve live GitHub main, active PR and CI state.
-2. Read `PROJECT_STATUS.md`.
-3. Read `AGENTS.md`.
-4. Read `SYSTEM.md`.
-5. Read the active PRD/workstream contract.
-6. Inspect existing implementation before adding new abstractions.
-
-Then:
-
-```text
-create one bounded branch
-→ implement cloud-safe scope
-→ add tests
-→ inspect/fix CI
-→ open/update one PR
-```
-
-If no local gate is required, GPT Web reviews and merges after cloud acceptance.
-
-If a local gate is required, GPT Web freezes an exact green branch SHA and sends the exact handoff below.
-
-## 6. Exact handoff contract to Local Codex
-
-Every local handoff must contain:
+Every handoff must contain:
 
 ```text
 Repository
 Branch
-Exact SHA
+Exact frozen SHA
 Active workstream
 Goal
-Allowed files/areas to change
+Allowed files/areas
 Forbidden scope
 Setup / isolated VIDEO_OS_DATA_ROOT
-Commands to run
-Required real-media fixtures
-Required manual steps
+Secret/provider setup rules when applicable
+Commands
+Required fixtures
+Manual actions
 Acceptance gates
 Evidence to capture
 Stop rules
 Expected return format
 ```
 
-Codex must begin with:
+Codex begins with fetch/checkout and verifies HEAD equals the supplied SHA.
+
+If Codex pushes any code/config/test/runtime fix, it stops local acceptance. GPT Web reviews the new HEAD + GitHub CI and freezes a new exact SHA before local testing continues.
+
+Codex never merges and never starts the next workstream.
+
+## 11. V2.3 provider handoff rule
+
+A3 is the first expected mandatory live-provider local gate.
+
+The cloud branch must already have:
 
 ```text
-git fetch
-→ checkout the supplied branch
-→ verify HEAD equals the supplied SHA
-→ create/use isolated Windows worktree/data root
+provider-neutral contracts
+real provider adapter
+mocked provider/HTTP tests
+secret redaction tests
+error normalization tests
+CI green
 ```
 
-If HEAD is not the expected SHA, Codex stops and reports the mismatch rather than validating an unknown revision.
+Only then provide Codex an exact SHA and ask for a live `.env.local` smoke using a real key. Never send the secret through GitHub/chat/report output.
 
-## 7. Local Codex permissions
+## 12. V2.3 UI/media handoff rule
 
-Local Codex may:
+A4/A7 local acceptance must prove the real product path:
 
-- run the active local acceptance contract;
-- use real media outside Git;
-- fix defects discovered by that acceptance when they remain inside the current workstream;
-- add regression tests;
-- commit and push those fixes to the same branch;
-- return exact final SHA and evidence.
+```text
+real Project
+→ Agent session
+→ selected Scene/Script/Clip context
+→ live provider tool use
+→ proposal
+→ Review/Diff
+→ user Apply
+→ revision-safe Project mutation
+→ reload/reopen
+→ real Preview/Final Render when visual changes are accepted
+```
 
-Local Codex must not:
+Where final visuals are part of acceptance, inspect the actual encoded output rather than inferring success from Project JSON.
 
-- merge the PR;
-- begin the next workstream;
-- redesign Workflow architecture;
-- add a Real AI Provider;
-- start V2.3 Agent runtime;
-- replace the Durable Job system;
-- replace Project persistence;
-- change Project Schema or engine pins without explicit authorization;
-- perform unrelated UI/product redesign.
+## 13. Local return format
 
-## 8. Codex return format
-
-Every local return must include:
+Codex returns:
 
 ```text
 Final branch HEAD
 Commits pushed
 Environment summary
+Provider/model summary without secret
 Commands executed
 Automated test results
-Real browser/media/engine evidence
+Browser/media/engine evidence
+Project/session/proposal/operation IDs
+Revision/idempotency evidence
 Defects found
 Fixes applied
-Regression tests added
-Remaining failed items
+Regression tests
+Remaining failures
 ```
 
-No PASS is accepted without the evidence named by the active handoff.
+No PASS is accepted without evidence named by the active handoff.
 
-## 9. GPT Web closeout after Codex
+## 14. Release boundary
 
-GPT Web then:
+The V2.2.0 tag `v2.2.0` is immutable and must never be moved.
 
-1. verifies the returned branch and final SHA;
-2. reviews Codex commits/diff;
-3. confirms latest CI for that exact head;
-4. checks local evidence against the active acceptance gates;
-5. rejects/reworks out-of-scope changes if present;
-6. merges only after cloud + required local gates pass;
-7. updates current-state documentation before starting the next workstream.
-
-## 10. Permanent architecture invariants
-
-Always preserve:
-
-```text
-Source Media != Project Canvas != Export Profile
-Project != Workflow != Job
-```
-
-And:
-
-- Project JSON is durable Project truth;
-- canonical internal timeline time is frames;
-- durable Project changes use validated Commands/Transactions/bounded services;
-- Workflow orchestrates existing services/jobs and does not become a second Job system;
-- UI/Workflow do not spawn CLIs directly;
-- agents do not hand-edit runtime `project.json`;
-- Remotion remains the master renderer;
-- HyperFrames remains the deterministic complex-motion engine behind adapters/services;
-- video-use and FFmpeg/ffprobe remain behind adapters/services;
-- runtime media/user data remains separated through `VIDEO_OS_DATA_ROOT`;
-- Studio UI theme/locale remains separate from generated-video Brand;
-- Project Schema `2.0.0` and engine pins are not changed incidentally;
-- `REUSE > MODIFY > CREATE`.
-
-## 11. V2.2 stop rules
-
-Unless the active PRD/status is deliberately revised, V2.2 must not add:
-
-- real external AI Provider;
-- broad multi-turn Editing Agent runtime;
-- arbitrary Agent shell/filesystem execution;
-- second Job system;
-- unrelated editor rewrites;
-- multi-timeline/arbitrary docking/full crop-mask/transition suite;
-- generated-media marketplace;
-- cloud collaboration;
-- HDR/pro color;
-- desktop packaging.
-
-PR #18 is historical/future architecture input for V2.3, not the V2.2 implementation branch.
-
-## 12. Verification baseline
-
-Cloud baseline:
-
-```text
-npm ci
-npm run format:check
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-```
-
-Add:
-
-```text
-npm run test:e2e
-```
-
-when browser flows are changed.
-
-Cloud CI proves repository/cloud behavior only. It does not prove Windows/real-media/real-engine behavior.
-
-## 13. Final V2.2 outcome
-
-The release target is not merely a Workflow API. A user must be able to:
-
-```text
-create Project
-→ import real source video
-→ choose Scenario
-→ Generate First Draft
-→ observe durable automatic stages
-→ review/approve
-→ obtain editable Timeline
-→ Preview
-→ Final Render
-```
-
-with safe retry, cancellation, manual editing and restart recovery.
+Do not begin V2.3 release-version bump/tag work before A7 is accepted.
