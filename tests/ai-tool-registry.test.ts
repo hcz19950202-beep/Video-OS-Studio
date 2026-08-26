@@ -37,12 +37,13 @@ const plan:VisualPlan={
 const executionContext={sessionId,context,now:()=>now,makeId:()=>proposalId};
 
 describe("V2.3 A1 Agent tool registry",()=>{
-  it("exposes only the explicit A1 allow-list with risk metadata",()=>{
+  it("exposes only the explicit A1 allow-list with full safety metadata",()=>{
     const registry=createA1AgentToolRegistry({visualPlans:{generate:async()=>plan}});
-    expect(registry.listDefinitions().map(tool=>[tool.id,tool.risk])).toEqual([
-      ["get_project_context","read"],
-      ["propose_visual_plan","proposal"],
+    expect(registry.listDefinitions().map(tool=>({id:tool.id,risk:tool.risk,revisionPolicy:tool.revisionPolicy,idempotency:tool.idempotency,requiresConfirmation:tool.requiresConfirmation}))).toEqual([
+      {id:"get_project_context",risk:"read",revisionPolicy:"snapshot",idempotency:"read-only",requiresConfirmation:false},
+      {id:"propose_visual_plan",risk:"proposal",revisionPolicy:"snapshot",idempotency:"proposal-only",requiresConfirmation:false},
     ]);
+    for(const definition of registry.listDefinitions())expect(definition.errorCodes.length).toBeGreaterThan(0);
     expect(registry.getDefinition("shell")).toBeUndefined();
     expect(registry.getDefinition("filesystem")).toBeUndefined();
     expect(registry.getDefinition("git")).toBeUndefined();
