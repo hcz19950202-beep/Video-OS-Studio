@@ -17,7 +17,7 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
         required:["intent"],
         properties:{
           intent:{type:"string",minLength:1,maxLength:2000},
-          selectedSuggestionIds:{type:"array",items:{type:"string"},maxItems:128},
+          selectedSuggestionIds:{type:"array",items:{type:"string"},maxItems:128,uniqueItems:true},
         },
         additionalProperties:false,
       },
@@ -30,10 +30,12 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
     outputSchema:VisualPlanProposalToolOutputSchema,
     handler:async(inputValue,context)=>{
       const input=ProposeVisualPlanInputSchema.parse(inputValue);
-      const plan=await visualPlans.generate(context.context.projectId,{intent:input.intent});
+      const plan=await visualPlans.generate(context.context.projectId,{intent:input.intent},context.context.baseProjectRevision);
       if(plan.projectId!==context.context.projectId)throw new Error("Visual planner returned a plan for a different Project.");
       const allowedIds=new Set(plan.suggestions.map(suggestion=>suggestion.id));
-      const selectedIds=(input.selectedSuggestionIds??plan.suggestions.map(suggestion=>suggestion.id)).filter(id=>allowedIds.has(id));
+      const selectedIds=input.selectedSuggestionIds??plan.suggestions.map(suggestion=>suggestion.id);
+      const unknownIds=selectedIds.filter(id=>!allowedIds.has(id));
+      if(unknownIds.length>0)throw new Error("Visual proposal selection references unknown suggestions.");
       if(selectedIds.length===0)throw new Error("Visual planner produced no selected actionable suggestions.");
       const proposalId=context.makeId?.()??randomUUID();
       const createdAt=context.now?.()??new Date().toISOString();
@@ -44,7 +46,7 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
         baseProjectRevision:context.context.baseProjectRevision,
         title:"Visual plan proposal",
         summary:`Review ${selectedIds.length} Rules Director suggestion${selectedIds.length===1?"":"s"} before applying.`,
-        rationale:["Generated through the existing deterministic VisualPlanService; no Project mutation has been applied."],
+        rationale:["Generated through the existing deterministic VisualPlanService at the captured Project revision; no Project mutation has been applied."],
         operations:[{
           id:`visual-plan-${proposalId}`,
           kind:"visual-plan",
