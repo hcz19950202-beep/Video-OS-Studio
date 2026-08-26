@@ -4,32 +4,23 @@ Video OS Studio is a local-first AI-native universal video production workspace.
 
 ## Current product baseline
 
-**Video OS Studio v2.1.1 is released and accepted.**
+**Video OS Studio v2.2.0 has completed product acceptance and release finalization.**
 
-Current release truth:
+Current release line:
 
 ```text
-Product version: 2.1.1
-Release tag: v2.1.1
-Release commit: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
+Product version: 2.2.0
 Project Schema: 2.0.0
+Release tag: v2.2.0
 ```
 
-V2.1 delivered the universal AI-first editor. V2.1.1 completed the engineering hardening and agent-ready foundation: transaction/revision safety, durable jobs, deterministic engine runtime, streaming media, data hardening, automated Ubuntu/Windows acceptance, restart recovery and real final-render evidence.
+V2.2 connects the existing editor, durable Job runtime, media services and rendering engines into one durable, reviewable production Workflow with two human checkpoints and a final Remotion render.
 
-The live current-state source of truth is always:
+The live repository source of truth is always:
 
 [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 
-## Current development milestone
-
-The repository is entering:
-
-```text
-V2.2 Workflow Runtime
-```
-
-The objective is to connect existing capabilities into one durable, reviewable production pipeline:
+## V2.2 accepted product flow
 
 ```text
 Create Project
@@ -37,19 +28,22 @@ Create Project
 → Select Scenario
 → Generate First Draft
 → Media / Transcript / Script / Scenes / Captions / Visual Plan
-→ Human Review
+→ Content Review
 → Motion / B-roll / Audio / Timeline Assembly
 → Preview
-→ Human Review
+→ Assembly Review
 → Final Render
 ```
+
+The V2.2 Workflow Runtime was accepted through R0, W0, W1, W2, W3, W4, W5 and W6. W6 final product acceptance proved real Talking Head 9:16, Product Ad 16:9 and Restart Recovery 1:1 flows on Windows with real browser/media execution, video-use, HyperFrames, Remotion, FFmpeg/ffprobe, encoded-frame inspection, revision/idempotency checks and cleanup.
 
 Authoritative V2.2 documents:
 
 - [`docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md`](docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md)
 - [`docs/prd/Video_OS_Studio_V2_2_Development_Plan.md`](docs/prd/Video_OS_Studio_V2_2_Development_Plan.md)
+- [`docs/validation/LOCAL_VALIDATION_V2_2_W6.md`](docs/validation/LOCAL_VALIDATION_V2_2_W6.md)
 
-V2.2 deliberately does **not** introduce the production Real AI Provider / multi-turn Editing Agent. Those remain V2.3 work after Workflow Runtime is accepted.
+V2.2 deliberately does **not** introduce the production Real AI Provider / multi-turn Editing Agent. Those remain a future V2.3 workstream and require a separately approved PRD/scope.
 
 ## Product roadmap
 
@@ -62,13 +56,13 @@ V2.1.1
 Engineering Hardening / Agent-ready Foundation
         ✅
 
-V2.2
+V2.2.0
 Workflow Runtime / Generate First Draft
-        ← current
+        ✅
 
 V2.3
 Real AI Director / AI Editing Agent
-        → future
+        → future, not started
 ```
 
 ## Development model
@@ -101,27 +95,11 @@ Owns exact-SHA validation for behavior that cloud execution cannot prove:
 - process interruption / restart recovery;
 - real-media memory/performance;
 - final encoded-video proof;
-- in-scope local defect fixes and regression tests.
+- bounded in-scope local defect fixes and regression tests.
 
-GPT Web freezes an exact branch/SHA before local Codex starts. Codex pushes accepted fixes back to the **same branch**. It does not start a parallel implementation or merge the PR.
+GPT Web freezes an exact branch/SHA before Local Codex starts. Codex pushes accepted fixes back to the same branch. It does not independently merge the PR or start the next workstream.
 
 Read [`GPT_WEB_HANDOFF.md`](GPT_WEB_HANDOFF.md) and [`AGENTS.md`](AGENTS.md) before making changes.
-
-## V2.2 delivery sequence
-
-```text
-R0 Repository / Roadmap Sync
-→ W0 Workflow Contract
-→ W1 Workflow Runtime Core
-→ W2 Existing Capability Stage Integration
-→ W3 Human Review + Invalidation
-→ W4 Workflow UI
-→ W5 Failure / Retry / Restart Hardening
-→ W6 End-to-End Release Acceptance
-→ V2.2 Release
-```
-
-Local Codex is not required for R0/W0 and normally not for W1. It becomes mandatory when W2/W4/W5/W6 reaches Windows/real-media/real-engine acceptance gates.
 
 ## Product model
 
@@ -153,7 +131,7 @@ Project != Workflow != Job
 - Job represents one concrete long-running execution task.
 - Workflow represents the production stages/dependencies needed to reach an outcome.
 
-## Core capabilities already available
+## Core capabilities
 
 ### Project / durability
 
@@ -184,6 +162,17 @@ Project != Workflow != Job
 - Generated Video Brand and Linked Styles;
 - Export Profiles separate from Project Canvas.
 
+### Workflow Runtime
+
+- durable `WorkflowRun` state;
+- dependency-aware Stage execution;
+- pause / resume / retry / cancel;
+- two persisted human-review checkpoints;
+- downstream invalidation after approved edits;
+- restart recovery and idempotent Project mutations;
+- visible stage progress and durable activity history;
+- Final Render delivery through the existing renderer/runtime.
+
 ### Media and engines
 
 - universal media ingest and normalization where required;
@@ -198,6 +187,8 @@ Always preserve:
 
 ```text
 Source Media != Project Canvas != Export Profile
+Project != Workflow != Job
+REUSE > MODIFY > CREATE
 ```
 
 And:
@@ -212,8 +203,7 @@ And:
 - video-use and FFmpeg/ffprobe remain behind adapters/services;
 - repository code and runtime media remain separated through `VIDEO_OS_DATA_ROOT`;
 - Studio UI theme/locale remain separate from generated-video Brand;
-- Project Schema and engine pins are not changed incidentally;
-- `REUSE > MODIFY > CREATE`.
+- Project Schema and engine pins are not changed incidentally.
 
 ## Local requirements
 
@@ -242,7 +232,7 @@ npm run test
 npm run build
 ```
 
-Use `npm run test:e2e` when the active workstream changes browser flows.
+Use `npm run test:e2e` when a workstream changes browser flows.
 
 ## Verification discipline
 
@@ -258,15 +248,14 @@ VISUAL ACCEPTED
 MIGRATION VERIFIED
 ```
 
-Cloud CI does not prove Windows process behavior, real browser/media behavior, FFmpeg, video-use, HyperFrames, Remotion/Chrome, restart recovery or final encoded-video correctness. Those require the exact local acceptance contract defined by the active workstream.
+Cloud CI does not by itself prove Windows process behavior, real browser/media behavior, FFmpeg, video-use, HyperFrames, Remotion/Chrome, restart recovery or final encoded-video correctness. Those require the exact local acceptance contract defined by the relevant workstream.
 
 ## Read order before new work
 
 1. `PROJECT_STATUS.md`
 2. `AGENTS.md`
 3. `SYSTEM.md`
-4. `docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md`
-5. `docs/prd/Video_OS_Studio_V2_2_Development_Plan.md`
-6. active local validation contract when required
+4. the approved PRD for the active workstream
+5. the active validation contract when required
 
-Historical V2/V2.1/V2.1.1 documents remain evidence, but they never override `PROJECT_STATUS.md` for the current milestone or workstream.
+Historical V2/V2.1/V2.1.1/V2.2 documents remain evidence, but they never override `PROJECT_STATUS.md` for current repository truth.
