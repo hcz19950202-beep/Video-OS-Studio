@@ -7,8 +7,12 @@
 ```yaml
 product_version: 2.2.0
 project_schema: 2.0.0
+release_status: V2.2.0 RELEASE COMPLETE
+release_tag: v2.2.0
+release_tag_type: annotated
+release_tag_object_sha: df1acb238838ed814b969e20fe85a49253a92861
+release_commit: 0e813e5e1360318211e05c1c5fec5eb82be00224
 previous_release: v2.1.1
-release_status: V2.2.0 READY FOR FINAL MERGE AND TAG
 
 v2_2_r0_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
 v2_2_w0_main: 9914b1e65d27a7d40e997295d94eeb5ce4c3deea
@@ -18,18 +22,18 @@ v2_2_w3_main: 23193e537a2c403f8d3c82806db991603cb27dca
 v2_2_w4_main: 6a443e56c10b4935efedd65293b6dbd5584cbda1
 v2_2_w5_main: 2bdbe3aa229513e22da5bba51202609743a718b3
 v2_2_w6_main: d629249f9dbc877eadc68ce61f47c16f80a883b1
+v2_2_release_main: 0e813e5e1360318211e05c1c5fec5eb82be00224
 
-release_branch: release/v2.2.0
 release_pr: 38
 package_json_version: 2.2.0
 package_lock_version: 2.2.0
 package_lock_sync_commit: 8bddb2c4a174da98cef9bad760ab93691bc4d0d0
-local_action_required: NONE BEFORE MERGE
-post_merge_action: CREATE_AND_VERIFY_TAG_v2.2.0
+local_action_required: NONE
+active_development_workstream: NONE
 next_after_release: V2.3 planning under a new approved PRD/workstream
 ```
 
-## Accepted V2.2 delivery history
+## V2.2 delivery status
 
 ```text
 R0 Repository / Roadmap Sync              → COMPLETE / PR #30
@@ -39,9 +43,26 @@ W2 Existing Capability Stage Integration  → COMPLETE / PR #33
 W3 Human Review + Invalidation            → COMPLETE / PR #34
 W4 Workflow UI                            → COMPLETE / PR #35
 W5 Failure / Retry / Restart Hardening    → COMPLETE / PR #36
-W6 End-to-End Product Acceptance          → COMPLETE / PR #37 / main d629249f...
-Release metadata finalization             → PR #38 ACTIVE
+W6 End-to-End Product Acceptance          → COMPLETE / PR #37
+V2.2.0 Release Finalization               → COMPLETE / PR #38
+Release tag v2.2.0                        → VERIFIED
 ```
+
+## Release truth
+
+The accepted V2.2.0 release commit is:
+
+`0e813e5e1360318211e05c1c5fec5eb82be00224`
+
+The annotated release tag is:
+
+`v2.2.0`
+
+Tag object:
+
+`df1acb238838ed814b969e20fe85a49253a92861`
+
+The annotated tag dereferences exactly to the accepted release commit above. The tag is the immutable V2.2.0 release boundary; later documentation-only main commits do not change the tagged release contents.
 
 ## W6 accepted release evidence
 
@@ -82,26 +103,15 @@ W6 proved on real Windows/browser/media/engines:
 
 No W6 release-blocking product defect remained and no product-code/config/test/schema/pin change was required during formal acceptance.
 
-## V2.2.0 release metadata state
+## V2.2.0 release metadata evidence
 
-`package.json`, the package-lock top-level version, and `packages[""]` are all `2.2.0`. The lockfile sync commit changed exactly two version metadata fields and Local Codex verified `npm ci` and `npm run typecheck` with no additional lockfile drift.
+`package.json`, the package-lock top-level version, and `packages[""]` are all `2.2.0`.
 
-PR #38 remains metadata-only. Its merge gate is a green GitHub CI on the final PR head. After merge, create tag `v2.2.0` on the accepted release-finalization main commit and verify that the tag resolves to exactly that commit.
+The package-lock sync commit:
 
-## Hard boundaries
+`8bddb2c4a174da98cef9bad760ab93691bc4d0d0`
 
-Do not introduce during release finalization:
-
-- Real AI Provider / OpenAI / Claude / Gemini runtime;
-- multi-turn AI Editing Agent;
-- Project Schema migration;
-- engine pin changes;
-- new Workflow or Job architecture;
-- template/productization experiments;
-- editor redesign;
-- unrelated fixes/refactors.
-
-The experimental `feature/v2.2-w55-workflow-template` branch remains outside the accepted V2.2 release and must not be merged into this release.
+changed exactly the two Video OS Studio version metadata fields. Local Codex verified `npm ci` and `npm run typecheck` with no additional lockfile drift. Final release-candidate GitHub CI Run #571 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke before PR #38 was merged.
 
 ## Accepted invariants
 
@@ -118,6 +128,16 @@ Project != Workflow != Job
 REUSE > MODIFY > CREATE
 ```
 
-## Current stop rule
+- Project JSON remains durable editing truth.
+- Workflow durable state remains separate from Project Schema.
+- Durable Job runtime remains concrete execution truth.
+- Workflow Stages use registered services/jobs/transactions and do not directly spawn engines.
+- Long-running mutation work preserves Project revision and operation idempotency contracts.
 
-Do not start V2.3 before PR #38 is merged and tag `v2.2.0` is created and verified. Any product-code/config/test change in this release PR invalidates the metadata-only release path and must be reviewed separately.
+## Post-release boundary
+
+V2.2.0 is closed. Do not make additional V2.2 product changes under the release workstream.
+
+The experimental branch `feature/v2.2-w55-workflow-template` was not part of the accepted V2.2 Master PRD release path and was not merged into V2.2. Re-evaluate it only under a separately approved future scope.
+
+V2.3 Real AI Director / AI Editing Agent has **not started**. Before V2.3 implementation, create and approve a dedicated PRD/workstream and branch from current `main`.
