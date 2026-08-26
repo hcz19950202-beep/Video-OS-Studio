@@ -25,13 +25,14 @@ v2_2_release_main: 0e813e5e1360318211e05c1c5fec5eb82be00224
 v2_2_post_release_docs_main: 85adebdac436b33b3a737536f32363bfc8e22465
 
 v2_3_r0_main: 34ebc73b8998854e3ee8a067dc547cc158d156b8
+v2_3_a0_main: 64977b6b2fdf97224eefd0819c29fa2f0c8c52fd
 
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
-active_workstream: V2.3 A0 AGENT CONTRACTS + PROVIDER ABSTRACTION
-active_branch: feature/v2.3-a0-agent-contracts
-active_pr: 41
+active_workstream: V2.3 A1 CONTEXT BUILDER + ALLOW-LISTED TOOL REGISTRY
+active_branch: feature/v2.3-a1-context-tools
+active_pr: 42
 local_action_required: NONE
-next_workstream: A1 Context Builder + Allow-listed Tool Registry
+next_workstream: A2 Session Store + Multi-turn Agent Runner
 ```
 
 ## V2.2 delivery status
@@ -53,8 +54,8 @@ Release tag v2.2.0                        → VERIFIED
 
 ```text
 R0 Repository / PRD / Runtime Truth Sync  → COMPLETE / PR #40
-A0 Agent Contracts + Provider Abstraction → ACTIVE / PR #41
-A1 Context Builder + Tool Registry        → NOT STARTED
+A0 Agent Contracts + Provider Abstraction → COMPLETE / PR #41
+A1 Context Builder + Tool Registry        → ACTIVE / PR #42
 A2 Session Store + Multi-turn Runner      → NOT STARTED
 A3 Production Real Provider               → NOT STARTED
 A4 AI Workspace Agent UX + Review / Apply → NOT STARTED
@@ -151,12 +152,12 @@ REUSE > MODIFY > CREATE
 
 ## V2.3 active boundary
 
-V2.3 Real AI Director / AI Editing Agent is now active under the authoritative documents:
+V2.3 Real AI Director / AI Editing Agent is active under the authoritative documents:
 
 - `docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md`;
 - `docs/prd/Video_OS_Studio_V2_3_Development_Plan.md`.
 
-A0 is provider-neutral, cloud-safe work. It must not add a live provider, network calls, secrets, Project mutations, Project Schema changes, arbitrary shell/filesystem/Git/network Agent tools, or a second Workflow/Job system.
+A0 is accepted on main after exact-head CI Run #578 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke. A1 adds only bounded Project context and an explicit tool allow-list; its proposal tool reuses the existing Rules Director / `VisualPlanService` and never applies Project mutations.
 
 The first mandatory Local Codex gate remains A3 live-provider validation after the exact cloud-tested provider implementation SHA is green.
 

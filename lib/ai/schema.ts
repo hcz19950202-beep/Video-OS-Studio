@@ -32,16 +32,36 @@ export type AgentMessage=z.infer<typeof AgentMessageSchema>;
 
 export const AgentToolRiskSchema=z.enum(["read","proposal","mutating-request"]);
 export type AgentToolRisk=z.infer<typeof AgentToolRiskSchema>;
+export const AgentToolRevisionPolicySchema=z.enum(["none","snapshot","expected-revision"]);
+export type AgentToolRevisionPolicy=z.infer<typeof AgentToolRevisionPolicySchema>;
+export const AgentToolIdempotencySchema=z.enum(["read-only","proposal-only","stable-operation-id"]);
+export type AgentToolIdempotency=z.infer<typeof AgentToolIdempotencySchema>;
+const AgentToolErrorCodeSchema=z.string().min(1).max(128).regex(/^[a-z][a-z0-9_]*$/,"Tool error codes must use lowercase snake_case");
 
 export const AgentToolDefinitionSchema=z.object({
   id:AgentToolIdSchema,
   description:z.string().min(1).max(2_000),
   risk:AgentToolRiskSchema,
   inputJsonSchema:JsonObjectSchema,
+  revisionPolicy:AgentToolRevisionPolicySchema,
+  idempotency:AgentToolIdempotencySchema,
   requiresConfirmation:z.boolean(),
+  errorCodes:z.array(AgentToolErrorCodeSchema).min(1).max(32),
 }).strict().superRefine((tool,ctx)=>{
-  if(tool.risk==="read"&&tool.requiresConfirmation)ctx.addIssue({code:"custom",path:["requiresConfirmation"],message:"Read-only tools must not require mutation confirmation"});
-  if(tool.risk==="mutating-request"&&!tool.requiresConfirmation)ctx.addIssue({code:"custom",path:["requiresConfirmation"],message:"Mutating requests must require confirmation"});
+  if(tool.risk==="read"){
+    if(tool.requiresConfirmation)ctx.addIssue({code:"custom",path:["requiresConfirmation"],message:"Read-only tools must not require mutation confirmation"});
+    if(tool.idempotency!=="read-only")ctx.addIssue({code:"custom",path:["idempotency"],message:"Read-only tools must declare read-only idempotency"});
+  }
+  if(tool.risk==="proposal"){
+    if(tool.requiresConfirmation)ctx.addIssue({code:"custom",path:["requiresConfirmation"],message:"Proposal generation must not require mutation confirmation"});
+    if(tool.revisionPolicy!=="snapshot")ctx.addIssue({code:"custom",path:["revisionPolicy"],message:"Proposal tools must bind to the captured Project snapshot revision"});
+    if(tool.idempotency!=="proposal-only")ctx.addIssue({code:"custom",path:["idempotency"],message:"Proposal tools must declare proposal-only idempotency"});
+  }
+  if(tool.risk==="mutating-request"){
+    if(!tool.requiresConfirmation)ctx.addIssue({code:"custom",path:["requiresConfirmation"],message:"Mutating requests must require confirmation"});
+    if(tool.revisionPolicy!=="expected-revision")ctx.addIssue({code:"custom",path:["revisionPolicy"],message:"Mutating requests must require an expected Project revision"});
+    if(tool.idempotency!=="stable-operation-id")ctx.addIssue({code:"custom",path:["idempotency"],message:"Mutating requests must use a stable operation id"});
+  }
 });
 export type AgentToolDefinition=z.infer<typeof AgentToolDefinitionSchema>;
 
