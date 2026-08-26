@@ -27,7 +27,7 @@ v2_2_post_release_docs_main: 85adebdac436b33b3a737536f32363bfc8e22465
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
 active_workstream: V2.3 R0 REPOSITORY / PRD / RUNTIME TRUTH SYNC
 active_branch: planning/v2.3-real-ai-agent
-active_pr: PENDING
+active_pr: 40
 local_action_required: NONE
 next_workstream: A0 Agent Contracts + Provider Abstraction
 ```
