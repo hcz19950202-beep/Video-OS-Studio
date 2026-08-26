@@ -37,9 +37,8 @@ export class AgentToolRegistry{
       const output=tool.outputSchema.safeParse(rawOutput);
       if(!output.success)return errorResult(call,"invalid_tool_output",`Agent tool ${call.toolId} returned invalid output.`);
       return AgentToolResultSchema.parse({callId:call.id,toolId:call.toolId,status:"success",output:output.data});
-    }catch(error){
-      const message=error instanceof Error&&error.message?error.message:`Agent tool ${call.toolId} failed.`;
-      return errorResult(call,"tool_execution_failed",message.slice(0,4_000));
+    }catch{
+      return errorResult(call,"tool_execution_failed",`Agent tool ${call.toolId} failed without exposing internal runtime details.`);
     }
   }
 }
