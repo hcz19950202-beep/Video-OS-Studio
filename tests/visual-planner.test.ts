@@ -2,6 +2,7 @@ import {describe,expect,it} from "vitest";
 import {InMemoryFileSystemAdapter} from "@/adapters/filesystem";
 import type {HyperFramesAdapter} from "@/adapters/contracts";
 import {HyperFramesRenderService} from "@/lib/hyperframes/render-service";
+import {ProjectRevisionConflictError} from "@/lib/project/mutation-coordinator";
 import {ProjectRepository} from "@/lib/project/repository";
 import {applyProjectCommand} from "@/lib/project/commands";
 import {createProject} from "@/lib/project/factory";
@@ -66,6 +67,21 @@ describe("V2 M5 AI Director",()=>{
     expect(all.styleChanges).toEqual([]);
     expect(all.densityAfter.motionCards).toBe(2);
     expect(all.densityAfter.cardsPerMinute).toBeGreaterThan(all.densityBefore.cardsPerMinute);
+  });
+
+  it("rejects visual-plan generation when the captured Project revision is stale",async()=>{
+    const fs=new InMemoryFileSystemAdapter();
+    const repository=new ProjectRepository(fs,"/data");
+    let project=await repository.create({id:"revision-guard",name:"Revision Guard",durationInFrames:600});
+    project=applyProjectCommand(project,{type:"add-scene",scene:scene("proof","Proof","proof",0,600,"high")});
+    project=applyProjectCommand(project,{type:"add-clip",trackId:"captions-main",clip:caption("c1","15 days production",60)});
+    await repository.save(project);
+    const hyperAdapter:HyperFramesAdapter={render:async input=>{await fs.writeBinary(input.outputPath,new Uint8Array([1]));return{outputPath:input.outputPath};}};
+    const service=new VisualPlanService(fs,repository,new RulesVisualPlannerAdapter(),new HyperFramesRenderService(fs,hyperAdapter,repository));
+    const latest=await repository.load("revision-guard");
+    const staleRevision=latest.project.revision-1;
+    await expect(service.generate("revision-guard",{intent:"Emphasize proof"},staleRevision)).rejects.toBeInstanceOf(ProjectRevisionConflictError);
+    expect((await repository.load("revision-guard")).project.revision).toBe(latest.project.revision);
   });
 
   it("applies reviewed Remotion and HyperFrames suggestions as one revision",async()=>{
