@@ -1,6 +1,6 @@
 # Video OS Studio — Current Project Status
 
-> Current-state source of truth for GPT Web, Local Codex, and other development agents. Historical PRs/validation reports are evidence; they do not override this file.
+> Current-state source of truth for GPT Web, Local Codex, and other development agents. Historical PRs and validation reports remain evidence; they do not override this file.
 
 ## Current checkpoint
 
@@ -11,22 +11,23 @@ released_baseline: v2.1.1
 release_status: COMPLETE
 release_tag: v2.1.1
 release_tag_sha: 223b66799baf5b5faf1d1321a671d3fb5c6a0930
+
 v2_2_r0_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
 v2_2_w0_main: 9914b1e65d27a7d40e997295d94eeb5ce4c3deea
 v2_2_w1_main: 5c98117a2ca30217ac8865e99eb87fe410ee7192
 v2_2_w2_main: bfcc862aed29969e61c5c3723179585e6c583a07
 v2_2_w3_main: 23193e537a2c403f8d3c82806db991603cb27dca
 v2_2_w4_main: 6a443e56c10b4935efedd65293b6dbd5584cbda1
+v2_2_w5_main: 2bdbe3aa229513e22da5bba51202609743a718b3
+
 current_milestone: V2.2 WORKFLOW RUNTIME
-v2_2_status: W5 LOCAL CHAOS VALIDATION REQUIRED
-active_workstream: V2.2-W5 Failure / Retry / Restart Hardening
-active_branch: feature/v2.2-w5-failure-retry-restart
-active_pr: 36
-cloud_green_code_head: a239a0ca620a14920fed66ecc66080ecb6d5c7d8
-cloud_green_ci_run: 32718411327
-local_validation_required: YES NOW after final status-only CI
-local_validation_contract: docs/validation/LOCAL_VALIDATION_V2_2_W5_CONTRACT.md
-next_workstream_after_w5: W6 End-to-End Release Acceptance
+v2_2_status: W6 END-TO-END PRODUCT ACCEPTANCE ACTIVE
+active_workstream: V2.2-W6 End-to-End Product Acceptance
+active_branch: release/v2.2-final-acceptance
+active_pr: 37
+local_validation_required: YES after cloud-green exact head
+local_validation_contract: docs/validation/LOCAL_VALIDATION_V2_2_W6_CONTRACT.md
+next_after_w6: V2.2 release finalization
 future_milestone: V2.3 Real AI Director / AI Editing Agent
 ```
 
@@ -38,97 +39,106 @@ V2.1.1 tag v2.1.1                            → COMPLETE
 V2.2 R0 Repository / Roadmap Sync             → PR #30 COMPLETE
 V2.2 W0 Workflow Contract                     → PR #31 COMPLETE
 V2.2 W1 Workflow Runtime Core                 → PR #32 COMPLETE
-V2.2 W2 Existing Capability Stage Integration → PR #33 COMPLETE / main bfcc862a...
-V2.2 W3 Human Review + Invalidation            → PR #34 COMPLETE / main 23193e53...
-V2.2 W4 Workflow UI                            → PR #35 COMPLETE / main 6a443e56...
-V2.2 W5 Failure / Retry / Restart Hardening    → PR #36 CLOUD GREEN / LOCAL VALIDATION REQUIRED
+V2.2 W2 Existing Capability Stage Integration → PR #33 COMPLETE
+V2.2 W3 Human Review + Invalidation            → PR #34 COMPLETE
+V2.2 W4 Workflow UI                            → PR #35 COMPLETE
+V2.2 W5 Failure / Retry / Restart Hardening    → PR #36 COMPLETE / main 2bdbe3aa...
+V2.2 W6 End-to-End Product Acceptance          → PR #37 ACTIVE
 ```
 
-W2 exact-SHA Local Codex evidence: `docs/validation/LOCAL_VALIDATION_V2_2_W2.md`.
+## W5 accepted evidence
 
-W4 exact-SHA Windows browser/media acceptance is complete. Tested code SHA `99a4476613e77563861601eaa07ecb3881bc6219`; formal report `docs/validation/LOCAL_VALIDATION_V2_2_W4.md`; PR-head report commit `fa018c32364d713a73279ade69926611720b4bf0`; PR #35 merged as accepted main `6a443e56c10b4935efedd65293b6dbd5584cbda1` after final cloud CI passed.
+W5 exact tested product-code SHA:
 
-W5 code head `a239a0ca620a14920fed66ecc66080ecb6d5c7d8` passed CI Run `32718411327`: Ubuntu verify, Windows verify, browser smoke, and Windows media smoke all succeeded. The only remaining merge gate is exact-SHA Local Codex Windows chaos acceptance followed by final GitHub CI on any report-only or bounded-fix commit.
+`b1cf950fe1fc7802a2e05c35a3ad0b00f16f1abc`
 
-## Delivery sequence
+Local Windows chaos acceptance:
+
+`docs/validation/LOCAL_VALIDATION_V2_2_W5.md`
+
+Final report-only head:
+
+`64f9243ff6de0ef4336f20906905275ccae75b14`
+
+Final CI:
+
+`32843034099` — PASS.
+
+Accepted W5 main:
+
+`2bdbe3aa229513e22da5bba51202609743a718b3`
+
+The accepted W5 evidence includes real Windows browser/media/video-use/HyperFrames/Remotion/FFmpeg execution, C1-C6 chaos cases, exact revision/idempotency checks, final encoded MP4 proof, and zero W5-scoped residual processes.
+
+## W6 authority and scope
+
+W6 is the Master PRD's **End-to-End Product Acceptance** workstream. It is a release gate, not a new Workflow engine or a new large UI workstream.
+
+W6 must prove the released product flow on fresh isolated `VIDEO_OS_DATA_ROOT` roots:
 
 ```text
-R0 Repository / Roadmap Sync              → COMPLETE
-W0 Workflow Contract                      → COMPLETE
-W1 Workflow Runtime Core                  → COMPLETE
-W2 Existing Capability Stage Integration  → COMPLETE
-W3 Human Review + Invalidation            → COMPLETE
-W4 Workflow UI                            → COMPLETE
-W5 Failure / Retry / Restart Hardening    → LOCAL VALIDATION REQUIRED
-W6 End-to-End Release Acceptance          → NEXT AFTER W5
+Open Video OS
+→ Create Project
+→ Import real source media
+→ Select Scenario
+→ Generate First Draft
+→ observe durable Workflow progress
+→ Content Review
+→ approve / continue
+→ Assembly Review
+→ approve / continue
+→ Final Render
+→ download/reopen/verify durable result
 ```
 
-## W5 scope contract
-
-W5 hardens the accepted W4 product flow under process interruption, stale Project revisions, commit gaps, retry, and restart.
-
-Required safety properties:
-
-1. `WorkflowService` automatically recovers persisted running Workflows on process startup; normal reads do not require a manual recovery action.
-2. Durable Job ownership remains Job truth. Active Jobs from a dead runtime are recovered as interrupted/terminal truth rather than guessed successful.
-3. Project operation-log state is queryable so a mutation Stage can detect that an earlier Workflow attempt already committed its Project transaction.
-4. Failure Retry preserves historical Workflow operation IDs and skips an already-applied Project mutation instead of duplicating Caption/Motion/B-roll/Timeline output.
-5. Human Review Replay is distinct from failure Retry: replay clears prior durable attempt references for invalidated stages so requested regeneration actually runs again.
-6. A Job that failed because its `expectedRevision` became stale remains non-retryable with the same Job input, while the Workflow can start a fresh Job using the latest Project revision.
-7. Workflow retry refreshes `lastKnownProjectRevision` before a new Stage attempt.
-8. Final Render records `sourceProjectRevision`; a completed MP4 produced from an older revision is rejected as stale and a retry creates a fresh render Job.
-9. Existing W4 UI/API/Workflow behavior, Project Schema `2.0.0`, and engine pins remain unchanged.
-10. No Real AI Provider / V2.3 Agent work enters W5.
-
-## W5 cloud gate
+Required real cases:
 
 ```text
-format / lint / typecheck / unit / build
-existing Workflow runtime/recovery tests
-new startup-recovery tests
-Project operation-state/idempotency tests
-commit-gap retry test proving no duplicate Project mutation
-stale Project Job → fresh Workflow Job semantics
-stale Final Render rejection + fresh render retry
-W3 explicit replay regression
-existing H6/W4 browser regression
-Windows media regression smoke
+Case A — Talking Head — 9:16
+Case B — Product Ad — 16:9
+Case C — Restart Recovery — 1:1
 ```
 
-Cloud code gate passed on `a239a0ca620a14920fed66ecc66080ecb6d5c7d8` in CI Run `32718411327`.
+Final encoded output must be verified with `ffprobe` and extracted frames. Product Ad acceptance must include Brand, available B-roll, HyperFrames motion, Audio, proof/number treatment and CTA evidence in the final Project/output. Restart acceptance must prove no duplicate Caption/Motion/B-roll, no Project corruption and no lost completed Stage state.
 
-## Mandatory W5 Local Codex gate before merge
-
-Local Codex must follow:
-
-`docs/validation/LOCAL_VALIDATION_V2_2_W5_CONTRACT.md`
-
-Mandatory Windows chaos matrix:
+## W6 development model
 
 ```text
-C1 kill during transcription
-C2 Project Transaction committed but Workflow Stage completion not persisted
-C3 kill/fail during HyperFrames
-C4 kill during Final Render
-C5 edit Project while a long mutation Stage is running
-C6 retry failed mutation Stage and prove no duplicate output
+GPT Web + GitHub
+→ W6 branch / acceptance contract / cloud-safe checks / PR / CI / review / bounded fixes / merge / PROJECT_STATUS
+
+Local Codex on Windows
+→ exact-SHA real browser / real media / FFmpeg / video-use / HyperFrames / Remotion / forced restart / final MP4 proof
 ```
 
-Also prove startup auto-recovery, stale Final Render rejection, one final clean healthy run, valid MP4/ffprobe, durable reload/reopen state, no Workflow-linked non-terminal Jobs, and no W5-scoped residual processes.
-
-Any code/config/test fix from Local Codex must be pushed to the same W5 branch and returned to GPT Web for code review + CI. Do not merge or start W6 locally.
-
-## Active V2.2 documents
+Sequence:
 
 ```text
-docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md
-docs/prd/Video_OS_Studio_V2_2_Development_Plan.md
-docs/validation/LOCAL_VALIDATION_V2_2_W2.md
-docs/validation/LOCAL_VALIDATION_V2_2_W4.md
-docs/validation/LOCAL_VALIDATION_V2_2_W5_CONTRACT.md
+1. GPT Web prepares W6 release-acceptance branch and contract.
+2. GitHub CI must be green on an exact W6 head.
+3. Freeze that exact SHA.
+4. Local Codex executes the W6 contract on Windows using isolated data roots.
+5. Any demonstrated W6 release-blocker fix is pushed to this same branch with regression coverage.
+6. GPT Web reviews the new head and CI; affected local acceptance is rerun on the new exact SHA.
+7. When all W6 gates pass, commit the formal validation report, run final CI, merge W6, then perform V2.2 release finalization.
 ```
 
-## Accepted engine / schema invariants
+## W6 hard boundaries
+
+Do not introduce during W6 unless a demonstrated release blocker requires a bounded fix:
+
+- Real OpenAI / Claude / Gemini provider;
+- multi-turn AI Editing Agent;
+- a second Workflow or Job system;
+- Project Schema migration;
+- large navigation/editor redesign;
+- arbitrary plugin/tool execution;
+- generated image/video provider;
+- unrelated template/productization architecture.
+
+The experimental branch `feature/v2.2-w55-workflow-template` is **not part of the authoritative V2.2 Master PRD W6 path and must not be merged into W6**. Re-evaluate it only after V2.2 release under a separately approved scope.
+
+## Accepted invariants
 
 ```text
 Project Schema:       2.0.0
@@ -137,37 +147,29 @@ remotion:             4.0.513
 @remotion/cli:        4.0.513
 hyperframes:          0.8.10
 @playwright/test:     1.62.1
-```
 
-Always preserve:
-
-```text
 Source Media != Project Canvas != Export Profile
 Project != Workflow != Job
 REUSE > MODIFY > CREATE
 ```
 
-- Project JSON is durable video-editing truth.
-- Project operation log is durable Project mutation idempotency truth.
-- Workflow state remains under `VIDEO_OS_DATA_ROOT/workflows`.
-- Durable Jobs remain concrete execution truth.
-- Workflow Stage code never directly spawns FFmpeg, Remotion, HyperFrames, or video-use.
-- Long-running mutation work preserves revision/idempotency contracts.
+- Project JSON remains durable editing truth.
+- Workflow durable state remains under `VIDEO_OS_DATA_ROOT/workflows`.
+- Durable Job runtime remains concrete execution truth.
+- Workflow Stages use registered services/jobs/transactions and do not directly spawn engines.
+- Long-running mutation work preserves Project revision and operation idempotency contracts.
+- Workflow state does not enter Project Schema.
 
-## PR #18 disposition
+## Current stop rule
 
-PR #18 remains closed/unmerged and is future V2.3 Agent architecture input only.
-
-## Next allowed phase
-
-Run the exact-SHA W5 Local Codex chaos acceptance now. If Local Codex makes any in-scope fix, it must push to the same W5 branch and report the new exact SHA for GPT Web review + CI; the full affected local acceptance must be rerun on that new SHA. If no code fix is required, commit only the formal validation report to this branch, then GPT Web will run final CI and merge PR #36. Do not begin W6 before W5 merge.
+Continue GPT Web + GitHub preparation until the W6 branch has a cloud-green exact SHA. Only then hand that exact SHA to Local Codex. Local Codex must not merge the PR, start V2.3, or redesign architecture.
 
 ## Read order for agents
 
-1. resolve live GitHub `main`, active branch/PR and CI state;
-2. `PROJECT_STATUS.md`;
+1. resolve live GitHub `main`, W6 branch/PR and CI state;
+2. this `PROJECT_STATUS.md`;
 3. `AGENTS.md`;
 4. `SYSTEM.md`;
 5. `docs/prd/Video_OS_Studio_V2_2_Workflow_Runtime_Master_PRD.md`;
 6. `docs/prd/Video_OS_Studio_V2_2_Development_Plan.md`;
-7. `docs/validation/LOCAL_VALIDATION_V2_2_W5_CONTRACT.md`.
+7. `docs/validation/LOCAL_VALIDATION_V2_2_W6_CONTRACT.md` once the exact cloud-green SHA is frozen.
