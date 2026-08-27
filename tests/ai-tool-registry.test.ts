@@ -49,6 +49,8 @@ describe("V2.3 A1 Agent tool registry",()=>{
     const proposalTool=registry.getDefinition("propose_visual_plan");
     expect(proposalTool?.errorCodes).toContain("visual_plan_prerequisite_missing");
     expect(proposalTool?.errorCodes).toContain("no_actionable_visual_suggestions");
+    expect(proposalTool?.inputJsonSchema).toMatchObject({required:["intent"],properties:{intent:expect.any(Object)},additionalProperties:false});
+    expect((proposalTool?.inputJsonSchema.properties as Record<string,unknown>|undefined)?.selectedSuggestionIds).toBeUndefined();
     for(const definition of registry.listDefinitions())expect(definition.errorCodes.length).toBeGreaterThan(0);
     expect(registry.getDefinition("shell")).toBeUndefined();
     expect(registry.getDefinition("filesystem")).toBeUndefined();
@@ -62,15 +64,15 @@ describe("V2.3 A1 Agent tool registry",()=>{
     expect(result.error?.code).toBe("unknown_tool");
   });
 
-  it("rejects malformed or duplicate arguments before calling the proposal dependency",async()=>{
+  it("rejects malformed or model-side suggestion preselection arguments before calling the proposal dependency",async()=>{
     let calls=0;
     const registry=createA1AgentToolRegistry({visualPlans:{generate:async()=>{calls+=1;return plan;}}});
     const missingIntent=await registry.execute({id:"call_bad_args",toolId:"propose_visual_plan",arguments:{}},executionContext);
-    const duplicateSelection=await registry.execute({id:"call_duplicate_args",toolId:"propose_visual_plan",arguments:{intent:"Proof",selectedSuggestionIds:["suggestion-proof","suggestion-proof"]}},executionContext);
+    const modelPreselection=await registry.execute({id:"call_model_preselection",toolId:"propose_visual_plan",arguments:{intent:"Proof",selectedSuggestionIds:["suggestion-proof"]}},executionContext);
     expect(missingIntent.status).toBe("error");
     expect(missingIntent.error?.code).toBe("invalid_tool_arguments");
-    expect(duplicateSelection.status).toBe("error");
-    expect(duplicateSelection.error?.code).toBe("invalid_tool_arguments");
+    expect(modelPreselection.status).toBe("error");
+    expect(modelPreselection.error?.code).toBe("invalid_tool_arguments");
     expect(calls).toBe(0);
   });
 
@@ -95,7 +97,7 @@ describe("V2.3 A1 Agent tool registry",()=>{
     expect(calls).toBe(0);
   });
 
-  it("passes the captured Project revision into Rules Director generation and returns the same revision on the proposal",async()=>{
+  it("passes the captured Project revision into Rules Director generation and returns all actionable suggestions for Review",async()=>{
     const before=JSON.stringify(project);
     let receivedProjectId="";
     let receivedIntent="";
@@ -108,7 +110,7 @@ describe("V2.3 A1 Agent tool registry",()=>{
     }}});
     const result=await registry.execute({id:"call_plan",toolId:"propose_visual_plan",arguments:{intent:"Emphasize the proof"}},executionContext);
     expect(result.status).toBe("success");
-    const proposal=result.output?.proposal as {id?:string;baseProjectRevision?:number;status?:string;operations?:Array<{kind?:string;payload?:unknown}>}|undefined;
+    const proposal=result.output?.proposal as {id?:string;baseProjectRevision?:number;status?:string;operations?:Array<{kind?:string;payload?:{selectedIds?:string[]}}>}|undefined;
     expect(receivedProjectId).toBe(project.project.id);
     expect(receivedIntent).toBe("Emphasize the proof");
     expect(receivedExpectedRevision).toBe(4);
@@ -116,15 +118,9 @@ describe("V2.3 A1 Agent tool registry",()=>{
     expect(proposal?.baseProjectRevision).toBe(4);
     expect(proposal?.status).toBe("draft");
     expect(proposal?.operations?.[0]?.kind).toBe("visual-plan");
+    expect(proposal?.operations?.[0]?.payload?.selectedIds).toEqual(["suggestion-proof"]);
     expect(JSON.stringify(project)).toBe(before);
     expect(project.project.revision).toBe(4);
-  });
-
-  it("does not silently drop unknown requested visual suggestions",async()=>{
-    const registry=createA1AgentToolRegistry({visualPlans:{generate:async()=>plan}});
-    const result=await registry.execute({id:"call_unknown_suggestion",toolId:"propose_visual_plan",arguments:{intent:"Proof",selectedSuggestionIds:["missing-suggestion"]}},executionContext);
-    expect(result.status).toBe("error");
-    expect(result.error?.code).toBe("tool_execution_failed");
   });
 
   it("returns a safe no-actionable result instead of presenting a density-guarded suggestion as applyable",async()=>{

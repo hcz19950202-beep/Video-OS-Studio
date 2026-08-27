@@ -11,14 +11,13 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
   return{
     definition:AgentToolDefinitionSchema.parse({
       id:PROPOSE_VISUAL_PLAN_TOOL_ID,
-      description:"Use the existing deterministic Rules Director to create a reviewable visual-plan proposal. This tool never applies Project mutations. It requires at least one Scene and one timed Caption clip; if those prerequisites are missing, explain what the user needs instead of retrying the same call.",
+      description:"Use the existing deterministic Rules Director to create a reviewable visual-plan proposal. This tool never applies Project mutations. It requires at least one Scene and one timed Caption clip. It returns all actionable Rules Director suggestions; suggestion selection belongs to the Review UI, so do not invent or preselect suggestion IDs.",
       risk:"proposal",
       inputJsonSchema:{
         type:"object",
         required:["intent"],
         properties:{
           intent:{type:"string",minLength:1,maxLength:2000},
-          selectedSuggestionIds:{type:"array",items:{type:"string"},maxItems:128,uniqueItems:true},
         },
         additionalProperties:false,
       },
@@ -38,13 +37,7 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
 
       const plan=await visualPlans.generate(context.context.projectId,{intent:input.intent},context.context.baseProjectRevision);
       if(plan.projectId!==context.context.projectId)throw new Error("Visual planner returned a plan for a different Project.");
-      const allowedIds=new Set(plan.suggestions.map(suggestion=>suggestion.id));
-      const actionableIds=new Set(plan.suggestions.filter(suggestion=>suggestion.recommendation.engine!=="none").map(suggestion=>suggestion.id));
-      const selectedIds=input.selectedSuggestionIds??[...actionableIds];
-      const unknownIds=selectedIds.filter(id=>!allowedIds.has(id));
-      if(unknownIds.length>0)throw new Error("Visual proposal selection references unknown suggestions.");
-      const nonActionableIds=selectedIds.filter(id=>!actionableIds.has(id));
-      if(nonActionableIds.length>0)throw new AgentToolSafeError("no_actionable_visual_suggestions","The requested visual suggestions are currently non-actionable because the Rules Director density/content guard chose no added visual. Explain this result or ask for a different editing intent instead of retrying the same selection.");
+      const selectedIds=plan.suggestions.filter(suggestion=>suggestion.recommendation.engine!=="none").map(suggestion=>suggestion.id);
       if(selectedIds.length===0)throw new AgentToolSafeError("no_actionable_visual_suggestions","Rules Director found no actionable visual suggestions for the current Project and editing intent. Explain that result or ask for a different intent instead of retrying the same call.");
       const proposalId=context.makeId?.()??randomUUID();
       const createdAt=context.now?.()??new Date().toISOString();
@@ -59,7 +52,7 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
         operations:[{
           id:`visual-plan-${proposalId}`,
           kind:"visual-plan",
-          summary:`Apply ${selectedIds.length} selected visual suggestion${selectedIds.length===1?"":"s"}.`,
+          summary:`Review ${selectedIds.length} actionable visual suggestion${selectedIds.length===1?"":"s"}; choose the final subset in the Review UI.`,
           payload:{plan,selectedIds},
         }],
         warnings:[],
