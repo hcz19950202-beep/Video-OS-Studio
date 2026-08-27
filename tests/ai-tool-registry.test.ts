@@ -1,6 +1,7 @@
 import {describe,expect,it} from "vitest";
 import {buildAgentContextSnapshot} from "@/lib/ai/context";
 import {createA1AgentToolRegistry} from "@/lib/ai/tools";
+import {applyProjectCommand} from "@/lib/project/commands";
 import {createProject} from "@/lib/project/factory";
 import {ProjectSchema} from "@/schemas/project";
 import type {VisualPlan} from "@/lib/visual-planner/schema";
@@ -9,7 +10,9 @@ const now="2026-08-26T00:00:00.000Z";
 const sessionId="00000000-0000-4000-8000-000000000010";
 const proposalId="00000000-0000-4000-8000-000000000011";
 
-const project=ProjectSchema.parse(createProject({id:"agent-tools-project",name:"Agent Tools",now,durationInFrames:600}));
+let project=ProjectSchema.parse(createProject({id:"agent-tools-project",name:"Agent Tools",now,durationInFrames:600}));
+project=applyProjectCommand(project,{type:"add-scene",scene:{id:"scene-proof",name:"Proof",semanticType:"proof",startFrame:0,endFrame:600,visualStrategy:{intensity:"high",preferredEngines:["remotion"]}}},{now});
+project=applyProjectCommand(project,{type:"add-clip",trackId:"captions-main",clip:{id:"caption-proof",type:"caption",text:"15 days",preset:"primary",emphasis:"numbers",keywords:[],startFrame:120,durationInFrames:60,enabled:true,layer:100}},{now});
 project.project.revision=4;
 const context=buildAgentContextSnapshot(project);
 
@@ -43,6 +46,9 @@ describe("V2.3 A1 Agent tool registry",()=>{
       {id:"get_project_context",risk:"read",revisionPolicy:"snapshot",idempotency:"read-only",requiresConfirmation:false},
       {id:"propose_visual_plan",risk:"proposal",revisionPolicy:"snapshot",idempotency:"proposal-only",requiresConfirmation:false},
     ]);
+    const proposalTool=registry.getDefinition("propose_visual_plan");
+    expect(proposalTool?.errorCodes).toContain("visual_plan_prerequisite_missing");
+    expect(proposalTool?.errorCodes).toContain("no_actionable_visual_suggestions");
     for(const definition of registry.listDefinitions())expect(definition.errorCodes.length).toBeGreaterThan(0);
     expect(registry.getDefinition("shell")).toBeUndefined();
     expect(registry.getDefinition("filesystem")).toBeUndefined();
@@ -73,6 +79,20 @@ describe("V2.3 A1 Agent tool registry",()=>{
     const result=await registry.execute({id:"call_context",toolId:"get_project_context",arguments:{}},executionContext);
     expect(result.status).toBe("success");
     expect(result.output?.context).toEqual(context);
+  });
+
+  it("returns a bounded prerequisite error before calling Rules Director when Scenes or timed Captions are missing",async()=>{
+    const blank=ProjectSchema.parse(createProject({id:"agent-tools-blank",name:"Blank",now,durationInFrames:600}));
+    blank.project.revision=4;
+    let calls=0;
+    const registry=createA1AgentToolRegistry({visualPlans:{generate:async()=>{calls+=1;return plan;}}});
+    const result=await registry.execute({id:"call_missing_prerequisites",toolId:"propose_visual_plan",arguments:{intent:"Proof"}},{...executionContext,context:buildAgentContextSnapshot(blank)});
+    expect(result.status).toBe("error");
+    expect(result.error?.code).toBe("visual_plan_prerequisite_missing");
+    expect(result.error?.message).toContain("Scenes");
+    expect(result.error?.message).toContain("timed Caption clips");
+    expect(result.error?.retryable).toBe(false);
+    expect(calls).toBe(0);
   });
 
   it("passes the captured Project revision into Rules Director generation and returns the same revision on the proposal",async()=>{
@@ -107,17 +127,14 @@ describe("V2.3 A1 Agent tool registry",()=>{
     expect(result.error?.code).toBe("tool_execution_failed");
   });
 
-  it("does not expose density-guarded none suggestions as applyable proposal changes",async()=>{
-    const guarded:VisualPlan={...plan,suggestions:[...plan.suggestions,{...plan.suggestions[0]!,id:"suggestion-none",recommendation:{engine:"none"},reason:"Density guard blocked this card."}]};
-    const registry=createA1AgentToolRegistry({visualPlans:{generate:async()=>guarded}});
-    const automatic=await registry.execute({id:"call_guarded_default",toolId:"propose_visual_plan",arguments:{intent:"Proof"}},executionContext);
-    expect(automatic.status).toBe("success");
-    const proposal=automatic.output?.proposal as {operations?:Array<{payload?:{selectedIds?:string[]}}>}|undefined;
-    expect(proposal?.operations?.[0]?.payload?.selectedIds).toEqual(["suggestion-proof"]);
-
-    const explicit=await registry.execute({id:"call_guarded_explicit",toolId:"propose_visual_plan",arguments:{intent:"Proof",selectedSuggestionIds:["suggestion-none"]}},executionContext);
-    expect(explicit.status).toBe("error");
-    expect(explicit.error?.code).toBe("tool_execution_failed");
+  it("returns a safe no-actionable result instead of presenting a density-guarded suggestion as applyable",async()=>{
+    const guardedPlan:VisualPlan={...plan,suggestions:plan.suggestions.map(suggestion=>({...suggestion,recommendation:{engine:"none" as const}}))};
+    const registry=createA1AgentToolRegistry({visualPlans:{generate:async()=>guardedPlan}});
+    const result=await registry.execute({id:"call_guarded_suggestion",toolId:"propose_visual_plan",arguments:{intent:"Keep it restrained"}},executionContext);
+    expect(result.status).toBe("error");
+    expect(result.error?.code).toBe("no_actionable_visual_suggestions");
+    expect(result.error?.message).toContain("no actionable visual suggestions");
+    expect(result.error?.retryable).toBe(false);
   });
 
   it("does not expose internal runtime paths through handler failure messages",async()=>{
