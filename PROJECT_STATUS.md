@@ -33,7 +33,8 @@ current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
 active_workstream: V2.3 A3 PRODUCTION REAL PROVIDER
 active_branch: feature/v2.3-a3-real-provider
 active_pr: 46
-local_action_required: NONE UNTIL NEW EXACT CLOUD-GREEN VOLCENGINE A3 SHA
+active_candidate_sha: 51f182b169be9227370f2b724cb9d7dc08e70d0c
+local_action_required: NONE UNTIL THIS OR A LATER EXACT SHA IS CLOUD-GREEN
 next_workstream: A4 AI Workspace Agent UX + Review / Apply
 ```
 
@@ -165,7 +166,7 @@ A3 is the first production-provider workstream. The core `AIProvider` contract r
 
 The Volcengine adapter uses the live-verified Agent Plan endpoint `https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions` and runtime model alias `ark-code-latest`. Ordinary no-tool turns use SSE streaming. Tool-enabled turns use OpenAI-compatible non-stream Chat Completions so the already verified function-call and tool-result continuation path stays deterministic across routed models. The provider has no Project mutation authority, uses server-only `.env.local` credentials, and does not persist provider-private reasoning state.
 
-The former exact cloud-green A3 SHA `5c9df5ecf158e73a21e9ab3dc02b5e6919895545` / Run #612 is historical evidence only. It was intentionally invalidated when A3 switched its mandatory live acceptance provider from DeepSeek Direct to Volcengine Agent Plan. No local integrated Volcengine gate may run until the new implementation reaches a new exact cloud-green SHA.
+The former exact cloud-green A3 SHA `5c9df5ecf158e73a21e9ab3dc02b5e6919895545` / Run #612 is historical evidence only. It was intentionally invalidated when A3 switched its mandatory live acceptance provider from DeepSeek Direct to Volcengine Agent Plan. No local integrated Volcengine gate may run until the current candidate or a later replacement reaches a new exact cloud-green SHA.
 
 After a new exact-head cloud-green freeze, the mandatory Local Codex gate is `npm run test:live-volcengine` on Node 24.x. It is limited to one real streaming read-only Agent turn, one real structured `get_project_context` tool loop with exactly two provider round trips, Project revision unchanged, no Project mutation, and no API-key persistence/leakage. Any pushed code/config/test fix after freeze invalidates that SHA and returns control to GPT Web + CI review.
 
