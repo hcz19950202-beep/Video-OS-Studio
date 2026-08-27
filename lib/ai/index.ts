@@ -3,6 +3,8 @@ export * from "@/lib/ai/context";
 export * from "@/lib/ai/errors";
 export * from "@/lib/ai/mock-provider";
 export * from "@/lib/ai/provider";
+export * from "@/lib/ai/providers/openai-config";
+export * from "@/lib/ai/providers/openai-responses";
 export * from "@/lib/ai/runner";
 export * from "@/lib/ai/schema";
 export * from "@/lib/ai/service";
