@@ -32,7 +32,7 @@ v2_3_a2_main: 44c0bcc2d980feb1fece94cf9d1df3a98666824f
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
 active_workstream: V2.3 A3 PRODUCTION REAL PROVIDER
 active_branch: feature/v2.3-a3-real-provider
-active_pr: PENDING
+active_pr: 46
 local_action_required: NONE UNTIL EXACT CLOUD-GREEN A3 SHA
 next_workstream: A4 AI Workspace Agent UX + Review / Apply
 ```
@@ -59,7 +59,7 @@ R0 Repository / PRD / Runtime Truth Sync  → COMPLETE / PR #40
 A0 Agent Contracts + Provider Abstraction → COMPLETE / PR #41
 A1 Context Builder + Tool Registry        → COMPLETE / PR #44
 A2 Session Store + Multi-turn Runner      → COMPLETE / PR #45
-A3 Production Real Provider               → ACTIVE
+A3 Production Real Provider               → ACTIVE / PR #46
 A4 AI Workspace Agent UX + Review / Apply → NOT STARTED
 A5 Agent ↔ Workflow Integration           → NOT STARTED
 A6 Failure / Revision / Restart Hardening → NOT STARTED
