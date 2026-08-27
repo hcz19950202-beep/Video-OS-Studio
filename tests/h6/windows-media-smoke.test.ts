@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
@@ -220,6 +220,7 @@ describe("H6 Windows real-media smoke", () => {
       const rendered = await ffmpeg.probe(renderPath);
       expect(rendered).toMatchObject({ width: 320, height: 180 });
       expect(rendered.durationSeconds).toBeGreaterThan(0);
+      await expect(access(`${renderPath}.props.json`)).rejects.toThrow();
     },
     240_000,
   );
