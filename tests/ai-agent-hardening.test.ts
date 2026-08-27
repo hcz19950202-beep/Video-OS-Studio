@@ -67,7 +67,7 @@ describe("V2.3 A6 Agent hardening",()=>{
     expect(fs.files.get(backup)).toContain(sessionId);
   });
 
-  it("recovers from a missing primary Session when a valid atomic backup exists",async()=>{
+  it("discovers and self-heals a backup-only Session during restart listing",async()=>{
     const fs=new InMemoryFileSystemAdapter();
     const sessions=new AgentSessionRepository(fs,"/a6-agent");
     const created=sessionFixture();
@@ -77,9 +77,12 @@ describe("V2.3 A6 Agent hardening",()=>{
     const primary=`/a6-agent/projects/${projectId}/edit/agent/sessions/${sessionId}.json`;
     fs.files.delete(primary);
 
-    const recovered=await sessions.require(projectId,sessionId);
+    const restartedRepository=new AgentSessionRepository(fs,"/a6-agent");
+    const listed=await restartedRepository.list(projectId);
 
-    expect(recovered.updatedAt).toBe(now);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.id).toBe(sessionId);
+    expect(listed[0]?.updatedAt).toBe(now);
     expect(fs.files.has(primary)).toBe(true);
   });
 
