@@ -1,6 +1,6 @@
 "use client";
 
-import {useCallback,useEffect,useMemo,useRef,useState} from "react";
+import {useCallback,useEffect,useMemo,useState} from "react";
 import type {Project} from "@/schemas/project";
 import type {WorkflowRun,WorkflowScenario,WorkflowStageExecution} from "@/lib/workflows/schema";
 import type {WorkflowActivity} from "@/lib/workflows/activity";
@@ -11,6 +11,7 @@ import {loadStudioProject} from "@/lib/client/projects";
 import {actOnWorkflow,createAndStartWorkflow,getWorkflow,getWorkflowActivity,listWorkflows,type WorkflowAction} from "@/lib/client/workflows";
 import {workflowMessages,workflowRunStatusLabel,workflowStageLabel,workflowStageStatusLabel} from "@/lib/i18n/workflow";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
+import {useProjectStore} from "@/store/project-store";
 
 const SCENARIOS:WorkflowScenario[]=["talking-head","product-ad","explainer"];
 const REPLAYABLE_STAGE_IDS=new Set(["TRANSCRIBE","SCRIPT_ANALYSIS","SCENE_DETECTION","CAPTION_GENERATION","VISUAL_PLANNING","MOTION_GENERATION","BROLL_ASSEMBLY","AUDIO_ASSEMBLY","TIMELINE_ASSEMBLY","PREVIEW"]);
@@ -25,8 +26,8 @@ export const WorkflowPanel=({project,onProjectChange}:{project:Project;onProject
   const[scenario,setScenario]=useState<WorkflowScenario>(SCENARIOS.includes(project.workflow.scenario as WorkflowScenario)?project.workflow.scenario as WorkflowScenario:"talking-head");
   const[workflow,setWorkflow]=useState<WorkflowRun|null>(null);const[activity,setActivity]=useState<WorkflowActivity[]>([]);const[currentJob,setCurrentJob]=useState<JobRecord|null>(null);
   const[busyAction,setBusyAction]=useState<string|null>(null);const[error,setError]=useState<string>("");const[notice,setNotice]=useState<string>("");
-  const activeProjectIdRef=useRef(project.project.id);activeProjectIdRef.current=project.project.id;
-  const isActiveProject=useCallback((expectedProjectId:string)=>activeProjectIdRef.current===expectedProjectId,[]);
+  const currentProject=useCallback(()=>useProjectStore.getState().project,[]);
+  const isActiveProject=useCallback((expectedProjectId:string)=>currentProject()?.project.id===expectedProjectId,[currentProject]);
 
   const videoAssets=useMemo(()=>project.assets.filter(asset=>asset.kind==="video"),[project.assets]);
   const sourceVideo=useMemo(()=>{
@@ -35,11 +36,13 @@ export const WorkflowPanel=({project,onProjectChange}:{project:Project;onProject
   },[project.tracks,videoAssets]);
 
   const syncProject=useCallback(async(run:WorkflowRun,expectedProjectId=project.project.id)=>{
-    if(!isActiveProject(expectedProjectId)||run.lastKnownProjectRevision<=project.project.revision)return;
+    const current=currentProject();
+    if(current?.project.id!==expectedProjectId||run.lastKnownProjectRevision<=current.project.revision)return;
     const latest=await loadStudioProject(expectedProjectId);
-    if(!isActiveProject(expectedProjectId))return;
+    const afterLoad=currentProject();
+    if(afterLoad?.project.id!==expectedProjectId||afterLoad.project.revision>latest.project.revision)return;
     onProjectChange(latest);setNotice(m.projectUpdated);
-  },[isActiveProject,m.projectUpdated,onProjectChange,project.project.id,project.project.revision]);
+  },[currentProject,m.projectUpdated,onProjectChange,project.project.id]);
 
   const refreshRun=useCallback(async(workflowId:string,withActivity=true)=>{
     const expectedProjectId=project.project.id;
