@@ -9,6 +9,7 @@ import {AgentSessionRepository} from "@/lib/ai/session/repository";
 import {AgentSessionSchema,AgentTurnSchema} from "@/lib/ai/session/schema";
 import {AgentSessionService} from "@/lib/ai/service";
 import {createA1AgentToolRegistry} from "@/lib/ai/tools";
+import {applyProjectCommand} from "@/lib/project/commands";
 import {createProject} from "@/lib/project/factory";
 import {ProjectSchema,type Project} from "@/schemas/project";
 import type {VisualPlan} from "@/lib/visual-planner/schema";
@@ -41,7 +42,9 @@ class IgnoringAbortProvider extends ScriptedProvider{
 }
 
 const buildProject=():Project=>{
-  const project=createProject({id:"agent-runtime-project",name:"Agent Runtime",now,durationInFrames:600});
+  let project=createProject({id:"agent-runtime-project",name:"Agent Runtime",now,durationInFrames:600});
+  project=applyProjectCommand(project,{type:"add-scene",scene:{id:"scene-proof",name:"Proof",semanticType:"proof",startFrame:0,endFrame:600,visualStrategy:{intensity:"high",preferredEngines:["remotion"]}}},{now});
+  project=applyProjectCommand(project,{type:"add-clip",trackId:"captions-main",clip:{id:"caption-proof",type:"caption",text:"15 days",preset:"primary",emphasis:"numbers",keywords:[],startFrame:120,durationInFrames:60,enabled:true,layer:100}},{now});
   project.project.revision=1;
   return ProjectSchema.parse(project);
 };

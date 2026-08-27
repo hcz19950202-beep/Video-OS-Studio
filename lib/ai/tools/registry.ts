@@ -1,7 +1,11 @@
 import {AgentToolCallSchema,AgentToolDefinitionSchema,AgentToolResultSchema,type AgentToolCall,type AgentToolDefinition,type AgentToolResult} from "@/lib/ai/schema";
 import type {AgentToolExecutionContext,RegisteredAgentTool} from "@/lib/ai/tools/schema";
 
-const errorResult=(call:AgentToolCall,code:string,message:string):AgentToolResult=>AgentToolResultSchema.parse({callId:call.id,toolId:call.toolId,status:"error",error:{code,message,retryable:false}});
+const errorResult=(call:AgentToolCall,code:string,message:string,retryable=false):AgentToolResult=>AgentToolResultSchema.parse({callId:call.id,toolId:call.toolId,status:"error",error:{code,message,retryable}});
+
+export class AgentToolSafeError extends Error{
+  constructor(readonly code:string,message:string,readonly retryable=false){super(message);this.name="AgentToolSafeError";}
+}
 
 export class AgentToolRegistry{
   private readonly tools:Map<string,RegisteredAgentTool>;
@@ -37,7 +41,8 @@ export class AgentToolRegistry{
       const output=tool.outputSchema.safeParse(rawOutput);
       if(!output.success)return errorResult(call,"invalid_tool_output",`Agent tool ${call.toolId} returned invalid output.`);
       return AgentToolResultSchema.parse({callId:call.id,toolId:call.toolId,status:"success",output:output.data});
-    }catch{
+    }catch(error){
+      if(error instanceof AgentToolSafeError)return errorResult(call,error.code,error.message,error.retryable);
       return errorResult(call,"tool_execution_failed",`Agent tool ${call.toolId} failed without exposing internal runtime details.`);
     }
   }

@@ -28,13 +28,14 @@ v2_3_r0_main: 34ebc73b8998854e3ee8a067dc547cc158d156b8
 v2_3_a0_main: 64977b6b2fdf97224eefd0819c29fa2f0c8c52fd
 v2_3_a1_main: a307756c0a43b02d6c6ab2b74d4ec37110017d96
 v2_3_a2_main: 44c0bcc2d980feb1fece94cf9d1df3a98666824f
+v2_3_a3_main: f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8
 
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
-active_workstream: V2.3 A3 PRODUCTION REAL PROVIDER
-active_branch: feature/v2.3-a3-real-provider
-active_pr: 46
-local_action_required: NONE UNTIL NEW EXACT CLOUD-GREEN VOLCENGINE A3 SHA
-next_workstream: A4 AI Workspace Agent UX + Review / Apply
+active_workstream: V2.3 A4 AI WORKSPACE AGENT UX + REVIEW / APPLY
+active_branch: feature/v2.3-a4-agent-workspace
+active_pr: NONE UNTIL FIRST REVIEWABLE A4 SLICE
+local_action_required: NONE DURING CLOUD-SAFE A4 IMPLEMENTATION
+next_workstream: A5 Agent ↔ Workflow Integration
 ```
 
 ## V2.2 delivery status
@@ -59,8 +60,8 @@ R0 Repository / PRD / Runtime Truth Sync  → COMPLETE / PR #40
 A0 Agent Contracts + Provider Abstraction → COMPLETE / PR #41
 A1 Context Builder + Tool Registry        → COMPLETE / PR #44
 A2 Session Store + Multi-turn Runner      → COMPLETE / PR #45
-A3 Production Real Provider               → ACTIVE / PR #46
-A4 AI Workspace Agent UX + Review / Apply → NOT STARTED
+A3 Production Real Provider               → COMPLETE / PR #46
+A4 AI Workspace Agent UX + Review / Apply → ACTIVE
 A5 Agent ↔ Workflow Integration           → NOT STARTED
 A6 Failure / Revision / Restart Hardening → NOT STARTED
 A7 End-to-End Product Acceptance          → NOT STARTED
@@ -161,12 +162,10 @@ V2.3 Real AI Director / AI Editing Agent is active under the authoritative docum
 
 A0 is accepted on main after exact-head CI Run #578 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke. A1 is accepted on main at `a307756c0a43b02d6c6ab2b74d4ec37110017d96` after PR #44 exact-head CI passed. A2 is accepted on main at `44c0bcc2d980feb1fece94cf9d1df3a98666824f` after PR #45 exact-head CI Run #593 passed Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke.
 
-A3 is the first production-provider workstream. The core `AIProvider` contract remains provider-neutral. OpenAI Responses and DeepSeek Chat Completions adapters remain cloud-testable optional implementations, but neither has an available live credential/balance for the mandatory acceptance gate. Volcengine Agent Plan is now the selected A3 live acceptance provider because a subscribed credential is available and an independent repository-neutral probe already passed HTTP chat, SSE streaming, structured `get_project_context` function calling, tool-result continuation, revision recognition, secret safety, and repository integrity.
+A3 is accepted on main at `f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8` after PR #46. Its exact frozen provider HEAD `d438a57108334e0e1c68bab7882e79e209ea8143` passed GitHub Actions Run #625 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed mandatory Local Codex validation on Windows 10 / Node `v24.20.0` using the subscribed Volcengine Agent Plan route `ark-code-latest → DeepSeek-V4-Pro`. The live gate proved a real SSE read-only turn, one real `get_project_context` tool execution, exactly two provider round trips, Project revision `11 → 11`, no Project mutation, no secret persistence/leakage, clean worktree, and unchanged frozen SHA.
 
-The Volcengine adapter uses the live-verified Agent Plan endpoint `https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions` and runtime model alias `ark-code-latest`. Ordinary no-tool turns use SSE streaming. Tool-enabled turns use OpenAI-compatible non-stream Chat Completions so the already verified function-call and tool-result continuation path stays deterministic across routed models. The provider has no Project mutation authority, uses server-only `.env.local` credentials, and does not persist provider-private reasoning state.
+A4 now owns the AI Workspace user-facing Agent experience and Review / Apply boundary. It MUST extend the existing `components/studio/AIWorkspacePanel.tsx` into `Agent / Composer / Workflow` modes rather than creating a parallel Studio. Cloud-safe work includes session create/reopen/list, conversation rendering, selection context chips, real streaming/status progress, concise tool activity, proposal cards, structured Review/Diff, Apply Selected / Apply / Reject, stale proposal handling, cancel/retry, reload/reopen, and deterministic mock-provider Playwright coverage.
 
-The former exact cloud-green A3 SHA `5c9df5ecf158e73a21e9ab3dc02b5e6919895545` / Run #612 is historical evidence only. It was intentionally invalidated when A3 switched its mandatory live acceptance provider from DeepSeek Direct to Volcengine Agent Plan. No local integrated Volcengine gate may run until the current candidate or a later replacement reaches a new exact cloud-green SHA.
-
-After a new exact-head cloud-green freeze, the mandatory Local Codex gate is `npm run test:live-volcengine` on Node 24.x. It is limited to one real streaming read-only Agent turn, one real structured `get_project_context` tool loop with exactly two provider round trips, Project revision unchanged, no Project mutation, and no API-key persistence/leakage. Any pushed code/config/test fix after freeze invalidates that SHA and returns control to GPT Web + CI review.
+A4 durable mutation continues to obey the accepted chain: explicit UI confirmation → Agent application service → expected Project revision → proposal operation resolution → existing Command Transaction / bounded service → reload latest Project. Provider and session layers have no direct Project mutation authority, and Project Schema remains `2.0.0`.
 
 The experimental branch `feature/v2.2-w55-workflow-template` was not part of the accepted V2.2 Master PRD release path and must not be merged into V2.3 implicitly. Re-evaluate any useful idea only under an explicit V2.3 workstream.
