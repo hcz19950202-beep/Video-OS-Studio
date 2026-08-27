@@ -60,10 +60,10 @@ export const AgentTurnSchema=z.object({
   error:AgentRuntimeErrorSchema.optional(),
 }).strict().superRefine((turn,ctx)=>{
   if(turn.status==="running"&&turn.completedAt!==undefined){
-    ctx.addIssue({code:z.ZodIssueCode.custom,message:"A running Agent turn cannot have completedAt."});
+    ctx.addIssue({code:"custom",message:"A running Agent turn cannot have completedAt."});
   }
   if(turn.status!=="running"&&turn.completedAt===undefined){
-    ctx.addIssue({code:z.ZodIssueCode.custom,message:"A terminal Agent turn requires completedAt."});
+    ctx.addIssue({code:"custom",message:"A terminal Agent turn requires completedAt."});
   }
 });
 export type AgentTurn=z.infer<typeof AgentTurnSchema>;
@@ -93,30 +93,30 @@ export const AgentSessionSchema=z.object({
   const proposalIds=new Set<string>();
   for(const proposal of session.proposals){
     if(proposal.sessionId!==session.id||proposal.projectId!==session.projectId){
-      ctx.addIssue({code:z.ZodIssueCode.custom,message:"Agent proposal must belong to its containing session and Project."});
+      ctx.addIssue({code:"custom",message:"Agent proposal must belong to its containing session and Project."});
     }
     if(proposalIds.has(proposal.id)){
-      ctx.addIssue({code:z.ZodIssueCode.custom,message:"Agent session proposal IDs must be unique."});
+      ctx.addIssue({code:"custom",message:"Agent session proposal IDs must be unique."});
     }
     proposalIds.add(proposal.id);
   }
   const messageIds=new Set<string>();
   for(const message of session.messages){
-    if(messageIds.has(message.id))ctx.addIssue({code:z.ZodIssueCode.custom,message:"Agent session message IDs must be unique."});
+    if(messageIds.has(message.id))ctx.addIssue({code:"custom",message:"Agent session message IDs must be unique."});
     messageIds.add(message.id);
   }
   const turnIds=new Set<string>();
   for(const turn of session.turns){
-    if(turnIds.has(turn.id))ctx.addIssue({code:z.ZodIssueCode.custom,message:"Agent session turn IDs must be unique."});
+    if(turnIds.has(turn.id))ctx.addIssue({code:"custom",message:"Agent session turn IDs must be unique."});
     turnIds.add(turn.id);
   }
   const operationIds=new Set<string>();
   for(const operation of session.approvedOperations){
-    if(operationIds.has(operation.operationId))ctx.addIssue({code:z.ZodIssueCode.custom,message:"Approved Agent operation IDs must be unique."});
+    if(operationIds.has(operation.operationId))ctx.addIssue({code:"custom",message:"Approved Agent operation IDs must be unique."});
     operationIds.add(operation.operationId);
-    if(!proposalIds.has(operation.proposalId))ctx.addIssue({code:z.ZodIssueCode.custom,message:"Approved Agent operation must reference a proposal in the same session."});
+    if(!proposalIds.has(operation.proposalId))ctx.addIssue({code:"custom",message:"Approved Agent operation must reference a proposal in the same session."});
   }
-}).transform(session=>session);
+});
 export type AgentSession=z.infer<typeof AgentSessionSchema>;
 
 export const parseAgentSession=(value:unknown):AgentSession=>AgentSessionSchema.parse(value);
