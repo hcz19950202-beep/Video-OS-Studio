@@ -2,6 +2,7 @@ import {describe,expect,it} from "vitest";
 import {AgentMessageSchema,AgentProposalSchema,AgentProviderEventSchema,AgentToolDefinitionSchema,AgentToolResultSchema} from "@/lib/ai/schema";
 
 const now="2026-08-26T00:00:00.000Z";
+const commonTool={inputJsonSchema:{type:"object"},errorCodes:["invalid_tool_arguments","invalid_tool_output","tool_execution_failed"]};
 
 describe("V2.3 agent schemas",()=>{
   it("accepts normalized user messages",()=>{
@@ -14,10 +15,19 @@ describe("V2.3 agent schemas",()=>{
     expect(AgentMessageSchema.parse({id:"m4",role:"tool",content:"ok",createdAt:now,toolCallId:"call_1",toolName:"get_project_context"}).toolName).toBe("get_project_context");
   });
 
-  it("enforces confirmation semantics from tool risk",()=>{
-    expect(()=>AgentToolDefinitionSchema.parse({id:"get_project_context",description:"Read project context",risk:"read",inputJsonSchema:{type:"object"},requiresConfirmation:true})).toThrow();
-    expect(()=>AgentToolDefinitionSchema.parse({id:"request_render",description:"Request a render",risk:"mutating-request",inputJsonSchema:{type:"object"},requiresConfirmation:false})).toThrow();
-    expect(AgentToolDefinitionSchema.parse({id:"propose_visual_plan",description:"Produce a visual-plan proposal",risk:"proposal",inputJsonSchema:{type:"object"},requiresConfirmation:false}).risk).toBe("proposal");
+  it("enforces confirmation, revision and idempotency semantics from tool risk",()=>{
+    expect(()=>AgentToolDefinitionSchema.parse({...commonTool,id:"get_project_context",description:"Read project context",risk:"read",revisionPolicy:"snapshot",idempotency:"read-only",requiresConfirmation:true})).toThrow();
+    expect(()=>AgentToolDefinitionSchema.parse({...commonTool,id:"propose_visual_plan",description:"Produce a visual-plan proposal",risk:"proposal",revisionPolicy:"none",idempotency:"proposal-only",requiresConfirmation:false})).toThrow();
+    expect(()=>AgentToolDefinitionSchema.parse({...commonTool,id:"request_render",description:"Request a render",risk:"mutating-request",revisionPolicy:"expected-revision",idempotency:"stable-operation-id",requiresConfirmation:false})).toThrow();
+    expect(()=>AgentToolDefinitionSchema.parse({...commonTool,id:"request_render",description:"Request a render",risk:"mutating-request",revisionPolicy:"expected-revision",idempotency:"proposal-only",requiresConfirmation:true})).toThrow();
+    const proposal=AgentToolDefinitionSchema.parse({...commonTool,id:"propose_visual_plan",description:"Produce a visual-plan proposal",risk:"proposal",revisionPolicy:"snapshot",idempotency:"proposal-only",requiresConfirmation:false});
+    expect(proposal.risk).toBe("proposal");
+    expect(proposal.revisionPolicy).toBe("snapshot");
+    expect(proposal.idempotency).toBe("proposal-only");
+  });
+
+  it("requires a declared tool error contract",()=>{
+    expect(()=>AgentToolDefinitionSchema.parse({id:"get_project_context",description:"Read project context",risk:"read",inputJsonSchema:{type:"object"},revisionPolicy:"snapshot",idempotency:"read-only",requiresConfirmation:false,errorCodes:[]})).toThrow();
   });
 
   it("requires successful tool results to include structured output",()=>{

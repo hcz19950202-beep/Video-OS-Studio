@@ -21,8 +21,9 @@ export class VisualPlanService{
   private readonly mutations:ProjectMutationCoordinator;
   constructor(private readonly fs:FileSystemAdapter,private readonly repository:ProjectRepository,private readonly planner:VisualPlannerAdapter,private readonly hyperFrames:HyperFramesRenderService,mutations?:ProjectMutationCoordinator){this.mutations=mutations??new ProjectMutationCoordinator(fs,repository);}
 
-  async generate(projectId:string,contextInput?:VisualPlannerContext):Promise<VisualPlan>{
+  async generate(projectId:string,contextInput?:VisualPlannerContext,expectedRevision?:number):Promise<VisualPlan>{
     const project=await this.repository.load(projectId);
+    if(expectedRevision!==undefined&&project.project.revision!==expectedRevision)throw new ProjectRevisionConflictError(expectedRevision,project.project.revision);
     const parsed=VisualPlannerContextSchema.parse(contextInput??{});
     const explicitIntent=parsed.intent.trim();
     const starterIntent=[project.workflow.starterPrompt,workflowIntensityDirective(project)].filter(Boolean).join(" ").trim();
