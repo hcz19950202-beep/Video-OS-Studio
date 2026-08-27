@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import type { AgentSession } from "@/lib/ai";
 import type { ProjectCommand } from "@/lib/project/commands";
 import type { Project } from "@/schemas/project";
 
@@ -12,6 +13,15 @@ const readProject = async (page: Page, projectId: string): Promise<Project> =>
     const response = await fetch(`/api/projects/${encodeURIComponent(id)}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`Project read failed: ${response.status}`);
     return (await response.json()).project;
+  }, projectId);
+
+const readAgentSessions = async (page: Page, projectId: string): Promise<AgentSession[]> =>
+  page.evaluate(async (id) => {
+    const response = await fetch(`/api/projects/${encodeURIComponent(id)}/agent/sessions`, {
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(`Agent session list failed: ${response.status}`);
+    return (await response.json()).sessions;
   }, projectId);
 
 const applyCommand = async (
@@ -156,7 +166,40 @@ test("A7 stale proposal → re-plan latest → preserve manual edit → apply on
   await expect(page.getByText("STALE PROPOSAL", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Apply All", exact: true })).toHaveCount(0);
 
+  const [sessionBeforeReplan] = await readAgentSessions(page, projectId);
+  expect(sessionBeforeReplan).toBeDefined();
+  const turnsBeforeReplan = sessionBeforeReplan.turns.length;
+
   await page.getByRole("button", { name: "Re-plan latest", exact: true }).click();
+
+  let replannedSession: AgentSession | undefined;
+  await expect
+    .poll(
+      async () => {
+        [replannedSession] = await readAgentSessions(page, projectId);
+        const latestTurn = replannedSession?.turns.at(-1);
+        return Boolean(
+          replannedSession &&
+            replannedSession.turns.length === turnsBeforeReplan + 1 &&
+            latestTurn &&
+            latestTurn.status !== "running",
+        );
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+
+  const replanTurn = replannedSession!.turns.at(-1)!;
+  expect(replanTurn.status, JSON.stringify(replanTurn.error ?? null)).toBe("completed");
+  expect(replanTurn.error).toBeUndefined();
+  expect(replanTurn.toolExecutions.map((item) => item.call.toolId)).toContain("propose_visual_plan");
+  expect(replanTurn.toolExecutions.every((item) => item.result.status === "success")).toBe(true);
+  expect(replanTurn.proposalIds).toHaveLength(1);
+  const freshProposal = replannedSession!.proposals.find((item) => item.id === replanTurn.proposalIds[0]);
+  expect(freshProposal).toBeDefined();
+  expect(freshProposal?.status).toBe("draft");
+  expect(freshProposal?.baseProjectRevision).toBe(proposalRevision + 1);
+
   await expect(page.getByText("PROPOSAL READY", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".a4-agent-activity")).toContainText("propose_visual_plan");
 
