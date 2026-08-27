@@ -17,3 +17,4 @@ export * from "@/lib/ai/service";
 export * from "@/lib/ai/session/repository";
 export * from "@/lib/ai/session/schema";
 export * from "@/lib/ai/tools";
+export * from "@/lib/ai/workflow-application";

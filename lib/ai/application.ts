@@ -3,10 +3,13 @@ import {z} from "zod";
 import {AgentProposalIdSchema,AgentProposalSchema,AgentSessionIdSchema,type AgentProposal,type AgentProposedOperation} from "@/lib/ai/schema";
 import {AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";
 import type {AgentSessionRepository} from "@/lib/ai/session/repository";
+import {WorkflowActionProposalPayloadSchema,type WorkflowActionProposalPayload} from "@/lib/ai/tools/schema";
+import {AgentWorkflowActionExecutor,AgentWorkflowActionStaleError,type AgentWorkflowActionPreview} from "@/lib/ai/workflow-application";
 import {ProjectRevisionConflictError,type ProjectMutationCoordinator} from "@/lib/project/mutation-coordinator";
 import type {ProjectRepository} from "@/lib/project/repository";
 import {VisualPlanSchema,type VisualPlanDiff} from "@/lib/visual-planner/schema";
 import type {VisualPlanService} from "@/lib/visual-planner/service";
+import type {WorkflowRun} from "@/lib/workflows/schema";
 import type {Project} from "@/schemas/project";
 
 const VisualPlanOperationPayloadSchema=z.object({
@@ -39,6 +42,7 @@ export type AgentProposalOperationPreview={
   selectableChangeIds:string[];
   selectedChangeIds:string[];
   visualPlanDiff?:VisualPlanDiff;
+  workflowAction?:AgentWorkflowActionPreview;
 };
 
 export type AgentProposalPreview={
@@ -59,6 +63,8 @@ export type AgentProposalApplyResult={
   appliedChangeIds:string[];
   transactionId:string|null;
   alreadyApplied:boolean;
+  workflow?:WorkflowRun;
+  workflowAction?:WorkflowActionProposalPayload["action"];
 };
 
 export type AgentProposalApplicationDependencies={
@@ -66,6 +72,7 @@ export type AgentProposalApplicationDependencies={
   projects:Pick<ProjectRepository,"load">;
   mutations:Pick<ProjectMutationCoordinator,"getOperation">;
   visualPlans:Pick<VisualPlanService,"preview"|"apply">;
+  workflowActions?:AgentWorkflowActionExecutor;
   now?:()=>string;
 };
 
@@ -105,6 +112,13 @@ export class AgentProposalApplicationService{
   private readonly now:()=>string;
   constructor(private readonly dependencies:AgentProposalApplicationDependencies){this.now=dependencies.now??(()=>new Date().toISOString());}
 
+  private async saveStale(session:AgentSession,proposal:AgentProposal){
+    const stale=proposalWithStatus(proposal,"stale");
+    const next=AgentSessionSchema.parse({...replaceProposal(session,stale),updatedAt:this.now()});
+    await this.dependencies.sessions.save(next);
+    return{session:next,proposal:stale};
+  }
+
   async preview(input:{projectId:string;sessionId:string;proposalId:string;operationIds?:string[];changeIds?:string[]}):Promise<{preview:AgentProposalPreview;session:AgentSession}>{
     const sessionId=AgentSessionIdSchema.parse(input.sessionId);
     const proposalId=AgentProposalIdSchema.parse(input.proposalId);
@@ -116,28 +130,35 @@ export class AgentProposalApplicationService{
       const selected=selectOperations(proposal,input.operationIds);
 
       if(proposal.baseProjectRevision!==project.project.revision||proposal.status==="stale"){
-        if(proposal.status==="draft"||proposal.status==="reviewed"){
-          proposal=proposalWithStatus(proposal,"stale");
-          session=AgentSessionSchema.parse({...replaceProposal(session,proposal),updatedAt:this.now()});
-          await this.dependencies.sessions.save(session);
-        }
+        if(proposal.status==="draft"||proposal.status==="reviewed")({session,proposal}=await this.saveStale(session,proposal));
         return{preview:{proposalId:proposal.id,baseProjectRevision:proposal.baseProjectRevision,currentProjectRevision:project.project.revision,status:"stale",selectedOperationIds:selected.map(item=>item.id),operations:[]},session};
       }
 
       if(proposal.status==="rejected")throw new AgentProposalApplicationError("Rejected proposals cannot be reviewed for Apply.");
       const operations:AgentProposalOperationPreview[]=[];
       for(const operation of selected){
-        if(operation.kind!=="visual-plan")throw new AgentProposalApplicationError(`Proposal operation kind ${operation.kind} is not applyable in A4 yet.`);
-        const payload=VisualPlanOperationPayloadSchema.parse(operation.payload);
-        const selectedChangeIds=selectVisualChanges(payload.selectedIds,selected.length===1?input.changeIds:undefined);
-        operations.push({
-          operationId:operation.id,
-          kind:operation.kind,
-          summary:operation.summary,
-          selectableChangeIds:payload.selectedIds,
-          selectedChangeIds,
-          visualPlanDiff:await this.dependencies.visualPlans.preview(input.projectId,payload.plan,selectedChangeIds),
-        });
+        if(operation.kind==="visual-plan"){
+          const payload=VisualPlanOperationPayloadSchema.parse(operation.payload);
+          const selectedChangeIds=selectVisualChanges(payload.selectedIds,selected.length===1?input.changeIds:undefined);
+          operations.push({operationId:operation.id,kind:operation.kind,summary:operation.summary,selectableChangeIds:payload.selectedIds,selectedChangeIds,visualPlanDiff:await this.dependencies.visualPlans.preview(input.projectId,payload.plan,selectedChangeIds)});
+          continue;
+        }
+        if(operation.kind==="workflow-action"){
+          if(input.changeIds?.length)throw new AgentProposalApplicationError("Workflow actions do not accept visual change selections.");
+          if(!this.dependencies.workflowActions)throw new AgentProposalApplicationError("Workflow action application is not configured.");
+          const payload=WorkflowActionProposalPayloadSchema.parse(operation.payload);
+          try{
+            operations.push({operationId:operation.id,kind:operation.kind,summary:operation.summary,selectableChangeIds:[],selectedChangeIds:[],workflowAction:await this.dependencies.workflowActions.preview(input.projectId,payload)});
+          }catch(error){
+            if(error instanceof AgentWorkflowActionStaleError){
+              ({session,proposal}=await this.saveStale(session,proposal));
+              return{preview:{proposalId:proposal.id,baseProjectRevision:proposal.baseProjectRevision,currentProjectRevision:project.project.revision,status:"stale",selectedOperationIds:selected.map(item=>item.id),operations:[]},session};
+            }
+            throw error;
+          }
+          continue;
+        }
+        throw new AgentProposalApplicationError(`Proposal operation kind ${operation.kind} is not applyable in A5 yet.`);
       }
       if(proposal.status==="draft"){
         proposal=proposalWithStatus(proposal,"reviewed");
@@ -172,59 +193,71 @@ export class AgentProposalApplicationService{
       let proposal=session.proposals.find(item=>item.id===proposalId);
       if(!proposal)throw new AgentProposalNotFoundError();
       const selected=selectOperations(proposal,input.operationIds);
-      if(selected.length!==1||selected[0].kind!=="visual-plan")throw new AgentProposalApplicationError("A4 currently applies one visual-plan proposal operation per logical transaction.");
-      const payload=VisualPlanOperationPayloadSchema.parse(selected[0].payload);
-      const selectedChangeIds=selectVisualChanges(payload.selectedIds,input.changeIds);
-      const applyOperationId=stableApplyOperationId(proposal.id,selected.map(item=>item.id),selectedChangeIds);
+      if(selected.length!==1)throw new AgentProposalApplicationError("A5 applies one proposal operation per explicit confirmation.");
+      const operation=selected[0];
+      const visualPayload=operation.kind==="visual-plan"?VisualPlanOperationPayloadSchema.parse(operation.payload):undefined;
+      const workflowPayload=operation.kind==="workflow-action"?WorkflowActionProposalPayloadSchema.parse(operation.payload):undefined;
+      if(!visualPayload&&!workflowPayload)throw new AgentProposalApplicationError(`Proposal operation kind ${operation.kind} is not applyable in A5 yet.`);
+      if(workflowPayload&&input.changeIds?.length)throw new AgentProposalApplicationError("Workflow actions do not accept visual change selections.");
+      const selectedChangeIds=visualPayload?selectVisualChanges(visualPayload.selectedIds,input.changeIds):[];
+      const applyOperationId=stableApplyOperationId(proposal.id,[operation.id],selectedChangeIds);
       const priorApproved=session.approvedOperations.find(item=>item.operationId===applyOperationId);
       if(priorApproved&&priorApproved.proposalId!==proposal.id)throw new AgentProposalApplicationError("Apply operation ID is already bound to another proposal.");
 
-      const priorMutation=await this.dependencies.mutations.getOperation(input.projectId,applyOperationId);
-      if(priorMutation?.status==="applied"){
+      if(workflowPayload&&priorApproved){
         const project=await this.dependencies.projects.load(input.projectId);
-        proposal=proposalWithStatus(proposal,"applied");
-        session=AgentSessionSchema.parse({
-          ...replaceProposal(session,proposal),
-          approvedOperations:priorApproved?session.approvedOperations:[...session.approvedOperations,{operationId:applyOperationId,proposalId:proposal.id,approvedAt:this.now()}],
-          updatedAt:this.now(),
-        });
-        await this.dependencies.sessions.save(session);
-        return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:selected.map(item=>item.id),appliedChangeIds:selectedChangeIds,transactionId:applyOperationId,alreadyApplied:true};
+        if(proposal.status!=="applied"){
+          proposal=proposalWithStatus(proposal,"applied");
+          session=AgentSessionSchema.parse({...replaceProposal(session,proposal),updatedAt:this.now()});
+          await this.dependencies.sessions.save(session);
+        }
+        return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:true,workflowAction:workflowPayload.action};
+      }
+
+      if(visualPayload){
+        const priorMutation=await this.dependencies.mutations.getOperation(input.projectId,applyOperationId);
+        if(priorMutation?.status==="applied"){
+          const project=await this.dependencies.projects.load(input.projectId);
+          proposal=proposalWithStatus(proposal,"applied");
+          session=AgentSessionSchema.parse({...replaceProposal(session,proposal),approvedOperations:priorApproved?session.approvedOperations:[...session.approvedOperations,{operationId:applyOperationId,proposalId:proposal.id,approvedAt:this.now()}],updatedAt:this.now()});
+          await this.dependencies.sessions.save(session);
+          return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:selectedChangeIds,transactionId:applyOperationId,alreadyApplied:true};
+        }
       }
 
       const current=await this.dependencies.projects.load(input.projectId);
       if(proposal.status==="stale"||proposal.baseProjectRevision!==current.project.revision||input.expectedRevision!==proposal.baseProjectRevision){
-        if(proposal.status==="draft"||proposal.status==="reviewed"){
-          proposal=proposalWithStatus(proposal,"stale");
-          session=AgentSessionSchema.parse({...replaceProposal(session,proposal),updatedAt:this.now()});
-          await this.dependencies.sessions.save(session);
-        }
+        if(proposal.status==="draft"||proposal.status==="reviewed")({session,proposal}=await this.saveStale(session,proposal));
         throw new AgentProposalStaleError(proposal.baseProjectRevision,current.project.revision);
       }
       if(proposal.status==="rejected")throw new AgentProposalApplicationError("Rejected proposals cannot be applied.");
-      if(proposal.status==="applied")throw new AgentProposalApplicationError("Proposal is already applied but its mutation record could not be recovered.");
+      if(proposal.status==="applied")throw new AgentProposalApplicationError("Proposal is already applied but its durable Apply record could not be recovered.");
+
+      if(workflowPayload){
+        if(!this.dependencies.workflowActions)throw new AgentProposalApplicationError("Workflow action application is not configured.");
+        let applied:Awaited<ReturnType<AgentWorkflowActionExecutor["apply"]>>;
+        try{applied=await this.dependencies.workflowActions.apply(input.projectId,workflowPayload,input.expectedRevision,applyOperationId);}
+        catch(error){
+          if(error instanceof AgentWorkflowActionStaleError){({session,proposal}=await this.saveStale(session,proposal));}
+          throw error;
+        }
+        proposal=proposalWithStatus(proposal,"applied");
+        session=AgentSessionSchema.parse({...replaceProposal(session,proposal),approvedOperations:[...session.approvedOperations,{operationId:applyOperationId,proposalId:proposal.id,approvedAt:this.now()}],updatedAt:this.now()});
+        await this.dependencies.sessions.save(session);
+        return{project:current,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:applied.alreadyApplied,workflow:applied.workflow,workflowAction:workflowPayload.action};
+      }
 
       let applied:Awaited<ReturnType<VisualPlanService["apply"]>>;
-      try{
-        applied=await this.dependencies.visualPlans.apply(input.projectId,payload.plan,selectedChangeIds,{expectedRevision:input.expectedRevision,operationId:applyOperationId});
-      }catch(error){
-        if(error instanceof ProjectRevisionConflictError){
-          proposal=proposalWithStatus(proposal,"stale");
-          session=AgentSessionSchema.parse({...replaceProposal(session,proposal),updatedAt:this.now()});
-          await this.dependencies.sessions.save(session);
-          throw new AgentProposalStaleError(error.expectedRevision,error.currentRevision);
-        }
+      try{applied=await this.dependencies.visualPlans.apply(input.projectId,visualPayload!.plan,selectedChangeIds,{expectedRevision:input.expectedRevision,operationId:applyOperationId});}
+      catch(error){
+        if(error instanceof ProjectRevisionConflictError){({session,proposal}=await this.saveStale(session,proposal));throw new AgentProposalStaleError(error.expectedRevision,error.currentRevision);}
         throw error;
       }
 
       proposal=proposalWithStatus(proposal,"applied");
-      session=AgentSessionSchema.parse({
-        ...replaceProposal(session,proposal),
-        approvedOperations:priorApproved?session.approvedOperations:[...session.approvedOperations,{operationId:applyOperationId,proposalId:proposal.id,approvedAt:this.now()}],
-        updatedAt:this.now(),
-      });
+      session=AgentSessionSchema.parse({...replaceProposal(session,proposal),approvedOperations:priorApproved?session.approvedOperations:[...session.approvedOperations,{operationId:applyOperationId,proposalId:proposal.id,approvedAt:this.now()}],updatedAt:this.now()});
       await this.dependencies.sessions.save(session);
-      return{project:applied.project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:selected.map(item=>item.id),appliedChangeIds:selectedChangeIds,transactionId:applied.transactionId,alreadyApplied:Boolean(applied.alreadyApplied)};
+      return{project:applied.project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:selectedChangeIds,transactionId:applied.transactionId,alreadyApplied:Boolean(applied.alreadyApplied)};
     });
   }
 }
