@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:windows-media": "vitest run tests/h6/windows-media-smoke.test.ts",
+    "test:live-openai": "node scripts/run-a3-openai-live.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {
