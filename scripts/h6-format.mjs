@@ -80,14 +80,6 @@ for (const file of [...files].sort()) {
 if (changed.length) {
   console.error("H6 format check failed. Run `npm run format` for:");
   for (const file of changed) console.error(`- ${file}`);
-  const a4Path = join(ROOT, "tests/e2e/a4-agent-workspace.spec.ts");
-  if (changed.includes(relative(ROOT, a4Path))) {
-    const source = await readFile(a4Path, "utf8");
-    const formatted = await prettier.format(source, { ...config, filepath: a4Path });
-    console.error("A4_FORMATTED_BEGIN");
-    console.error(formatted);
-    console.error("A4_FORMATTED_END");
-  }
   process.exitCode = 1;
 } else {
   console.log(`H6 format ${write ? "write" : "check"} passed for ${files.size} files.`);
