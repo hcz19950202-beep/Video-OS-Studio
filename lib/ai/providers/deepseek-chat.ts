@@ -2,6 +2,7 @@ import {z} from "zod";
 import {AIProviderRequestSchema,AgentToolCallSchema,AgentToolResultSchema,type AgentProviderError,type AgentProviderEvent,type AgentUsage,type AIProviderRequest} from "@/lib/ai/schema";
 import type {AIProvider} from "@/lib/ai/provider";
 import {DeepSeekA3ModelSchema,DeepSeekChatProviderConfigSchema,loadDeepSeekChatProviderConfigFromProcessEnv,type DeepSeekProviderEnvironment,type DeepSeekChatProviderConfig,loadDeepSeekChatProviderConfig} from "@/lib/ai/providers/deepseek-config";
+import {cancelProviderResponseBody} from "@/lib/ai/providers/response-body";
 
 export type DeepSeekChatFetch=typeof fetch;
 
@@ -237,6 +238,7 @@ export class DeepSeekChatProvider implements AIProvider{
     }
 
     if(!response.ok){
+      await cancelProviderResponseBody(response);
       cleanup();
       yield{type:"error",error:httpError(response.status)};
       return;
