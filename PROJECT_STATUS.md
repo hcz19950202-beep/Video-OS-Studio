@@ -26,13 +26,14 @@ v2_2_post_release_docs_main: 85adebdac436b33b3a737536f32363bfc8e22465
 
 v2_3_r0_main: 34ebc73b8998854e3ee8a067dc547cc158d156b8
 v2_3_a0_main: 64977b6b2fdf97224eefd0819c29fa2f0c8c52fd
+v2_3_a1_main: a307756c0a43b02d6c6ab2b74d4ec37110017d96
 
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
-active_workstream: V2.3 A1 CONTEXT BUILDER + ALLOW-LISTED TOOL REGISTRY
-active_branch: feature/v2.3-a1-context-tools-clean
-active_pr: 44
+active_workstream: V2.3 A2 SESSION STORE + MULTI-TURN AGENT RUNNER
+active_branch: feature/v2.3-a2-agent-runtime
+active_pr: 45
 local_action_required: NONE
-next_workstream: A2 Session Store + Multi-turn Agent Runner
+next_workstream: A3 Production Real Provider
 ```
 
 ## V2.2 delivery status
@@ -55,8 +56,8 @@ Release tag v2.2.0                        → VERIFIED
 ```text
 R0 Repository / PRD / Runtime Truth Sync  → COMPLETE / PR #40
 A0 Agent Contracts + Provider Abstraction → COMPLETE / PR #41
-A1 Context Builder + Tool Registry        → ACTIVE / PR #44
-A2 Session Store + Multi-turn Runner      → NOT STARTED
+A1 Context Builder + Tool Registry        → COMPLETE / PR #44
+A2 Session Store + Multi-turn Runner      → ACTIVE / PR #45
 A3 Production Real Provider               → NOT STARTED
 A4 AI Workspace Agent UX + Review / Apply → NOT STARTED
 A5 Agent ↔ Workflow Integration           → NOT STARTED
@@ -157,7 +158,7 @@ V2.3 Real AI Director / AI Editing Agent is active under the authoritative docum
 - `docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md`;
 - `docs/prd/Video_OS_Studio_V2_3_Development_Plan.md`.
 
-A0 is accepted on main after exact-head CI Run #578 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke. A1 adds only bounded Project context and an explicit tool allow-list; its proposal tool reuses the existing Rules Director / `VisualPlanService` and never applies Project mutations.
+A0 is accepted on main after exact-head CI Run #578 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke. A1 is accepted on main at `a307756c0a43b02d6c6ab2b74d4ec37110017d96` after PR #44 exact-head CI passed. A2 now adds only Agent session/orchestration runtime state outside `project.json`, a bounded multi-turn provider/tool loop, cancellation/recovery/budget controls, proposal staleness reconciliation, and operation-ID deduplication infrastructure. It does not add a live provider or an Apply mutation path.
 
 The first mandatory Local Codex gate remains A3 live-provider validation after the exact cloud-tested provider implementation SHA is green.
 
