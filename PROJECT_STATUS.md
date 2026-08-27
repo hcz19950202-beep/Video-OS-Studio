@@ -29,13 +29,14 @@ v2_3_a0_main: 64977b6b2fdf97224eefd0819c29fa2f0c8c52fd
 v2_3_a1_main: a307756c0a43b02d6c6ab2b74d4ec37110017d96
 v2_3_a2_main: 44c0bcc2d980feb1fece94cf9d1df3a98666824f
 v2_3_a3_main: f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8
+v2_3_a4_main: 6cac2deeef20d98b667fee3b2cea49bc54b1600c
 
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
-active_workstream: V2.3 A4 AI WORKSPACE AGENT UX + REVIEW / APPLY
-active_branch: feature/v2.3-a4-agent-workspace
-active_pr: NONE UNTIL FIRST REVIEWABLE A4 SLICE
-local_action_required: NONE DURING CLOUD-SAFE A4 IMPLEMENTATION
-next_workstream: A5 Agent ↔ Workflow Integration
+active_workstream: V2.3 A5 AGENT ↔ WORKFLOW INTEGRATION
+active_branch: feature/v2.3-a5-agent-workflow
+active_pr: 48
+local_action_required: NONE DURING CLOUD-SAFE A5 IMPLEMENTATION
+next_workstream: A6 Failure / Revision / Retry / Restart Hardening
 ```
 
 ## V2.2 delivery status
@@ -61,8 +62,8 @@ A0 Agent Contracts + Provider Abstraction → COMPLETE / PR #41
 A1 Context Builder + Tool Registry        → COMPLETE / PR #44
 A2 Session Store + Multi-turn Runner      → COMPLETE / PR #45
 A3 Production Real Provider               → COMPLETE / PR #46
-A4 AI Workspace Agent UX + Review / Apply → ACTIVE
-A5 Agent ↔ Workflow Integration           → NOT STARTED
+A4 AI Workspace Agent UX + Review / Apply → COMPLETE / PR #47
+A5 Agent ↔ Workflow Integration           → ACTIVE / PR #48
 A6 Failure / Revision / Restart Hardening → NOT STARTED
 A7 End-to-End Product Acceptance          → NOT STARTED
 ```
@@ -164,8 +165,10 @@ A0 is accepted on main after exact-head CI Run #578 passed Ubuntu, Windows, Brow
 
 A3 is accepted on main at `f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8` after PR #46. Its exact frozen provider HEAD `d438a57108334e0e1c68bab7882e79e209ea8143` passed GitHub Actions Run #625 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed mandatory Local Codex validation on Windows 10 / Node `v24.20.0` using the subscribed Volcengine Agent Plan route `ark-code-latest → DeepSeek-V4-Pro`. The live gate proved a real SSE read-only turn, one real `get_project_context` tool execution, exactly two provider round trips, Project revision `11 → 11`, no Project mutation, no secret persistence/leakage, clean worktree, and unchanged frozen SHA.
 
-A4 now owns the AI Workspace user-facing Agent experience and Review / Apply boundary. It MUST extend the existing `components/studio/AIWorkspacePanel.tsx` into `Agent / Composer / Workflow` modes rather than creating a parallel Studio. Cloud-safe work includes session create/reopen/list, conversation rendering, selection context chips, real streaming/status progress, concise tool activity, proposal cards, structured Review/Diff, Apply Selected / Apply / Reject, stale proposal handling, cancel/retry, reload/reopen, and deterministic mock-provider Playwright coverage.
+A4 is accepted on main at `6cac2deeef20d98b667fee3b2cea49bc54b1600c` after PR #47. Its final frozen HEAD `dbe322863bbeb3af2c33bf245e0d569f40f6075e` passed GitHub Actions Run #661 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed mandatory Local Real Browser Validation RETEST 4 on Windows 10 / Node `v24.20.0` with real Volcengine Agent Plan. The gate proved `get_project_context → propose_visual_plan`, model-visible proposal arguments limited to `intent`, a real percentage / Remotion `metric-focus` Proposal, Project revision `2 → 2` before Apply, structured Review/Diff with no mutation, explicit Apply `2 → 3` exactly +1, one logical Undo, durable Session reload/reopen, stale Proposal blocking after revision change, and no API-key persistence/leakage.
 
-A4 durable mutation continues to obey the accepted chain: explicit UI confirmation → Agent application service → expected Project revision → proposal operation resolution → existing Command Transaction / bounded service → reload latest Project. Provider and session layers have no direct Project mutation authority, and Project Schema remains `2.0.0`.
+A5 owns the bounded bridge from the accepted Agent runtime to the accepted V2.2 Workflow Runtime. The intended chain is `Agent read/proposal tool → workflow-action Proposal → Review → explicit Apply → existing WorkflowService / WorkflowRunner / Durable Jobs`. Provider and tool handlers have no direct Workflow mutation authority. Allowed A5 actions are bounded Workflow status/artifact inspection plus explicitly confirmed first-draft creation, paused Workflow resume, failed/interrupted Stage retry, and final render only through the active `ASSEMBLY_REVIEW` checkpoint and accepted `FINAL_RENDER` Stage. Direct Workflow JSON writes, arbitrary Stage construction/status spoofing, direct engine spawn, and a second Job/Workflow runtime remain forbidden.
+
+A5 first-draft creation uses a stable Agent-derived WorkflowRun UUID through the existing WorkflowService so identical confirmed retries cannot create duplicate Workflow runs. Existing Workflow status/updatedAt/checkpoint state is captured in the Proposal and revalidated before Apply; changed Workflow state makes the Proposal stale instead of bypassing the Workflow state machine. Project Schema remains `2.0.0`.
 
 The experimental branch `feature/v2.2-w55-workflow-template` was not part of the accepted V2.2 Master PRD release path and must not be merged into V2.3 implicitly. Re-evaluate any useful idea only under an explicit V2.3 workstream.
