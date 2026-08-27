@@ -27,13 +27,14 @@ v2_2_post_release_docs_main: 85adebdac436b33b3a737536f32363bfc8e22465
 v2_3_r0_main: 34ebc73b8998854e3ee8a067dc547cc158d156b8
 v2_3_a0_main: 64977b6b2fdf97224eefd0819c29fa2f0c8c52fd
 v2_3_a1_main: a307756c0a43b02d6c6ab2b74d4ec37110017d96
+v2_3_a2_main: 44c0bcc2d980feb1fece94cf9d1df3a98666824f
 
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
-active_workstream: V2.3 A2 SESSION STORE + MULTI-TURN AGENT RUNNER
-active_branch: feature/v2.3-a2-agent-runtime
-active_pr: 45
-local_action_required: NONE
-next_workstream: A3 Production Real Provider
+active_workstream: V2.3 A3 PRODUCTION REAL PROVIDER
+active_branch: feature/v2.3-a3-real-provider
+active_pr: PENDING
+local_action_required: NONE UNTIL EXACT CLOUD-GREEN A3 SHA
+next_workstream: A4 AI Workspace Agent UX + Review / Apply
 ```
 
 ## V2.2 delivery status
@@ -57,8 +58,8 @@ Release tag v2.2.0                        → VERIFIED
 R0 Repository / PRD / Runtime Truth Sync  → COMPLETE / PR #40
 A0 Agent Contracts + Provider Abstraction → COMPLETE / PR #41
 A1 Context Builder + Tool Registry        → COMPLETE / PR #44
-A2 Session Store + Multi-turn Runner      → ACTIVE / PR #45
-A3 Production Real Provider               → NOT STARTED
+A2 Session Store + Multi-turn Runner      → COMPLETE / PR #45
+A3 Production Real Provider               → ACTIVE
 A4 AI Workspace Agent UX + Review / Apply → NOT STARTED
 A5 Agent ↔ Workflow Integration           → NOT STARTED
 A6 Failure / Revision / Restart Hardening → NOT STARTED
@@ -158,8 +159,10 @@ V2.3 Real AI Director / AI Editing Agent is active under the authoritative docum
 - `docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md`;
 - `docs/prd/Video_OS_Studio_V2_3_Development_Plan.md`.
 
-A0 is accepted on main after exact-head CI Run #578 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke. A1 is accepted on main at `a307756c0a43b02d6c6ab2b74d4ec37110017d96` after PR #44 exact-head CI passed. A2 now adds only Agent session/orchestration runtime state outside `project.json`, a bounded multi-turn provider/tool loop, cancellation/recovery/budget controls, proposal staleness reconciliation, and operation-ID deduplication infrastructure. It does not add a live provider or an Apply mutation path.
+A0 is accepted on main after exact-head CI Run #578 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke. A1 is accepted on main at `a307756c0a43b02d6c6ab2b74d4ec37110017d96` after PR #44 exact-head CI passed. A2 is accepted on main at `44c0bcc2d980feb1fece94cf9d1df3a98666824f` after PR #45 exact-head CI Run #593 passed Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke.
 
-The first mandatory Local Codex gate remains A3 live-provider validation after the exact cloud-tested provider implementation SHA is green.
+A3 is the first production-provider workstream. It may add one real provider adapter, server-only runtime environment config, provider streaming/tool-call normalization, timeout/abort and normalized provider errors. It must not put secrets/model config into Project or Session truth, add direct mutation authority, or weaken the A0-A2 provider/tool/proposal boundaries. The implementation is based on the current official provider API contract verified before writing provider-specific payloads.
+
+The first mandatory Local Codex gate begins only after the A3 implementation reaches an exact cloud-green SHA. That local gate is limited to one live read-only Agent turn, one live structured tool call, no Project mutation, and no key leakage. Any pushed code/config/test fix invalidates the frozen SHA and returns control to GPT Web + CI review.
 
 The experimental branch `feature/v2.2-w55-workflow-template` was not part of the accepted V2.2 Master PRD release path and must not be merged into V2.3 implicitly. Re-evaluate any useful idea only under an explicit V2.3 workstream.
