@@ -2,6 +2,7 @@ import {AgentToolCallSchema,AgentToolDefinitionSchema,AgentToolResultSchema,type
 import type {AgentToolExecutionContext,RegisteredAgentTool} from "@/lib/ai/tools/schema";
 
 const errorResult=(call:AgentToolCall,code:string,message:string,retryable=false):AgentToolResult=>AgentToolResultSchema.parse({callId:call.id,toolId:call.toolId,status:"error",error:{code,message,retryable}});
+const safeUnexpectedErrorCode=(error:unknown)=>{const code=error&&typeof error==="object"&&"code" in error?(error as {code?:unknown}).code:undefined;return typeof code==="string"&&/^[A-Za-z0-9_-]{1,64}$/.test(code)?code:undefined;};
 
 export class AgentToolSafeError extends Error{
   constructor(readonly code:string,message:string,readonly retryable=false){super(message);this.name="AgentToolSafeError";}
@@ -43,6 +44,12 @@ export class AgentToolRegistry{
       return AgentToolResultSchema.parse({callId:call.id,toolId:call.toolId,status:"success",output:output.data});
     }catch(error){
       if(error instanceof AgentToolSafeError)return errorResult(call,error.code,error.message,error.retryable);
+      console.error("[video-os][agent-tool] unexpected tool failure",{
+        toolId:call.toolId,
+        sessionId:context.sessionId,
+        errorType:error instanceof Error?error.name:typeof error,
+        errorCode:safeUnexpectedErrorCode(error),
+      });
       return errorResult(call,"tool_execution_failed",`Agent tool ${call.toolId} failed without exposing internal runtime details.`);
     }
   }
