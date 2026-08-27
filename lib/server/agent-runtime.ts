@@ -10,11 +10,11 @@ import {
 } from "@/lib/ai";
 import {DeterministicA4MockProvider} from "@/lib/ai/a4-mock-provider";
 import {getGlobalRuntime} from "@/lib/server/global-runtime";
-import {dataRoot,fileSystem,projectMutations,projectRepository,visualPlanService} from "@/lib/server/runtime";
+import {dataRoot,fileSystem,projectMutations,projectRepository,visualPlanService,workflowService} from "@/lib/server/runtime";
 
 const sessions=getGlobalRuntime(`${dataRoot}:agent-sessions`,()=>new AgentSessionRepository(fileSystem,dataRoot));
 const context=getGlobalRuntime(`${dataRoot}:agent-context`,()=>new AgentContextService(projectRepository));
-const tools=getGlobalRuntime(`${dataRoot}:agent-tools`,()=>createA1AgentToolRegistry({visualPlans:visualPlanService}));
+const tools=getGlobalRuntime(`${dataRoot}:agent-tools`,()=>createA1AgentToolRegistry({visualPlans:visualPlanService,workflows:workflowService}));
 const applications=getGlobalRuntime(`${dataRoot}:agent-applications`,()=>new AgentProposalApplicationService({sessions,projects:projectRepository,mutations:projectMutations,visualPlans:visualPlanService}));
 const mockProviderRequested=()=>process.env.VIDEO_OS_AGENT_PROVIDER?.trim()==="mock"&&process.env.NODE_ENV!=="production";
 
