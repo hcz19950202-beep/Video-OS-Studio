@@ -12,6 +12,8 @@ import {
 import {AgentSelectionSnapshotSchema} from "@/lib/ai/context";
 import {ProjectIdSchema} from "@/schemas/project";
 
+const StableRuntimeIdSchema=z.string().min(1).max(160).regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]*$/,"ID contains unsupported characters");
+
 export const AgentTurnStatusSchema=z.enum([
   "running",
   "completed",
@@ -48,14 +50,14 @@ export type AgentContextReference=z.infer<typeof AgentContextReferenceSchema>;
 export const AgentTurnSchema=z.object({
   id:AgentTurnIdSchema,
   baseProjectRevision:z.number().int().nonnegative(),
-  userMessageId:z.string().uuid(),
-  assistantMessageId:z.string().uuid().optional(),
+  userMessageId:StableRuntimeIdSchema,
+  assistantMessageId:StableRuntimeIdSchema.optional(),
   startedAt:z.string().datetime(),
   completedAt:z.string().datetime().optional(),
   status:AgentTurnStatusSchema,
   providerRoundTrips:z.number().int().nonnegative(),
   toolExecutions:z.array(AgentToolExecutionSchema).max(256),
-  proposalIds:z.array(AgentProposalIdSchema).max(128),
+  proposalIds:z.array(AgentProposalIdSchema).max(256),
   usage:AgentUsageSchema.optional(),
   error:AgentRuntimeErrorSchema.optional(),
 }).strict().superRefine((turn,ctx)=>{
@@ -69,7 +71,7 @@ export const AgentTurnSchema=z.object({
 export type AgentTurn=z.infer<typeof AgentTurnSchema>;
 
 export const AgentApprovedOperationSchema=z.object({
-  operationId:z.string().min(1).max(200),
+  operationId:StableRuntimeIdSchema,
   proposalId:AgentProposalIdSchema,
   approvedAt:z.string().datetime(),
 }).strict();
