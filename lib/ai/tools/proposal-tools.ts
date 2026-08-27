@@ -33,10 +33,13 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
       const plan=await visualPlans.generate(context.context.projectId,{intent:input.intent},context.context.baseProjectRevision);
       if(plan.projectId!==context.context.projectId)throw new Error("Visual planner returned a plan for a different Project.");
       const allowedIds=new Set(plan.suggestions.map(suggestion=>suggestion.id));
-      const selectedIds=input.selectedSuggestionIds??plan.suggestions.map(suggestion=>suggestion.id);
+      const actionableIds=new Set(plan.suggestions.filter(suggestion=>suggestion.recommendation.engine!=="none").map(suggestion=>suggestion.id));
+      const selectedIds=input.selectedSuggestionIds??[...actionableIds];
       const unknownIds=selectedIds.filter(id=>!allowedIds.has(id));
       if(unknownIds.length>0)throw new Error("Visual proposal selection references unknown suggestions.");
-      if(selectedIds.length===0)throw new Error("Visual planner produced no selected actionable suggestions.");
+      const nonActionableIds=selectedIds.filter(id=>!actionableIds.has(id));
+      if(nonActionableIds.length>0)throw new Error("Visual proposal selection references density-guarded non-actionable suggestions.");
+      if(selectedIds.length===0)throw new Error("Visual planner produced no actionable suggestions to review.");
       const proposalId=context.makeId?.()??randomUUID();
       const createdAt=context.now?.()??new Date().toISOString();
       const proposal=AgentProposalSchema.parse({
