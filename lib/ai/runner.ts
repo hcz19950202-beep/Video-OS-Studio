@@ -1,4 +1,5 @@
 import {randomUUID} from "node:crypto";
+import {z} from "zod";
 import {
   AgentMessageSchema,
   AgentProposalSchema,
@@ -6,6 +7,7 @@ import {
   AgentUsageSchema,
   AIProviderRequestSchema,
   type AgentProviderError,
+  type AgentProviderEvent,
   type AgentToolCall,
   type AgentToolResult,
   type AgentUsage,
@@ -73,18 +75,33 @@ const updateTurn=(session:AgentSession,turnId:string,update:(turn:AgentTurn)=>Ag
   turns:session.turns.map(turn=>turn.id===turnId?update(turn):turn),
 });
 
-const runtimeError=(error:unknown,outerSignal?:AbortSignal,timedOut=false):AgentRuntimeError=>{
+const safeProviderMessage=(code:AgentProviderError["code"])=>{
+  if(code==="auth")return"AI provider authentication failed.";
+  if(code==="rate_limit")return"AI provider rate limit was reached.";
+  if(code==="timeout")return"AI provider request timed out.";
+  if(code==="network")return"AI provider network request failed.";
+  if(code==="invalid_output")return"AI provider returned invalid output.";
+  if(code==="cancelled")return"Agent turn was cancelled.";
+  return"AI provider request failed.";
+};
+
+const runtimeError=(error:unknown,outerSignal?:AbortSignal):AgentRuntimeError=>{
   if(error instanceof AgentBudgetExceededError){
     return{category:"budget",code:error.code,message:error.message,retryable:true};
-  }
-  if(timedOut){
-    return{category:"budget",code:"wall_clock",message:"Agent turn exceeded the configured wall-clock budget.",retryable:true};
   }
   if(outerSignal?.aborted||error instanceof AIProviderAbortError){
     return{category:"cancelled",code:"cancelled",message:"Agent turn was cancelled.",retryable:true};
   }
   if(error instanceof AgentProviderEventError){
-    return{category:"provider",code:error.details.code,message:error.details.message,retryable:error.details.retryable};
+    return{
+      category:error.details.code==="cancelled"?"cancelled":"provider",
+      code:error.details.code,
+      message:safeProviderMessage(error.details.code),
+      retryable:error.details.retryable,
+    };
+  }
+  if(error instanceof z.ZodError){
+    return{category:"validation",code:"invalid_provider_event",message:"AI provider returned data that failed runtime validation.",retryable:false};
   }
   return{category:"provider",code:"provider",message:"AI provider request failed.",retryable:true};
 };
@@ -102,6 +119,42 @@ const toolMessageContent=(call:AgentToolCall,result:AgentToolResult)=>{
   const content=JSON.stringify({call,result});
   if(content.length>100_000)throw new AgentBudgetExceededError("context_size","Agent tool result exceeded the message-size budget.");
   return content;
+};
+
+const nextProviderEvent=async(
+  iterator:AsyncIterator<AgentProviderEvent>,
+  controller:AbortController,
+  outerSignal:AbortSignal|undefined,
+  remainingMs:number,
+):Promise<IteratorResult<AgentProviderEvent>>=>{
+  if(remainingMs<=0){
+    controller.abort();
+    throw new AgentBudgetExceededError("wall_clock","Agent turn exceeded the configured wall-clock budget.");
+  }
+  if(outerSignal?.aborted){
+    controller.abort();
+    throw new AIProviderAbortError();
+  }
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  let onAbort:(()=>void)|undefined;
+  const guard=new Promise<never>((_resolve,reject)=>{
+    timer=setTimeout(()=>{
+      controller.abort();
+      reject(new AgentBudgetExceededError("wall_clock","Agent turn exceeded the configured wall-clock budget."));
+    },remainingMs);
+    if(outerSignal){
+      onAbort=()=>{
+        controller.abort();
+        reject(new AIProviderAbortError());
+      };
+      outerSignal.addEventListener("abort",onAbort,{once:true});
+    }
+  });
+  try{return await Promise.race([iterator.next(),guard]);}
+  finally{
+    if(timer!==undefined)clearTimeout(timer);
+    if(outerSignal&&onAbort)outerSignal.removeEventListener("abort",onAbort);
+  }
 };
 
 export const reconcileStaleProposals=(session:AgentSession,currentRevision:number):AgentSession=>{
@@ -137,7 +190,6 @@ export class AgentRunner{
       session=reconcileStaleProposals(session,context.baseProjectRevision);
       const contextPrompt=systemPrompt(context);
       const budget=new AgentTurnBudgetTracker(input.budget,this.nowMs);
-      budget.assertContextSize(contextPrompt);
 
       const turnId=this.makeId();
       const userMessageId=this.makeId();
@@ -162,8 +214,8 @@ export class AgentRunner{
       });
       await this.dependencies.sessions.save(session);
 
-      let timedOut=false;
       try{
+        budget.assertContextSize(contextPrompt);
         for(;;){
           budget.beginProviderRoundTrip();
           session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,providerRoundTrips:budget.providerRoundTrips}));
@@ -179,31 +231,23 @@ export class AgentRunner{
           });
 
           const controller=new AbortController();
-          const onAbort=()=>controller.abort();
-          if(input.signal?.aborted)controller.abort();
-          else input.signal?.addEventListener("abort",onAbort,{once:true});
-          const remaining=budget.remainingMs();
-          if(remaining<=0)throw new AgentBudgetExceededError("wall_clock","Agent turn exceeded the configured wall-clock budget.");
-          const timer=setTimeout(()=>{timedOut=true;controller.abort();},remaining);
-
+          const iterator=this.dependencies.provider.run(request,controller.signal)[Symbol.asyncIterator]();
           let text="";
           const calls:AgentToolCall[]=[];
           let roundUsage:AgentUsage|undefined;
           let completed=false;
-          try{
-            for await(const rawEvent of this.dependencies.provider.run(request,controller.signal)){
-              budget.assertTime();
-              const event=AgentProviderEventSchema.parse(rawEvent);
-              if(event.type==="text-delta")text+=event.text;
-              else if(event.type==="tool-call")calls.push(event.call);
-              else if(event.type==="completed"){
-                completed=true;
-                roundUsage=mergeUsage(roundUsage,event.usage);
-              }else if(event.type==="error")throw new AgentProviderEventError(event.error);
-            }
-          }finally{
-            clearTimeout(timer);
-            input.signal?.removeEventListener("abort",onAbort);
+          for(;;){
+            const next=await nextProviderEvent(iterator,controller,input.signal,budget.remainingMs());
+            if(next.done)break;
+            budget.assertTime();
+            if(completed)throw new AgentProviderEventError({code:"invalid_output",message:"Provider emitted data after completion.",retryable:false});
+            const event=AgentProviderEventSchema.parse(next.value);
+            if(event.type==="text-delta")text+=event.text;
+            else if(event.type==="tool-call")calls.push(event.call);
+            else if(event.type==="completed"){
+              completed=true;
+              roundUsage=event.usage;
+            }else if(event.type==="error")throw new AgentProviderEventError(event.error);
           }
           if(!completed)throw new AgentProviderEventError({code:"invalid_output",message:"AI provider stream ended without a completed event.",retryable:true});
 
@@ -265,7 +309,7 @@ export class AgentRunner{
           }
         }
       }catch(error){
-        const details=runtimeError(error,input.signal,timedOut);
+        const details=runtimeError(error,input.signal);
         const completedAt=this.now();
         const status=details.category==="cancelled"?"cancelled":details.category==="budget"?"budget-exhausted":"failed";
         session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,status,completedAt,error:details}));
