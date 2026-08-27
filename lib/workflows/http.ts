@@ -30,5 +30,5 @@ export const workflowErrorResponse=(error:unknown)=>{
   if(error instanceof WorkflowCreateIdempotencyConflictError)return Response.json(payload(error.code,error.message,false,{workflowId:error.workflowId}),{status:409});
   if(error instanceof WorkflowRuntimeStateError)return Response.json(payload(error.code,error.message,false,{workflowId:error.workflowId}),{status:409});
   if(error instanceof ZodError)return Response.json(payload("WORKFLOW_REQUEST_INVALID","The workflow request is invalid.",false,{issues:error.issues}),{status:400});
-  return Response.json(payload("WORKFLOW_REQUEST_FAILED",error instanceof Error?error.message:String(error),true),{status:400});
+  return Response.json(payload("WORKFLOW_INTERNAL","The workflow request failed because of an internal server error.",true),{status:500});
 };

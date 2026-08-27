@@ -168,6 +168,12 @@ test("H6 Create/Open/Import/Caption/Canvas/AI/Undo/Redo/Save/Reopen", async ({ p
     })
     .toBe("1280x720");
 
+  const timeReadout = page.locator(".time-readout strong");
+  const timeBeforeRemountPlayback = await timeReadout.textContent();
+  await page.keyboard.press("Space");
+  await expect.poll(async () => timeReadout.textContent()).not.toBe(timeBeforeRemountPlayback);
+  await page.keyboard.press("Space");
+
   await page.getByTitle("AI").click();
   await page.getByRole("button", { name: "Analyze Scenes", exact: true }).click();
   await expect(page.getByText("Review Recommendations", { exact: true })).toBeVisible();

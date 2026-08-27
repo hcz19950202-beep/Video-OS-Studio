@@ -2,6 +2,7 @@ import {z} from "zod";
 import {AIProviderRequestSchema,AgentToolCallSchema,AgentToolResultSchema,type AgentProviderError,type AgentProviderEvent,type AgentUsage,type AIProviderRequest} from "@/lib/ai/schema";
 import type {AIProvider} from "@/lib/ai/provider";
 import {VolcengineAgentPlanModelSchema,VolcengineAgentPlanProviderConfigSchema,loadVolcengineAgentPlanProviderConfigFromProcessEnv,type VolcengineAgentPlanEnvironment,type VolcengineAgentPlanProviderConfig,loadVolcengineAgentPlanProviderConfig} from "@/lib/ai/providers/volcengine-agent-plan-config";
+import {ProviderResponseTooLargeError,cancelProviderResponseBody,readProviderResponseTextBounded} from "@/lib/ai/providers/response-body";
 
 export type VolcengineAgentPlanFetch=typeof fetch;
 
@@ -239,6 +240,7 @@ export class VolcengineAgentPlanProvider implements AIProvider{
     }
 
     if(!response.ok){
+      await cancelProviderResponseBody(response);
       cleanup();
       yield{type:"error",error:httpError(response.status)};
       return;
@@ -246,7 +248,8 @@ export class VolcengineAgentPlanProvider implements AIProvider{
 
     if(!streaming){
       try{
-        const raw=await response.json();
+        const rawText=await readProviderResponseTextBounded(response);
+        const raw=JSON.parse(rawText) as unknown;
         const parsed=CompletionSchema.safeParse(raw);
         if(!parsed.success){
           yield{type:"error",error:safeError("invalid_output","Volcengine Agent Plan returned a malformed completion.",false)};
@@ -275,9 +278,11 @@ export class VolcengineAgentPlanProvider implements AIProvider{
           yield{type:"error",error:safeError("invalid_output","Volcengine Agent Plan returned an empty completion.",false)};
           return;
         }
-        yield{type:"completed",...(usageFrom(parsed.data.usage)===undefined?{}:{usage:usageFrom(parsed.data.usage)})};
+        const completionUsage=usageFrom(parsed.data.usage);
+        yield{type:"completed",...(completionUsage===undefined?{}:{usage:completionUsage})};
       }catch(error){
         if(timedOut||signal?.aborted||(error instanceof DOMException&&error.name==="AbortError"))yield{type:"error",error:exceptionError(error,timedOut,signal)};
+        else if(error instanceof ProviderResponseTooLargeError)yield{type:"error",error:safeError("invalid_output","Volcengine Agent Plan returned an oversized completion.",false)};
         else yield{type:"error",error:safeError("invalid_output","Volcengine Agent Plan returned invalid JSON.",false)};
       }finally{
         cleanup();

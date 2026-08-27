@@ -33,12 +33,12 @@ export const bindRemotionPlayerState=(player:PlayerRef,sink:PlayerStateSink)=>{
   };
 };
 
-export const usePlayerStoreBridge=(playerRef:RefObject<PlayerRef|null>)=>{
+export const usePlayerStoreBridge=(playerRef:RefObject<PlayerRef|null>,playerInstanceKey:string)=>{
   const setCurrentFrame=usePlayerStore(state=>state.setCurrentFrame);
   const setPlaying=usePlayerStore(state=>state.setPlaying);
   useEffect(()=>{
     const player=playerRef.current;
     if(!player)return;
     return bindRemotionPlayerState(player,{setCurrentFrame,setPlaying});
-  },[playerRef,setCurrentFrame,setPlaying]);
+  },[playerInstanceKey,playerRef,setCurrentFrame,setPlaying]);
 };
