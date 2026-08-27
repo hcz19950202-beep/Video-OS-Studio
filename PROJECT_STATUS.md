@@ -6,6 +6,7 @@
 
 ```yaml
 released_product_version: 2.3.0
+hardening_candidate_version: 2.3.1
 project_schema: 2.0.0
 release_status: V2.3.0 RELEASE COMPLETE
 release_tag: v2.3.0
@@ -36,6 +37,7 @@ v2_3_a5_main: 4affcaf4c5c050b40c8b3a1f4b5920ac04a4c8ad
 v2_3_a6_main: 05c331947b6d3704daa680e66d5e0cbe1d4982ed
 v2_3_a7_main: 84e2826164ce6557cd99c4b42006ee703773c882
 v2_3_release_main: 562ffb26d5a04bd2898513893258f857187a00b4
+v2_3_post_release_docs_main: 7cb308a773bb910011c471e714182a5368a1d459
 
 release_pr: 51
 package_json_version: 2.3.0
@@ -43,9 +45,13 @@ package_lock_version: 2.3.0
 package_lock_sync_commit: 3e511860a68570988344b48dcdbf28bcc9eee2d5
 release_final_ci_run: 33098478140
 release_final_ci_number: 706
-local_action_required: NONE
-active_development_workstream: NONE
-next_after_release: V2.4 planning under a new approved PRD/workstream
+
+active_development_workstream: V2.3.1 ENGINEERING HARDENING
+active_hardening_stage: R0 HARDENING TRUTH / PRD SYNC
+active_branch: planning/v2.3.1-engineering-hardening
+local_action_required: NONE FOR R0
+next_action: COMPLETE R0 CLOUD CI AND MERGE, THEN BEGIN H0 CORRECTNESS / RESOURCE HYGIENE
+v2_4_status: NOT STARTED
 ```
 
 ## V2.2 delivery status
@@ -77,7 +83,48 @@ A6 Failure / Revision / Restart Hardening → COMPLETE / PR #49
 A7 End-to-End Product Acceptance          → COMPLETE / PR #50
 V2.3.0 Release Finalization               → COMPLETE / PR #51
 Release tag v2.3.0                        → VERIFIED
+Post-release truth sync                   → COMPLETE / PR #52
 ```
+
+## V2.3.1 Engineering Hardening status
+
+Authoritative documents:
+
+- `docs/prd/Video_OS_Studio_V2_3_1_Engineering_Hardening_Master_PRD.md`
+- `docs/prd/Video_OS_Studio_V2_3_1_Development_Plan.md`
+
+Planned delivery sequence:
+
+```text
+R0 Hardening Truth / PRD Sync              → ACTIVE
+H0 Correctness / Resource Hygiene          → NOT STARTED
+H1 Editing Commit Boundary                 → NOT STARTED
+H2 Playback / Timeline / Waveform          → NOT STARTED
+H3 Durable Runtime I/O                     → NOT STARTED
+H4 Local-First Security Boundary           → NOT STARTED
+H5 End-to-End Patch Acceptance             → NOT STARTED
+V2.3.1 Release Finalization                → NOT STARTED
+```
+
+V2.3.1 is a bounded patch/hardening release. It must preserve the accepted V2.3.0 architecture and must not silently become V2.4.
+
+Admitted focus areas include:
+
+- Remotion Player remount-safe event bridge;
+- editing draft/commit boundaries so one user intent maps to one logical Project mutation;
+- explicit Prettier dependency;
+- provider/Agent iterator and HTTP resource cleanup;
+- HyperFrames/Remotion temporary artifact cleanup;
+- safe server error boundaries and Agent tool diagnostics;
+- bounded provider response parsing;
+- Timeline/Script frame-frequency rendering boundaries;
+- Waveform request caching/deduplication;
+- async current-project response guards and reduced recent-project refresh frequency;
+- Workflow/Job I/O optimization without weakening durable truth;
+- crash-safe operation-log compaction design;
+- loopback/trusted-origin local security hardening.
+
+Explicitly forbidden shortcuts include removing accepted Windows durability locks merely for performance, replacing durable truth with in-memory-only events, weakening unknown-tool fail-closed behavior, enabling arbitrary model strings, or bypassing Agent Proposal/Review/Confirm boundaries.
 
 ## Release truth
 
@@ -93,7 +140,7 @@ Tag object:
 
 `24069497b1986348510ef0d904382f5c3f99855d`
 
-The annotated tag dereferences exactly to the accepted release commit above. The tag is the immutable V2.3.0 release boundary; later documentation-only main commits do not change the tagged release contents.
+The annotated tag dereferences exactly to the accepted release commit above. The tag is the immutable V2.3.0 release boundary; later documentation-only or V2.3.1 development commits do not change the tagged release contents.
 
 Previous immutable release evidence remains:
 
@@ -269,8 +316,8 @@ The completed V2.3.0 release sequence is:
 4. PR #51 merged as `562ffb26d5a04bd2898513893258f857187a00b4`;
 5. annotated tag `v2.3.0` was created;
 6. tag object `24069497b1986348510ef0d904382f5c3f99855d` was verified to target that exact release commit;
-7. this post-release documentation update records the immutable release truth.
+7. post-release documentation PR #52 merged as `7cb308a773bb910011c471e714182a5368a1d459`.
 
-No V2.4 development is active. V2.4 must begin only through a new approved PRD/workstream from the current released baseline.
+V2.3.1 Engineering Hardening is now the only active development workstream. V2.4 is not active and must not begin implicitly inside hardening work.
 
 The experimental branch `feature/v2.2-w55-workflow-template` remains outside the accepted release path and must not be merged implicitly.
