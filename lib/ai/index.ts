@@ -1,3 +1,4 @@
+export * from "@/lib/ai/application";
 export * from "@/lib/ai/budget";
 export * from "@/lib/ai/context";
 export * from "@/lib/ai/errors";
