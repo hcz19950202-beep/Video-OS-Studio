@@ -36,6 +36,8 @@ export type AgentProposalOperationPreview={
   operationId:string;
   kind:AgentProposedOperation["kind"];
   summary:string;
+  selectableChangeIds:string[];
+  selectedChangeIds:string[];
   visualPlanDiff?:VisualPlanDiff;
 };
 
@@ -54,6 +56,7 @@ export type AgentProposalApplyResult={
   proposalId:string;
   applyOperationId:string;
   appliedOperationIds:string[];
+  appliedChangeIds:string[];
   transactionId:string|null;
   alreadyApplied:boolean;
 };
@@ -83,8 +86,18 @@ const selectOperations=(proposal:AgentProposal,requestedIds?:string[])=>{
   return selected as AgentProposedOperation[];
 };
 
-const stableApplyOperationId=(proposalId:string,operationIds:string[])=>{
-  const digest=createHash("sha256").update(JSON.stringify([...operationIds].sort())).digest("hex").slice(0,16);
+const selectVisualChanges=(allowedIds:string[],requestedIds?:string[])=>{
+  const requested=requestedIds?.length?requestedIds:allowedIds;
+  const unique=[...new Set(requested)];
+  if(unique.length===0)throw new AgentProposalApplicationError("Select at least one visual change.");
+  const allowed=new Set(allowedIds);
+  if(unique.some(id=>!allowed.has(id)))throw new AgentProposalApplicationError("Selected visual change was not part of the proposal.");
+  return unique;
+};
+
+const stableApplyOperationId=(proposalId:string,operationIds:string[],changeIds:string[])=>{
+  const fingerprint={operationIds:[...operationIds].sort(),changeIds:[...changeIds].sort()};
+  const digest=createHash("sha256").update(JSON.stringify(fingerprint)).digest("hex").slice(0,16);
   return`agent-apply:${proposalId}:${digest}`;
 };
 
@@ -92,7 +105,7 @@ export class AgentProposalApplicationService{
   private readonly now:()=>string;
   constructor(private readonly dependencies:AgentProposalApplicationDependencies){this.now=dependencies.now??(()=>new Date().toISOString());}
 
-  async preview(input:{projectId:string;sessionId:string;proposalId:string;operationIds?:string[]}):Promise<{preview:AgentProposalPreview;session:AgentSession}>{
+  async preview(input:{projectId:string;sessionId:string;proposalId:string;operationIds?:string[];changeIds?:string[]}):Promise<{preview:AgentProposalPreview;session:AgentSession}>{
     const sessionId=AgentSessionIdSchema.parse(input.sessionId);
     const proposalId=AgentProposalIdSchema.parse(input.proposalId);
     return this.dependencies.sessions.withSessionLock(input.projectId,sessionId,async()=>{
@@ -116,7 +129,15 @@ export class AgentProposalApplicationService{
       for(const operation of selected){
         if(operation.kind!=="visual-plan")throw new AgentProposalApplicationError(`Proposal operation kind ${operation.kind} is not applyable in A4 yet.`);
         const payload=VisualPlanOperationPayloadSchema.parse(operation.payload);
-        operations.push({operationId:operation.id,kind:operation.kind,summary:operation.summary,visualPlanDiff:await this.dependencies.visualPlans.preview(input.projectId,payload.plan,payload.selectedIds)});
+        const selectedChangeIds=selectVisualChanges(payload.selectedIds,selected.length===1?input.changeIds:undefined);
+        operations.push({
+          operationId:operation.id,
+          kind:operation.kind,
+          summary:operation.summary,
+          selectableChangeIds:payload.selectedIds,
+          selectedChangeIds,
+          visualPlanDiff:await this.dependencies.visualPlans.preview(input.projectId,payload.plan,selectedChangeIds),
+        });
       }
       if(proposal.status==="draft"){
         proposal=proposalWithStatus(proposal,"reviewed");
@@ -143,7 +164,7 @@ export class AgentProposalApplicationService{
     });
   }
 
-  async apply(input:{projectId:string;sessionId:string;proposalId:string;expectedRevision:number;operationIds?:string[]}):Promise<AgentProposalApplyResult>{
+  async apply(input:{projectId:string;sessionId:string;proposalId:string;expectedRevision:number;operationIds?:string[];changeIds?:string[]}):Promise<AgentProposalApplyResult>{
     const sessionId=AgentSessionIdSchema.parse(input.sessionId);
     const proposalId=AgentProposalIdSchema.parse(input.proposalId);
     return this.dependencies.sessions.withSessionLock(input.projectId,sessionId,async()=>{
@@ -151,9 +172,10 @@ export class AgentProposalApplicationService{
       let proposal=session.proposals.find(item=>item.id===proposalId);
       if(!proposal)throw new AgentProposalNotFoundError();
       const selected=selectOperations(proposal,input.operationIds);
-      if(selected.length!==proposal.operations.length)throw new AgentProposalApplicationError("Partial proposal-operation Apply is not supported until partial proposal state is durable.");
       if(selected.length!==1||selected[0].kind!=="visual-plan")throw new AgentProposalApplicationError("A4 currently applies one visual-plan proposal operation per logical transaction.");
-      const applyOperationId=stableApplyOperationId(proposal.id,selected.map(item=>item.id));
+      const payload=VisualPlanOperationPayloadSchema.parse(selected[0].payload);
+      const selectedChangeIds=selectVisualChanges(payload.selectedIds,input.changeIds);
+      const applyOperationId=stableApplyOperationId(proposal.id,selected.map(item=>item.id),selectedChangeIds);
       const priorApproved=session.approvedOperations.find(item=>item.operationId===applyOperationId);
       if(priorApproved&&priorApproved.proposalId!==proposal.id)throw new AgentProposalApplicationError("Apply operation ID is already bound to another proposal.");
 
@@ -167,7 +189,7 @@ export class AgentProposalApplicationService{
           updatedAt:this.now(),
         });
         await this.dependencies.sessions.save(session);
-        return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:selected.map(item=>item.id),transactionId:applyOperationId,alreadyApplied:true};
+        return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:selected.map(item=>item.id),appliedChangeIds:selectedChangeIds,transactionId:applyOperationId,alreadyApplied:true};
       }
 
       const current=await this.dependencies.projects.load(input.projectId);
@@ -182,10 +204,9 @@ export class AgentProposalApplicationService{
       if(proposal.status==="rejected")throw new AgentProposalApplicationError("Rejected proposals cannot be applied.");
       if(proposal.status==="applied")throw new AgentProposalApplicationError("Proposal is already applied but its mutation record could not be recovered.");
 
-      const payload=VisualPlanOperationPayloadSchema.parse(selected[0].payload);
       let applied:Awaited<ReturnType<VisualPlanService["apply"]>>;
       try{
-        applied=await this.dependencies.visualPlans.apply(input.projectId,payload.plan,payload.selectedIds,{expectedRevision:input.expectedRevision,operationId:applyOperationId});
+        applied=await this.dependencies.visualPlans.apply(input.projectId,payload.plan,selectedChangeIds,{expectedRevision:input.expectedRevision,operationId:applyOperationId});
       }catch(error){
         if(error instanceof ProjectRevisionConflictError){
           proposal=proposalWithStatus(proposal,"stale");
@@ -203,7 +224,7 @@ export class AgentProposalApplicationService{
         updatedAt:this.now(),
       });
       await this.dependencies.sessions.save(session);
-      return{project:applied.project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:selected.map(item=>item.id),transactionId:applied.transactionId,alreadyApplied:Boolean(applied.alreadyApplied)};
+      return{project:applied.project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:selected.map(item=>item.id),appliedChangeIds:selectedChangeIds,transactionId:applied.transactionId,alreadyApplied:Boolean(applied.alreadyApplied)};
     });
   }
 }
