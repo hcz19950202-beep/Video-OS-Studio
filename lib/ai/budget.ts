@@ -4,7 +4,7 @@ export const AgentTurnBudgetSchema=z.object({
   maxProviderRoundTrips:z.number().int().positive().max(64).default(8),
   maxToolCalls:z.number().int().nonnegative().max(256).default(24),
   maxWallClockMs:z.number().int().positive().max(10*60_000).default(60_000),
-  maxContextCharacters:z.number().int().positive().max(1_000_000).default(120_000),
+  maxContextCharacters:z.number().int().positive().max(100_000).default(90_000),
   maxOutputTokens:z.number().int().positive().max(64_000).default(8_192),
 }).strict();
 export type AgentTurnBudget=z.infer<typeof AgentTurnBudgetSchema>;
