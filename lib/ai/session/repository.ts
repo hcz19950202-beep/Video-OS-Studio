@@ -131,9 +131,11 @@ export class AgentSessionRepository{
     const projectId=ProjectIdSchema.parse(projectIdInput);
     const dir=this.sessionsDir(projectId);
     const files=await this.fs.listFiles(dir);
-    const ids=files
-      .filter(name=>name.endsWith(".json")&&!name.endsWith(".backup.json"))
-      .map(name=>name.slice(0,-5));
+    const ids=[...new Set(files.flatMap(name=>{
+      if(name.endsWith(".backup.json"))return[name.slice(0,-12)];
+      if(name.endsWith(".json"))return[name.slice(0,-5)];
+      return[];
+    }))];
     const sessions=await Promise.all(ids.map(id=>this.load(projectId,id)));
     return sessions.filter((session):session is AgentSession=>session!==null).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
   }
