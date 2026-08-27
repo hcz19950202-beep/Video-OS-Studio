@@ -14,7 +14,7 @@ export async function GET(_request:Request,{params}:Context){
     }
     const session=await createServerAgentSessionService().open(projectId,sessionId);
     return Response.json({session,provider});
-  }catch(error){
+  }catch{
     return Response.json({code:"AGENT_SESSION_NOT_FOUND",message:"Agent session could not be reopened.",retryable:true,action:"Refresh the session list or start a new session."},{status:404});
   }
 }
