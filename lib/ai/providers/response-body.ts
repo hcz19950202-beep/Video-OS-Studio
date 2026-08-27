@@ -10,7 +10,7 @@ export const cancelProviderResponseBody=async(response:Response)=>{
 
 export const readProviderResponseTextBounded=async(response:Response,maxBytes=DEFAULT_MAX_RESPONSE_BYTES):Promise<string>=>{
   const declared=Number(response.headers.get("content-length"));
-  if(Number.isFinite(declared)&&declared>maxBytes)throw new ProviderResponseTooLargeError(maxBytes);
+  if(Number.isFinite(declared)&&declared>maxBytes){await cancelProviderResponseBody(response);throw new ProviderResponseTooLargeError(maxBytes);}
   if(!response.body)return"";
   const reader=response.body.getReader();
   const decoder=new TextDecoder();
