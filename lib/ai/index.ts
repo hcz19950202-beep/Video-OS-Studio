@@ -3,6 +3,7 @@ export * from "@/lib/ai/context";
 export * from "@/lib/ai/errors";
 export * from "@/lib/ai/mock-provider";
 export * from "@/lib/ai/provider";
+export * from "@/lib/ai/progress-provider";
 export * from "@/lib/ai/providers/deepseek-config";
 export * from "@/lib/ai/providers/deepseek-chat";
 export * from "@/lib/ai/providers/openai-config";
