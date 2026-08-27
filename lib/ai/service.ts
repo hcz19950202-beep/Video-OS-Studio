@@ -109,7 +109,10 @@ export class AgentSessionService{
   async close(projectId:string,sessionId:string):Promise<AgentSession>{
     return this.dependencies.sessions.withSessionLock(projectId,sessionId,async()=>{
       const session=await this.openUnlocked(projectId,sessionId);
-      if(session.status==="closed")return session;
+      if(session.status==="closed"){
+        await this.dependencies.sessions.save(session);
+        return session;
+      }
       const closed=AgentSessionSchema.parse({...session,status:"closed",updatedAt:this.now()});
       await this.dependencies.sessions.save(closed);
       return closed;
@@ -122,11 +125,12 @@ export class AgentSessionService{
       const existing=session.approvedOperations.find(item=>item.operationId===input.operationId);
       if(existing){
         if(existing.proposalId!==input.proposalId)throw new Error("Approved Agent operation ID is already bound to another proposal.");
+        await this.dependencies.sessions.save(session);
         return session;
       }
       const proposal=session.proposals.find(item=>item.id===input.proposalId);
       if(!proposal)throw new Error("Approved Agent operation references an unknown proposal.");
-      if(proposal.status==="stale"||proposal.status==="rejected")throw new Error("Stale or rejected Agent proposals cannot register approved operations.");
+      if(proposal.status!=="draft"&&proposal.status!=="reviewed")throw new Error("Only current reviewable Agent proposals can register approved operations.");
       const now=this.now();
       const updated=AgentSessionSchema.parse({
         ...session,
