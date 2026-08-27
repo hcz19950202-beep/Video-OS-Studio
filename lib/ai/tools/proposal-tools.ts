@@ -11,7 +11,7 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
   return{
     definition:AgentToolDefinitionSchema.parse({
       id:PROPOSE_VISUAL_PLAN_TOOL_ID,
-      description:"Use the existing deterministic Rules Director to create a reviewable visual-plan proposal. This tool never applies Project mutations. It requires at least one Scene and one timed Caption clip. It returns all actionable Rules Director suggestions; suggestion selection belongs to the Review UI, so do not invent or preselect suggestion IDs.",
+      description:"Use the existing deterministic Rules Director to create a reviewable visual-plan proposal. The server scopes planning to the current Studio selection when available; do not invent selection identifiers in tool arguments. This tool never applies Project mutations. It requires at least one Scene and one timed Caption clip. It returns all actionable Rules Director suggestions; suggestion selection belongs to the Review UI, so do not invent or preselect suggestion IDs.",
       risk:"proposal",
       inputJsonSchema:{
         type:"object",
@@ -35,10 +35,10 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
       const missing=[!hasScenes?"Scenes":null,!hasTimedCaption&&!context.context.truncated.clips?"timed Caption clips":null].filter((item):item is string=>Boolean(item));
       if(missing.length>0)throw new AgentToolSafeError("visual_plan_prerequisite_missing",`Visual proposal requires ${missing.join(" and ")}. Create or import those Project structures first, then ask the Agent to plan visuals again.`);
 
-      const plan=await visualPlans.generate(context.context.projectId,{intent:input.intent},context.context.baseProjectRevision);
+      const plan=await visualPlans.generate(context.context.projectId,{intent:input.intent,selection:context.context.selection},context.context.baseProjectRevision);
       if(plan.projectId!==context.context.projectId)throw new Error("Visual planner returned a plan for a different Project.");
       const selectedIds=plan.suggestions.filter(suggestion=>suggestion.recommendation.engine!=="none").map(suggestion=>suggestion.id);
-      if(selectedIds.length===0)throw new AgentToolSafeError("no_actionable_visual_suggestions","Rules Director found no actionable visual suggestions for the current Project and editing intent. Explain that result or ask for a different intent instead of retrying the same call.");
+      if(selectedIds.length===0)throw new AgentToolSafeError("no_actionable_visual_suggestions","Rules Director found no actionable visual suggestions for the current Project selection and editing intent. Explain that result or change the Studio selection/intent instead of retrying the same call.");
       const proposalId=context.makeId?.()??randomUUID();
       const createdAt=context.now?.()??new Date().toISOString();
       const proposal=AgentProposalSchema.parse({
@@ -48,7 +48,7 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
         baseProjectRevision:context.context.baseProjectRevision,
         title:"Visual plan proposal",
         summary:`Review ${selectedIds.length} Rules Director suggestion${selectedIds.length===1?"":"s"} before applying.`,
-        rationale:["Generated through the existing deterministic VisualPlanService at the captured Project revision; no Project mutation has been applied."],
+        rationale:["Generated through the existing deterministic VisualPlanService at the captured Project revision and current Studio selection; no Project mutation has been applied."],
         operations:[{
           id:`visual-plan-${proposalId}`,
           kind:"visual-plan",

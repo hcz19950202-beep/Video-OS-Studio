@@ -4,8 +4,15 @@ export const VisualSemanticTypeSchema=z.enum(["number","percentage","comparison"
 export const VisualEngineSchema=z.enum(["remotion","hyperframes","broll","none"]);
 export const VisualAnchorSchema=z.enum(["top-left","top","top-right","left","center","right","bottom-left","bottom","bottom-right"]);
 
+export const VisualPlannerSelectionSchema=z.object({
+  selectedClipIds:z.array(z.string().min(1)).max(64).default([]),
+  selectedSceneId:z.string().min(1).nullable().default(null),
+  selectedScriptRange:z.object({startWordId:z.string().min(1),endWordId:z.string().min(1)}).strict().nullable().default(null),
+}).strict();
+
 export const VisualPlannerContextSchema=z.object({
   intent:z.string().max(2000).default(""),
+  selection:VisualPlannerSelectionSchema.optional(),
   safeArea:z.object({
     profileId:z.string().min(1).default("generic"),
     top:z.number().min(0).max(.45),
@@ -85,6 +92,7 @@ export const VisualPlanDiffSchema=z.object({
   densityAfter:VisualDensitySchema,
 });
 
+export type VisualPlannerSelection=z.infer<typeof VisualPlannerSelectionSchema>;
 export type VisualPlannerContext=z.infer<typeof VisualPlannerContextSchema>;
 export type VisualPlacement=z.infer<typeof VisualPlacementSchema>;
 export type VisualSuggestion=z.infer<typeof VisualSuggestionSchema>;

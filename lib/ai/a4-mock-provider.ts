@@ -17,7 +17,7 @@ export class DeterministicA4MockProvider implements AIProvider{
       return;
     }
     const userContent=latestUserContent(request);
-    if(request.tools.some(tool=>tool.id==="request_workflow_action")&&(userContent.includes("workflow")||userContent.includes("first draft"))){
+    if(request.tools.some(tool=>tool.id==="request_workflow_action")&&userContent.includes("first draft")){
       yield{type:"tool-call",call:{id:`a5-mock-workflow-${request.messages.length}`,toolId:"request_workflow_action",arguments:{action:"create_first_draft",scenario:"product-ad",sourceAssetIds:["a5-source-asset"]}}};
       yield{type:"completed",usage:{inputTokens:38,outputTokens:9,totalTokens:47}};
       return;

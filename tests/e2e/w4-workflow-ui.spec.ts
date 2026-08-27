@@ -13,6 +13,15 @@ const readProject = async (page: Page, projectId: string): Promise<Project> =>
     return (await response.json()).project;
   }, projectId);
 
+const listProjectWorkflows = async (page: Page, projectId: string): Promise<WorkflowRun[]> =>
+  page.evaluate(async (id) => {
+    const response = await fetch(`/api/workflows?projectId=${encodeURIComponent(id)}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(`Workflow list failed: ${response.status}`);
+    return (await response.json()).workflows;
+  }, projectId);
+
 const applyCommand = async (
   page: Page,
   projectId: string,
@@ -64,11 +73,17 @@ const createPendingWorkflow = async (page: Page, project: Project): Promise<Work
     },
   );
 
-const openRecentProject = async (page: Page) => {
+const openRecentProject = async (page: Page, projectId: string) => {
   await page.getByTitle("Project").click();
   const recent = page.locator(".os-recent-list button").filter({ hasText: PROJECT_NAME }).first();
   await expect(recent).toBeVisible();
+  const response = page.waitForResponse(
+    (item) =>
+      item.request().method() === "GET" &&
+      item.url().endsWith(`/api/projects/${encodeURIComponent(projectId)}`),
+  );
   await recent.click();
+  expect((await response).ok()).toBeTruthy();
   await expect(page.locator(".v21-project-title")).toContainText(PROJECT_NAME);
 };
 
@@ -121,7 +136,13 @@ test("W4 Workflow tab discovers durable runs and cancels without starting engine
   expect(["127.0.0.1", "localhost"]).toContain(assetOrigin.hostname);
 
   await page.reload();
-  await openRecentProject(page);
+  await openRecentProject(page, projectId);
+  const workflowsBeforeOpen = await listProjectWorkflows(page, projectId);
+  expect(
+    workflowsBeforeOpen.some(
+      (workflow) => workflow.id === pending.id && workflow.status === "pending",
+    ),
+  ).toBe(true);
   await page.getByTitle("AI").click();
   await page.getByRole("tab", { name: "Workflow", exact: true }).click();
   const panel = page.locator(".v22-workflow-panel");
@@ -142,7 +163,13 @@ test("W4 Workflow tab discovers durable runs and cancels without starting engine
   await expect(panel).toHaveAttribute("data-workflow-state", "cancelled");
 
   await page.reload();
-  await openRecentProject(page);
+  await openRecentProject(page, projectId);
+  const workflowsAfterReload = await listProjectWorkflows(page, projectId);
+  expect(
+    workflowsAfterReload.some(
+      (workflow) => workflow.id === pending.id && workflow.status === "cancelled",
+    ),
+  ).toBe(true);
   await page.getByTitle("AI").click();
   await page.getByRole("tab", { name: "Workflow", exact: true }).click();
   await expect(page.locator(".v22-workflow-panel")).toHaveAttribute(

@@ -25,6 +25,39 @@ const spokenTextFor=(project:Project,startFrame:number,endFrame:number,fallback:
   return text||fallback;
 };
 
+const selectionScopedCaptions=(project:Project,captions:CaptionClip[],context:VisualPlannerContext)=>{
+  const selection=context.selection;
+  if(!selection)return{captions,scoped:false};
+  const hasSelection=selection.selectedClipIds.length>0||selection.selectedSceneId!==null||selection.selectedScriptRange!==null;
+  if(!hasSelection)return{captions,scoped:false};
+
+  const selectedIds=new Set(selection.selectedClipIds);
+  const selectedCaptions=captions.filter(caption=>selectedIds.has(caption.id));
+  if(selectedCaptions.length>0)return{captions:selectedCaptions,scoped:true};
+
+  if(selection.selectedScriptRange){
+    const words=project.script.segments.filter(segment=>segment.status==="active").flatMap(segment=>segment.words);
+    const start=words.find(word=>word.id===selection.selectedScriptRange?.startWordId);
+    const end=words.find(word=>word.id===selection.selectedScriptRange?.endWordId);
+    if(start&&end){
+      const startFrame=Math.min(start.startFrame,end.startFrame);
+      const endFrame=Math.max(start.endFrame,end.endFrame);
+      return{captions:captions.filter(caption=>caption.startFrame<endFrame&&caption.startFrame+caption.durationInFrames>startFrame),scoped:true};
+    }
+    return{captions:[],scoped:true};
+  }
+
+  if(selection.selectedSceneId){
+    const scene=project.scenes.find(item=>item.id===selection.selectedSceneId);
+    if(!scene)return{captions:[],scoped:true};
+    return{captions:captions.filter(caption=>caption.startFrame<scene.endFrame&&caption.startFrame+caption.durationInFrames>scene.startFrame),scoped:true};
+  }
+
+  const selectedClips=project.tracks.flatMap(track=>track.clips).filter(clip=>selectedIds.has(clip.id));
+  if(selectedClips.length===0)return{captions:[],scoped:true};
+  return{captions:captions.filter(caption=>selectedClips.some(clip=>caption.startFrame<clip.startFrame+clip.durationInFrames&&caption.startFrame+caption.durationInFrames>clip.startFrame)),scoped:true};
+};
+
 const normalizedSafeArea=(context:VisualPlannerContext)=>normalizeSafeArea(context.safeArea?{top:context.safeArea.top,right:context.safeArea.right,bottom:context.safeArea.bottom,left:context.safeArea.left}:DEFAULT_SAFE_AREA_PROFILE.insets);
 const overlappingMotion=(project:Project,frame:number)=>project.tracks.flatMap(track=>track.clips).filter((clip):clip is Extract<Clip,{type:"motion"}>=>clip.type==="motion"&&clip.enabled&&frame>=clip.startFrame&&frame<clip.startFrame+clip.durationInFrames);
 const placementFor=(project:Project,semantic:VisualSuggestion["semanticType"],frame:number,context:VisualPlannerContext):VisualPlacement=>{
@@ -88,9 +121,11 @@ export interface VisualPlannerAdapter{generate(project:Project,context?:VisualPl
 export class RulesVisualPlannerAdapter implements VisualPlannerAdapter{
   generate(project:Project,contextInput?:VisualPlannerContext):VisualPlan{
     const context=VisualPlannerContextSchema.parse(contextInput??{});
-    const captions=(project.tracks.find(track=>track.id==="captions-main")?.clips??[]).filter((clip):clip is CaptionClip=>clip.type==="caption").sort((a,b)=>a.startFrame-b.startFrame);
-    if(captions.length===0)throw new Error("AI Director needs timed Caption clips. Import SRT/VTT or create captions first.");
+    const allCaptions=(project.tracks.find(track=>track.id==="captions-main")?.clips??[]).filter((clip):clip is CaptionClip=>clip.type==="caption").sort((a,b)=>a.startFrame-b.startFrame);
+    if(allCaptions.length===0)throw new Error("AI Director needs timed Caption clips. Import SRT/VTT or create captions first.");
     if(project.scenes.length===0)throw new Error("AI Director V2 needs Scenes. Generate or create Scenes before planning visuals.");
+    const scope=selectionScopedCaptions(project,allCaptions,context);
+    const captions=scope.captions;
 
     const densityBefore=computeVisualDensity(project);
     const existing=getMotionIntervals(project);
@@ -113,12 +148,13 @@ export class RulesVisualPlannerAdapter implements VisualPlannerAdapter{
       const nearExisting=nearestStartGap(interval.startFrame,prior)<minGap;
       const concurrent=prior.filter(other=>overlaps(other,interval)).length;
       const projected=computeVisualDensity(project,[...accepted,interval]);
-      const densityBlocked=nearExisting||concurrent>=2||projected.cardsPerMinute>densityLimit;
+      const globalDensityBlocked=!scope.scoped&&projected.cardsPerMinute>densityLimit;
+      const densityBlocked=nearExisting||concurrent>=2||globalDensityBlocked;
       const id=`suggest-${scene.id}-${caption.id}`;
       const spokenText=spokenTextFor(project,caption.startFrame,endFrame,text);
 
       if(densityBlocked){
-        const causes=[nearExisting?`visual event gap is below ${(minGap/project.canvas.fps).toFixed(1)}s`:null,concurrent>=2?"projected concurrency would exceed 2":null,projected.cardsPerMinute>densityLimit?`projected density would exceed ${densityLimit} cards/min`:null].filter(Boolean).join("; ");
+        const causes=[nearExisting?`visual event gap is below ${(minGap/project.canvas.fps).toFixed(1)}s`:null,concurrent>=2?"projected concurrency would exceed 2":null,globalDensityBlocked?`projected density would exceed ${densityLimit} cards/min`:null].filter(Boolean).join("; ");
         suggestions.push({id,sceneId:scene.id,startFrame:caption.startFrame,endFrame,spokenText,semanticType:candidate.semanticType,recommendation:{engine:"none"},reason:`Density guard: ${causes}. Canvas is ${canvas.orientation} ${canvas.aspectLabel}. The content is visually meaningful, but adding another card here would over-edit the scene.`,confidence:Math.max(.65,candidate.confidence-.08),alternatives:[{engine:candidate.recommendation.engine,effectId:candidate.recommendation.effectId,reason:"Original content-driven recommendation; apply manually only if you intentionally want higher density."},...candidate.alternatives]});
         continue;
       }
@@ -130,7 +166,8 @@ export class RulesVisualPlannerAdapter implements VisualPlannerAdapter{
         suggestions.push({id,sceneId:scene.id,startFrame:caption.startFrame,endFrame,spokenText,semanticType:candidate.semanticType,recommendation:{engine:"none"},reason:`Aspect guard: ${compatibility.message}`,confidence:.8,alternatives:[...candidate.alternatives,{engine:candidate.recommendation.engine,effectId,reason:"Original recommendation is incompatible with the current canvas."}]});
         continue;
       }
-      suggestions.push({id,sceneId:scene.id,startFrame:caption.startFrame,endFrame,spokenText,semanticType:candidate.semanticType,recommendation:{...candidate.recommendation,placement},reason:`${candidate.reason} Scene intensity is ${intensity}; density guard allows this event. Canvas placement: ${placement.rationale}${context.intent?` Intent: ${context.intent.slice(0,180)}`:""}`,confidence:candidate.confidence,alternatives:candidate.alternatives});
+      const scopeReason=scope.scoped?" Planning is scoped to the current Studio selection; local gap/concurrency guards remain active while whole-video cards/min is informational.":"";
+      suggestions.push({id,sceneId:scene.id,startFrame:caption.startFrame,endFrame,spokenText,semanticType:candidate.semanticType,recommendation:{...candidate.recommendation,placement},reason:`${candidate.reason} Scene intensity is ${intensity}; density guard allows this event.${scopeReason} Canvas placement: ${placement.rationale}${context.intent?` Intent: ${context.intent.slice(0,180)}`:""}`,confidence:candidate.confidence,alternatives:candidate.alternatives});
       if(candidate.recommendation.engine==="remotion"||candidate.recommendation.engine==="hyperframes")accepted.push(interval);
     }
 
