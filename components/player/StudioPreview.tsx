@@ -32,7 +32,7 @@ export const StudioPreview=({project}:{project:Project})=>{
   const{prefs,safeArea,setSafeAreaProfileId,setCustomSafeArea}=useProjectStudioPrefs(project.project.id);
   const[zoom,setZoom]=useState<"fit"|"100">("fit");const[showSafeZone,setShowSafeZone]=useState(false);const[canvasEdit,setCanvasEdit]=useState(false);const[canvasDraft,setCanvasDraft]=useState<CanvasPreviewDraft|null>(null);const[fitSize,setFitSize]=useState<FitSize|null>(null);const[canvasError,setCanvasError]=useState<string|null>(null);
 
-  usePlayerStoreBridge(playerRef);
+  usePlayerStoreBridge(playerRef,`${project.project.id}-${project.canvas.durationInFrames}-${project.canvas.width}x${project.canvas.height}`);
   useEffect(()=>{if(seekVersion>0)playerRef.current?.seekTo(clampFrame(seekFrame,project.canvas.durationInFrames));},[project.canvas.durationInFrames,seekFrame,seekVersion]);
   useEffect(()=>{const toggle=()=>{const player=playerRef.current;if(!player)return;if(player.isPlaying())player.pause();else player.play();};window.addEventListener("video-os-toggle-playback",toggle);return()=>window.removeEventListener("video-os-toggle-playback",toggle);},[]);
   useEffect(()=>{const viewport=viewportRef.current;if(!viewport)return;const observer=new ResizeObserver(entries=>{const rect=entries[0]?.contentRect;if(rect)setFitSize(fitInside(rect.width,rect.height,project.canvas.width,project.canvas.height));});observer.observe(viewport);return()=>observer.disconnect();},[project.canvas.height,project.canvas.width]);
