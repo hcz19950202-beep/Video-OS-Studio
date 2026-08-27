@@ -69,9 +69,7 @@ const openAgent = async (page: Page) => {
   );
   await page.getByRole("tab", { name: "Agent", exact: true }).click();
   await expect(page.locator(".a4-agent-toolbar")).toBeVisible();
-  await expect(page.locator(".a4-agent-context")).toContainText(
-    "a4-mock-provider · a4-mock-model",
-  );
+  await expect(page.locator(".a4-agent-context")).toContainText("a4-mock-provider · a4-mock-model");
 };
 
 const sendAgent = async (page: Page, prompt: string) => {
@@ -92,7 +90,8 @@ test("A4 Agent selection → proposal → Review/Apply → reopen → stale guar
   await page.getByTitle("Project").click();
   await page.getByLabel("Project name").fill(PROJECT_NAME);
   const createResponse = page.waitForResponse(
-    (response) => response.request().method() === "POST" && response.url().endsWith("/api/projects"),
+    (response) =>
+      response.request().method() === "POST" && response.url().endsWith("/api/projects"),
   );
   await page.getByRole("button", { name: "Create Project", exact: true }).click();
   const created = await createResponse;
@@ -177,7 +176,10 @@ test("A4 Agent selection → proposal → Review/Apply → reopen → stale guar
   );
   await expect(page.locator(".a4-agent-toolbar select option")).toHaveCount(1);
 
-  await sendAgent(page, "Create one more reviewable visual proposal against the current Project revision.");
+  await sendAgent(
+    page,
+    "Create one more reviewable visual proposal against the current Project revision.",
+  );
   const beforeConflict = await readProject(page, projectId);
   await applyCommand(page, projectId, "a4-external-revision", {
     type: "add-scene",
