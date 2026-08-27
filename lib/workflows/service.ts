@@ -10,6 +10,7 @@ import {FileWorkflowStore,WorkflowNotFoundError} from "@/lib/workflows/store";
 export type WorkflowProjectReader={load:(projectId:string)=>Promise<Project>};
 
 export const CreateWorkflowRunInputSchema=z.object({
+  workflowId:WorkflowRunIdSchema.optional(),
   projectId:z.string().min(1),
   definitionId:z.string().min(1),
   definitionVersion:z.string().min(1),
@@ -34,7 +35,14 @@ export class WorkflowSourceAssetNotFoundError extends Error{
   constructor(readonly assetId:string){super(`Workflow source asset ${assetId} was not found in the project.`);this.name="WorkflowSourceAssetNotFoundError";}
 }
 
+export class WorkflowCreateIdempotencyConflictError extends Error{
+  readonly code="WORKFLOW_CREATE_IDEMPOTENCY_CONFLICT";
+  readonly retryable=false;
+  constructor(readonly workflowId:string){super(`Workflow ${workflowId} already exists with different creation inputs.`);this.name="WorkflowCreateIdempotencyConflictError";}
+}
+
 const nowIso=()=>new Date().toISOString();
+const sameStrings=(left:string[],right:string[])=>left.length===right.length&&[...left].sort().every((item,index)=>item===[...right].sort()[index]);
 
 export class WorkflowService{
   private readonly startupRecovery:Promise<void>;
@@ -54,6 +62,16 @@ export class WorkflowService{
     await this.ready();
     const parsed=CreateWorkflowRunInputSchema.parse(input);
     const definition=this.definitions.get(parsed.definitionId,parsed.definitionVersion);
+
+    if(parsed.workflowId){
+      const existing=await this.store.get(parsed.workflowId);
+      if(existing){
+        const same=existing.projectId===parsed.projectId&&existing.definitionId===definition.id&&existing.definitionVersion===definition.version&&sameStrings(existing.sourceAssetIds,parsed.sourceAssetIds);
+        if(!same)throw new WorkflowCreateIdempotencyConflictError(parsed.workflowId);
+        return existing;
+      }
+    }
+
     const project=await this.projects.load(parsed.projectId);
     const revision=project.project.revision;
     if(parsed.expectedProjectRevision!==undefined&&parsed.expectedProjectRevision!==revision)throw new WorkflowProjectRevisionConflictError(parsed.expectedProjectRevision,revision);
@@ -63,7 +81,7 @@ export class WorkflowService{
 
     const at=nowIso();
     const run=WorkflowRunSchema.parse({
-      id:randomUUID(),
+      id:parsed.workflowId??randomUUID(),
       definitionId:definition.id,
       definitionVersion:definition.version,
       projectId:project.project.id,

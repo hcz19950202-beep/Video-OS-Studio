@@ -1,6 +1,6 @@
 import {ZodError,z} from "zod";
 import {WorkflowRuntimeStateError} from "@/lib/workflows/runner";
-import {WorkflowProjectRevisionConflictError,WorkflowSourceAssetNotFoundError} from "@/lib/workflows/service";
+import {WorkflowCreateIdempotencyConflictError,WorkflowProjectRevisionConflictError,WorkflowSourceAssetNotFoundError} from "@/lib/workflows/service";
 import {WorkflowNotFoundError} from "@/lib/workflows/store";
 import {WorkflowScenarioSchema} from "@/lib/workflows/schema";
 
@@ -27,6 +27,7 @@ export const workflowErrorResponse=(error:unknown)=>{
   if(error instanceof WorkflowNotFoundError)return Response.json(payload(error.code,error.message,false),{status:404});
   if(error instanceof WorkflowProjectRevisionConflictError)return Response.json(payload(error.code,error.message,false,{expectedRevision:error.expectedRevision,currentRevision:error.currentRevision}),{status:409});
   if(error instanceof WorkflowSourceAssetNotFoundError)return Response.json(payload(error.code,error.message,false,{assetId:error.assetId}),{status:400});
+  if(error instanceof WorkflowCreateIdempotencyConflictError)return Response.json(payload(error.code,error.message,false,{workflowId:error.workflowId}),{status:409});
   if(error instanceof WorkflowRuntimeStateError)return Response.json(payload(error.code,error.message,false,{workflowId:error.workflowId}),{status:409});
   if(error instanceof ZodError)return Response.json(payload("WORKFLOW_REQUEST_INVALID","The workflow request is invalid.",false,{issues:error.issues}),{status:400});
   return Response.json(payload("WORKFLOW_REQUEST_FAILED",error instanceof Error?error.message:String(error),true),{status:400});
