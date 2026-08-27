@@ -54,6 +54,21 @@ class AgentProviderEventError extends Error{
   constructor(readonly details:AgentProviderError){super(details.message);this.name="AgentProviderEventError";}
 }
 
+const PROVIDER_ITERATOR_CLOSE_GRACE_MS=50;
+const closeProviderIterator=async(iterator:AsyncIterator<AgentProviderEvent>)=>{
+  if(!iterator.return)return;
+  const closing=Promise.resolve(iterator.return()).then(()=>undefined).catch(()=>undefined);
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  try{
+    await Promise.race([
+      closing,
+      new Promise<void>(resolve=>{timer=setTimeout(resolve,PROVIDER_ITERATOR_CLOSE_GRACE_MS);}),
+    ]);
+  }finally{
+    if(timer!==undefined)clearTimeout(timer);
+  }
+};
+
 const mergeUsage=(left:AgentUsage|undefined,right:AgentUsage|undefined):AgentUsage|undefined=>{
   if(!left&&!right)return undefined;
   const add=(key:keyof AgentUsage)=>{
@@ -253,7 +268,7 @@ export class AgentRunner{
             if(!completed)throw new AgentProviderEventError({code:"invalid_output",message:"AI provider stream ended without a completed event.",retryable:true});
           }finally{
             controller.abort();
-            try{await iterator.return?.();}catch{void 0;}
+            await closeProviderIterator(iterator);
           }
 
           if(text.length>0){
