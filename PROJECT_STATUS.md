@@ -31,13 +31,14 @@ v2_3_a2_main: 44c0bcc2d980feb1fece94cf9d1df3a98666824f
 v2_3_a3_main: f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8
 v2_3_a4_main: 6cac2deeef20d98b667fee3b2cea49bc54b1600c
 v2_3_a5_main: 4affcaf4c5c050b40c8b3a1f4b5920ac04a4c8ad
+v2_3_a6_main: 05c331947b6d3704daa680e66d5e0cbe1d4982ed
 
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
-active_workstream: V2.3 A6 FAILURE / REVISION / RETRY / RESTART HARDENING
-active_branch: feature/v2.3-a6-agent-hardening
-active_pr: 49
-local_action_required: NONE DURING CLOUD-SAFE A6 HARDENING
-next_workstream: A7 End-to-End Product Acceptance
+active_workstream: V2.3 A7 END-TO-END PRODUCT ACCEPTANCE
+active_branch: feature/v2.3-a7-e2e-acceptance
+active_pr: 50
+local_action_required: NONE UNTIL A7 EXACT-HEAD CLOUD CI IS GREEN AND FROZEN
+next_workstream: V2.3 Release Finalization
 ```
 
 ## V2.2 delivery status
@@ -65,8 +66,8 @@ A2 Session Store + Multi-turn Runner      → COMPLETE / PR #45
 A3 Production Real Provider               → COMPLETE / PR #46
 A4 AI Workspace Agent UX + Review / Apply → COMPLETE / PR #47
 A5 Agent ↔ Workflow Integration           → COMPLETE / PR #48
-A6 Failure / Revision / Restart Hardening → ACTIVE / PR #49
-A7 End-to-End Product Acceptance          → NOT STARTED
+A6 Failure / Revision / Restart Hardening → COMPLETE / PR #49
+A7 End-to-End Product Acceptance          → ACTIVE / PR #50
 ```
 
 ## Release truth
@@ -122,7 +123,7 @@ W6 proved on real Windows/browser/media/engines:
 - durable reload/reopen and restart recovery — PASS;
 - residual-process/lock cleanup — PASS.
 
-No W6 release-blocking product defect remained and no product-code/config/test/schema/pin change was required during formal acceptance.
+No W6 release-blocking product defect remained and no product-code, Project Schema, engine-pin, configuration, or test change was required during formal W6 acceptance.
 
 ## V2.2.0 release metadata evidence
 
@@ -168,12 +169,18 @@ A3 is accepted on main at `f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8` after PR #4
 
 A4 is accepted on main at `6cac2deeef20d98b667fee3b2cea49bc54b1600c` after PR #47. Its final frozen HEAD `dbe322863bbeb3af2c33bf245e0d569f40f6075e` passed GitHub Actions Run #661 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed mandatory Local Real Browser Validation RETEST 4 on Windows 10 / Node `v24.20.0` with real Volcengine Agent Plan. The gate proved `get_project_context → propose_visual_plan`, model-visible proposal arguments limited to `intent`, a real percentage / Remotion `metric-focus` Proposal, Project revision `2 → 2` before Apply, structured Review/Diff with no mutation, explicit Apply `2 → 3` exactly +1, one logical Undo, durable Session reload/reopen, stale Proposal blocking after revision change, and no API-key persistence/leakage.
 
-A5 is accepted on main at `4affcaf4c5c050b40c8b3a1f4b5920ac04a4c8ad` after PR #48. Its final frozen HEAD `c2e92c0f014b6838059f97decf24b9f319b383c4` passed GitHub Actions Run #670 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed Local Real Provider Workflow Tool Gate RETEST 2 on Windows 10 / Node `v24.20.0` with `volcengine-agent-plan / ark-code-latest`. The gate proved real `get_workflow_status({})`, real `request_workflow_action` with exactly `action + scenario + sourceAssetIds` for `create_first_draft`, a durable `workflow-action` Proposal, dedicated `Workflow Action Review`, Workflow count `0 → 0` and Project revision `1 → 1` before confirmation, no mutation before confirmation, and no API-key persistence/leakage. A prior real-model ambiguity at superseded SHA `51d32c20a6a096a228b43149e7097f2baa59e6e2` was fixed by making empty-object Workflow listing explicit in the provider-visible tool contract.
+A5 is accepted on main at `4affcaf4c5c050b40c8b3a1f4b5920ac04a4c8ad` after PR #48. Its final frozen HEAD `c2e92c0f014b6838059f97decf24b9f319b383c4` passed GitHub Actions Run #670 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed Local Real Provider Workflow Tool Gate RETEST 2 on Windows 10 / Node `v24.20.0` with `volcengine-agent-plan / ark-code-latest`. The gate proved real `get_workflow_status({})`, real `request_workflow_action` with exactly `action + scenario + sourceAssetIds` for `create_first_draft`, a durable `workflow-action` Proposal, dedicated `Workflow Action Review`, Workflow count `0 → 0` and Project revision `1 → 1` before confirmation, no mutation before confirmation, and no API-key persistence/leakage.
 
-A5 established the accepted chain `Agent read/proposal tool → workflow-action Proposal → Review → explicit Apply → existing WorkflowService / WorkflowRunner / Durable Jobs`. Provider and tool handlers have no direct Workflow mutation authority. First-draft creation uses a stable Agent-derived WorkflowRun UUID so identical confirmed retries cannot create duplicate Workflow runs. Existing Workflow status/updatedAt/checkpoint state is captured in the Proposal and revalidated before Apply; changed Workflow state makes the Proposal stale instead of bypassing the Workflow state machine. Project Schema remains `2.0.0`.
+A5 established the accepted chain `Agent read/proposal tool → workflow-action Proposal → Review → explicit Apply → existing WorkflowService / WorkflowRunner / Durable Jobs`. Provider and tool handlers have no direct Workflow mutation authority. First-draft creation uses a stable Agent-derived WorkflowRun UUID so identical confirmed retries cannot create duplicate Workflow runs. Existing Workflow status/updatedAt/checkpoint state is captured in the Proposal and revalidated before Apply; changed Workflow state makes the Proposal stale instead of bypassing the Workflow state machine.
 
-A6 is active on PR #49 from accepted A5 main. It is hardening-only: no new editing capability and no second runtime. Existing cloud coverage already proves unknown-tool rejection, malformed tool-argument fail-closed behavior, handler-error redaction, wall-clock/provider budgets, cancellation, Project revision stale protection, and Apply idempotency. A6 adds explicit chaos coverage and fixes for Agent Session partial-write/restart recovery, real-provider timeout normalization, recoverable provider retry, Workflow action failure integrity, and concurrent duplicate confirmation serialization. Agent Session backups are validated before recovery, backup-only sessions must remain discoverable after restart, and successful recovery self-heals the primary Session file without persisting provider secrets.
+A6 is accepted on main at `05c331947b6d3704daa680e66d5e0cbe1d4982ed` after PR #49. Its exact frozen HEAD `a470bd9eacecc708e5690e5c925c75be668ea373` passed GitHub Actions Run #677 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed mandatory Local Hardening Validation on Windows 10 / Node `v24.20.0` with `volcengine-agent-plan / ark-code-latest`. The local gate proved normal Agent Session restart/reopen, primary Session corruption recovery from validated `.backup.json` with self-heal, real provider cancel → fresh retry with the cancelled turn preserved and no replayed durable work, stale Proposal blocking after Project revision `3 → 4`, concurrent identical Apply requests producing exactly one mutation `4 → 5`, one approved operation and one logical transaction, no API-key/Authorization persistence, no residual Agent lock/process, and local Windows media regression PASS.
 
-A6 must not merge until an exact-head full CI candidate is green and a mandatory Local Codex hardening gate validates real Windows/browser restart, real provider retry, manual Project revision change before Apply, no duplicate mutation, no Agent-created orphan process/lock, and no regression to the accepted real media/engine runtime.
+A6 also established that backup-only Sessions remain discoverable through the normal Session list/restart path; provider timeouts are aborted and normalized safely; Workflow action failure does not create false applied/approved state; and duplicate confirmation is serialized through the durable Session/idempotency boundaries.
 
-The experimental branch `feature/v2.2-w55-workflow-template` was not part of the accepted V2.2 Master PRD release path and must not be merged into V2.3 implicitly. Re-evaluate any useful idea only under an explicit V2.3 workstream.
+A7 is active on PR #50 from accepted A6 main. A7 is final product acceptance, not a feature expansion. The authoritative acceptance matrix is `docs/validation/V2_3_A7_ACCEPTANCE_PLAN.md`. Cloud acceptance must keep the complete CI green and adds a deterministic Playwright path for `stale Proposal → Re-plan latest → preserve the user's manual Project edit → Apply once → reload/reopen`. Formal local acceptance begins only after an exact-head cloud-green SHA is frozen.
+
+A7 mandatory real cases are: Talking Head conversational hook edit with real selected Scene/Script context; Product Ad proof/number/CTA edit with a real final 16:9 encoded MP4 plus ffprobe/extracted-frame evidence; multi-turn manual-edit stale conflict followed by re-plan/latest-context Apply exactly once; and real app/session restart/reopen on the latest Project revision. Real provider must be `volcengine-agent-plan / ark-code-latest`, accepted Workflow/Job/FFmpeg/video-use/HyperFrames/Remotion boundaries must remain intact, secrets must not persist or leak, and Project Schema remains `2.0.0`.
+
+No V2.3 release finalization/version bump/tag may start until A7 cloud CI and mandatory exact-SHA local acceptance both PASS. The V2.2.0 annotated tag remains immutable.
+
+The experimental branch `feature/v2.2-w55-workflow-template` was not part of the accepted V2.2 Master PRD release path and must not be merged into V2.3 implicitly. Re-evaluate any useful idea only under an explicit future workstream.
