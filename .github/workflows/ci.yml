@@ -24,11 +24,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-      - name: A7 format diagnostic
-        run: |
-          npm run format
-          git diff -- tests/e2e/a7-agent-product-acceptance.spec.ts
-          exit 1
+      - name: Format check
+        run: npm run format:check
       - name: Lint
         run: npm run lint
       - name: Typecheck
