@@ -78,9 +78,7 @@ const sendProposalRequest = async (page: Page, prompt: string) => {
   await expect(page.locator(".a4-agent-activity")).toContainText("propose_visual_plan");
 };
 
-test("A7 stale proposal → re-plan latest → preserve manual edit → apply once → reload", async ({
-  page,
-}) => {
+test("A7 stale proposal → re-plan latest → preserve manual edit → apply once → reload", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.addInitScript(() => {
     localStorage.setItem("video-os-studio-locale", "en-US");
