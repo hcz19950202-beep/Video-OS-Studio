@@ -68,9 +68,14 @@ export function createWorkflowStatusReadTool(workflows:AgentWorkflowReader):Regi
   return{
     definition:AgentToolDefinitionSchema.parse({
       id:GET_WORKFLOW_STATUS_TOOL_ID,
-      description:"Read bounded Workflow status, Stage/review state, errors and artifact metadata for the current Project. This tool never changes Workflow, Job or Project state.",
+      description:"Read bounded Workflow status, Stage/review state, errors and artifact metadata for the current Project. If no Workflow ID is known, call this tool with an empty object {} to list the current Project's Workflow runs; do not infer that no Workflow exists from Project context alone. Provide workflowId only to inspect one known Workflow. This tool never changes Workflow, Job or Project state.",
       risk:"read",
-      inputJsonSchema:{type:"object",properties:{workflowId:{type:"string",format:"uuid"}},additionalProperties:false},
+      inputJsonSchema:{
+        type:"object",
+        description:"Use {} to list Workflow runs for the current Project. workflowId is optional and only narrows the read to one known Workflow.",
+        properties:{workflowId:{type:"string",format:"uuid",description:"Optional known Workflow run ID. Omit this field to list current Project Workflows."}},
+        additionalProperties:false,
+      },
       revisionPolicy:"snapshot",
       idempotency:"read-only",
       requiresConfirmation:false,
@@ -91,17 +96,17 @@ export function createWorkflowActionProposalTool(workflows:AgentWorkflowReader):
   return{
     definition:AgentToolDefinitionSchema.parse({
       id:REQUEST_WORKFLOW_ACTION_TOOL_ID,
-      description:"Create a reviewable Workflow action proposal. Allowed requests are create_first_draft, resume a paused Workflow, retry a failed/interrupted Stage, or continue from ASSEMBLY_REVIEW to the accepted FINAL_RENDER path. This tool never executes the action; the user must Review and Apply it.",
+      description:"Create a reviewable Workflow action proposal; this tool never executes it. For create_first_draft, send action + scenario + sourceAssetIds and do not send workflowId. For resume/retry/final_render, use a real Workflow ID (call get_workflow_status first if it is unknown). The user must Review and explicitly Apply/Confirm the proposal before the accepted Workflow Runtime can change state.",
       risk:"proposal",
       inputJsonSchema:{
         type:"object",
         required:["action"],
         properties:{
-          action:{type:"string",enum:["create_first_draft","resume","retry","final_render"]},
-          scenario:{type:"string",enum:["talking-head","product-ad","explainer"]},
-          sourceAssetIds:{type:"array",items:{type:"string"},minItems:1,maxItems:64,uniqueItems:true},
-          workflowId:{type:"string",format:"uuid"},
-          stageId:{type:"string"},
+          action:{type:"string",enum:["create_first_draft","resume","retry","final_render"],description:"Bounded Workflow action to propose, not execute."},
+          scenario:{type:"string",enum:["talking-head","product-ad","explainer"],description:"Required only for create_first_draft."},
+          sourceAssetIds:{type:"array",items:{type:"string"},minItems:1,maxItems:64,uniqueItems:true,description:"Required only for create_first_draft; use source asset IDs visible in the current Project context."},
+          workflowId:{type:"string",format:"uuid",description:"Required for resume, retry and final_render. Do not send it for create_first_draft."},
+          stageId:{type:"string",description:"Required only for retry."},
         },
         additionalProperties:false,
       },
