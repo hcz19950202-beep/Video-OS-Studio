@@ -3,6 +3,8 @@ import type {VisualDensity} from "@/lib/visual-planner/schema";
 
 export type VisualInterval={startFrame:number;endFrame:number};
 
+const MIN_DENSITY_WINDOW_SECONDS=12;
+
 const peakConcurrency=(intervals:VisualInterval[])=>{
   const events=intervals.flatMap(interval=>[
     {frame:interval.startFrame,delta:1},
@@ -23,7 +25,8 @@ export const computeVisualDensity=(project:Project,extraIntervals:VisualInterval
   const intervals=[...getMotionIntervals(project),...extraIntervals].sort((a,b)=>a.startFrame-b.startFrame||a.endFrame-b.endFrame);
   const starts=intervals.map(interval=>interval.startFrame);
   const gaps=starts.slice(1).map((frame,index)=>Math.max(0,frame-starts[index]!));
-  const minutes=Math.max(1/project.canvas.fps/60,project.canvas.durationInFrames/project.canvas.fps/60);
+  const projectSeconds=project.canvas.durationInFrames/project.canvas.fps;
+  const minutes=Math.max(MIN_DENSITY_WINDOW_SECONDS,projectSeconds)/60;
   return{
     motionCards:intervals.length,
     cardsPerMinute:intervals.length/minutes,
