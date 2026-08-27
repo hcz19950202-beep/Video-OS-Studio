@@ -30,13 +30,14 @@ v2_3_a1_main: a307756c0a43b02d6c6ab2b74d4ec37110017d96
 v2_3_a2_main: 44c0bcc2d980feb1fece94cf9d1df3a98666824f
 v2_3_a3_main: f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8
 v2_3_a4_main: 6cac2deeef20d98b667fee3b2cea49bc54b1600c
+v2_3_a5_main: 4affcaf4c5c050b40c8b3a1f4b5920ac04a4c8ad
 
 current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
-active_workstream: V2.3 A5 AGENT ↔ WORKFLOW INTEGRATION
-active_branch: feature/v2.3-a5-agent-workflow
-active_pr: 48
-local_action_required: NONE DURING CLOUD-SAFE A5 IMPLEMENTATION
-next_workstream: A6 Failure / Revision / Retry / Restart Hardening
+active_workstream: V2.3 A6 FAILURE / REVISION / RETRY / RESTART HARDENING
+active_branch: feature/v2.3-a6-agent-hardening
+active_pr: 49
+local_action_required: NONE DURING CLOUD-SAFE A6 HARDENING
+next_workstream: A7 End-to-End Product Acceptance
 ```
 
 ## V2.2 delivery status
@@ -63,8 +64,8 @@ A1 Context Builder + Tool Registry        → COMPLETE / PR #44
 A2 Session Store + Multi-turn Runner      → COMPLETE / PR #45
 A3 Production Real Provider               → COMPLETE / PR #46
 A4 AI Workspace Agent UX + Review / Apply → COMPLETE / PR #47
-A5 Agent ↔ Workflow Integration           → ACTIVE / PR #48
-A6 Failure / Revision / Restart Hardening → NOT STARTED
+A5 Agent ↔ Workflow Integration           → COMPLETE / PR #48
+A6 Failure / Revision / Restart Hardening → ACTIVE / PR #49
 A7 End-to-End Product Acceptance          → NOT STARTED
 ```
 
@@ -167,8 +168,12 @@ A3 is accepted on main at `f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8` after PR #4
 
 A4 is accepted on main at `6cac2deeef20d98b667fee3b2cea49bc54b1600c` after PR #47. Its final frozen HEAD `dbe322863bbeb3af2c33bf245e0d569f40f6075e` passed GitHub Actions Run #661 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed mandatory Local Real Browser Validation RETEST 4 on Windows 10 / Node `v24.20.0` with real Volcengine Agent Plan. The gate proved `get_project_context → propose_visual_plan`, model-visible proposal arguments limited to `intent`, a real percentage / Remotion `metric-focus` Proposal, Project revision `2 → 2` before Apply, structured Review/Diff with no mutation, explicit Apply `2 → 3` exactly +1, one logical Undo, durable Session reload/reopen, stale Proposal blocking after revision change, and no API-key persistence/leakage.
 
-A5 owns the bounded bridge from the accepted Agent runtime to the accepted V2.2 Workflow Runtime. The intended chain is `Agent read/proposal tool → workflow-action Proposal → Review → explicit Apply → existing WorkflowService / WorkflowRunner / Durable Jobs`. Provider and tool handlers have no direct Workflow mutation authority. Allowed A5 actions are bounded Workflow status/artifact inspection plus explicitly confirmed first-draft creation, paused Workflow resume, failed/interrupted Stage retry, and final render only through the active `ASSEMBLY_REVIEW` checkpoint and accepted `FINAL_RENDER` Stage. Direct Workflow JSON writes, arbitrary Stage construction/status spoofing, direct engine spawn, and a second Job/Workflow runtime remain forbidden.
+A5 is accepted on main at `4affcaf4c5c050b40c8b3a1f4b5920ac04a4c8ad` after PR #48. Its final frozen HEAD `c2e92c0f014b6838059f97decf24b9f319b383c4` passed GitHub Actions Run #670 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed Local Real Provider Workflow Tool Gate RETEST 2 on Windows 10 / Node `v24.20.0` with `volcengine-agent-plan / ark-code-latest`. The gate proved real `get_workflow_status({})`, real `request_workflow_action` with exactly `action + scenario + sourceAssetIds` for `create_first_draft`, a durable `workflow-action` Proposal, dedicated `Workflow Action Review`, Workflow count `0 → 0` and Project revision `1 → 1` before confirmation, no mutation before confirmation, and no API-key persistence/leakage. A prior real-model ambiguity at superseded SHA `51d32c20a6a096a228b43149e7097f2baa59e6e2` was fixed by making empty-object Workflow listing explicit in the provider-visible tool contract.
 
-A5 first-draft creation uses a stable Agent-derived WorkflowRun UUID through the existing WorkflowService so identical confirmed retries cannot create duplicate Workflow runs. Existing Workflow status/updatedAt/checkpoint state is captured in the Proposal and revalidated before Apply; changed Workflow state makes the Proposal stale instead of bypassing the Workflow state machine. Project Schema remains `2.0.0`.
+A5 established the accepted chain `Agent read/proposal tool → workflow-action Proposal → Review → explicit Apply → existing WorkflowService / WorkflowRunner / Durable Jobs`. Provider and tool handlers have no direct Workflow mutation authority. First-draft creation uses a stable Agent-derived WorkflowRun UUID so identical confirmed retries cannot create duplicate Workflow runs. Existing Workflow status/updatedAt/checkpoint state is captured in the Proposal and revalidated before Apply; changed Workflow state makes the Proposal stale instead of bypassing the Workflow state machine. Project Schema remains `2.0.0`.
+
+A6 is active on PR #49 from accepted A5 main. It is hardening-only: no new editing capability and no second runtime. Existing cloud coverage already proves unknown-tool rejection, malformed tool-argument fail-closed behavior, handler-error redaction, wall-clock/provider budgets, cancellation, Project revision stale protection, and Apply idempotency. A6 adds explicit chaos coverage and fixes for Agent Session partial-write/restart recovery, real-provider timeout normalization, recoverable provider retry, Workflow action failure integrity, and concurrent duplicate confirmation serialization. Agent Session backups are validated before recovery, backup-only sessions must remain discoverable after restart, and successful recovery self-heals the primary Session file without persisting provider secrets.
+
+A6 must not merge until an exact-head full CI candidate is green and a mandatory Local Codex hardening gate validates real Windows/browser restart, real provider retry, manual Project revision change before Apply, no duplicate mutation, no Agent-created orphan process/lock, and no regression to the accepted real media/engine runtime.
 
 The experimental branch `feature/v2.2-w55-workflow-template` was not part of the accepted V2.2 Master PRD release path and must not be merged into V2.3 implicitly. Re-evaluate any useful idea only under an explicit V2.3 workstream.
