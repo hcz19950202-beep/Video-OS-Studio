@@ -6,12 +6,21 @@
 
 ```yaml
 released_product_version: 2.2.0
+release_candidate_version: 2.3.0
 project_schema: 2.0.0
-release_status: V2.2.0 RELEASE COMPLETE
-release_tag: v2.2.0
-release_tag_type: annotated
-release_tag_object_sha: df1acb238838ed814b969e20fe85a49253a92861
-release_commit: 0e813e5e1360318211e05c1c5fec5eb82be00224
+release_status: V2.3.0 RELEASE FINALIZATION / TAG PENDING
+release_branch: release/v2.3.0
+release_pr: 51
+accepted_a7_main: 84e2826164ce6557cd99c4b42006ee703773c882
+
+current_release_tag: v2.2.0
+current_release_tag_type: annotated
+current_release_tag_object_sha: df1acb238838ed814b969e20fe85a49253a92861
+current_release_commit: 0e813e5e1360318211e05c1c5fec5eb82be00224
+
+pending_release_tag: v2.3.0
+pending_release_tag_type: annotated
+pending_release_commit: TO_BE_SET_AFTER_PR_51_MERGE
 
 v2_2_r0_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
 v2_2_w0_main: 9914b1e65d27a7d40e997295d94eeb5ce4c3deea
@@ -32,13 +41,14 @@ v2_3_a3_main: f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8
 v2_3_a4_main: 6cac2deeef20d98b667fee3b2cea49bc54b1600c
 v2_3_a5_main: 4affcaf4c5c050b40c8b3a1f4b5920ac04a4c8ad
 v2_3_a6_main: 05c331947b6d3704daa680e66d5e0cbe1d4982ed
+v2_3_a7_main: 84e2826164ce6557cd99c4b42006ee703773c882
 
-current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
-active_workstream: V2.3 A7 END-TO-END PRODUCT ACCEPTANCE
-active_branch: feature/v2.3-a7-e2e-acceptance
-active_pr: 50
-local_action_required: NONE UNTIL A7 EXACT-HEAD CLOUD CI IS GREEN AND FROZEN
-next_workstream: V2.3 Release Finalization
+current_milestone: V2.3.0 RELEASE FINALIZATION
+active_workstream: RELEASE METADATA / FINAL CI / TAG VERIFICATION
+active_branch: release/v2.3.0
+active_pr: 51
+local_action_required: NONE
+next_action: FULL EXACT-HEAD CLOUD CI THEN MERGE PR_51 THEN CREATE_AND_VERIFY_ANNOTATED_TAG_v2.3.0
 ```
 
 ## V2.2 delivery status
@@ -67,78 +77,133 @@ A3 Production Real Provider               → COMPLETE / PR #46
 A4 AI Workspace Agent UX + Review / Apply → COMPLETE / PR #47
 A5 Agent ↔ Workflow Integration           → COMPLETE / PR #48
 A6 Failure / Revision / Restart Hardening → COMPLETE / PR #49
-A7 End-to-End Product Acceptance          → ACTIVE / PR #50
+A7 End-to-End Product Acceptance          → COMPLETE / PR #50
+V2.3.0 Release Finalization               → ACTIVE / PR #51
+Release tag v2.3.0                        → PENDING
 ```
 
 ## Release truth
 
-The accepted V2.2.0 release commit is:
+The current immutable released product remains V2.2.0 until the V2.3.0 release-finalization PR is merged and the new annotated tag is independently verified.
 
-`0e813e5e1360318211e05c1c5fec5eb82be00224`
-
-The annotated release tag is:
+Current released tag:
 
 `v2.2.0`
 
-Tag object:
+Current released commit:
+
+`0e813e5e1360318211e05c1c5fec5eb82be00224`
+
+Current tag object:
 
 `df1acb238838ed814b969e20fe85a49253a92861`
 
-The annotated tag dereferences exactly to the accepted release commit above. The tag is the immutable V2.2.0 release boundary; later documentation-only main commits do not change the tagged release contents.
+The accepted V2.3 A7 main is:
 
-## W6 accepted release evidence
+`84e2826164ce6557cd99c4b42006ee703773c882`
 
-Exact tested product-code SHA:
+It is product-accepted but is not yet the immutable V2.3.0 release boundary. The release boundary will be the main merge commit of PR #51 after its exact-head full CI passes, followed by an annotated `v2.3.0` tag that dereferences exactly to that merge commit.
 
-`8b10a59496a21a4d34cb95b99d0bd496f82bfd92`
+## V2.3 A7 accepted evidence
 
-Formal local report:
+Frozen exact tested A7 head:
 
-`docs/validation/LOCAL_VALIDATION_V2_2_W6.md`
+`ae33d177ccefda1a66cf28bb266c48282ca99930`
 
-Report-only commit:
+Cloud CI:
 
-`b1c55f65bc37990242b215a3d015e8dae91ea835`
+Run #701 / `33091281417` — Ubuntu Verify, Windows Verify, Browser Smoke and Windows Media Smoke all PASS.
 
-Report-only GitHub CI:
+Accepted A7 main:
 
-`32964002626` / #566 — Ubuntu, Windows, Browser smoke, Windows media smoke all PASS.
+`84e2826164ce6557cd99c4b42006ee703773c882`
 
-Accepted W6 main:
+Formal local acceptance used Windows / Node `v24.20.0` with real `volcengine-agent-plan / ark-code-latest`.
 
-`d629249f9dbc877eadc68ce61f47c16f80a883b1`
+### Case A — Talking Head selected-context Agent edit
 
-W6 proved on real Windows/browser/media/engines:
+PASS.
 
-- Talking Head / 9:16 — PASS;
-- Product Ad / 16:9 — PASS;
-- Restart Recovery / 1:1 — PASS;
-- all 16 Workflow Stages — PASS;
-- Content Review / Assembly Review — PASS;
-- real video-use transcription — PASS;
-- HyperFrames motion — PASS;
-- Remotion Final Render — PASS;
-- FFmpeg/ffprobe and actual encoded-frame inspection — PASS;
-- revision/idempotency/no-duplicate checks — PASS;
-- durable reload/reopen and restart recovery — PASS;
-- residual-process/lock cleanup — PASS.
+- real Talking Head Project stopped before Motion Generation;
+- normal Studio compound Scene + Caption selection persisted simultaneously;
+- real `propose_visual_plan` kept model input bounded to `intent` while server-side selection matched Studio context;
+- scoped actionable Remotion proposal;
+- Proposal and Review produced no mutation;
+- Apply mutated Project exactly +1;
+- no duplicate visual/operation;
+- Session / Proposal / applied visual survived reload/reopen.
 
-No W6 release-blocking product defect remained and no product-code, Project Schema, engine-pin, configuration, or test change was required during formal W6 acceptance.
+### Case B — Product Ad / real encoded MP4
 
-## V2.2.0 release metadata evidence
+PASS.
 
-`package.json`, the package-lock top-level version, and `packages[""]` are all `2.2.0`.
+- real 1920×1080 / 30 fps Product Ad source with proof/number/CTA;
+- real Agent scoped proof Proposal and explicit Apply exactly +1;
+- accepted Agent visual survived the existing Workflow Runtime;
+- FINAL_RENDER completed on attempt 1;
+- real final MP4 verified as H.264 / 1920×1080 / 30 fps / AAC;
+- extracted frames from the encoded MP4 visually proved the accepted Agent treatment was present;
+- no duplicate motion/B-roll/CTA/assets or duplicate Apply operation.
 
-The package-lock sync commit:
+### Case C — stale / Re-plan latest
 
-`8bddb2c4a174da98cef9bad760ab93691bc4d0d0`
+PASS.
 
-changed exactly the two Video OS Studio version metadata fields. Local Codex verified `npm ci` and `npm run typecheck` with no additional lockfile drift. Final release-candidate GitHub CI Run #571 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke before PR #38 was merged.
+- real durable Session reused across turns;
+- P1 created at revision N without mutation;
+- normal manual Project command moved N → N+1;
+- P1 Apply Selected and Apply All blocked with `AGENT_PROPOSAL_STALE`;
+- Re-plan latest created P2 at N+1 with latest manual edit in Project truth;
+- P2 Review remained non-mutating;
+- Apply moved exactly N+1 → N+2;
+- manual edit preserved and no duplicate mutation/visual/operation.
+
+### Case D — restart / recovery
+
+PASS.
+
+- server stopped cleanly and restarted on the same exact SHA/data root;
+- same Project and same Agent Session rediscovered;
+- user/assistant history and Proposal statuses restored;
+- manual edit and both accepted Agent visuals restored;
+- fresh real read-only `get_project_context` turn observed latest revision and did not mutate it;
+- no duplicate operation, stale lock or orphan process.
+
+Security gates across A7 passed: no API-key/Authorization persistence or exposure, no provider secret tracking, no unsafe local path exposure to the model, no raw media upload to the LLM provider, clean repository and unchanged exact SHA.
+
+## V2.3 release metadata evidence
+
+Release package version target:
+
+`2.3.0`
+
+`package.json` is `2.3.0`.
+
+The package-lock sync commit is:
+
+`3e511860a68570988344b48dcdbf28bcc9eee2d5`
+
+Local Codex on Windows / Node `v24.20.0` / npm `11.19.0` generated the real lockfile metadata using `npm install --package-lock-only --ignore-scripts --no-audit --no-fund`.
+
+Verified metadata:
+
+- package.json version `2.3.0`;
+- package-lock root version `2.3.0`;
+- `packages[""]` version `2.3.0`;
+- dependency version drift: none;
+- engine pin drift: none;
+- `npm ci`: PASS;
+- `npm run typecheck`: PASS;
+- `git diff --check`: PASS;
+- clean tree after push.
+
+Final release candidate still requires exact-head full GitHub CI on PR #51 before merge/tag.
 
 ## Accepted invariants
 
 ```text
 Project Schema:       2.0.0
+Node:                 24.x
 remotion:             4.0.513
 @remotion/player:     4.0.513
 @remotion/cli:        4.0.513
@@ -147,6 +212,7 @@ hyperframes:          0.8.10
 
 Source Media != Project Canvas != Export Profile
 Project != Workflow != Job
+Agent Session != Project
 REUSE > MODIFY > CREATE
 ```
 
@@ -155,32 +221,63 @@ REUSE > MODIFY > CREATE
 - Durable Job runtime remains concrete execution truth.
 - Workflow Stages use registered services/jobs/transactions and do not directly spawn engines.
 - Long-running mutation work preserves Project revision and operation idempotency contracts.
+- Agent/provider/tool execution has no direct Project or Workflow mutation authority.
+- Agent mutation requires a validated Proposal plus explicit Review/Apply/Confirm boundary.
+- stale Project/Workflow state fails closed.
+- server-side Studio selection is authoritative; model-facing tools cannot invent selection IDs.
 
-## V2.3 active boundary
+## Accepted V2.3 architecture
 
-V2.3 Real AI Director / AI Editing Agent is active under the authoritative documents:
+```text
+User editing goal
+→ durable Agent Session
+→ bounded Project / Script / Scene / Clip / Selection / Workflow context
+→ provider-neutral Agent Runner
+→ production provider + allow-listed typed tools
+→ validated Proposal
+→ Review / Diff
+→ explicit user confirmation
+→ existing Project Command / WorkflowService / WorkflowRunner / Durable Jobs
+→ latest durable Project truth
+→ Remotion final render when Workflow reaches FINAL_RENDER
+```
 
-- `docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md`;
-- `docs/prd/Video_OS_Studio_V2_3_Development_Plan.md`.
+Production real-provider route accepted in V2.3:
 
-A0 is accepted on main after exact-head CI Run #578 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke. A1 is accepted on main at `a307756c0a43b02d6c6ab2b74d4ec37110017d96` after PR #44 exact-head CI passed. A2 is accepted on main at `44c0bcc2d980feb1fece94cf9d1df3a98666824f` after PR #45 exact-head CI Run #593 passed Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke.
+`volcengine-agent-plan / ark-code-latest`
 
-A3 is accepted on main at `f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8` after PR #46. Its exact frozen provider HEAD `d438a57108334e0e1c68bab7882e79e209ea8143` passed GitHub Actions Run #625 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed mandatory Local Codex validation on Windows 10 / Node `v24.20.0` using the subscribed Volcengine Agent Plan route `ark-code-latest → DeepSeek-V4-Pro`. The live gate proved a real SSE read-only turn, one real `get_project_context` tool execution, exactly two provider round trips, Project revision `11 → 11`, no Project mutation, no secret persistence/leakage, clean worktree, and unchanged frozen SHA.
+Existing provider abstraction also contains OpenAI Responses and DeepSeek Chat Completions adapters, but release acceptance used the Volcengine Agent Plan route above.
 
-A4 is accepted on main at `6cac2deeef20d98b667fee3b2cea49bc54b1600c` after PR #47. Its final frozen HEAD `dbe322863bbeb3af2c33bf245e0d569f40f6075e` passed GitHub Actions Run #661 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed mandatory Local Real Browser Validation RETEST 4 on Windows 10 / Node `v24.20.0` with real Volcengine Agent Plan. The gate proved `get_project_context → propose_visual_plan`, model-visible proposal arguments limited to `intent`, a real percentage / Remotion `metric-focus` Proposal, Project revision `2 → 2` before Apply, structured Review/Diff with no mutation, explicit Apply `2 → 3` exactly +1, one logical Undo, durable Session reload/reopen, stale Proposal blocking after revision change, and no API-key persistence/leakage.
+## V2.3 milestone evidence
 
-A5 is accepted on main at `4affcaf4c5c050b40c8b3a1f4b5920ac04a4c8ad` after PR #48. Its final frozen HEAD `c2e92c0f014b6838059f97decf24b9f319b383c4` passed GitHub Actions Run #670 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed Local Real Provider Workflow Tool Gate RETEST 2 on Windows 10 / Node `v24.20.0` with `volcengine-agent-plan / ark-code-latest`. The gate proved real `get_workflow_status({})`, real `request_workflow_action` with exactly `action + scenario + sourceAssetIds` for `create_first_draft`, a durable `workflow-action` Proposal, dedicated `Workflow Action Review`, Workflow count `0 → 0` and Project revision `1 → 1` before confirmation, no mutation before confirmation, and no API-key persistence/leakage.
+A3 accepted production real-provider behavior with a real tool loop and no mutation/secret leakage.
 
-A5 established the accepted chain `Agent read/proposal tool → workflow-action Proposal → Review → explicit Apply → existing WorkflowService / WorkflowRunner / Durable Jobs`. Provider and tool handlers have no direct Workflow mutation authority. First-draft creation uses a stable Agent-derived WorkflowRun UUID so identical confirmed retries cannot create duplicate Workflow runs. Existing Workflow status/updatedAt/checkpoint state is captured in the Proposal and revalidated before Apply; changed Workflow state makes the Proposal stale instead of bypassing the Workflow state machine.
+A4 accepted Agent Workspace, durable Sessions, real visual Proposal → Review/Diff → explicit Apply/Undo, stale blocking and reload/reopen.
 
-A6 is accepted on main at `05c331947b6d3704daa680e66d5e0cbe1d4982ed` after PR #49. Its exact frozen HEAD `a470bd9eacecc708e5690e5c925c75be668ea373` passed GitHub Actions Run #677 on Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke, then passed mandatory Local Hardening Validation on Windows 10 / Node `v24.20.0` with `volcengine-agent-plan / ark-code-latest`. The local gate proved normal Agent Session restart/reopen, primary Session corruption recovery from validated `.backup.json` with self-heal, real provider cancel → fresh retry with the cancelled turn preserved and no replayed durable work, stale Proposal blocking after Project revision `3 → 4`, concurrent identical Apply requests producing exactly one mutation `4 → 5`, one approved operation and one logical transaction, no API-key/Authorization persistence, no residual Agent lock/process, and local Windows media regression PASS.
+A5 accepted Agent ↔ Workflow proposal-only integration, dedicated Workflow Action Review, no mutation before confirmation, and execution through existing Workflow Runtime.
 
-A6 also established that backup-only Sessions remain discoverable through the normal Session list/restart path; provider timeouts are aborted and normalized safely; Workflow action failure does not create false applied/approved state; and duplicate confirmation is serialized through the durable Session/idempotency boundaries.
+A6 accepted backup self-heal, restart/recovery, provider cancel→fresh retry, stale conflicts, concurrent duplicate Apply idempotency, safe error handling and Windows media regression.
 
-A7 is active on PR #50 from accepted A6 main. A7 is final product acceptance, not a feature expansion. The authoritative acceptance matrix is `docs/validation/V2_3_A7_ACCEPTANCE_PLAN.md`. Cloud acceptance must keep the complete CI green and adds a deterministic Playwright path for `stale Proposal → Re-plan latest → preserve the user's manual Project edit → Apply once → reload/reopen`. Formal local acceptance begins only after an exact-head cloud-green SHA is frozen.
+A7 accepted the complete real product path and final encoded-video proof described above.
 
-A7 mandatory real cases are: Talking Head conversational hook edit with real selected Scene/Script context; Product Ad proof/number/CTA edit with a real final 16:9 encoded MP4 plus ffprobe/extracted-frame evidence; multi-turn manual-edit stale conflict followed by re-plan/latest-context Apply exactly once; and real app/session restart/reopen on the latest Project revision. Real provider must be `volcengine-agent-plan / ark-code-latest`, accepted Workflow/Job/FFmpeg/video-use/HyperFrames/Remotion boundaries must remain intact, secrets must not persist or leak, and Project Schema remains `2.0.0`.
+## Release finalization boundary
 
-No V2.3 release finalization/version bump/tag may start until A7 cloud CI and mandatory exact-SHA local acceptance both PASS. The V2.2.0 annotated tag remains immutable.
+PR #51 is metadata/finalization only. It may change:
 
-The experimental branch `feature/v2.2-w55-workflow-template` was not part of the accepted V2.2 Master PRD release path and must not be merged into V2.3 implicitly. Re-evaluate any useful idea only under an explicit future workstream.
+- `package.json` product version;
+- matching package-lock root/package version metadata;
+- README / repository release truth;
+- release notes / release metadata if needed.
+
+It must not change product code, Project Schema, engine pins, tests, provider behavior, Agent/Workflow/Job architecture, or any accepted A7 behavior.
+
+After PR #51 exact-head CI passes:
+
+1. mark PR #51 ready;
+2. merge with expected-head SHA guard;
+3. verify new main SHA;
+4. create annotated tag `v2.3.0` targeting exactly that main SHA;
+5. verify tag object and dereferenced target;
+6. make a separate post-release documentation-only truth update recording the immutable tag and final release commit.
+
+The experimental branch `feature/v2.2-w55-workflow-template` remains outside the accepted release path and must not be merged implicitly.
