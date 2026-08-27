@@ -143,6 +143,7 @@ const responseBody=(request:AIProviderRequest,config:OpenAIResponsesProviderConf
   tools:toOpenAITools(request),
   tool_choice:"auto",
   parallel_tool_calls:true,
+  reasoning:{effort:"none" as const},
   stream:true,
   store:false,
   ...(request.maxOutputTokens===undefined?{}:{max_output_tokens:request.maxOutputTokens}),
