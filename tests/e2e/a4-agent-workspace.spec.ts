@@ -113,7 +113,7 @@ test("A4 Agent selection → proposal → Review/Apply → reopen → stale guar
 
   await sendAgent(page,"Create one more reviewable visual proposal against the current Project revision.");
   const beforeConflict=await readProject(page,projectId);
-  await applyCommand(page,projectId,"a4-external-revision",{type:"add-scene",scene:{id:"a4-external-scene",name:"External revision",semanticType:"other",startFrame:0,endFrame:beforeConflict.canvas.durationInFrames,visualStrategy:{intensity:"low",preferredEngines:["remotion"]}}});
+  await applyCommand(page,projectId,"a4-external-revision",{type:"add-scene",scene:{id:"a4-external-scene",name:"External revision",semanticType:"proof",startFrame:0,endFrame:beforeConflict.canvas.durationInFrames,visualStrategy:{intensity:"low",preferredEngines:["remotion"]}}});
 
   await page.getByRole("button",{name:"Review / Diff",exact:true}).click();
   await expect(page.getByText("STALE PROPOSAL",{exact:true})).toBeVisible();
