@@ -107,6 +107,19 @@ describe("V2.3 A1 Agent tool registry",()=>{
     expect(result.error?.code).toBe("tool_execution_failed");
   });
 
+  it("does not expose density-guarded none suggestions as applyable proposal changes",async()=>{
+    const guarded:VisualPlan={...plan,suggestions:[...plan.suggestions,{...plan.suggestions[0]!,id:"suggestion-none",recommendation:{engine:"none"},reason:"Density guard blocked this card."}]};
+    const registry=createA1AgentToolRegistry({visualPlans:{generate:async()=>guarded}});
+    const automatic=await registry.execute({id:"call_guarded_default",toolId:"propose_visual_plan",arguments:{intent:"Proof"}},executionContext);
+    expect(automatic.status).toBe("success");
+    const proposal=automatic.output?.proposal as {operations?:Array<{payload?:{selectedIds?:string[]}}>}|undefined;
+    expect(proposal?.operations?.[0]?.payload?.selectedIds).toEqual(["suggestion-proof"]);
+
+    const explicit=await registry.execute({id:"call_guarded_explicit",toolId:"propose_visual_plan",arguments:{intent:"Proof",selectedSuggestionIds:["suggestion-none"]}},executionContext);
+    expect(explicit.status).toBe("error");
+    expect(explicit.error?.code).toBe("tool_execution_failed");
+  });
+
   it("does not expose internal runtime paths through handler failure messages",async()=>{
     const registry=createA1AgentToolRegistry({visualPlans:{generate:async()=>{throw new Error("C:\\Users\\private\\project\\secret.txt");}}});
     const result=await registry.execute({id:"call_internal_error",toolId:"propose_visual_plan",arguments:{intent:"Proof"}},executionContext);
