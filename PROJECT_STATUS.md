@@ -33,8 +33,7 @@ current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
 active_workstream: V2.3 A3 PRODUCTION REAL PROVIDER
 active_branch: feature/v2.3-a3-real-provider
 active_pr: 46
-active_candidate_sha: 51f182b169be9227370f2b724cb9d7dc08e70d0c
-local_action_required: NONE UNTIL THIS OR A LATER EXACT SHA IS CLOUD-GREEN
+local_action_required: NONE UNTIL NEW EXACT CLOUD-GREEN VOLCENGINE A3 SHA
 next_workstream: A4 AI Workspace Agent UX + Review / Apply
 ```
 
