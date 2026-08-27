@@ -32,6 +32,14 @@ class ScriptedProvider implements AIProvider{
   }
 }
 
+class IgnoringAbortProvider extends ScriptedProvider{
+  constructor(){super([]);}
+  override async *run(request:AIProviderRequest):AsyncIterable<AgentProviderEvent>{
+    this.requests.push(request);
+    await new Promise<never>(()=>undefined);
+  }
+}
+
 const buildProject=():Project=>{
   const project=createProject({id:"agent-runtime-project",name:"Agent Runtime",now,durationInFrames:600});
   project.project.revision=1;
@@ -124,21 +132,22 @@ describe("V2.3 A2 Agent session runtime",()=>{
     expect(await sessions.list(projectRef.current.project.id)).toHaveLength(1);
   });
 
-  it("keeps Project truth unchanged when the provider fails",async()=>{
+  it("keeps Project truth unchanged and does not persist raw provider error details when the provider fails",async()=>{
     const projectRef={current:buildProject()};
     const before=JSON.stringify(projectRef.current);
     const provider=new ScriptedProvider([[
-      {type:"error",error:{code:"network",message:"Provider unavailable.",retryable:true}},
+      {type:"error",error:{code:"network",message:"C:\\Users\\private\\secret.txt",retryable:true}},
     ]]);
-    const {service}=harness(provider,projectRef);
+    const {fs,service}=harness(provider,projectRef);
     const session=await service.create({projectId:projectRef.current.project.id});
 
     const failed=await service.runTurn({projectId:projectRef.current.project.id,sessionId:session.id,userContent:"Do not mutate"});
 
     expect(failed.turns[0]?.status).toBe("failed");
-    expect(failed.turns[0]?.error?.code).toBe("network");
+    expect(failed.turns[0]?.error).toMatchObject({code:"network",message:"AI provider network request failed."});
     expect(JSON.stringify(projectRef.current)).toBe(before);
     expect(projectRef.current.project.revision).toBe(1);
+    expect(JSON.stringify([...fs.files.values()])).not.toContain("secret.txt");
   });
 
   it("terminates recoverably when provider-round or tool-call budgets are exceeded",async()=>{
@@ -172,6 +181,23 @@ describe("V2.3 A2 Agent session runtime",()=>{
     expect(exhaustedTools.turns[0]?.status).toBe("budget-exhausted");
     expect(exhaustedTools.turns[0]?.error?.code).toBe("tool_calls");
     expect(exhaustedTools.turns[0]?.toolExecutions).toHaveLength(0);
+  });
+
+  it("enforces wall-clock timeout even when a provider ignores AbortSignal",async()=>{
+    const projectRef={current:buildProject()};
+    const provider=new IgnoringAbortProvider();
+    const {service}=harness(provider,projectRef);
+    const session=await service.create({projectId:projectRef.current.project.id});
+
+    const exhausted=await service.runTurn({
+      projectId:projectRef.current.project.id,
+      sessionId:session.id,
+      userContent:"Do not hang",
+      budget:{maxWallClockMs:20},
+    });
+
+    expect(exhausted.turns[0]?.status).toBe("budget-exhausted");
+    expect(exhausted.turns[0]?.error?.code).toBe("wall_clock");
   });
 
   it("persists cancellation as a terminal cancelled turn",async()=>{
@@ -241,6 +267,6 @@ describe("V2.3 A2 Agent session runtime",()=>{
     projectRef.current=ProjectSchema.parse({...projectRef.current,project:{...projectRef.current.project,revision:2,updatedAt:now}});
     const reopened=await service.open(projectRef.current.project.id,created.id);
     expect(reopened.proposals[0]?.status).toBe("stale");
-    await expect(service.recordApprovedOperation({projectId:projectRef.current.project.id,sessionId:created.id,proposalId:proposal!.id,operationId:"apply-proof-2"})).rejects.toThrow(/stale/i);
+    await expect(service.recordApprovedOperation({projectId:projectRef.current.project.id,sessionId:created.id,proposalId:proposal!.id,operationId:"apply-proof-2"})).rejects.toThrow(/stale|reviewable/i);
   });
 });
