@@ -9,8 +9,8 @@ import type {VisualPlan,VisualPlanDiff} from "@/lib/visual-planner/schema";
 
 const now="2026-08-27T05:00:00.000Z";
 const projectId="agent-application-project";
-const sessionId="session-application";
-const proposalId="proposal-visual";
+const sessionId="11111111-1111-4111-8111-111111111111";
+const proposalId="22222222-2222-4222-8222-222222222222";
 const operationId="operation-visual";
 
 const buildProject=(revision=3):Project=>{
