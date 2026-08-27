@@ -45,7 +45,6 @@ export const AgentWorkspacePanel=({project}:{project:Project;onProjectChange:(pr
 
   useEffect(()=>{
     let active=true;
-    setError(null);
     void listAgentSessions(project.project.id).then(async data=>{
       if(!active)return;
       setProvider(data.provider);setSessions(data.sessions);
