@@ -66,6 +66,23 @@ export class AgentSessionRepository{
     return work();
   }
 
+  private parseForPath(text:string,projectId:string,sessionId:string){
+    const session=parse(text);
+    if(session.projectId!==projectId||session.id!==sessionId)throw new Error("Agent session identity does not match its repository path.");
+    return session;
+  }
+
+  private async recoverBackup(projectId:string,sessionId:string):Promise<AgentSession|null>{
+    const backupPath=this.backupPath(projectId,sessionId);
+    if(!(await this.fs.exists(backupPath)))return null;
+    const recovered=this.parseForPath(await this.fs.readText(backupPath),projectId,sessionId);
+    await this.withAtomicWriteLock(projectId,sessionId,async()=>{
+      await this.fs.ensureDir(this.sessionsDir(projectId));
+      await this.fs.writeTextAtomic(this.sessionPath(projectId,sessionId),serialize(recovered));
+    });
+    return recovered;
+  }
+
   async create(sessionInput:AgentSession):Promise<AgentSession>{
     const session=AgentSessionSchema.parse(sessionInput);
     const path=this.sessionPath(session.projectId,session.id);
@@ -81,10 +98,17 @@ export class AgentSessionRepository{
     const projectId=ProjectIdSchema.parse(projectIdInput);
     const sessionId=AgentSessionIdSchema.parse(sessionIdInput);
     const path=this.sessionPath(projectId,sessionId);
-    if(!(await this.fs.exists(path)))return null;
-    const session=parse(await this.fs.readText(path));
-    if(session.projectId!==projectId||session.id!==sessionId)throw new Error("Agent session identity does not match its repository path.");
-    return session;
+    if(!(await this.fs.exists(path)))return this.recoverBackup(projectId,sessionId);
+    try{return this.parseForPath(await this.fs.readText(path),projectId,sessionId);}
+    catch(primaryError){
+      try{
+        const recovered=await this.recoverBackup(projectId,sessionId);
+        if(recovered)return recovered;
+      }catch{
+        // Preserve the primary failure: the backup is recovery evidence, never a second source of opaque errors.
+      }
+      throw primaryError;
+    }
   }
 
   async require(projectId:string,sessionId:string):Promise<AgentSession>{
