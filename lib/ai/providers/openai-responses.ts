@@ -1,7 +1,7 @@
 import {z} from "zod";
 import {AIProviderRequestSchema,AgentToolCallSchema,AgentToolResultSchema,type AgentProviderError,type AgentProviderEvent,type AgentUsage,type AIProviderRequest} from "@/lib/ai/schema";
 import type {AIProvider} from "@/lib/ai/provider";
-import {loadOpenAIResponsesProviderConfigFromProcessEnv,type OpenAIProviderEnvironment,type OpenAIResponsesProviderConfig,loadOpenAIResponsesProviderConfig} from "@/lib/ai/providers/openai-config";
+import {OpenAIResponsesProviderConfigSchema,loadOpenAIResponsesProviderConfigFromProcessEnv,type OpenAIProviderEnvironment,type OpenAIResponsesProviderConfig,loadOpenAIResponsesProviderConfig} from "@/lib/ai/providers/openai-config";
 
 export type OpenAIResponsesFetch=typeof fetch;
 
@@ -71,6 +71,12 @@ const exceptionError=(error:unknown,timedOut:boolean,signal?:AbortSignal):AgentP
   if(error instanceof DOMException&&error.name==="AbortError")return safeError("cancelled","OpenAI request was cancelled.",true);
   if(error instanceof TypeError)return safeError("network","OpenAI network request failed.",true);
   return safeError("provider","OpenAI request failed.",true);
+};
+
+const streamError=(error:unknown,timedOut:boolean,signal?:AbortSignal):AgentProviderError=>{
+  if(timedOut||signal?.aborted||(error instanceof DOMException&&error.name==="AbortError"))return exceptionError(error,timedOut,signal);
+  if(error instanceof TypeError)return safeError("network","OpenAI streaming connection failed.",true);
+  return safeError("invalid_output","OpenAI returned a malformed streaming response.",false);
 };
 
 const usageFrom=(usage:z.infer<typeof UsageSchema>|null|undefined):AgentUsage|undefined=>{
@@ -187,12 +193,12 @@ async function* readSseData(body:ReadableStream<Uint8Array>):AsyncGenerator<unkn
 
 export class OpenAIResponsesProvider implements AIProvider{
   readonly id="openai-responses";
-  private readonly config:OpenAIResponsesProviderConfig;
-  private readonly fetchImpl:OpenAIResponsesFetch;
+  readonly #config:OpenAIResponsesProviderConfig;
+  readonly #fetchImpl:OpenAIResponsesFetch;
 
   constructor(options:OpenAIResponsesProviderOptions){
-    this.config=options.config;
-    this.fetchImpl=options.fetchImpl??fetch;
+    this.#config=OpenAIResponsesProviderConfigSchema.parse(options.config);
+    this.#fetchImpl=options.fetchImpl??fetch;
   }
 
   async *run(requestInput:AIProviderRequest,signal?:AbortSignal):AsyncIterable<AgentProviderEvent>{
@@ -206,19 +212,25 @@ export class OpenAIResponsesProvider implements AIProvider{
     const timeout=setTimeout(()=>{
       timedOut=true;
       controller.abort();
-    },this.config.timeoutMs);
+    },this.#config.timeoutMs);
+    const cleanup=()=>{
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort",onAbort);
+    };
+
+    let body:ReturnType<typeof responseBody>;
+    try{body=responseBody(request,this.#config);}catch{
+      cleanup();
+      yield{type:"error",error:safeError("invalid_output","Agent conversation history could not be converted for OpenAI.",false)};
+      return;
+    }
 
     let response:Response;
     try{
-      let body:Record<string,unknown>;
-      try{body=responseBody(request,this.config);}catch{
-        yield{type:"error",error:safeError("invalid_output","Agent conversation history could not be converted for OpenAI.",false)};
-        return;
-      }
-      response=await this.fetchImpl(this.config.endpoint,{
+      response=await this.#fetchImpl(this.#config.endpoint,{
         method:"POST",
         headers:{
-          "Authorization":`Bearer ${this.config.apiKey}`,
+          "Authorization":`Bearer ${this.#config.apiKey}`,
           "Content-Type":"application/json",
           "Accept":"text/event-stream",
         },
@@ -226,23 +238,18 @@ export class OpenAIResponsesProvider implements AIProvider{
         signal:controller.signal,
       });
     }catch(error){
+      cleanup();
       yield{type:"error",error:exceptionError(error,timedOut,signal)};
       return;
-    }finally{
-      if(response!===undefined){
-        // Keep timeout active while consuming the response body.
-      }
     }
 
     if(!response.ok){
-      clearTimeout(timeout);
-      signal?.removeEventListener("abort",onAbort);
+      cleanup();
       yield{type:"error",error:httpError(response.status)};
       return;
     }
     if(!response.body){
-      clearTimeout(timeout);
-      signal?.removeEventListener("abort",onAbort);
+      cleanup();
       yield{type:"error",error:safeError("invalid_output","OpenAI returned an empty streaming response.",true)};
       return;
     }
@@ -271,8 +278,7 @@ export class OpenAIResponsesProvider implements AIProvider{
             yield{type:"error",error:safeError("invalid_output","OpenAI returned a malformed function-call event.",false)};
             return;
           }
-          if(!parsed.data.call_id)continue;
-          if(emittedCallIds.has(parsed.data.call_id))continue;
+          if(!parsed.data.call_id||emittedCallIds.has(parsed.data.call_id))continue;
           try{
             const call=parseToolArguments(parsed.data.call_id,parsed.data.name,parsed.data.arguments,allowedToolIds);
             emittedCallIds.add(call.id);
@@ -340,10 +346,9 @@ export class OpenAIResponsesProvider implements AIProvider{
         }
       }
     }catch(error){
-      yield{type:"error",error:exceptionError(error,timedOut,signal)};
+      yield{type:"error",error:streamError(error,timedOut,signal)};
     }finally{
-      clearTimeout(timeout);
-      signal?.removeEventListener("abort",onAbort);
+      cleanup();
     }
   }
 }
