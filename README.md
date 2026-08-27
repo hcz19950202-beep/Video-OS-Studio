@@ -2,15 +2,17 @@
 
 Video OS Studio is a local-first AI-native video production workspace.
 
-## Release candidate
+## Current release
 
-**Video OS Studio v2.3.0 is product-accepted and release-ready.**
+**Video OS Studio v2.3.0 is released.**
 
 ```text
 Product version: 2.3.0
 Project Schema: 2.0.0
 Accepted A7 main: 84e2826164ce6557cd99c4b42006ee703773c882
-Release tag: v2.3.0 (pending release-finalization merge and tag verification)
+Release commit: 562ffb26d5a04bd2898513893258f857187a00b4
+Release tag: v2.3.0 (annotated, verified)
+Tag object: 24069497b1986348510ef0d904382f5c3f99855d
 ```
 
 V2.3 adds the production Real AI Director / AI Editing Agent above the accepted V2.2 Workflow Runtime. The Agent reads bounded Project / Script / Scene / Selection / Workflow context, calls allow-listed typed tools, creates validated Proposals, requires Review / Diff and explicit user confirmation, and then applies through existing Project / Workflow / Job services rather than bypassing them.
@@ -22,6 +24,8 @@ A7 acceptance passed on Windows / Node 24 with real `volcengine-agent-plan / ark
 - manual edit → stale Proposal blocked → Re-plan latest → preserve manual edit → Apply exactly once;
 - real server restart → Project/Session/history/Proposal state restored → fresh read-only Agent turn sees latest revision with no mutation;
 - secret safety, idempotency, duplicate guards, process cleanup and repository integrity.
+
+The final release candidate passed GitHub Actions Run #706 / `33098478140` across Ubuntu Verify, Windows Verify, Browser Smoke and Windows Media Smoke before PR #51 merged. The annotated `v2.3.0` tag dereferences exactly to the release commit above.
 
 The live repository source of truth is:
 
@@ -44,22 +48,23 @@ Workflow Runtime / Generate First Draft
 
 V2.3.0
 Real AI Director / AI Editing Agent
-        ✅ PRODUCT ACCEPTED / RELEASE FINALIZATION
+        ✅ RELEASED
 ```
 
 ## V2.3 delivery sequence
 
 ```text
-R0 Repository / PRD / Runtime Truth Sync       ✅
-A0 Agent Contracts + Provider Abstraction      ✅
+R0 Repository / PRD / Runtime Truth Sync        ✅
+A0 Agent Contracts + Provider Abstraction       ✅
 A1 Context Builder + Allow-listed Tool Registry ✅
-A2 Agent Session Store + Multi-turn Runner     ✅
-A3 Production Real Provider Adapter            ✅
-A4 AI Workspace Agent UX + Review / Apply      ✅
-A5 Agent ↔ Workflow Integration                ✅
+A2 Agent Session Store + Multi-turn Runner      ✅
+A3 Production Real Provider Adapter             ✅
+A4 AI Workspace Agent UX + Review / Apply       ✅
+A5 Agent ↔ Workflow Integration                 ✅
 A6 Failure / Revision / Retry / Restart Hardening ✅
-A7 End-to-End Real Provider Product Acceptance ✅
-V2.3.0 Release Finalization                    ← CURRENT
+A7 End-to-End Real Provider Product Acceptance  ✅
+V2.3.0 Release Finalization                     ✅
+Release tag v2.3.0                              ✅ VERIFIED
 ```
 
 ## Accepted product model
@@ -257,8 +262,7 @@ Cloud CI does not prove live-provider, Windows process, real media, FFmpeg, vide
 1. `PROJECT_STATUS.md`
 2. `AGENTS.md`
 3. `SYSTEM.md`
-4. `docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md`
-5. `docs/prd/Video_OS_Studio_V2_3_Development_Plan.md`
-6. active local validation contract when required
+4. active approved PRD / development plan for the next workstream
+5. active local validation contract when required
 
-The `v2.2.0` tag remains immutable release evidence. `v2.3.0` must not be treated as released until the release-finalization PR is merged and the annotated tag is created and verified.
+The `v2.3.0` annotated tag is the immutable current release boundary. The `v2.2.0` tag remains immutable previous-release evidence. No V2.4 workstream is active until a new approved PRD/workstream is opened from the released V2.3.0 baseline.
