@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect,useMemo,useState,type KeyboardEvent} from "react";
+import {useMemo,useState,type KeyboardEvent} from "react";
 import type {ProjectCommand} from "@/lib/project/commands";
 import type {Project} from "@/schemas/project";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
@@ -11,15 +11,15 @@ import {buildCanvasChangePreview} from "@/lib/canvas/change-preview";
 import {CANVAS_PRESETS,findCanvasPreset} from "@/lib/canvas/aspect";
 
 const blurOnEnter=(event:KeyboardEvent<HTMLInputElement>)=>{if(event.key==="Enter")event.currentTarget.blur();};
+type ProjectInspectorProps={project:Project;onCommand:(command:ProjectCommand,message:string)=>Promise<void>};
 
-export const ProjectInspector=({project,onCommand}:{project:Project;onCommand:(command:ProjectCommand,message:string)=>Promise<void>})=>{
+const ProjectInspectorBody=({project,onCommand}:ProjectInspectorProps)=>{
   const{locale}=useStudioPreferences();const zh=locale==="zh-CN";const l=(key:Parameters<typeof label>[1])=>label(locale,key);const brand=project.brand;
   const{layout,resetWorkspace}=useWorkspaceLayout();
   const set=(next:Project["brand"])=>void onCommand({type:"set-brand",brand:next},zh?"视频品牌已更新":"Video brand updated");
   const colorLabels={primary:l("primary"),data:l("data"),success:l("success"),text:l("text"),background:l("background")};
   const[canvasDraft,setCanvasDraft]=useState({width:project.canvas.width,height:project.canvas.height});
   const[showCanvasPreview,setShowCanvasPreview]=useState(false);
-  useEffect(()=>{setCanvasDraft({width:project.canvas.width,height:project.canvas.height});setShowCanvasPreview(false);},[project.canvas.width,project.canvas.height]);
   const preview=useMemo(()=>buildCanvasChangePreview(project,canvasDraft),[project,canvasDraft]);
   const canvasChanged=canvasDraft.width!==project.canvas.width||canvasDraft.height!==project.canvas.height;
   const currentPreset=findCanvasPreset(project.canvas.width,project.canvas.height);
@@ -47,3 +47,5 @@ export const ProjectInspector=({project,onCommand}:{project:Project;onCommand:(c
     <section className="inspector-section" data-inspector-section="render"><div className="inspector-section-title"><strong>{zh?"渲染 / 导出":"Render / Export"}</strong><small>PROFILE</small></div><p className="inspector-help">{zh?"默认使用 Project Canvas。需要自定义输出尺寸、FPS、质量或音频时打开 Export Profile；不同宽高比会先提示，不进行智能重构。":"Project Canvas is the default. Open Export Profile for custom dimensions, FPS, quality or audio; aspect mismatch warns before render and does not smart-reframe."}</p><button className="v21-primary" onClick={()=>window.dispatchEvent(new CustomEvent(RENDER_REQUEST_EVENT,{detail:{mode:"final"}}))}>{zh?"打开导出设置":"Open Export Profile"}</button></section>
   </div>;
 };
+
+export const ProjectInspector=(props:ProjectInspectorProps)=><ProjectInspectorBody key={`${props.project.project.id}-${props.project.canvas.width}x${props.project.canvas.height}`} {...props}/>;
