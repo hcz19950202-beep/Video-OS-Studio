@@ -5,22 +5,15 @@
 ## Current checkpoint
 
 ```yaml
-released_product_version: 2.2.0
-release_candidate_version: 2.3.0
+released_product_version: 2.3.0
 project_schema: 2.0.0
-release_status: V2.3.0 RELEASE FINALIZATION / TAG PENDING
-release_branch: release/v2.3.0
-release_pr: 51
-accepted_a7_main: 84e2826164ce6557cd99c4b42006ee703773c882
-
-current_release_tag: v2.2.0
-current_release_tag_type: annotated
-current_release_tag_object_sha: df1acb238838ed814b969e20fe85a49253a92861
-current_release_commit: 0e813e5e1360318211e05c1c5fec5eb82be00224
-
-pending_release_tag: v2.3.0
-pending_release_tag_type: annotated
-pending_release_commit: TO_BE_SET_AFTER_PR_51_MERGE
+release_status: V2.3.0 RELEASE COMPLETE
+release_tag: v2.3.0
+release_tag_type: annotated
+release_tag_object_sha: 24069497b1986348510ef0d904382f5c3f99855d
+release_commit: 562ffb26d5a04bd2898513893258f857187a00b4
+previous_release_tag: v2.2.0
+previous_release_commit: 0e813e5e1360318211e05c1c5fec5eb82be00224
 
 v2_2_r0_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
 v2_2_w0_main: 9914b1e65d27a7d40e997295d94eeb5ce4c3deea
@@ -42,13 +35,17 @@ v2_3_a4_main: 6cac2deeef20d98b667fee3b2cea49bc54b1600c
 v2_3_a5_main: 4affcaf4c5c050b40c8b3a1f4b5920ac04a4c8ad
 v2_3_a6_main: 05c331947b6d3704daa680e66d5e0cbe1d4982ed
 v2_3_a7_main: 84e2826164ce6557cd99c4b42006ee703773c882
+v2_3_release_main: 562ffb26d5a04bd2898513893258f857187a00b4
 
-current_milestone: V2.3.0 RELEASE FINALIZATION
-active_workstream: RELEASE METADATA / FINAL CI / TAG VERIFICATION
-active_branch: release/v2.3.0
-active_pr: 51
+release_pr: 51
+package_json_version: 2.3.0
+package_lock_version: 2.3.0
+package_lock_sync_commit: 3e511860a68570988344b48dcdbf28bcc9eee2d5
+release_final_ci_run: 33098478140
+release_final_ci_number: 706
 local_action_required: NONE
-next_action: FULL EXACT-HEAD CLOUD CI THEN MERGE PR_51 THEN CREATE_AND_VERIFY_ANNOTATED_TAG_v2.3.0
+active_development_workstream: NONE
+next_after_release: V2.4 planning under a new approved PRD/workstream
 ```
 
 ## V2.2 delivery status
@@ -78,31 +75,31 @@ A4 AI Workspace Agent UX + Review / Apply → COMPLETE / PR #47
 A5 Agent ↔ Workflow Integration           → COMPLETE / PR #48
 A6 Failure / Revision / Restart Hardening → COMPLETE / PR #49
 A7 End-to-End Product Acceptance          → COMPLETE / PR #50
-V2.3.0 Release Finalization               → ACTIVE / PR #51
-Release tag v2.3.0                        → PENDING
+V2.3.0 Release Finalization               → COMPLETE / PR #51
+Release tag v2.3.0                        → VERIFIED
 ```
 
 ## Release truth
 
-The current immutable released product remains V2.2.0 until the V2.3.0 release-finalization PR is merged and the new annotated tag is independently verified.
+The accepted immutable V2.3.0 release commit is:
 
-Current released tag:
+`562ffb26d5a04bd2898513893258f857187a00b4`
 
-`v2.2.0`
+The annotated release tag is:
 
-Current released commit:
+`v2.3.0`
 
-`0e813e5e1360318211e05c1c5fec5eb82be00224`
+Tag object:
 
-Current tag object:
+`24069497b1986348510ef0d904382f5c3f99855d`
 
-`df1acb238838ed814b969e20fe85a49253a92861`
+The annotated tag dereferences exactly to the accepted release commit above. The tag is the immutable V2.3.0 release boundary; later documentation-only main commits do not change the tagged release contents.
 
-The accepted V2.3 A7 main is:
+Previous immutable release evidence remains:
 
-`84e2826164ce6557cd99c4b42006ee703773c882`
-
-It is product-accepted but is not yet the immutable V2.3.0 release boundary. The release boundary will be the main merge commit of PR #51 after its exact-head full CI passes, followed by an annotated `v2.3.0` tag that dereferences exactly to that merge commit.
+- tag: `v2.2.0`;
+- release commit: `0e813e5e1360318211e05c1c5fec5eb82be00224`;
+- annotated tag object: `df1acb238838ed814b969e20fe85a49253a92861`.
 
 ## V2.3 A7 accepted evidence
 
@@ -173,11 +170,11 @@ Security gates across A7 passed: no API-key/Authorization persistence or exposur
 
 ## V2.3 release metadata evidence
 
-Release package version target:
+Release package version:
 
 `2.3.0`
 
-`package.json` is `2.3.0`.
+`package.json`, the package-lock top-level version, and `packages[""]` are all `2.3.0`.
 
 The package-lock sync commit is:
 
@@ -197,7 +194,7 @@ Verified metadata:
 - `git diff --check`: PASS;
 - clean tree after push.
 
-Final release candidate still requires exact-head full GitHub CI on PR #51 before merge/tag.
+Final exact-head release CI on `5d18c20b0586c9c997eb05572fb80565c3da4079` passed GitHub Actions Run #706 / `33098478140` across Ubuntu Verify, Windows Verify, Browser Smoke and Windows Media Smoke. PR #51 then merged to main as release commit `562ffb26d5a04bd2898513893258f857187a00b4`. Annotated tag `v2.3.0` was created and independently verified to dereference exactly to that release commit.
 
 ## Accepted invariants
 
@@ -260,24 +257,20 @@ A6 accepted backup self-heal, restart/recovery, provider cancel→fresh retry, s
 
 A7 accepted the complete real product path and final encoded-video proof described above.
 
-## Release finalization boundary
+## Release completion boundary
 
-PR #51 is metadata/finalization only. It may change:
+PR #51 was metadata/finalization only. It changed release metadata and repository release truth without changing product code, Project Schema, engine pins, tests, provider behavior, Agent/Workflow/Job architecture, or accepted A7 behavior.
 
-- `package.json` product version;
-- matching package-lock root/package version metadata;
-- README / repository release truth;
-- release notes / release metadata if needed.
+The completed V2.3.0 release sequence is:
 
-It must not change product code, Project Schema, engine pins, tests, provider behavior, Agent/Workflow/Job architecture, or any accepted A7 behavior.
+1. A7 product acceptance completed and merged;
+2. package and lockfile metadata synchronized to `2.3.0`;
+3. final exact-head GitHub CI #706 passed all four jobs;
+4. PR #51 merged as `562ffb26d5a04bd2898513893258f857187a00b4`;
+5. annotated tag `v2.3.0` was created;
+6. tag object `24069497b1986348510ef0d904382f5c3f99855d` was verified to target that exact release commit;
+7. this post-release documentation update records the immutable release truth.
 
-After PR #51 exact-head CI passes:
-
-1. mark PR #51 ready;
-2. merge with expected-head SHA guard;
-3. verify new main SHA;
-4. create annotated tag `v2.3.0` targeting exactly that main SHA;
-5. verify tag object and dereferenced target;
-6. make a separate post-release documentation-only truth update recording the immutable tag and final release commit.
+No V2.4 development is active. V2.4 must begin only through a new approved PRD/workstream from the current released baseline.
 
 The experimental branch `feature/v2.2-w55-workflow-template` remains outside the accepted release path and must not be merged implicitly.
