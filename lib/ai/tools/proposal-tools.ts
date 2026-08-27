@@ -33,7 +33,7 @@ export function createVisualPlanProposalTool(visualPlans:VisualPlanGenerator):Re
       const input=ProposeVisualPlanInputSchema.parse(inputValue);
       const hasScenes=context.context.scenes.length>0;
       const hasTimedCaption=context.context.clips.some(clip=>clip.type==="caption");
-      const missing=[!hasScenes?"Scenes":null:!hasTimedCaption&&!context.context.truncated.clips?"timed Caption clips":null].filter((item):item is string=>Boolean(item));
+      const missing=[!hasScenes?"Scenes":null,!hasTimedCaption&&!context.context.truncated.clips?"timed Caption clips":null].filter((item):item is string=>Boolean(item));
       if(missing.length>0)throw new AgentToolSafeError("visual_plan_prerequisite_missing",`Visual proposal requires ${missing.join(" and ")}. Create or import those Project structures first, then ask the Agent to plan visuals again.`);
 
       const plan=await visualPlans.generate(context.context.projectId,{intent:input.intent},context.context.baseProjectRevision);
