@@ -180,9 +180,9 @@ test("A7 stale proposal → re-plan latest → preserve manual edit → apply on
         const latestTurn = replannedSession?.turns.at(-1);
         return Boolean(
           replannedSession &&
-            replannedSession.turns.length === turnsBeforeReplan + 1 &&
-            latestTurn &&
-            latestTurn.status !== "running",
+          replannedSession.turns.length === turnsBeforeReplan + 1 &&
+          latestTurn &&
+          latestTurn.status !== "running",
         );
       },
       { timeout: 20_000 },
@@ -192,10 +192,14 @@ test("A7 stale proposal → re-plan latest → preserve manual edit → apply on
   const replanTurn = replannedSession!.turns.at(-1)!;
   expect(replanTurn.status, JSON.stringify(replanTurn.error ?? null)).toBe("completed");
   expect(replanTurn.error).toBeUndefined();
-  expect(replanTurn.toolExecutions.map((item) => item.call.toolId)).toContain("propose_visual_plan");
+  expect(replanTurn.toolExecutions.map((item) => item.call.toolId)).toContain(
+    "propose_visual_plan",
+  );
   expect(replanTurn.toolExecutions.every((item) => item.result.status === "success")).toBe(true);
   expect(replanTurn.proposalIds).toHaveLength(1);
-  const freshProposal = replannedSession!.proposals.find((item) => item.id === replanTurn.proposalIds[0]);
+  const freshProposal = replannedSession!.proposals.find(
+    (item) => item.id === replanTurn.proposalIds[0],
+  );
   expect(freshProposal).toBeDefined();
   expect(freshProposal?.status).toBe("draft");
   expect(freshProposal?.baseProjectRevision).toBe(proposalRevision + 1);
