@@ -8,10 +8,7 @@ export const OpenAIResponsesProviderConfigSchema=z.object({
 }).strict();
 export type OpenAIResponsesProviderConfig=z.infer<typeof OpenAIResponsesProviderConfigSchema>;
 
-export type OpenAIProviderEnvironment={
-  OPENAI_API_KEY?:string;
-  OPENAI_MODEL?:string;
-};
+export type OpenAIProviderEnvironment=Readonly<Record<string,string|undefined>>;
 
 export const loadOpenAIResponsesProviderConfig=(
   env:OpenAIProviderEnvironment,
