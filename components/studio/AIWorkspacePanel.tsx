@@ -12,7 +12,7 @@ import {workflowMessages} from "@/lib/i18n/workflow";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
 
 export const AIWorkspacePanel=({project,onProjectChange}:{project:Project;onProjectChange:(project:Project)=>void})=>{
-  const{locale}=useStudioPreferences();const[mode,setMode]=useState<"agent"|"composer"|"workflow">("agent");
+  const{locale}=useStudioPreferences();const[mode,setMode]=useState<"agent"|"composer"|"workflow">("composer");
   const selectedClipId=useSelectionStore(state=>state.selectedClipId);
   const selectedSceneId=useSelectionStore(state=>state.selectedSceneId);
   const selectedScriptRange=useSelectionStore(state=>state.selectedScriptRange);
