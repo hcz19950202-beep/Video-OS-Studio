@@ -236,20 +236,25 @@ export class AgentRunner{
           const calls:AgentToolCall[]=[];
           let roundUsage:AgentUsage|undefined;
           let completed=false;
-          for(;;){
-            const next=await nextProviderEvent(iterator,controller,input.signal,budget.remainingMs());
-            if(next.done)break;
-            budget.assertTime();
-            if(completed)throw new AgentProviderEventError({code:"invalid_output",message:"Provider emitted data after completion.",retryable:false});
-            const event=AgentProviderEventSchema.parse(next.value);
-            if(event.type==="text-delta")text+=event.text;
-            else if(event.type==="tool-call")calls.push(event.call);
-            else if(event.type==="completed"){
-              completed=true;
-              roundUsage=event.usage;
-            }else if(event.type==="error")throw new AgentProviderEventError(event.error);
+          try{
+            for(;;){
+              const next=await nextProviderEvent(iterator,controller,input.signal,budget.remainingMs());
+              if(next.done)break;
+              budget.assertTime();
+              if(completed)throw new AgentProviderEventError({code:"invalid_output",message:"Provider emitted data after completion.",retryable:false});
+              const event=AgentProviderEventSchema.parse(next.value);
+              if(event.type==="text-delta")text+=event.text;
+              else if(event.type==="tool-call")calls.push(event.call);
+              else if(event.type==="completed"){
+                completed=true;
+                roundUsage=event.usage;
+              }else if(event.type==="error")throw new AgentProviderEventError(event.error);
+            }
+            if(!completed)throw new AgentProviderEventError({code:"invalid_output",message:"AI provider stream ended without a completed event.",retryable:true});
+          }finally{
+            controller.abort();
+            try{await iterator.return?.();}catch{void 0;}
           }
-          if(!completed)throw new AgentProviderEventError({code:"invalid_output",message:"AI provider stream ended without a completed event.",retryable:true});
 
           if(text.length>0){
             const assistantMessage=AgentMessageSchema.parse({id:this.makeId(),role:"assistant",content:text,createdAt:this.now()});
