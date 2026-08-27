@@ -2,6 +2,7 @@ import {z} from "zod";
 import {AIProviderRequestSchema,AgentToolCallSchema,AgentToolResultSchema,type AgentProviderError,type AgentProviderEvent,type AgentUsage,type AIProviderRequest} from "@/lib/ai/schema";
 import type {AIProvider} from "@/lib/ai/provider";
 import {OpenAIResponsesProviderConfigSchema,loadOpenAIResponsesProviderConfigFromProcessEnv,type OpenAIProviderEnvironment,type OpenAIResponsesProviderConfig,loadOpenAIResponsesProviderConfig} from "@/lib/ai/providers/openai-config";
+import {cancelProviderResponseBody} from "@/lib/ai/providers/response-body";
 
 export type OpenAIResponsesFetch=typeof fetch;
 
@@ -239,6 +240,7 @@ export class OpenAIResponsesProvider implements AIProvider{
     }
 
     if(!response.ok){
+      await cancelProviderResponseBody(response);
       cleanup();
       yield{type:"error",error:httpError(response.status)};
       return;
