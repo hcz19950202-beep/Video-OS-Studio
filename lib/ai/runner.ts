@@ -5,7 +5,6 @@ import {
   AgentProviderEventSchema,
   AgentUsageSchema,
   AIProviderRequestSchema,
-  type AgentMessage,
   type AgentProviderError,
   type AgentToolCall,
   type AgentToolResult,
@@ -24,6 +23,7 @@ import {
 import type {AgentSessionRepository} from "@/lib/ai/session/repository";
 import {
   AgentSessionSchema,
+  AgentTurnSchema,
   type AgentRuntimeError,
   type AgentSession,
   type AgentTurn,
@@ -58,10 +58,13 @@ const mergeUsage=(left:AgentUsage|undefined,right:AgentUsage|undefined):AgentUsa
     const a=left?.[key];const b=right?.[key];
     return a===undefined&&b===undefined?undefined:(a??0)+(b??0);
   };
+  const inputTokens=add("inputTokens");
+  const outputTokens=add("outputTokens");
+  const totalTokens=add("totalTokens");
   return AgentUsageSchema.parse({
-    ...(add("inputTokens")!==undefined?{inputTokens:add("inputTokens")}:{}),
-    ...(add("outputTokens")!==undefined?{outputTokens:add("outputTokens")}:{}),
-    ...(add("totalTokens")!==undefined?{totalTokens:add("totalTokens")}:{}),
+    ...(inputTokens!==undefined?{inputTokens}:{}),
+    ...(outputTokens!==undefined?{outputTokens}:{}),
+    ...(totalTokens!==undefined?{totalTokens}:{}),
   });
 };
 
@@ -140,7 +143,7 @@ export class AgentRunner{
       const userMessageId=this.makeId();
       const startedAt=this.now();
       const userMessage=AgentMessageSchema.parse({id:userMessageId,role:"user",content:input.userContent,createdAt:startedAt});
-      const turn:AgentTurn={
+      const turn=AgentTurnSchema.parse({
         id:turnId,
         baseProjectRevision:context.baseProjectRevision,
         userMessageId,
@@ -149,7 +152,7 @@ export class AgentRunner{
         providerRoundTrips:0,
         toolExecutions:[],
         proposalIds:[],
-      };
+      });
       session=AgentSessionSchema.parse({
         ...session,
         messages:[...session.messages,userMessage],
@@ -163,7 +166,7 @@ export class AgentRunner{
       try{
         for(;;){
           budget.beginProviderRoundTrip();
-          session=updateTurn(session,turnId,current=>({...current,providerRoundTrips:budget.providerRoundTrips}));
+          session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,providerRoundTrips:budget.providerRoundTrips}));
           session=AgentSessionSchema.parse({...session,updatedAt:this.now()});
           await this.dependencies.sessions.save(session);
 
@@ -208,15 +211,16 @@ export class AgentRunner{
             const assistantMessage=AgentMessageSchema.parse({id:this.makeId(),role:"assistant",content:text,createdAt:this.now()});
             session=AgentSessionSchema.parse({...session,messages:[...session.messages,assistantMessage],updatedAt:this.now()});
           }
-          session=updateTurn(session,turnId,current=>({...current,usage:mergeUsage(current.usage,roundUsage)}));
+          session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,usage:mergeUsage(current.usage,roundUsage)}));
           session=AgentSessionSchema.parse({...session,usage:mergeUsage(session.usage,roundUsage),updatedAt:this.now()});
 
           if(calls.length===0){
-            const assistantMessageId=session.messages.at(-1)?.role==="assistant"?session.messages.at(-1)!.id:undefined;
+            const lastMessage=session.messages.at(-1);
+            const assistantMessageId=lastMessage?.role==="assistant"?lastMessage.id:undefined;
             const completedAt=this.now();
-            session=updateTurn(session,turnId,current=>AgentSessionSchema.shape.turns.element.parse({
+            session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({
               ...current,
-              assistantMessageId,
+              ...(assistantMessageId?{assistantMessageId}:{}),
               status:"completed",
               completedAt,
             }));
@@ -236,7 +240,7 @@ export class AgentRunner{
               result=prior.result;
             }else{
               result=await this.dependencies.tools.execute(call,{sessionId:session.id,context,now:this.now,makeId:this.makeId});
-              session=updateTurn(session,turnId,current=>({...current,toolExecutions:[...current.toolExecutions,{call,result}]}));
+              session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,toolExecutions:[...current.toolExecutions,{call,result}]}));
               if(result.status==="success"){
                 const proposalResult=AgentProposalSchema.safeParse(result.output?.proposal);
                 if(proposalResult.success&&!session.proposals.some(item=>item.id===proposalResult.data.id)){
@@ -244,7 +248,7 @@ export class AgentRunner{
                     ...session,
                     proposals:[...session.proposals,proposalResult.data],
                   });
-                  session=updateTurn(session,turnId,current=>({...current,proposalIds:[...current.proposalIds,proposalResult.data.id]}));
+                  session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,proposalIds:[...current.proposalIds,proposalResult.data.id]}));
                 }
               }
             }
@@ -264,7 +268,7 @@ export class AgentRunner{
         const details=runtimeError(error,input.signal,timedOut);
         const completedAt=this.now();
         const status=details.category==="cancelled"?"cancelled":details.category==="budget"?"budget-exhausted":"failed";
-        session=updateTurn(session,turnId,current=>({...current,status,completedAt,error:details}));
+        session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,status,completedAt,error:details}));
         session=AgentSessionSchema.parse({...session,updatedAt:completedAt});
         await this.dependencies.sessions.save(session);
         return session;
