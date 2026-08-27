@@ -27,12 +27,6 @@ const OutputItemDoneSchema=z.object({
   type:z.literal("response.output_item.done"),
   item:FunctionCallItemSchema,
 }).passthrough();
-const FunctionArgumentsDoneSchema=z.object({
-  type:z.literal("response.function_call_arguments.done"),
-  call_id:z.string().min(1).optional(),
-  name:z.string().min(1),
-  arguments:z.string(),
-}).passthrough();
 const UsageSchema=z.object({
   input_tokens:z.number().int().nonnegative().optional(),
   output_tokens:z.number().int().nonnegative().optional(),
@@ -272,23 +266,6 @@ export class OpenAIResponsesProvider implements AIProvider{
           if(parsed.data.delta)yield{type:"text-delta",text:parsed.data.delta};
           continue;
         }
-        if(type==="response.function_call_arguments.done"){
-          const parsed=FunctionArgumentsDoneSchema.safeParse(rawEvent);
-          if(!parsed.success){
-            yield{type:"error",error:safeError("invalid_output","OpenAI returned a malformed function-call event.",false)};
-            return;
-          }
-          if(!parsed.data.call_id||emittedCallIds.has(parsed.data.call_id))continue;
-          try{
-            const call=parseToolArguments(parsed.data.call_id,parsed.data.name,parsed.data.arguments,allowedToolIds);
-            emittedCallIds.add(call.id);
-            yield{type:"tool-call",call};
-          }catch{
-            yield{type:"error",error:safeError("invalid_output","OpenAI returned invalid tool-call arguments.",false)};
-            return;
-          }
-          continue;
-        }
         if(type==="response.output_item.done"){
           const parsed=OutputItemDoneSchema.safeParse(rawEvent);
           if(!parsed.success)continue;
@@ -345,6 +322,7 @@ export class OpenAIResponsesProvider implements AIProvider{
           return;
         }
       }
+      yield{type:"error",error:safeError("invalid_output","OpenAI streaming response ended without a terminal event.",true)};
     }catch(error){
       yield{type:"error",error:streamError(error,timedOut,signal)};
     }finally{
