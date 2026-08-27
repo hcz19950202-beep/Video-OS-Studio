@@ -1,0 +1,94 @@
+import type {AgentSelectionSnapshot,AgentSession} from "@/lib/ai";
+
+export type AgentProviderRuntimeStatus={providerId:string;model:string;configured:boolean};
+export type AgentTurnStreamEvent={event:string;data:Record<string,unknown>};
+
+const agentBase=(projectId:string)=>`/api/projects/${encodeURIComponent(projectId)}/agent`;
+const sessionBase=(projectId:string,sessionId:string)=>`${agentBase(projectId)}/sessions/${encodeURIComponent(sessionId)}`;
+
+const readError=async(response:Response)=>{
+  try{
+    const payload=await response.json() as {message?:string};
+    return payload.message||`Agent request failed (${response.status}).`;
+  }catch{return`Agent request failed (${response.status}).`;}
+};
+
+export async function getAgentProviderStatus(projectId:string):Promise<AgentProviderRuntimeStatus>{
+  const response=await fetch(agentBase(projectId),{cache:"no-store"});
+  if(!response.ok)throw new Error(await readError(response));
+  return((await response.json()) as {provider:AgentProviderRuntimeStatus}).provider;
+}
+
+export async function listAgentSessions(projectId:string):Promise<{sessions:AgentSession[];provider:AgentProviderRuntimeStatus}>{
+  const response=await fetch(`${agentBase(projectId)}/sessions`,{cache:"no-store"});
+  if(!response.ok)throw new Error(await readError(response));
+  return response.json() as Promise<{sessions:AgentSession[];provider:AgentProviderRuntimeStatus}>;
+}
+
+export async function createAgentSession(projectId:string,selection?:Partial<AgentSelectionSnapshot>):Promise<AgentSession>{
+  const response=await fetch(`${agentBase(projectId)}/sessions`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({selection})});
+  if(!response.ok)throw new Error(await readError(response));
+  return((await response.json()) as {session:AgentSession}).session;
+}
+
+export async function openAgentSession(projectId:string,sessionId:string):Promise<AgentSession>{
+  const response=await fetch(sessionBase(projectId,sessionId),{cache:"no-store"});
+  if(!response.ok)throw new Error(await readError(response));
+  return((await response.json()) as {session:AgentSession}).session;
+}
+
+const parseSseBlock=(block:string):AgentTurnStreamEvent|null=>{
+  let event="message";
+  const dataLines:string[]=[];
+  for(const line of block.split("\n")){
+    if(line.startsWith("event:"))event=line.slice(6).trim();
+    else if(line.startsWith("data:"))dataLines.push(line.slice(5).trimStart());
+  }
+  if(dataLines.length===0)return null;
+  const parsed=JSON.parse(dataLines.join("\n")) as unknown;
+  return{event,data:typeof parsed==="object"&&parsed!==null&&!Array.isArray(parsed)?parsed as Record<string,unknown>:{value:parsed}};
+};
+
+export async function runAgentTurn(input:{
+  projectId:string;
+  sessionId:string;
+  userContent:string;
+  selection?:Partial<AgentSelectionSnapshot>;
+  signal?:AbortSignal;
+  onEvent?:(event:AgentTurnStreamEvent)=>void;
+}):Promise<AgentSession>{
+  const response=await fetch(`${sessionBase(input.projectId,input.sessionId)}/turns`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Accept":"text/event-stream"},
+    body:JSON.stringify({userContent:input.userContent,selection:input.selection}),
+    signal:input.signal,
+  });
+  if(!response.ok)throw new Error(await readError(response));
+  if(!response.body)throw new Error("Agent streaming response body is unavailable.");
+
+  const reader=response.body.getReader();
+  const decoder=new TextDecoder();
+  let buffer="";
+  try{
+    for(;;){
+      const{done,value}=await reader.read();
+      if(done)break;
+      buffer=(buffer+decoder.decode(value,{stream:true})).replace(/\r\n/g,"\n");
+      let boundary=buffer.indexOf("\n\n");
+      while(boundary>=0){
+        const block=buffer.slice(0,boundary);
+        buffer=buffer.slice(boundary+2);
+        const event=parseSseBlock(block);
+        if(event)input.onEvent?.(event);
+        boundary=buffer.indexOf("\n\n");
+      }
+    }
+    buffer+=decoder.decode();
+    if(buffer.trim()){
+      const event=parseSseBlock(buffer.trim());
+      if(event)input.onEvent?.(event);
+    }
+  }finally{reader.releaseLock();}
+
+  return openAgentSession(input.projectId,input.sessionId);
+}
