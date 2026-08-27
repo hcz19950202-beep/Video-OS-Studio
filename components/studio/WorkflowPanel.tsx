@@ -1,6 +1,6 @@
 "use client";
 
-import {useCallback,useEffect,useMemo,useState} from "react";
+import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import type {Project} from "@/schemas/project";
 import type {WorkflowRun,WorkflowScenario,WorkflowStageExecution} from "@/lib/workflows/schema";
 import type {WorkflowActivity} from "@/lib/workflows/activity";
@@ -25,6 +25,8 @@ export const WorkflowPanel=({project,onProjectChange}:{project:Project;onProject
   const[scenario,setScenario]=useState<WorkflowScenario>(SCENARIOS.includes(project.workflow.scenario as WorkflowScenario)?project.workflow.scenario as WorkflowScenario:"talking-head");
   const[workflow,setWorkflow]=useState<WorkflowRun|null>(null);const[activity,setActivity]=useState<WorkflowActivity[]>([]);const[currentJob,setCurrentJob]=useState<JobRecord|null>(null);
   const[busyAction,setBusyAction]=useState<string|null>(null);const[error,setError]=useState<string>("");const[notice,setNotice]=useState<string>("");
+  const activeProjectIdRef=useRef(project.project.id);activeProjectIdRef.current=project.project.id;
+  const isActiveProject=useCallback((expectedProjectId:string)=>activeProjectIdRef.current===expectedProjectId,[]);
 
   const videoAssets=useMemo(()=>project.assets.filter(asset=>asset.kind==="video"),[project.assets]);
   const sourceVideo=useMemo(()=>{
@@ -32,19 +34,25 @@ export const WorkflowPanel=({project,onProjectChange}:{project:Project;onProject
     return(activeClip?videoAssets.find(asset=>asset.id===activeClip.assetId):undefined)??videoAssets[0];
   },[project.tracks,videoAssets]);
 
-  const syncProject=useCallback(async(run:WorkflowRun)=>{
-    if(run.lastKnownProjectRevision<=project.project.revision)return;
-    const latest=await loadStudioProject(project.project.id);onProjectChange(latest);setNotice(m.projectUpdated);
-  },[m.projectUpdated,onProjectChange,project.project.id,project.project.revision]);
+  const syncProject=useCallback(async(run:WorkflowRun,expectedProjectId=project.project.id)=>{
+    if(!isActiveProject(expectedProjectId)||run.lastKnownProjectRevision<=project.project.revision)return;
+    const latest=await loadStudioProject(expectedProjectId);
+    if(!isActiveProject(expectedProjectId))return;
+    onProjectChange(latest);setNotice(m.projectUpdated);
+  },[isActiveProject,m.projectUpdated,onProjectChange,project.project.id,project.project.revision]);
 
   const refreshRun=useCallback(async(workflowId:string,withActivity=true)=>{
-    const run=await getWorkflow(workflowId);setWorkflow(run);await syncProject(run);
+    const expectedProjectId=project.project.id;
+    const run=await getWorkflow(workflowId);
+    if(!isActiveProject(expectedProjectId))return run;
+    setWorkflow(run);await syncProject(run,expectedProjectId);
+    if(!isActiveProject(expectedProjectId))return run;
     const active=run.currentStageId?run.stageExecutions.find(stage=>stage.stageId===run.currentStageId):run.stageExecutions.find(stage=>stage.status==="running");
     const jobId=active?.jobIds.at(-1);
-    if(jobId){try{setCurrentJob((await getJob(jobId)).job);}catch{setCurrentJob(null);}}else setCurrentJob(null);
-    if(withActivity){try{setActivity(await getWorkflowActivity(workflowId));}catch{setActivity([]);}}
+    if(jobId){try{const job=(await getJob(jobId)).job;if(isActiveProject(expectedProjectId))setCurrentJob(job);}catch{if(isActiveProject(expectedProjectId))setCurrentJob(null);}}else setCurrentJob(null);
+    if(withActivity){try{const nextActivity=await getWorkflowActivity(workflowId);if(isActiveProject(expectedProjectId))setActivity(nextActivity);}catch{if(isActiveProject(expectedProjectId))setActivity([]);}}
     return run;
-  },[syncProject]);
+  },[isActiveProject,project.project.id,syncProject]);
 
   const loadDiscovery=useCallback(async():Promise<WorkflowDiscovery>=>{
     const runs=await listWorkflows(project.project.id);
@@ -54,40 +62,42 @@ export const WorkflowPanel=({project,onProjectChange}:{project:Project;onProject
   },[project.project.id]);
 
   const discover=useCallback(async()=>{
+    const expectedProjectId=project.project.id;
     try{
       const next=await loadDiscovery();
+      if(!isActiveProject(expectedProjectId))return;
       setWorkflow(next.latest);setActivity(next.activity);setCurrentJob(null);setError("");
-      if(next.latest)await syncProject(next.latest);
-    }catch(cause){setError(toClientErrorState(cause).message);}
-  },[loadDiscovery,syncProject]);
+      if(next.latest)await syncProject(next.latest,expectedProjectId);
+    }catch(cause){if(isActiveProject(expectedProjectId))setError(toClientErrorState(cause).message);}
+  },[isActiveProject,loadDiscovery,project.project.id,syncProject]);
 
   useEffect(()=>{
-    let cancelled=false;
+    let cancelled=false;const expectedProjectId=project.project.id;
     void loadDiscovery().then(async next=>{
-      if(cancelled)return;
-      setWorkflow(next.latest);setActivity(next.activity);setCurrentJob(null);setError("");
-      if(next.latest)await syncProject(next.latest);
-    }).catch(cause=>{if(!cancelled)setError(toClientErrorState(cause).message);});
+      if(cancelled||!isActiveProject(expectedProjectId))return;
+      setWorkflow(next.latest);setActivity(next.activity);setCurrentJob(null);setError("");setNotice("");
+      if(next.latest)await syncProject(next.latest,expectedProjectId);
+    }).catch(cause=>{if(!cancelled&&isActiveProject(expectedProjectId))setError(toClientErrorState(cause).message);});
     return()=>{cancelled=true;};
-  },[loadDiscovery,syncProject]);
+  },[isActiveProject,loadDiscovery,project.project.id,syncProject]);
   const workflowId=workflow?.id;const workflowStatus=workflow?.status;
   useEffect(()=>{
     if(!workflowId||!workflowStatus||TERMINAL_RUNS.has(workflowStatus))return;
     const delay=workflowStatus==="running"?1000:workflowStatus==="waiting_review"?2500:3500;
-    const timer=window.setInterval(()=>{void refreshRun(workflowId,false).catch(cause=>setError(toClientErrorState(cause).message));},delay);
+    const timer=window.setInterval(()=>{void refreshRun(workflowId,false).catch(cause=>{if(isActiveProject(project.project.id))setError(toClientErrorState(cause).message);});},delay);
     return()=>window.clearInterval(timer);
-  },[refreshRun,workflowId,workflowStatus]);
+  },[isActiveProject,project.project.id,refreshRun,workflowId,workflowStatus]);
 
   const runAction=async(action:WorkflowAction)=>{
-    if(!workflow)return;setBusyAction(action.action);setError("");setNotice("");
-    try{const next=await actOnWorkflow(workflow.id,action);setWorkflow(next);await syncProject(next);await refreshRun(next.id);}
-    catch(cause){setError(toClientErrorState(cause).message);}finally{setBusyAction(null);}
+    if(!workflow)return;const expectedProjectId=project.project.id;setBusyAction(action.action);setError("");setNotice("");
+    try{const next=await actOnWorkflow(workflow.id,action);if(!isActiveProject(expectedProjectId))return;setWorkflow(next);await syncProject(next,expectedProjectId);if(isActiveProject(expectedProjectId))await refreshRun(next.id);}
+    catch(cause){if(isActiveProject(expectedProjectId))setError(toClientErrorState(cause).message);}finally{if(isActiveProject(expectedProjectId))setBusyAction(null);}
   };
   const generate=async()=>{
-    if(!sourceVideo){setError(m.noVideo);return;}setBusyAction("generate");setError("");setNotice("");
+    if(!sourceVideo){setError(m.noVideo);return;}const expectedProjectId=project.project.id;setBusyAction("generate");setError("");setNotice("");
     try{
-      const next=await createAndStartWorkflow({projectId:project.project.id,scenario,sourceAssetIds:[sourceVideo.id],expectedProjectRevision:project.project.revision});setWorkflow(next);await refreshRun(next.id);
-    }catch(cause){setError(toClientErrorState(cause).message);await discover();}finally{setBusyAction(null);}
+      const next=await createAndStartWorkflow({projectId:expectedProjectId,scenario,sourceAssetIds:[sourceVideo.id],expectedProjectRevision:project.project.revision});if(!isActiveProject(expectedProjectId))return;setWorkflow(next);await refreshRun(next.id);
+    }catch(cause){if(isActiveProject(expectedProjectId)){setError(toClientErrorState(cause).message);await discover();}}finally{if(isActiveProject(expectedProjectId))setBusyAction(null);}
   };
 
   if(!workflow)return <div className="v22-workflow-panel" data-workflow-state="empty">
