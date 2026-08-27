@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:windows-media": "vitest run tests/h6/windows-media-smoke.test.ts",
+    "test:live-volcengine": "node scripts/run-a3-volcengine-agent-plan-live.mjs",
     "test:live-deepseek": "node scripts/run-a3-deepseek-live.mjs",
     "test:live-openai": "node scripts/run-a3-openai-live.mjs",
     "test:watch": "vitest"
