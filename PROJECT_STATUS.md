@@ -13,17 +13,6 @@ release_tag_type: annotated
 release_tag_object_sha: df1acb238838ed814b969e20fe85a49253a92861
 release_commit: 0e813e5e1360318211e05c1c5fec5eb82be00224
 
-v2_2_r0_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
-v2_2_w0_main: 9914b1e65d27a7d40e997295d94eeb5ce4c3deea
-v2_2_w1_main: 5c98117a2ca30217ac8865e99eb87fe410ee7192
-v2_2_w2_main: bfcc862aed29969e61c5c3723179585e6c583a07
-v2_2_w3_main: 23193e537a2c403f8d3c82806db991603cb27dca
-v2_2_w4_main: 6a443e56c10b4935efedd65293b6dbd5584cbda1
-v2_2_w5_main: 2bdbe3aa229513e22da5bba51202609743a718b3
-v2_2_w6_main: d629249f9dbc877eadc68ce61f47c16f80a883b1
-v2_2_release_main: 0e813e5e1360318211e05c1c5fec5eb82be00224
-v2_2_post_release_docs_main: 85adebdac436b33b3a737536f32363bfc8e22465
-
 v2_3_r0_main: 34ebc73b8998854e3ee8a067dc547cc158d156b8
 v2_3_a0_main: 64977b6b2fdf97224eefd0819c29fa2f0c8c52fd
 v2_3_a1_main: a307756c0a43b02d6c6ab2b74d4ec37110017d96
@@ -33,23 +22,8 @@ current_milestone: V2.3 REAL AI DIRECTOR / AI EDITING AGENT
 active_workstream: V2.3 A3 PRODUCTION REAL PROVIDER
 active_branch: feature/v2.3-a3-real-provider
 active_pr: 46
-local_action_required: NONE UNTIL EXACT CLOUD-GREEN A3 SHA
+local_action_required: NONE UNTIL NEW EXACT CLOUD-GREEN VOLCENGINE A3 SHA
 next_workstream: A4 AI Workspace Agent UX + Review / Apply
-```
-
-## V2.2 delivery status
-
-```text
-R0 Repository / Roadmap Sync              → COMPLETE / PR #30
-W0 Workflow Contract                      → COMPLETE / PR #31
-W1 Workflow Runtime Core                  → COMPLETE / PR #32
-W2 Existing Capability Stage Integration  → COMPLETE / PR #33
-W3 Human Review + Invalidation            → COMPLETE / PR #34
-W4 Workflow UI                            → COMPLETE / PR #35
-W5 Failure / Retry / Restart Hardening    → COMPLETE / PR #36
-W6 End-to-End Product Acceptance          → COMPLETE / PR #37
-V2.2.0 Release Finalization               → COMPLETE / PR #38
-Release tag v2.2.0                        → VERIFIED
 ```
 
 ## V2.3 delivery status
@@ -66,70 +40,19 @@ A6 Failure / Revision / Restart Hardening → NOT STARTED
 A7 End-to-End Product Acceptance          → NOT STARTED
 ```
 
-## Release truth
+## V2.3 active boundary
 
-The accepted V2.2.0 release commit is:
+A3 keeps the core `AIProvider` contract provider-neutral and now includes three provider implementations at different validation levels:
 
-`0e813e5e1360318211e05c1c5fec5eb82be00224`
+- OpenAI Responses: cloud-tested; no live credential available.
+- DeepSeek Chat Completions: cloud-tested; direct account balance is not available for the mandatory live gate.
+- Volcengine Agent Plan: selected as the A3 live acceptance provider because a subscribed Agent Plan credential is available and an independent repository-neutral capability probe already passed basic chat, SSE streaming, function calling, tool-result continuation, revision recognition, and secret/repository safety.
 
-The annotated release tag is:
+The Volcengine production adapter uses the live-verified Agent Plan endpoint `https://ark.cn-beijing.volces.com/api/plan/v3/chat/completions` with runtime model `ark-code-latest`. Ordinary no-tool turns use SSE streaming. Tool-enabled turns use OpenAI-compatible non-stream Chat Completions so the already live-verified function-call and tool-result continuation path is deterministic across routed models. The adapter has no Project mutation authority and does not persist credentials or provider-private reasoning state.
 
-`v2.2.0`
+The previous exact cloud-green SHA `5c9df5ecf158e73a21e9ab3dc02b5e6919895545` / Run #612 is historical evidence only and was intentionally invalidated when the A3 acceptance provider changed from DeepSeek Direct to Volcengine Agent Plan.
 
-Tag object:
-
-`df1acb238838ed814b969e20fe85a49253a92861`
-
-The annotated tag dereferences exactly to the accepted release commit above. The tag is the immutable V2.2.0 release boundary; later documentation-only main commits do not change the tagged release contents.
-
-## W6 accepted release evidence
-
-Exact tested product-code SHA:
-
-`8b10a59496a21a4d34cb95b99d0bd496f82bfd92`
-
-Formal local report:
-
-`docs/validation/LOCAL_VALIDATION_V2_2_W6.md`
-
-Report-only commit:
-
-`b1c55f65bc37990242b215a3d015e8dae91ea835`
-
-Report-only GitHub CI:
-
-`32964002626` / #566 — Ubuntu, Windows, Browser smoke, Windows media smoke all PASS.
-
-Accepted W6 main:
-
-`d629249f9dbc877eadc68ce61f47c16f80a883b1`
-
-W6 proved on real Windows/browser/media/engines:
-
-- Talking Head / 9:16 — PASS;
-- Product Ad / 16:9 — PASS;
-- Restart Recovery / 1:1 — PASS;
-- all 16 Workflow Stages — PASS;
-- Content Review / Assembly Review — PASS;
-- real video-use transcription — PASS;
-- HyperFrames motion — PASS;
-- Remotion Final Render — PASS;
-- FFmpeg/ffprobe and actual encoded-frame inspection — PASS;
-- revision/idempotency/no-duplicate checks — PASS;
-- durable reload/reopen and restart recovery — PASS;
-- residual-process/lock cleanup — PASS.
-
-No W6 release-blocking product defect remained and no product-code/config/test/schema/pin change was required during formal acceptance.
-
-## V2.2.0 release metadata evidence
-
-`package.json`, the package-lock top-level version, and `packages[""]` are all `2.2.0`.
-
-The package-lock sync commit:
-
-`8bddb2c4a174da98cef9bad760ab93691bc4d0d0`
-
-changed exactly the two Video OS Studio version metadata fields. Local Codex verified `npm ci` and `npm run typecheck` with no additional lockfile drift. Final release-candidate GitHub CI Run #571 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke before PR #38 was merged.
+No local integrated Volcengine gate is allowed until the new implementation reaches a new exact cloud-green SHA. After that freeze, Local Codex may run only the controlled `npm run test:live-volcengine` gate on Node 24.x using `.env.local`, proving one real streaming read-only Agent turn and one real two-round `get_project_context` tool loop with Project revision unchanged and no key leakage. Any code/config/test fix after freeze invalidates that SHA and returns control to GPT Web + CI.
 
 ## Accepted invariants
 
@@ -151,18 +74,3 @@ REUSE > MODIFY > CREATE
 - Durable Job runtime remains concrete execution truth.
 - Workflow Stages use registered services/jobs/transactions and do not directly spawn engines.
 - Long-running mutation work preserves Project revision and operation idempotency contracts.
-
-## V2.3 active boundary
-
-V2.3 Real AI Director / AI Editing Agent is active under the authoritative documents:
-
-- `docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md`;
-- `docs/prd/Video_OS_Studio_V2_3_Development_Plan.md`.
-
-A0 is accepted on main after exact-head CI Run #578 passed Ubuntu, Windows, Browser Smoke and Windows Media Smoke. A1 is accepted on main at `a307756c0a43b02d6c6ab2b74d4ec37110017d96` after PR #44 exact-head CI passed. A2 is accepted on main at `44c0bcc2d980feb1fece94cf9d1df3a98666824f` after PR #45 exact-head CI Run #593 passed Ubuntu verify, Windows verify, Browser Smoke and Windows Media Smoke.
-
-A3 is the first production-provider workstream. It may add one real provider adapter, server-only runtime environment config, provider streaming/tool-call normalization, timeout/abort and normalized provider errors. It must not put secrets/model config into Project or Session truth, add direct mutation authority, or weaken the A0-A2 provider/tool/proposal boundaries. The implementation is based on the current official provider API contract verified before writing provider-specific payloads.
-
-The first mandatory Local Codex gate begins only after the A3 implementation reaches an exact cloud-green SHA. That local gate is limited to one live read-only Agent turn, one live structured tool call, no Project mutation, and no key leakage. Any pushed code/config/test fix invalidates the frozen SHA and returns control to GPT Web + CI review.
-
-The experimental branch `feature/v2.2-w55-workflow-template` was not part of the accepted V2.2 Master PRD release path and must not be merged into V2.3 implicitly. Re-evaluate any useful idea only under an explicit V2.3 workstream.
