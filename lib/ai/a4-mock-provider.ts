@@ -15,7 +15,7 @@ export class DeterministicA4MockProvider implements AIProvider{
       return;
     }
     if(request.tools.some(tool=>tool.id==="propose_visual_plan")){
-      yield{type:"tool-call",call:{id:`a4-mock-plan-${request.messages.length}`,toolId:"propose_visual_plan",arguments:{intent:"Highlight concrete proof and the CTA with restrained motion."}}};
+      yield{type:"tool-call",call:{id:`a4-mock-plan-${request.messages.length}`,toolId:"propose_visual_plan",arguments:{intent:"Highlight concrete proof and the CTA with clear motion."}}};
       yield{type:"completed",usage:{inputTokens:36,outputTokens:8,totalTokens:44}};
       return;
     }
