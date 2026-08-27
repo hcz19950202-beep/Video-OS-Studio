@@ -1,3 +1,4 @@
+import type {AgentProposalApplyResult,AgentProposalPreview} from "@/lib/ai/application";
 import type {AgentSelectionSnapshot,AgentSession} from "@/lib/ai";
 
 export type AgentProviderRuntimeStatus={providerId:string;model:string;configured:boolean};
@@ -5,6 +6,7 @@ export type AgentTurnStreamEvent={event:string;data:Record<string,unknown>};
 
 const agentBase=(projectId:string)=>`/api/projects/${encodeURIComponent(projectId)}/agent`;
 const sessionBase=(projectId:string,sessionId:string)=>`${agentBase(projectId)}/sessions/${encodeURIComponent(sessionId)}`;
+const proposalBase=(projectId:string,sessionId:string,proposalId:string)=>`${sessionBase(projectId,sessionId)}/proposals/${encodeURIComponent(proposalId)}`;
 
 const readError=async(response:Response)=>{
   try{
@@ -36,6 +38,18 @@ export async function openAgentSession(projectId:string,sessionId:string):Promis
   if(!response.ok)throw new Error(await readError(response));
   return((await response.json()) as {session:AgentSession}).session;
 }
+
+const proposalAction=async<T>(projectId:string,sessionId:string,proposalId:string,body:Record<string,unknown>):Promise<T>=>{
+  const response=await fetch(proposalBase(projectId,sessionId,proposalId),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!response.ok)throw new Error(await readError(response));
+  return response.json() as Promise<T>;
+};
+
+export const reviewAgentProposal=(input:{projectId:string;sessionId:string;proposalId:string;operationIds?:string[];changeIds?:string[]})=>proposalAction<{preview:AgentProposalPreview;session:AgentSession}>(input.projectId,input.sessionId,input.proposalId,{action:"review",operationIds:input.operationIds,changeIds:input.changeIds});
+
+export const applyAgentProposal=(input:{projectId:string;sessionId:string;proposalId:string;expectedRevision:number;operationIds?:string[];changeIds?:string[]})=>proposalAction<AgentProposalApplyResult>(input.projectId,input.sessionId,input.proposalId,{action:"apply",expectedRevision:input.expectedRevision,operationIds:input.operationIds,changeIds:input.changeIds});
+
+export const rejectAgentProposal=(input:{projectId:string;sessionId:string;proposalId:string})=>proposalAction<{session:AgentSession}>(input.projectId,input.sessionId,input.proposalId,{action:"reject"});
 
 const parseSseBlock=(block:string):AgentTurnStreamEvent|null=>{
   let event="message";
