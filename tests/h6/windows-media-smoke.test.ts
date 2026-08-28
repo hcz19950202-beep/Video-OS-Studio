@@ -218,7 +218,10 @@ describe("H6 Windows real-media smoke", () => {
       await repository.save(renderProject);
 
       const renderRelativePath = "render/final-b4-qa-smoke.mp4";
-      const renderPath = repository.resolveProjectFile(renderProject.project.id, renderRelativePath);
+      const renderPath = repository.resolveProjectFile(
+        renderProject.project.id,
+        renderRelativePath,
+      );
       await mkdir(dirname(renderPath), { recursive: true });
       await new NodeRemotionCliAdapter().render(
         {
@@ -341,9 +344,9 @@ describe("H6 Windows real-media smoke", () => {
       ]) {
         expect(report.findings.find((finding) => finding.id === findingId)?.status).toBe("pass");
       }
-      expect((await missionService.require(renderProject.project.id, mission.id)).qaReportIds).toEqual([
-        qaReportId,
-      ]);
+      expect(
+        (await missionService.require(renderProject.project.id, mission.id)).qaReportIds,
+      ).toEqual([qaReportId]);
       expect(await qaRepository.load(renderProject.project.id, qaReportId)).toEqual(report);
       expect(JSON.stringify(report)).not.toContain(renderRelativePath);
       expect(JSON.stringify(report)).not.toContain(dataRoot);
