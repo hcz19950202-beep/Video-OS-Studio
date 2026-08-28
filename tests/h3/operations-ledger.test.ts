@@ -1,7 +1,7 @@
 import {describe,expect,it} from "vitest";
 import {InMemoryFileSystemAdapter} from "@/adapters/filesystem";
 import {
-  PROJECT_OPERATION_COMPACTION_THRESHOLD,
+  PROJECT_OPERATION_COMPACTION_REDUNDANCY_THRESHOLD,
   ProjectMutationCoordinator,
   ProjectOperationIdReuseError,
 } from "@/lib/project/mutation-coordinator";
@@ -89,11 +89,11 @@ describe("H3c operations ledger",()=>{
     expect(repairedLines.at(-1)).toMatchObject({operationId:"rename-1",status:"applied",appliedRevision:1});
   });
 
-  it("compacts a large ledger to latest operation states without weakening operation id reuse protection",async()=>{
+  it("compacts redundant operation states without weakening operation id reuse protection",async()=>{
     const{fs,coordinator,logPath}=await setup();
     await rename(coordinator,0,"rename-1","First");
     const original=(await fs.readText(logPath)).trim().split("\n");
-    const repeated=Array.from({length:PROJECT_OPERATION_COMPACTION_THRESHOLD+2},(_,index)=>original[index%original.length]).join("\n")+"\n";
+    const repeated=Array.from({length:PROJECT_OPERATION_COMPACTION_REDUNDANCY_THRESHOLD+2},(_,index)=>original[index%original.length]).join("\n")+"\n";
     await fs.writeTextAtomic(logPath,repeated);
 
     const state=await coordinator.getOperation("p1","rename-1");
