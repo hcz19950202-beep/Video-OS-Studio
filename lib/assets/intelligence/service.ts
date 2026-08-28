@@ -19,11 +19,19 @@ export interface AssetIntelligenceServiceOptions{
   now?:()=>string;
 }
 
+const safeAssetLabel=(asset:Asset)=>{
+  if(!asset.label)return undefined;
+  if(asset.originalName&&asset.label.trim().toLocaleLowerCase()===asset.originalName.trim().toLocaleLowerCase())return undefined;
+  const parsed=AssetIntelligenceSafeLabelSchema.safeParse(asset.label);
+  return parsed.success?parsed.data:undefined;
+};
+
 const canonicalAssetDescriptor=(asset:Asset)=>({
   id:asset.id,
   kind:asset.kind,
   relativePath:asset.relativePath,
   originalRelativePath:asset.originalRelativePath??null,
+  safeLabel:safeAssetLabel(asset)??null,
   mimeType:asset.mimeType??null,
   originalMimeType:asset.originalMimeType??null,
   durationInFrames:asset.durationInFrames??null,
@@ -35,13 +43,6 @@ const canonicalAssetDescriptor=(asset:Asset)=>({
 });
 
 export const fingerprintProjectAsset=(asset:Asset)=>createHash("sha256").update(JSON.stringify(canonicalAssetDescriptor(asset))).digest("hex");
-
-const safeAssetLabel=(asset:Asset)=>{
-  if(!asset.label)return undefined;
-  if(asset.originalName&&asset.label.trim().toLocaleLowerCase()===asset.originalName.trim().toLocaleLowerCase())return undefined;
-  const parsed=AssetIntelligenceSafeLabelSchema.safeParse(asset.label);
-  return parsed.success?parsed.data:undefined;
-};
 
 const toAnalyzerInput=(project:Project,asset:Asset):AssetIntelligenceAnalyzerInput=>{
   const label=safeAssetLabel(asset);
@@ -127,6 +128,7 @@ export class AssetIntelligenceService{
       projectId,
       assetId,
       sourceFingerprint:fingerprint,
+      sourceFingerprintScope:"project-asset-descriptor-v1",
       sourceProjectRevision:baseline.project.revision,
       analyzer:this.analyzer.descriptor,
       summary:draft.summary,
