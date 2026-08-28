@@ -13,7 +13,7 @@ export const ExportProfileSchema=z.object({
   quality:ExportQualitySchema.default("high"),
 });
 export type ExportProfile=z.infer<typeof ExportProfileSchema>;
-export type ResolvedExportProfile=ExportProfile&{width:number;height:number;fps:number;aspectMismatch:boolean;dimensionAdjusted:boolean};
+export type ResolvedExportProfile=ExportProfile&{width:number;height:number;fps:number;aspectMismatch:boolean};
 
 const h264CompatibleDimension=(value:number)=>value%2===0?value:Math.max(16,value-1);
 
@@ -26,7 +26,7 @@ export const resolveExportProfile=(project:Project,input?:Partial<ExportProfile>
   const fps=profile.sizing==="custom"?(profile.fps??project.canvas.fps):project.canvas.fps;
   const sourceRatio=project.canvas.width/project.canvas.height;
   const outputRatio=width/height;
-  return{...profile,width,height,fps,aspectMismatch:Math.abs(sourceRatio-outputRatio)>.01,dimensionAdjusted:width!==requestedWidth||height!==requestedHeight};
+  return{...profile,width,height,fps,aspectMismatch:Math.abs(sourceRatio-outputRatio)>.01};
 };
 
 const scaleFrame=(value:number,ratio:number)=>Math.max(0,Math.round(value*ratio));
