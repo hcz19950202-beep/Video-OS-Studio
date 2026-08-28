@@ -31,7 +31,7 @@ describe("AssetIntelligenceService",()=>{
     const project=projectAt(4);
     const{service}=setup({load:async()=>project});
     const record=await service.analyzeAsset(PROJECT_ID,ASSET_ID);
-    expect(record).toMatchObject({projectId:PROJECT_ID,assetId:ASSET_ID,sourceProjectRevision:4,tags:["video","has-audio","portrait","long"]});
+    expect(record).toMatchObject({projectId:PROJECT_ID,assetId:ASSET_ID,sourceProjectRevision:4,sourceFingerprintScope:"project-asset-descriptor-v1",tags:["video","has-audio","portrait","long"]});
     expect(record.sourceFingerprint).toBe(fingerprintProjectAsset(project.assets[0]));
     const serialized=JSON.stringify(record);
     expect(serialized).not.toContain("input/hero.mp4");
@@ -54,6 +54,39 @@ describe("AssetIntelligenceService",()=>{
     project=projectAt(5,"input/hero-v2.mp4");
     expect(await service.inspectFreshness(PROJECT_ID,ASSET_ID)).toMatchObject({stale:true,reason:"source-changed"});
     await expect(service.requireFresh(PROJECT_ID,ASSET_ID)).rejects.toBeInstanceOf(AssetIntelligenceStaleError);
+  });
+
+  it("changes the descriptor fingerprint when an analyzer-visible safe label changes",()=>{
+    const first=projectAt(4);
+    const second=structuredClone(first);
+    second.assets[0].label="Updated hero talking head";
+    expect(fingerprintProjectAsset(first.assets[0])).not.toBe(fingerprintProjectAsset(second.assets[0]));
+  });
+
+  it("omits an original-filename label from analyzer input",async()=>{
+    const project=projectAt(4);
+    project.assets[0].label="secret-user-file.mov";
+    let captured:unknown;
+    const analyzer:AssetIntelligenceAnalyzer={
+      descriptor:{id:"capture-analyzer",version:"1",mode:"deterministic"},
+      analyze:input=>{captured=input;return{summary:"Bounded metadata analysis.",tags:["video"],usableRanges:[]};},
+    };
+    const{service}=setup({load:async()=>project},analyzer);
+    await service.analyzeAsset(PROJECT_ID,ASSET_ID);
+    expect(captured).toMatchObject({asset:{id:ASSET_ID,kind:"video"}});
+    expect((captured as {asset:{label?:string}}).asset.label).toBeUndefined();
+    expect(JSON.stringify(captured)).not.toContain("secret-user-file.mov");
+  });
+
+  it("rejects unsafe analyzer text before persistence",async()=>{
+    const project=projectAt(4);
+    const analyzer:AssetIntelligenceAnalyzer={
+      descriptor:{id:"unsafe-analyzer",version:"1",mode:"deterministic"},
+      analyze:()=>({summary:"Use E:\\Video-OS-Studio\\private\\hero.mp4",tags:["video"],usableRanges:[]}),
+    };
+    const{repository,service}=setup({load:async()=>project},analyzer);
+    await expect(service.analyzeAsset(PROJECT_ID,ASSET_ID)).rejects.toThrow("filesystem paths or media filenames");
+    expect(await repository.load(PROJECT_ID,ASSET_ID)).toBeNull();
   });
 
   it("fails closed if the source Asset changes while analysis is running and persists no record",async()=>{
