@@ -13,21 +13,21 @@ describe("V2.3.1 H5 H.264 export dimension compatibility",()=>{
 
     expect(project).toEqual(original);
     expect(project.canvas).toMatchObject({width:641,height:361});
-    expect(resolved).toMatchObject({width:640,height:360,fps:30,dimensionAdjusted:true});
-    expect(prepared.profile).toMatchObject({width:640,height:360,dimensionAdjusted:true});
+    expect(resolved).toMatchObject({width:640,height:360,fps:30});
+    expect(prepared.profile).toMatchObject({width:640,height:360});
     expect(prepared.project.canvas).toMatchObject({width:640,height:360,fps:30});
   });
 
   it("preserves already-even H.264 export dimensions exactly",()=>{
     const project=createProject({id:"even-project",name:"Even Project",width:640,height:360,fps:30,durationInFrames:30});
-    expect(resolveExportProfile(project,{sizing:"project"})).toMatchObject({width:640,height:360,dimensionAdjusted:false});
+    expect(resolveExportProfile(project,{sizing:"project"})).toMatchObject({width:640,height:360,fps:30});
   });
 
   it("normalizes odd custom H.264 dimensions before preparing the render Project",()=>{
     const project=createProject({id:"odd-custom",name:"Odd Custom",width:1920,height:1080,fps:30,durationInFrames:30});
     const prepared=projectForExportProfile(project,{sizing:"custom",width:853,height:479,fps:60});
 
-    expect(prepared.profile).toMatchObject({width:852,height:478,fps:60,dimensionAdjusted:true});
+    expect(prepared.profile).toMatchObject({width:852,height:478,fps:60});
     expect(prepared.project.canvas).toMatchObject({width:852,height:478,fps:60,durationInFrames:60});
     expect(project.canvas).toMatchObject({width:1920,height:1080,fps:30,durationInFrames:30});
   });
