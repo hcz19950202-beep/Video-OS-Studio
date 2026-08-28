@@ -47,7 +47,7 @@ describe("ProductionMissionRepository",()=>{
     expect(await fs.exists(join(DATA_ROOT,"projects",PROJECT_ID,"project.json"))).toBe(false);
   });
 
-  it("rejects duplicate create and missing require/save",async()=>{
+  it("rejects duplicate create and missing require/mutate",async()=>{
     const fs=new InMemoryFileSystemAdapter();
     const repository=new ProductionMissionRepository(fs,DATA_ROOT);
     const mission=missionFixture();
@@ -55,7 +55,7 @@ describe("ProductionMissionRepository",()=>{
 
     await expect(repository.create(mission)).rejects.toBeInstanceOf(ProductionMissionAlreadyExistsError);
     await expect(repository.require(PROJECT_ID,"55555555-5555-4555-8555-555555555555")).rejects.toBeInstanceOf(ProductionMissionNotFoundError);
-    await expect(repository.save(missionFixture({id:"66666666-6666-4666-8666-666666666666"}))).rejects.toBeInstanceOf(ProductionMissionNotFoundError);
+    await expect(repository.mutate(PROJECT_ID,"66666666-6666-4666-8666-666666666666",current=>current)).rejects.toBeInstanceOf(ProductionMissionNotFoundError);
   });
 
   it("keeps a previous valid backup and recovers a corrupted primary",async()=>{
@@ -63,7 +63,11 @@ describe("ProductionMissionRepository",()=>{
     const repository=new ProductionMissionRepository(fs,DATA_ROOT);
     const initial=missionFixture();
     await repository.create(initial);
-    await repository.save(missionFixture({title:"Updated title",updatedAt:"2026-08-28T12:00:01.000Z"}));
+    await repository.mutate(PROJECT_ID,MISSION_ID,current=>ProductionMissionSchema.parse({
+      ...current,
+      title:"Updated title",
+      updatedAt:"2026-08-28T12:00:01.000Z",
+    }));
 
     expect(await fs.exists(backupPath())).toBe(true);
     await fs.writeTextAtomic(missionPath(),"{corrupt-primary");
@@ -78,7 +82,11 @@ describe("ProductionMissionRepository",()=>{
     const fs=new InMemoryFileSystemAdapter();
     const repository=new ProductionMissionRepository(fs,DATA_ROOT);
     await repository.create(missionFixture());
-    await repository.save(missionFixture({title:"Updated title",updatedAt:"2026-08-28T12:00:01.000Z"}));
+    await repository.mutate(PROJECT_ID,MISSION_ID,current=>ProductionMissionSchema.parse({
+      ...current,
+      title:"Updated title",
+      updatedAt:"2026-08-28T12:00:01.000Z",
+    }));
     await fs.writeTextAtomic(missionPath(),"{invalid-primary");
     await fs.writeTextAtomic(backupPath(),"{invalid-backup");
 
