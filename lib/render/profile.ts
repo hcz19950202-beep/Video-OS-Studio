@@ -15,10 +15,14 @@ export const ExportProfileSchema=z.object({
 export type ExportProfile=z.infer<typeof ExportProfileSchema>;
 export type ResolvedExportProfile=ExportProfile&{width:number;height:number;fps:number;aspectMismatch:boolean};
 
+const h264CompatibleDimension=(value:number)=>value%2===0?value:Math.max(16,value-1);
+
 export const resolveExportProfile=(project:Project,input?:Partial<ExportProfile>):ResolvedExportProfile=>{
   const profile=ExportProfileSchema.parse(input??{});
-  const width=profile.sizing==="custom"?(profile.width??project.canvas.width):project.canvas.width;
-  const height=profile.sizing==="custom"?(profile.height??project.canvas.height):project.canvas.height;
+  const requestedWidth=profile.sizing==="custom"?(profile.width??project.canvas.width):project.canvas.width;
+  const requestedHeight=profile.sizing==="custom"?(profile.height??project.canvas.height):project.canvas.height;
+  const width=h264CompatibleDimension(requestedWidth);
+  const height=h264CompatibleDimension(requestedHeight);
   const fps=profile.sizing==="custom"?(profile.fps??project.canvas.fps):project.canvas.fps;
   const sourceRatio=project.canvas.width/project.canvas.height;
   const outputRatio=width/height;
