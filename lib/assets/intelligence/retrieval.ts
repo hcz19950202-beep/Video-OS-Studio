@@ -1,9 +1,15 @@
 import type {Asset} from "@/schemas/asset";
-import {AssetIntelligenceQuerySchema,AssetIntelligenceSearchResultSchema,type AssetIntelligenceQuery,type AssetIntelligenceRecord,type AssetIntelligenceSearchResult} from "@/lib/assets/intelligence/schema";
+import {AssetIntelligenceQuerySchema,AssetIntelligenceSafeLabelSchema,AssetIntelligenceSearchResultSchema,type AssetIntelligenceQuery,type AssetIntelligenceRecord,type AssetIntelligenceSearchResult} from "@/lib/assets/intelligence/schema";
 
 const tokens=(value:string)=>[...new Set((value.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu)??[]).filter(token=>token.length>1))];
 const normalizedTags=(values:string[])=>new Set(values.map(value=>value.toLocaleLowerCase()));
 const clamp01=(value:number)=>Math.max(0,Math.min(1,value));
+const safeAssetLabel=(asset:Asset)=>{
+  if(!asset.label)return undefined;
+  if(asset.originalName&&asset.label.trim().toLocaleLowerCase()===asset.originalName.trim().toLocaleLowerCase())return undefined;
+  const parsed=AssetIntelligenceSafeLabelSchema.safeParse(asset.label);
+  return parsed.success?parsed.data:undefined;
+};
 
 export function rankAssetIntelligence(
   records:readonly AssetIntelligenceRecord[],
@@ -21,7 +27,8 @@ export function rankAssetIntelligence(
     const tagSet=normalizedTags(record.tags);
     if(required.some(tag=>!tagSet.has(tag)))return[];
 
-    const documentTerms=new Set(tokens([record.summary,record.tags.join(" "),asset.label??"",asset.kind].join(" ")));
+    const label=safeAssetLabel(asset);
+    const documentTerms=new Set(tokens([record.summary,record.tags.join(" "),label??"",asset.kind].join(" ")));
     const semanticHits=queryTerms.filter(term=>documentTerms.has(term)).length;
     const tagHits=queryTerms.filter(term=>tagSet.has(term)).length;
     const overlap=queryTerms.length?semanticHits/queryTerms.length:0;
@@ -35,7 +42,7 @@ export function rankAssetIntelligence(
     return[AssetIntelligenceSearchResultSchema.parse({
       assetId:record.assetId,
       kind:asset.kind,
-      ...(asset.label?{label:asset.label}:{}),
+      ...(label?{label}:{}),
       score,
       summary:record.summary,
       tags:record.tags,
