@@ -87,14 +87,13 @@ export class ProductionMissionService{
     const missionId=ProductionMissionIdSchema.parse(missionIdInput);
     const update=UpdateProductionMissionDetailsInputSchema.parse(input);
     await this.requireProject(projectId);
-    return this.repository.withMissionLock(projectId,missionId,async()=>{
-      const current=await this.repository.require(projectId,missionId);
+    return this.repository.mutate(projectId,missionId,current=>{
       if(isTerminalProductionMissionStatus(current.status))throw new ProductionMissionTerminalStateError(current.id,current.status);
-      return this.repository.save(ProductionMissionSchema.parse({
+      return ProductionMissionSchema.parse({
         ...current,
         ...update,
         updatedAt:this.now(),
-      }));
+      });
     });
   }
 
@@ -102,15 +101,14 @@ export class ProductionMissionService{
     const projectId=ProjectIdSchema.parse(projectIdInput);
     const missionId=ProductionMissionIdSchema.parse(missionIdInput);
     await this.requireProject(projectId);
-    return this.repository.withMissionLock(projectId,missionId,async()=>{
-      const current=await this.repository.require(projectId,missionId);
+    return this.repository.mutate(projectId,missionId,current=>{
       if(current.status==="cancelled")return current;
       if(current.status==="completed")throw new ProductionMissionTerminalStateError(current.id,current.status);
-      return this.repository.save(ProductionMissionSchema.parse({
+      return ProductionMissionSchema.parse({
         ...current,
         status:"cancelled",
         updatedAt:this.now(),
-      }));
+      });
     });
   }
 }
