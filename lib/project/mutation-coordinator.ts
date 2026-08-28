@@ -29,7 +29,7 @@ const ProjectOperationRecordSchema=z.object({
 });
 type ProjectOperationRecord=z.infer<typeof ProjectOperationRecordSchema>;
 export type ProjectOperationState=Pick<ProjectOperationRecord,"operationId"|"kind"|"expectedRevision"|"appliedRevision"|"status"|"recordedAt">;
-export const PROJECT_OPERATION_COMPACTION_THRESHOLD=256;
+export const PROJECT_OPERATION_COMPACTION_REDUNDANCY_THRESHOLD=256;
 
 export class ProjectRevisionConflictError extends Error{
   readonly code="PROJECT_REVISION_CONFLICT";
@@ -128,8 +128,10 @@ export class ProjectMutationCoordinator{
     const text=await this.fs.readText(path);
     if(!text.trim())return[];
     const{records,needsRepair}=parseRecordText(text);
-    if(needsRepair||records.length>PROJECT_OPERATION_COMPACTION_THRESHOLD){
-      const durable=records.length>PROJECT_OPERATION_COMPACTION_THRESHOLD?this.latestRecordList(records):records;
+    const latest=this.latestRecordList(records);
+    const shouldCompact=records.length-latest.length>=PROJECT_OPERATION_COMPACTION_REDUNDANCY_THRESHOLD;
+    if(needsRepair||shouldCompact){
+      const durable=shouldCompact?latest:records;
       await this.fs.writeTextAtomic(path,serializeRecords(durable));
       return durable;
     }
