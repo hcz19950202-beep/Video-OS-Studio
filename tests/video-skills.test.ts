@@ -26,6 +26,16 @@ describe("V2.4 B3 Video Skills",()=>{
     expect(VideoSkillSchema.safeParse(unsafe).success).toBe(false);
   });
 
+  it("requires explicit preconditions/context/service/component contract fields",()=>{
+    const incomplete=structuredClone(BUILTIN_VIDEO_SKILLS[0]) as unknown as Record<string,unknown>;
+    delete incomplete.allowedServices;
+    expect(VideoSkillSchema.safeParse(incomplete).success).toBe(false);
+
+    const unlisted=structuredClone(BUILTIN_VIDEO_SKILLS[1]);
+    unlisted.allowedServices=["visual-plan-service"];
+    expect(VideoSkillSchema.safeParse(unlisted).success).toBe(false);
+  });
+
   it("rejects duplicate exact Skill versions",()=>{
     expect(()=>new VideoSkillRegistry([BUILTIN_VIDEO_SKILLS[0],BUILTIN_VIDEO_SKILLS[0]])).toThrow(/Duplicate Video Skill version/);
   });
