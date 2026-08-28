@@ -62,6 +62,6 @@ describe("ProductionPlanSchema",()=>{
 
     const source=basePlan();
     const wrongOwner={...source,steps:[...source.steps,{id:"review",kind:"human-review",title:"Review",objective:"Review the result.",dependsOn:["edit-project"],risk:"high",owner:"agent",reviewRequired:true,requiresProjectRevision:true,evidence:[]}]};
-    expect(()=>ProductionPlanSchema.parse(wrongOwner)).toThrow("Human-review");
+    expect(()=>ProductionPlanSchema.parse(wrongOwner)).toThrow("cannot be owned by agent");
   });
 });
