@@ -4,7 +4,7 @@ import {AssetIntelligenceRecordSchema,type AssetIntelligenceRecord} from "@/lib/
 import type {Asset} from "@/schemas/asset";
 
 const record=(assetId:string,summary:string,tags:string[],generatedAt="2026-08-28T12:00:00.000Z"):AssetIntelligenceRecord=>AssetIntelligenceRecordSchema.parse({
-  version:1,projectId:"project-1",assetId,sourceFingerprint:"a".repeat(64),sourceProjectRevision:1,
+  version:1,projectId:"project-1",assetId,sourceFingerprint:"a".repeat(64),sourceFingerprintScope:"project-asset-descriptor-v1",sourceProjectRevision:1,
   analyzer:{id:"deterministic-media-metadata",version:"1",mode:"deterministic"},summary,tags,usableRanges:[],generatedAt,
 });
 
@@ -40,6 +40,14 @@ describe("rankAssetIntelligence",()=>{
     expect(serialized).not.toContain("originalName");
     expect(serialized).not.toContain("private-portrait.mp4");
     expect(serialized).not.toContain("customer-secret.mov");
+  });
+
+  it("omits labels that look like source filenames",()=>{
+    const unsafeAsset:Asset={id:"asset-hidden",kind:"image",relativePath:"input/hidden.png",originalName:"customer-secret.png",label:"customer-secret.png"};
+    const result=rankAssetIntelligence([record("asset-hidden","Confidential construction proof.",["image","proof"])],[unsafeAsset],{query:"confidential proof",requiredTags:[],preferredKinds:[],maxResults:1});
+    expect(result[0]).toMatchObject({assetId:"asset-hidden"});
+    expect(result[0]).not.toHaveProperty("label");
+    expect(JSON.stringify(result)).not.toContain("customer-secret.png");
   });
 
   it("uses stable Asset ID tie-breaking when scores are equal",()=>{
