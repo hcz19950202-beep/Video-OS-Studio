@@ -61,6 +61,17 @@ describe("H3c operations ledger",()=>{
     expect((await coordinator.getOperation("p1","rename-2"))?.status).toBe("applied");
   });
 
+  it("preserves a complete final record that only lost its newline",async()=>{
+    const{fs,coordinator,logPath}=await setup();
+    await rename(coordinator,0,"rename-1","First");
+    const withoutNewline=(await fs.readText(logPath)).trimEnd();
+    await fs.writeTextAtomic(logPath,withoutNewline);
+
+    const state=await coordinator.getOperation("p1","rename-1");
+    expect(state).toMatchObject({status:"applied",appliedRevision:1});
+    expect((await fs.readText(logPath)).endsWith("\n")).toBe(true);
+  });
+
   it("recovers applied truth when the project save succeeded but the applied ledger tail was truncated",async()=>{
     const{fs,repository,coordinator,logPath}=await setup();
     await rename(coordinator,0,"rename-1","First");
@@ -82,7 +93,7 @@ describe("H3c operations ledger",()=>{
     const{fs,coordinator,logPath}=await setup();
     await rename(coordinator,0,"rename-1","First");
     const original=(await fs.readText(logPath)).trim().split("\n");
-    const repeated=Array.from({length:PROJECT_OPERATION_COMPACTION_THRESHOLD+1},(_,index)=>original[index%original.length]).join("\n")+"\n";
+    const repeated=Array.from({length:PROJECT_OPERATION_COMPACTION_THRESHOLD+2},(_,index)=>original[index%original.length]).join("\n")+"\n";
     await fs.writeTextAtomic(logPath,repeated);
 
     const state=await coordinator.getOperation("p1","rename-1");
