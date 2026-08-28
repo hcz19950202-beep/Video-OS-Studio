@@ -1,6 +1,7 @@
 import {randomUUID} from "node:crypto";
 import {ZodError} from "zod";
 import {CreateJobSchema,JobRecordSchema,isTerminalJobStatus,type CreateJobInput,type JobArtifact,type JobError,type JobRecord,type JobType} from "@/lib/jobs/schema";
+import {probeExecutorLiveness} from "@/lib/jobs/process-probes";
 import {FileJobStore,type JobLogStream} from "@/lib/jobs/store";
 import {ProjectOperationIdReuseError,ProjectRevisionConflictError} from "@/lib/project/mutation-coordinator";
 import {ToolAbortedError,ToolRunError,ToolTimeoutError,type ToolLogEvent} from "@/lib/process/tool-runner";
@@ -62,12 +63,14 @@ export class DurableJobRuntime{
     const runtimeClaim=process.env.NEXT_PHASE==="phase-production-build"?null:await this.store.runtimeOwner.claimRuntimeOwner();
     if(runtimeClaim&&runtimeClaim.ownerPid>0)this.runtimeExecutorPid=runtimeClaim.ownerPid;
     const jobs=await this.store.list();
+    const activeJobs=runtimeClaim?jobs.filter(job=>job.status==="preparing"||job.status==="running"):[];
+    const executorLiveness=runtimeClaim?await probeExecutorLiveness(activeJobs.map(job=>job.executorPid),pid=>this.store.runtimeOwner.isProcessAlive(pid)):new Map<number,boolean>();
     for(const job of jobs){
       if(job.status==="queued")this.enqueue(job);
       else if(runtimeClaim&&(job.status==="preparing"||job.status==="running")){
         const startedAt=Date.parse(job.startedAt??job.updatedAt??job.createdAt);
         const priorRuntime=runtimeClaim.isNewRuntime||!Number.isFinite(startedAt)||startedAt<runtimeClaim.runtimeStartedAt;
-        const executorExited=job.executorPid===undefined||!(await this.store.runtimeOwner.isProcessAlive(job.executorPid));
+        const executorExited=job.executorPid===undefined||executorLiveness.get(job.executorPid)!==true;
         if(!priorRuntime&&!executorExited)continue;
         const at=nowIso();
         await this.store.save(JobRecordSchema.parse({...job,status:"interrupted",stage:"interrupted",error:{code:"JOB_INTERRUPTED",message:"The Video OS process stopped while this job was active. Retry after verifying local engine state.",retryable:true},updatedAt:at,finishedAt:at}));
