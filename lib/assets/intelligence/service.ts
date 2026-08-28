@@ -3,7 +3,7 @@ import type {Asset} from "@/schemas/asset";
 import type {Project} from "@/schemas/project";
 import {AssetIntelligenceAssetNotFoundError,AssetIntelligenceStaleError} from "@/lib/assets/intelligence/errors";
 import {AssetIntelligenceRepository} from "@/lib/assets/intelligence/repository";
-import {AssetIntelligenceAnalyzerInputSchema,AssetIntelligenceDraftSchema,AssetIntelligenceQuerySchema,AssetIntelligenceRecordSchema,type AssetIntelligenceAnalyzerDescriptor,type AssetIntelligenceAnalyzerInput,type AssetIntelligenceDraft,type AssetIntelligenceQuery,type AssetIntelligenceRecord,type AssetIntelligenceSearchResult} from "@/lib/assets/intelligence/schema";
+import {AssetIntelligenceAnalyzerInputSchema,AssetIntelligenceDraftSchema,AssetIntelligenceQuerySchema,AssetIntelligenceRecordSchema,AssetIntelligenceSafeLabelSchema,type AssetIntelligenceAnalyzerDescriptor,type AssetIntelligenceAnalyzerInput,type AssetIntelligenceDraft,type AssetIntelligenceQuery,type AssetIntelligenceRecord,type AssetIntelligenceSearchResult} from "@/lib/assets/intelligence/schema";
 import {rankAssetIntelligence} from "@/lib/assets/intelligence/retrieval";
 
 export interface AssetIntelligenceProjectReader{
@@ -36,22 +36,32 @@ const canonicalAssetDescriptor=(asset:Asset)=>({
 
 export const fingerprintProjectAsset=(asset:Asset)=>createHash("sha256").update(JSON.stringify(canonicalAssetDescriptor(asset))).digest("hex");
 
-const toAnalyzerInput=(project:Project,asset:Asset):AssetIntelligenceAnalyzerInput=>AssetIntelligenceAnalyzerInputSchema.parse({
-  projectId:project.project.id,
-  sourceProjectRevision:project.project.revision,
-  asset:{
-    id:asset.id,
-    kind:asset.kind,
-    ...(asset.label?{label:asset.label}:{}),
-    ...(asset.mimeType?{mimeType:asset.mimeType}:{}),
-    ...(asset.durationInFrames?{durationInFrames:asset.durationInFrames}:{}),
-    ...(asset.width?{width:asset.width}:{}),
-    ...(asset.height?{height:asset.height}:{}),
-    ...(asset.sourceFps?{sourceFps:asset.sourceFps}:{}),
-    ...(asset.hasAudio!==undefined?{hasAudio:asset.hasAudio}:{}),
-    ...(asset.sizeBytes!==undefined?{sizeBytes:asset.sizeBytes}:{}),
-  },
-});
+const safeAssetLabel=(asset:Asset)=>{
+  if(!asset.label)return undefined;
+  if(asset.originalName&&asset.label.trim().toLocaleLowerCase()===asset.originalName.trim().toLocaleLowerCase())return undefined;
+  const parsed=AssetIntelligenceSafeLabelSchema.safeParse(asset.label);
+  return parsed.success?parsed.data:undefined;
+};
+
+const toAnalyzerInput=(project:Project,asset:Asset):AssetIntelligenceAnalyzerInput=>{
+  const label=safeAssetLabel(asset);
+  return AssetIntelligenceAnalyzerInputSchema.parse({
+    projectId:project.project.id,
+    sourceProjectRevision:project.project.revision,
+    asset:{
+      id:asset.id,
+      kind:asset.kind,
+      ...(label?{label}:{}),
+      ...(asset.mimeType?{mimeType:asset.mimeType}:{}),
+      ...(asset.durationInFrames?{durationInFrames:asset.durationInFrames}:{}),
+      ...(asset.width?{width:asset.width}:{}),
+      ...(asset.height?{height:asset.height}:{}),
+      ...(asset.sourceFps?{sourceFps:asset.sourceFps}:{}),
+      ...(asset.hasAudio!==undefined?{hasAudio:asset.hasAudio}:{}),
+      ...(asset.sizeBytes!==undefined?{sizeBytes:asset.sizeBytes}:{}),
+    },
+  });
+};
 
 const unique=(values:string[])=>[...new Set(values.map(value=>value.trim().toLocaleLowerCase()).filter(Boolean))];
 
