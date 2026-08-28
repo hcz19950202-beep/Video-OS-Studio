@@ -2,6 +2,7 @@ import {z} from "zod";
 import {AgentContextSnapshotSchema,type AgentContextSnapshot} from "@/lib/ai/context";
 import {AgentProposalSchema,type AgentToolDefinition} from "@/lib/ai/schema";
 import {AssetIntelligenceQuerySchema,AssetIntelligenceSearchResultSchema} from "@/lib/assets/intelligence/schema";
+import {VideoSkillIdSchema,VideoSkillSearchQuerySchema,VideoSkillSearchResultSchema,VideoSkillSelectionIntentSchema,VideoSkillSelectionRequestSchema,VideoSkillVersionSchema} from "@/lib/production/skills/schema";
 import {WorkflowArtifactKindSchema,WorkflowCheckpointStatusSchema,WorkflowRunIdSchema,WorkflowRunStatusSchema,WorkflowScenarioSchema,WorkflowStageIdSchema,WorkflowStageStatusSchema} from "@/lib/workflows/schema";
 
 export type AgentToolExecutionContext={
@@ -20,6 +21,8 @@ export type RegisteredAgentTool={
 
 export const GetProjectContextInputSchema=z.object({}).strict();
 export const SearchAssetIntelligenceInputSchema=AssetIntelligenceQuerySchema;
+export const SearchVideoSkillsInputSchema=VideoSkillSearchQuerySchema;
+export const SelectVideoSkillInputSchema=z.object({skillId:VideoSkillIdSchema,version:VideoSkillVersionSchema.optional(),intent:VideoSkillSelectionIntentSchema}).strict();
 
 export const ProposeVisualPlanInputSchema=z.object({
   intent:z.string().min(1).max(2_000),
@@ -78,6 +81,8 @@ export const WorkflowSummarySchema=z.object({
 
 export const ProjectContextToolOutputSchema=z.object({context:AgentContextSnapshotSchema}).strict();
 export const AssetIntelligenceSearchToolOutputSchema=z.object({results:z.array(AssetIntelligenceSearchResultSchema).max(20)}).strict();
+export const VideoSkillSearchToolOutputSchema=z.object({results:z.array(VideoSkillSearchResultSchema).max(20)}).strict();
+export const VideoSkillSelectionToolOutputSchema=z.object({request:VideoSkillSelectionRequestSchema}).strict();
 export const VisualPlanProposalToolOutputSchema=z.object({proposal:AgentProposalSchema}).strict();
 export const WorkflowStatusToolOutputSchema=z.object({workflows:z.array(WorkflowSummarySchema).max(8)}).strict();
 export const WorkflowActionProposalToolOutputSchema=z.object({proposal:AgentProposalSchema}).strict();
