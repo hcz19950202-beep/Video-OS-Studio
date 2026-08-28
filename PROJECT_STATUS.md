@@ -5,23 +5,55 @@
 ## Current checkpoint
 
 ```yaml
-released_product_version: 2.3.0
-release_candidate_version: 2.3.1
+released_product_version: 2.3.1
 project_schema: 2.0.0
-released_tag: v2.3.0
-released_commit: 562ffb26d5a04bd2898513893258f857187a00b4
-released_tag_object_sha: 24069497b1986348510ef0d904382f5c3f99855d
+released_tag: v2.3.1
+released_commit: 6e07d1dbdd0ec4d64d022f7c821e133ddf207637
+released_tag_object_sha: b91d0c3adbaef09cd5c323481ec6bb04c516dd6e
 
 package_json_version: 2.3.1
 package_lock_version: 2.3.1
 
-active_development_workstream: V2.3.1 RELEASE FINALIZATION
-active_stage: FINAL RELEASE CANDIDATE CI / MERGE / TAG
-active_branch: release/v2.3.1
+active_development_workstream: NONE / V2.3.1 RELEASED
+active_stage: RELEASE COMPLETE
+active_branch: main
 local_action_required: NONE
-next_action: OPEN RELEASE PR → EXACT-HEAD FOUR-GATE CI → EXPECTED-HEAD MERGE → ANNOTATED v2.3.1 TAG
+next_action: V2.4 PLANNING MAY START AS A NEW WORKSTREAM
 v2_4_status: NOT STARTED
 ```
+
+## V2.3.1 immutable release truth
+
+Release tag:
+
+`v2.3.1`
+
+Annotated tag object:
+
+`b91d0c3adbaef09cd5c323481ec6bb04c516dd6e`
+
+Dereferenced release commit:
+
+`6e07d1dbdd0ec4d64d022f7c821e133ddf207637`
+
+The tag object is a real annotated Git tag (`type: tag`), not a lightweight ref. Independent Git object verification confirmed that the tag object dereferences exactly to the release merge commit above.
+
+Final release-merge CI:
+
+- CI #765 / run `33158996259`
+- Ubuntu Verify: PASS
+- Windows Verify: PASS
+- Browser Smoke: PASS
+- Windows Media Smoke: PASS
+
+Release-finalization PR:
+
+- PR #64: `release(v2.3.1): finalize patch release`
+- frozen PR head: `2255952ccc2a9a259a9cba64d01b2878bee63831`
+- exact-head PR CI #764 / run `33158661973`: four gates PASS
+- merge commit: `6e07d1dbdd0ec4d64d022f7c821e133ddf207637`
+
+`v2.3.0` remains immutable and must never be moved or recreated.
 
 ## V2.3.1 accepted product boundary
 
@@ -38,11 +70,15 @@ Evidence:
 - exact-main CI #760 / run `33155438036`: Ubuntu / Windows / Browser / Windows Media PASS;
 - full Windows H5 A–E on `e5d449b...`: PASS;
 - H5 report-only CI #762: PASS;
-- PR #61 merged as `c78f60aa657fd603397c8e41a170971521d609be`.
+- H5 PR #61 merged as `c78f60aa657fd603397c8e41a170971521d609be`.
 
-Full report:
+Full H5 report:
 
 `docs/acceptance/V2_3_1_H5_PATCH_ACCEPTANCE.md`
+
+Release-finalization record:
+
+`docs/acceptance/V2_3_1_RELEASE_FINALIZATION.md`
 
 ## V2.3.1 milestone evidence
 
@@ -58,29 +94,28 @@ H4 Local-First Security Boundary           → COMPLETE / PR #60 / main 4df173cd
 H5 Blocker: H264 export dimension truth    → COMPLETE / PR #62 / main c34a1d337ea5434f1a9da0c385cac19ffa89d722
 H5 Blocker: Windows atomic persistence     → COMPLETE / PR #63 / main e5d449b3eb3b69fca23113c2fe75a905049578ea
 H5 End-to-End Patch Acceptance             → COMPLETE / PR #61 / main c78f60aa657fd603397c8e41a170971521d609be
-V2.3.1 Release Metadata Sync               → COMPLETE / package + lock = 2.3.1
-V2.3.1 Final Release CI / Merge / Tag      → ACTIVE
+V2.3.1 Release Metadata / Final CI          → COMPLETE / PR #64 / main 6e07d1dbdd0ec4d64d022f7c821e133ddf207637
+V2.3.1 Annotated Immutable Tag              → COMPLETE / v2.3.1 / tag object b91d0c3adbaef09cd5c323481ec6bb04c516dd6e
 ```
 
-## Release metadata truth
-
-Release branch:
-
-`release/v2.3.1`
-
-Package metadata:
+## Package and dependency truth
 
 ```text
 package.json version:                 2.3.1
 package-lock.json top-level version:  2.3.1
 package-lock packages[""].version:    2.3.1
+
+Project Schema:       2.0.0
+Node:                 24.x
+remotion:             4.0.513
+@remotion/player:     4.0.513
+@remotion/cli:        4.0.513
+hyperframes:          0.8.10
+@playwright/test:     1.62.1
+prettier:             3.8.1
 ```
 
-The one-shot metadata sync passed a structural before/after guard that allowed only those three version changes. The temporary workflow was removed after use, so it does not belong in the final release diff.
-
-Detailed record:
-
-`docs/acceptance/V2_3_1_RELEASE_FINALIZATION.md`
+The release metadata sync structurally verified that only the three package-version fields changed from 2.3.0 to 2.3.1. No dependency, devDependency, engine, integrity, resolved URL, package tree, schema, or runtime pin drift was accepted.
 
 ## H5 final acceptance summary
 
@@ -147,40 +182,9 @@ PASS.
 - real Windows `FileShare.None` contention passed for both `FileJobStore` and `NodeFileSystemAdapter.writeTextAtomic`;
 - no product-level EPERM/EACCES/EBUSY failure or temp residue.
 
-## Final release gate
-
-V2.3.1 Release Finalization is metadata/docs only unless the release CI proves a defect.
-
-Required remaining sequence:
-
-1. open the `release/v2.3.1` PR against `main`;
-2. freeze the exact final PR head;
-3. run the repository's four gates on that exact head:
-   - Ubuntu Verify;
-   - Windows Verify;
-   - Browser Smoke;
-   - Windows Media Smoke;
-4. audit the final PR diff for metadata/docs only and zero dependency/pin/schema drift;
-5. merge with expected-head protection;
-6. independently verify `main` at the release merge commit;
-7. create annotated immutable tag `v2.3.1` pointing to that exact release merge commit;
-8. independently verify the tag object and dereferenced commit;
-9. optionally add a post-release truth-only docs commit recording the immutable tag object SHA; never move the tag.
-
-No new Local Codex gate is required for this metadata/docs-only step unless cloud CI or diff review exposes a real release defect.
-
 ## Accepted invariants
 
 ```text
-Project Schema:       2.0.0
-Node:                 24.x
-remotion:             4.0.513
-@remotion/player:     4.0.513
-@remotion/cli:        4.0.513
-hyperframes:          0.8.10
-@playwright/test:     1.62.1
-prettier:             3.8.1
-
 Source Media != Project Canvas != Export Profile
 Project != Workflow != Job
 Agent Session != Project
@@ -196,12 +200,8 @@ REUSE > MODIFY > CREATE
 - default local server boundary remains loopback-first.
 - Windows durable atomic replacement preserves temp-file + atomic rename semantics with bounded transient-error retry.
 
-## Release truth before V2.3.1 tag
+## Next-work boundary
 
-The currently released immutable boundary remains V2.3.0 until V2.3.1 release finalization and annotated tag verification complete:
+V2.3.1 is fully released and immutable. V2.4 remains **NOT STARTED** in this status document.
 
-- tag: `v2.3.0`
-- release commit: `562ffb26d5a04bd2898513893258f857187a00b4`
-- annotated tag object: `24069497b1986348510ef0d904382f5c3f99855d`
-
-V2.3.1 is currently a release candidate with synchronized package metadata. V2.4 is NOT STARTED.
+Any V2.4 work must begin as a new explicit workstream/branch/PR. It must not rewrite V2.3.1 release truth, move `v2.3.1`, or alter historical acceptance evidence.
