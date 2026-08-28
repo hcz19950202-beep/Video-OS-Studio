@@ -159,7 +159,7 @@ Post-release truth PR:       #65
 ```text
 package.json version:                 2.3.1
 package-lock.json top-level version:  2.3.1
-package-lock packages[""] .version:   2.3.1
+package-lock packages[""].version:    2.3.1
 
 Project Schema:       2.0.0
 Node:                 24.x
