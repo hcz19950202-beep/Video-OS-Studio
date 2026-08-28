@@ -20,7 +20,7 @@ export const VideoSkillFallbackModeSchema=z.enum(["skip","degrade","manual-revie
 export const VideoSkillApplicationModeSchema=z.enum(["reuse","modify","create"]);
 export type VideoSkillApplicationMode=z.infer<typeof VideoSkillApplicationModeSchema>;
 
-const uniqueArray=<T extends z.ZodTypeAny>(schema:T,label:string,min:number,max:number)=>z.array(schema).min(min).max(max).default([]).superRefine((values,ctx)=>{
+const uniqueArray=<T extends z.ZodTypeAny>(schema:T,label:string,min:number,max:number)=>z.array(schema).min(min).max(max).superRefine((values,ctx)=>{
   const seen=new Set<string>();
   for(const[index,value]of values.entries()){
     const id=String(value);
@@ -42,7 +42,7 @@ export const VideoSkillSchema=z.object({
   title:VideoSkillTextSchema,
   intendedUse:VideoSkillTextSchema,
   discoveryTerms:uniqueArray(z.string().trim().min(1).max(80).regex(/^[A-Za-z0-9][A-Za-z0-9 _-]*$/),"discovery term",0,32),
-  preconditions:z.array(VideoSkillTextSchema).max(16).default([]),
+  preconditions:z.array(VideoSkillTextSchema).max(16),
   requiredContext:uniqueArray(VideoSkillContextKeySchema,"required context key",0,8),
   recipe:z.object({steps:z.array(VideoSkillRecipeStepSchema).min(1).max(16)}).strict(),
   allowedServices:uniqueArray(VideoSkillServiceIdSchema,"allowed service",1,8),
