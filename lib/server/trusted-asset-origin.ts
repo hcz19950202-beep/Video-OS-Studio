@@ -24,7 +24,13 @@ export type TrustedAssetOriginEnv={
   PORT?:string;
 };
 
-export const resolveTrustedAssetBaseUrl=(env:TrustedAssetOriginEnv=process.env)=>{
+const runtimeAssetOriginEnv=():TrustedAssetOriginEnv=>({
+  VIDEO_OS_ASSET_BASE_URL:process.env.VIDEO_OS_ASSET_BASE_URL,
+  VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN:process.env.VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN,
+  PORT:process.env.PORT,
+});
+
+export const resolveTrustedAssetBaseUrl=(env:TrustedAssetOriginEnv=runtimeAssetOriginEnv())=>{
   const configured=env.VIDEO_OS_ASSET_BASE_URL?.trim();
   const candidate=configured||`http://127.0.0.1:${defaultPort(env.PORT)}`;
   let url:URL;
