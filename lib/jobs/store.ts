@@ -1,6 +1,7 @@
 import {randomUUID} from "node:crypto";
-import {appendFile,mkdir,open,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
+import {appendFile,mkdir,open,readFile,readdir,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
+import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
 import {JobArtifactsSchema,JobIdSchema,JobRecordSchema,type JobArtifact,type JobRecord} from "@/lib/jobs/schema";
 import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 
@@ -40,7 +41,7 @@ export class FileJobStore{
       try{
         await mkdir(dirname(path),{recursive:true});
         await writeFile(temp,content,"utf8");
-        await rename(temp,path);
+        await replaceFileAtomically(temp,path);
       }finally{await rm(temp,{force:true});}
     });
   }
