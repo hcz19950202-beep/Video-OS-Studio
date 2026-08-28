@@ -63,14 +63,18 @@ const parseRecordText=(text:string)=>{
   if(!text)return{records:[] as ProjectOperationRecord[],needsRepair:false};
   const endsWithNewline=text.endsWith("\n");
   const parts=text.split(/\r?\n/u);
-  const fullLines=endsWithNewline?parts.slice(0,-1):parts.slice(0,-1);
+  const fullLines=parts.slice(0,-1);
   const tail=endsWithNewline?"":parts.at(-1)??"";
   const records=fullLines.filter(Boolean).map(line=>ProjectOperationRecordSchema.parse(JSON.parse(line)));
   if(!tail.trim())return{records,needsRepair:!endsWithNewline};
-  try{
-    records.push(ProjectOperationRecordSchema.parse(JSON.parse(tail)));
-    return{records,needsRepair:true};
-  }catch{return{records,needsRepair:true};}
+  let tailValue:unknown;
+  try{tailValue=JSON.parse(tail);}
+  catch(error){
+    if(error instanceof SyntaxError)return{records,needsRepair:true};
+    throw error;
+  }
+  records.push(ProjectOperationRecordSchema.parse(tailValue));
+  return{records,needsRepair:true};
 };
 
 export type CoordinatedProjectMutation={
