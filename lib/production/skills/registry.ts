@@ -12,6 +12,9 @@ const skillRef=(skill:VideoSkill):VideoSkillRef=>({id:skill.id,version:skill.ver
 export class VideoSkillContextError extends Error{
   constructor(readonly missingContext:VideoSkillContextKey[]){super(`Video Skill is missing required context: ${missingContext.join(", ")}`);this.name="VideoSkillContextError";}
 }
+export class VideoSkillNotFoundError extends Error{
+  constructor(readonly skill:VideoSkillRef){super(`Video Skill is not registered: ${videoSkillEvidenceId(skill)}`);this.name="VideoSkillNotFoundError";}
+}
 
 export type VideoSkillApplicationHints={reusableSkillRefs?:readonly string[];modifiableSkillIds?:readonly string[]};
 
@@ -55,10 +58,12 @@ export class VideoSkillRegistry{
     return"create";
   }
 
-  buildSelectionRequest(input:{projectId:string;baseProjectRevision:number;skill:VideoSkill;intent:string;availableContext:readonly VideoSkillContextKey[];hints?:VideoSkillApplicationHints}):VideoSkillSelectionRequest{
-    const available=new Set(input.availableContext);const missing=input.skill.requiredContext.filter(key=>!available.has(key));
+  buildSelectionRequest(input:{projectId:string;baseProjectRevision:number;skill:VideoSkillRef;intent:string;availableContext:readonly VideoSkillContextKey[];hints?:VideoSkillApplicationHints}):VideoSkillSelectionRequest{
+    const registered=this.get(input.skill.id,input.skill.version);
+    if(!registered)throw new VideoSkillNotFoundError(input.skill);
+    const available=new Set(input.availableContext);const missing=registered.requiredContext.filter(key=>!available.has(key));
     if(missing.length)throw new VideoSkillContextError(missing);
-    const ref=skillRef(input.skill);const mode=this.chooseApplicationMode(ref,input.hints);
-    return VideoSkillSelectionRequestSchema.parse({projectId:input.projectId,baseProjectRevision:input.baseProjectRevision,skill:ref,mode,intent:input.intent,requiredContext:input.skill.requiredContext,rationale:[`Selected ${videoSkillEvidenceId(ref)} from the allow-listed Video Skill registry.`,`Application mode resolved as ${mode} using REUSE > MODIFY > CREATE precedence.`]});
+    const ref=skillRef(registered);const mode=this.chooseApplicationMode(ref,input.hints);
+    return VideoSkillSelectionRequestSchema.parse({projectId:input.projectId,baseProjectRevision:input.baseProjectRevision,skill:ref,mode,intent:input.intent,requiredContext:registered.requiredContext,rationale:[`Selected ${videoSkillEvidenceId(ref)} from the allow-listed Video Skill registry.`,`Application mode resolved as ${mode} using REUSE > MODIFY > CREATE precedence.`]});
   }
 }
