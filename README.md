@@ -236,6 +236,22 @@ VIDEO_OS_DATA_ROOT=E:\Video-OS-Data
 
 Real provider secrets belong only in `.env.local`; they must never be committed.
 
+Local serving is loopback-only by default:
+
+```bash
+npm run dev
+npm run start
+```
+
+Both commands bind `127.0.0.1`. Network exposure is explicit:
+
+```bash
+npm run dev:remote
+npm run start:remote
+```
+
+The remote entrypoints bind `0.0.0.0` and should only be used on a trusted network. Remotion and Workflow asset fetches use `VIDEO_OS_ASSET_BASE_URL`; non-loopback asset origins additionally require the explicit `VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN=1` opt-in.
+
 ## Cloud verification baseline
 
 ```bash
