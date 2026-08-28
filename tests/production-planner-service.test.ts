@@ -65,7 +65,9 @@ describe("ProductionPlannerService",()=>{
     const{missions,plans,service}=await setup({load:async()=>projectAtRevision(++loads===1?5:6)});
     await expect(service.generate(PROJECT_ID,MISSION_ID)).rejects.toBeInstanceOf(ProductionPlanRevisionConflictError);
     expect(await plans.list(PROJECT_ID,MISSION_ID)).toEqual([]);
-    expect(await missions.require(PROJECT_ID,MISSION_ID)).toMatchObject({status:"draft",planId:undefined});
+    const mission=await missions.require(PROJECT_ID,MISSION_ID);
+    expect(mission.status).toBe("draft");
+    expect(mission.planId).toBeUndefined();
   });
 
   it("detects stale persisted plans after later Project revision drift",async()=>{
@@ -88,7 +90,9 @@ describe("ProductionPlannerService",()=>{
     }};
     const service=new ProductionPlannerService(missions,plans,{load:async()=>projectAtRevision(5)},planner,{createId:()=>PLAN_ID,now:()=>"2026-08-28T12:00:05.000Z"});
     await expect(service.generate(PROJECT_ID,MISSION_ID)).rejects.toBeInstanceOf(ProductionMissionPlanConflictError);
-    expect(await missions.require(PROJECT_ID,MISSION_ID)).toMatchObject({title:"User changed the brief",status:"draft",planId:undefined,updatedAt:"2026-08-28T12:00:00.000Z"});
+    const mission=await missions.require(PROJECT_ID,MISSION_ID);
+    expect(mission).toMatchObject({title:"User changed the brief",status:"draft",updatedAt:"2026-08-28T12:00:00.000Z"});
+    expect(mission.planId).toBeUndefined();
     expect((await plans.list(PROJECT_ID,MISSION_ID)).map(plan=>plan.id)).toEqual([PLAN_ID]);
   });
 
@@ -97,7 +101,9 @@ describe("ProductionPlannerService",()=>{
     const{missions,plans,service}=await setup({load:async()=>projectAtRevision(5)},planner);
     await expect(service.generate(PROJECT_ID,MISSION_ID)).rejects.toThrow("planner unavailable");
     expect(await plans.list(PROJECT_ID,MISSION_ID)).toEqual([]);
-    expect(await missions.require(PROJECT_ID,MISSION_ID)).toMatchObject({status:"draft",planId:undefined});
+    const mission=await missions.require(PROJECT_ID,MISSION_ID);
+    expect(mission.status).toBe("draft");
+    expect(mission.planId).toBeUndefined();
   });
 
   it("refuses to plan completed or cancelled Missions",async()=>{
