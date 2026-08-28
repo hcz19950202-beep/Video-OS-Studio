@@ -41,7 +41,7 @@ export const ProductionPlanEvidenceRefSchema=z.object({
   kind:ProductionPlanEvidenceKindSchema,
   id:LogicalEvidenceIdSchema,
 }).strict().superRefine((evidence,ctx)=>{
-  if(evidence.kind==="skill"&&!VideoSkillEvidenceIdSchema.safeParse(evidence.id).success)ctx.addIssue({code:"custom",path:["id"],message:"Skill evidence must record an exact allow-listed Skill ID and semantic version as skill-id@major.minor.patch."});
+  if(evidence.kind==="skill"&&!VideoSkillEvidenceIdSchema.safeParse(evidence.id).success)ctx.addIssue({code:"custom",path:["id"],message:"Skill evidence must record an exact Skill ID and semantic version as skill-id@major.minor.patch."});
 });
 
 export const ProductionPlanStepSchema=z.object({
