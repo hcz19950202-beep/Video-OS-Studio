@@ -71,7 +71,7 @@ export class DeterministicAssetIntelligenceAnalyzer implements AssetIntelligence
 
   analyze(input:AssetIntelligenceAnalyzerInput):AssetIntelligenceDraft{
     const asset=input.asset;
-    const tags=[asset.kind];
+    const tags:string[]=[asset.kind];
     if(asset.hasAudio===true)tags.push("has-audio");
     if(asset.hasAudio===false)tags.push("silent");
     if(asset.width&&asset.height){
@@ -83,7 +83,7 @@ export class DeterministicAssetIntelligenceAnalyzer implements AssetIntelligence
       if(asset.durationInFrames<=150)tags.push("short");
       else if(asset.durationInFrames>=900)tags.push("long");
     }
-    const facts=[asset.kind];
+    const facts:string[]=[asset.kind];
     if(asset.width&&asset.height)facts.push(`${asset.width}x${asset.height}`);
     if(asset.hasAudio!==undefined)facts.push(asset.hasAudio?"with audio":"without audio");
     const summary=`Deterministic metadata profile: ${facts.join(", ")}.`;
