@@ -52,7 +52,7 @@ export function createVideoSkillAgentTools(registry:VideoSkillRegistry):Register
         const parsed=SelectVideoSkillInputSchema.parse(input);const skill=registry.get(parsed.skillId,parsed.version);
         if(!skill)throw new AgentToolSafeError("skill_not_found","Requested Video Skill is not available in the allow-listed registry.");
         try{
-          return{request:registry.buildSelectionRequest({projectId:context.context.projectId,baseProjectRevision:context.context.baseProjectRevision,skill,intent:parsed.intent,availableContext:availableVideoSkillContext(context.context)})};
+          return{request:registry.buildSelectionRequest({projectId:context.context.projectId,baseProjectRevision:context.context.baseProjectRevision,skill:{id:skill.id,version:skill.version},intent:parsed.intent,availableContext:availableVideoSkillContext(context.context)})};
         }catch(error){
           if(error instanceof VideoSkillContextError)throw new AgentToolSafeError("skill_context_missing",`Video Skill requires additional approved context: ${error.missingContext.join(", ")}.`);
           throw error;
