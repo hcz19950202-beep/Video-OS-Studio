@@ -25,6 +25,16 @@ export const ProductionPlanTextSchema=z.string().trim().min(1).max(1000).superRe
   if(UnsafeExecutablePattern.test(value))ctx.addIssue({code:"custom",message:"Plan text must describe production intent, not executable commands or machine paths."});
 });
 const LogicalEvidenceIdSchema=z.string().trim().min(1).max(128).refine(value=>!/[\\/]/.test(value)&&!value.includes(".."),"Evidence IDs must be logical identifiers, not filesystem paths");
+const ownersByKind:Record<z.infer<typeof ProductionPlanStepKindSchema>,ReadonlySet<z.infer<typeof ProductionPlanOwnerSchema>>>={
+  "analyze-script":new Set(["agent"]),
+  "plan-visuals":new Set(["agent"]),
+  "prepare-assets":new Set(["agent","job"]),
+  "edit-project":new Set(["agent"]),
+  "run-workflow":new Set(["workflow"]),
+  "render-preview":new Set(["job"]),
+  "human-review":new Set(["human-review"]),
+  "render-final":new Set(["job"]),
+};
 
 export const ProductionPlanEvidenceRefSchema=z.object({
   kind:ProductionPlanEvidenceKindSchema,
@@ -46,8 +56,8 @@ export const ProductionPlanStepSchema=z.object({
   if(new Set(step.dependsOn).size!==step.dependsOn.length)ctx.addIssue({code:"custom",path:["dependsOn"],message:"Plan step dependencies must be unique."});
   if(step.dependsOn.includes(step.id))ctx.addIssue({code:"custom",path:["dependsOn"],message:"Plan step cannot depend on itself."});
   if(step.risk==="high"&&!step.reviewRequired)ctx.addIssue({code:"custom",path:["reviewRequired"],message:"High-risk plan steps require an explicit review checkpoint."});
-  if(step.kind==="human-review"&&(step.owner!=="human-review"||!step.reviewRequired))ctx.addIssue({code:"custom",message:"Human-review steps must be owned by human-review and require review."});
-  if(step.owner==="human-review"&&step.kind!=="human-review")ctx.addIssue({code:"custom",path:["owner"],message:"Only human-review steps may use the human-review owner."});
+  if(!ownersByKind[step.kind].has(step.owner))ctx.addIssue({code:"custom",path:["owner"],message:`Plan step kind ${step.kind} cannot be owned by ${step.owner}.`});
+  if(step.kind==="human-review"&&!step.reviewRequired)ctx.addIssue({code:"custom",path:["reviewRequired"],message:"Human-review steps require review."});
 });
 export type ProductionPlanStep=z.infer<typeof ProductionPlanStepSchema>;
 
