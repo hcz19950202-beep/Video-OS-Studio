@@ -1,7 +1,7 @@
 import {describe,expect,it} from "vitest";
 import {ProductionPlanEvidenceRefSchema} from "@/lib/production/plan/schema";
 import {BUILTIN_VIDEO_SKILLS} from "@/lib/production/skills/builtin";
-import {VideoSkillContextError,VideoSkillRegistry} from "@/lib/production/skills/registry";
+import {VideoSkillContextError,VideoSkillNotFoundError,VideoSkillRegistry} from "@/lib/production/skills/registry";
 import {VideoSkillSchema,VideoSkillVersionSchema,videoSkillEvidenceId} from "@/lib/production/skills/schema";
 
 describe("V2.4 B3 Video Skills",()=>{
@@ -47,11 +47,11 @@ describe("V2.4 B3 Video Skills",()=>{
     expect(results[0].score).toBeGreaterThan(0);
   });
 
-  it("enforces required context before producing an application request",()=>{
-    const registry=new VideoSkillRegistry(BUILTIN_VIDEO_SKILLS);const skill=registry.get("b2b-proof-card","1.0.0");
-    expect(skill).toBeDefined();
-    expect(()=>registry.buildSelectionRequest({projectId:"project-1",baseProjectRevision:7,skill:skill!,intent:"Show approved construction proof.",availableContext:["script","brand"]})).toThrow(VideoSkillContextError);
-    expect(registry.buildSelectionRequest({projectId:"project-1",baseProjectRevision:7,skill:skill!,intent:"Show approved construction proof.",availableContext:["script","assets","brand"]})).toMatchObject({projectId:"project-1",baseProjectRevision:7,skill:{id:"b2b-proof-card",version:"1.0.0"},mode:"create"});
+  it("enforces registry membership and required context before producing an application request",()=>{
+    const registry=new VideoSkillRegistry(BUILTIN_VIDEO_SKILLS);const ref={id:"b2b-proof-card",version:"1.0.0"};
+    expect(()=>registry.buildSelectionRequest({projectId:"project-1",baseProjectRevision:7,skill:{id:"provider-shell-skill",version:"1.0.0"},intent:"Run it.",availableContext:["script","assets","brand"]})).toThrow(VideoSkillNotFoundError);
+    expect(()=>registry.buildSelectionRequest({projectId:"project-1",baseProjectRevision:7,skill:ref,intent:"Show approved construction proof.",availableContext:["script","brand"]})).toThrow(VideoSkillContextError);
+    expect(registry.buildSelectionRequest({projectId:"project-1",baseProjectRevision:7,skill:ref,intent:"Show approved construction proof.",availableContext:["script","assets","brand"]})).toMatchObject({projectId:"project-1",baseProjectRevision:7,skill:ref,mode:"create"});
   });
 
   it("resolves REUSE before MODIFY before CREATE",()=>{
