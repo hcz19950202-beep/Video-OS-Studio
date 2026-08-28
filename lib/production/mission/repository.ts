@@ -63,14 +63,22 @@ export class ProductionMissionRepository{
   }
 
   private async recoverBackup(projectId:string,missionId:string):Promise<ProductionMission|null>{
-    const backupPath=this.backupPath(projectId,missionId);
-    if(!(await this.fs.exists(backupPath)))return null;
-    const recovered=this.parseForPath(await this.fs.readText(backupPath),projectId,missionId);
-    await this.withAtomicWriteLock(projectId,missionId,async()=>{
+    return this.withAtomicWriteLock(projectId,missionId,async()=>{
+      const path=this.missionPath(projectId,missionId);
+      if(await this.fs.exists(path)){
+        try{return this.parseForPath(await this.fs.readText(path),projectId,missionId);}
+        catch{
+          // Continue to the backup only while the primary remains invalid under the durable lock.
+        }
+      }
+
+      const backupPath=this.backupPath(projectId,missionId);
+      if(!(await this.fs.exists(backupPath)))return null;
+      const recovered=this.parseForPath(await this.fs.readText(backupPath),projectId,missionId);
       await this.fs.ensureDir(this.missionsDir(projectId));
-      await this.fs.writeTextAtomic(this.missionPath(projectId,missionId),serialize(recovered));
+      await this.fs.writeTextAtomic(path,serialize(recovered));
+      return recovered;
     });
-    return recovered;
   }
 
   private async loadForMutationUnderAtomicLock(projectId:string,missionId:string):Promise<ProductionMission>{
@@ -121,7 +129,7 @@ export class ProductionMissionRepository{
         const recovered=await this.recoverBackup(projectId,missionId);
         if(recovered)return recovered;
       }catch{
-        // The primary file is durable truth. Preserve its parse failure if backup recovery also fails.
+        // Preserve the primary failure if durable recovery cannot produce valid Mission truth.
       }
       throw primaryError;
     }
@@ -131,16 +139,6 @@ export class ProductionMissionRepository{
     const mission=await this.load(projectId,missionId);
     if(!mission)throw new ProductionMissionNotFoundError(projectId,missionId);
     return mission;
-  }
-
-  async save(missionInput:ProductionMission):Promise<ProductionMission>{
-    const mission=ProductionMissionSchema.parse(missionInput);
-    const path=this.missionPath(mission.projectId,mission.id);
-    return this.withAtomicWriteLock(mission.projectId,mission.id,async()=>{
-      if(!(await this.fs.exists(path)))throw new ProductionMissionNotFoundError(mission.projectId,mission.id);
-      await this.fs.writeTextAtomic(path,serialize(mission),this.backupPath(mission.projectId,mission.id));
-      return mission;
-    });
   }
 
   async mutate(
