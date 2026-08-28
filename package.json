@@ -6,9 +6,11 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 127.0.0.1",
+    "dev:remote": "next dev --hostname 0.0.0.0",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --hostname 127.0.0.1",
+    "start:remote": "next start --hostname 0.0.0.0",
     "format": "node scripts/h6-format.mjs --write",
     "format:check": "node scripts/h6-format.mjs --check",
     "lint": "eslint .",
