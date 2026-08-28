@@ -182,7 +182,9 @@ describe("ProductionMissionExecutor",()=>{
     expect(cancelled?.status).toBe("cancelled");
     expect(advanced.steps[0].status).toBe("completed");
     expect(advanced.steps[0].evidence).toContainEqual({kind:"agent-session",id:"durable-after-cancel"});
-    expect(await missions.require(PROJECT_ID,MISSION_ID)).toMatchObject({status:"cancelled",activeStepId:undefined});
+    const cancelledMission=await missions.require(PROJECT_ID,MISSION_ID);
+    expect(cancelledMission.status).toBe("cancelled");
+    expect(cancelledMission.activeStepId).toBeUndefined();
   });
 
   it("invalidates an old checkpoint after re-plan and starts a fresh execution for the new Plan",async()=>{
