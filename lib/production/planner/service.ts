@@ -1,5 +1,6 @@
 import {randomUUID} from "node:crypto";
 import {ProductionMissionRepository} from "@/lib/production/mission/repository";
+import type {ProductionMission} from "@/lib/production/mission/schema";
 import {ProductionPlanRepository} from "@/lib/production/plan/repository";
 import {ProductionPlanDraftSchema,ProductionPlanIdSchema,ProductionPlanSchema,type ProductionPlan,type ProductionPlanDraft} from "@/lib/production/plan/schema";
 import {ProductionMissionPlanConflictError,ProductionMissionPlanningStateError,ProductionPlanRevisionConflictError} from "@/lib/production/plan/errors";
@@ -20,6 +21,14 @@ export interface ProductionPlannerServiceOptions{
 }
 
 const canPlanStatus=(status:string)=>status==="draft"||status==="planning"||status==="ready"||status==="blocked"||status==="failed";
+const missionPlanningSignature=(mission:ProductionMission)=>JSON.stringify({
+  title:mission.title,
+  brief:mission.brief,
+  target:mission.target,
+  autonomyPolicy:mission.autonomyPolicy,
+  status:mission.status,
+  planId:mission.planId??null,
+});
 
 export class ProductionPlannerService{
   private readonly now:()=>string;
@@ -39,6 +48,7 @@ export class ProductionPlannerService{
   async generate(projectId:string,missionId:string,expectedRevision?:number):Promise<ProductionPlan>{
     const mission=await this.missions.require(projectId,missionId);
     if(!canPlanStatus(mission.status))throw new ProductionMissionPlanningStateError(mission.status);
+    const missionSignature=missionPlanningSignature(mission);
 
     const baseline=await this.projects.load(projectId);
     const planningRevision=baseline.project.revision;
@@ -65,7 +75,7 @@ export class ProductionPlannerService{
     await this.plans.create(plan);
 
     await this.missions.mutate(projectId,mission.id,current=>{
-      if(current.updatedAt!==mission.updatedAt||current.planId!==mission.planId||!canPlanStatus(current.status))throw new ProductionMissionPlanConflictError();
+      if(missionPlanningSignature(current)!==missionSignature||!canPlanStatus(current.status))throw new ProductionMissionPlanConflictError();
       return {...current,planId:plan.id,status:"ready",updatedAt:this.now()};
     });
     return plan;
