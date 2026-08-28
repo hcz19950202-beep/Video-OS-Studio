@@ -1,6 +1,8 @@
+import {mkdtemp,rm} from "node:fs/promises";
+import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {describe,expect,it} from "vitest";
-import {InMemoryFileSystemAdapter} from "@/adapters/filesystem";
+import {InMemoryFileSystemAdapter,NodeFileSystemAdapter} from "@/adapters/filesystem";
 import {
   ProductionMissionAlreadyExistsError,
   ProductionMissionNotFoundError,
@@ -31,6 +33,7 @@ const missionFixture=(overrides:Partial<ProductionMission>={}):ProductionMission
 
 const missionPath=(id=MISSION_ID)=>join(DATA_ROOT,"projects",PROJECT_ID,"production","missions",`${id}.json`);
 const backupPath=(id=MISSION_ID)=>join(DATA_ROOT,"projects",PROJECT_ID,"production","missions",`${id}.backup.json`);
+const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
 describe("ProductionMissionRepository",()=>{
   it("creates, reopens and lists durable Missions outside project.json",async()=>{
@@ -102,5 +105,46 @@ describe("ProductionMissionRepository",()=>{
 
     const missions=await repository.list(PROJECT_ID);
     expect(missions.map(mission=>mission.id)).toEqual([MISSION_ID]);
+  });
+
+  it("serializes read-modify-write mutations across repository instances",async()=>{
+    const dataRoot=await mkdtemp(join(tmpdir(),"video-os-mission-"));
+    try{
+      const firstRepository=new ProductionMissionRepository(new NodeFileSystemAdapter(),dataRoot);
+      const secondRepository=new ProductionMissionRepository(new NodeFileSystemAdapter(),dataRoot);
+      await firstRepository.create(missionFixture());
+
+      let signalFirstRead!:()=>void;
+      let releaseFirst!:()=>void;
+      const firstRead=new Promise<void>(resolve=>{signalFirstRead=resolve;});
+      const holdFirst=new Promise<void>(resolve=>{releaseFirst=resolve;});
+
+      const firstMutation=firstRepository.mutate(PROJECT_ID,MISSION_ID,async current=>{
+        signalFirstRead();
+        await holdFirst;
+        return ProductionMissionSchema.parse({
+          ...current,
+          title:"Updated by first repository",
+          updatedAt:"2026-08-28T12:00:01.000Z",
+        });
+      });
+
+      await firstRead;
+      const secondMutation=secondRepository.mutate(PROJECT_ID,MISSION_ID,current=>ProductionMissionSchema.parse({
+        ...current,
+        brief:"Updated by second repository",
+        updatedAt:"2026-08-28T12:00:02.000Z",
+      }));
+
+      await sleep(25);
+      releaseFirst();
+      await Promise.all([firstMutation,secondMutation]);
+
+      const finalMission=await secondRepository.require(PROJECT_ID,MISSION_ID);
+      expect(finalMission.title).toBe("Updated by first repository");
+      expect(finalMission.brief).toBe("Updated by second repository");
+    }finally{
+      await rm(dataRoot,{recursive:true,force:true});
+    }
   });
 });
