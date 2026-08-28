@@ -101,4 +101,11 @@ describe("H3c operations ledger",()=>{
     await fs.appendText(logPath,"not-json\n");
     await expect(coordinator.getOperation("p1","rename-1")).rejects.toThrow();
   });
+
+  it("fails closed for a complete but schema-invalid final record without a newline",async()=>{
+    const{fs,coordinator,logPath}=await setup();
+    await rename(coordinator,0,"rename-1","First");
+    await fs.appendText(logPath,JSON.stringify({operationId:"schema-invalid-tail"}));
+    await expect(coordinator.getOperation("p1","rename-1")).rejects.toThrow();
+  });
 });
