@@ -1,38 +1,42 @@
-import { access, copyFile, mkdir, open, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
-import { dirname, posix as posixPath } from "node:path";
-import type { FileSystemAdapter } from "@/adapters/contracts";
+import {access,copyFile,mkdir,open,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
+import {randomUUID} from "node:crypto";
+import {dirname,posix as posixPath} from "node:path";
+import type {FileSystemAdapter} from "@/adapters/contracts";
 
 const lockSleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
-export class NodeFileSystemAdapter implements FileSystemAdapter {
-  private readonly writeChains = new Map<string, Promise<void>>();
+export class NodeFileSystemAdapter implements FileSystemAdapter{
+  private readonly writeChains=new Map<string,Promise<void>>();
 
-  async exists(path: string): Promise<boolean> {
-    try {
-      await access(path);
-      return true;
-    } catch {
-      return false;
+  private async withWriteChain(path:string,work:()=>Promise<void>):Promise<void>{
+    const previous=this.writeChains.get(path)??Promise.resolve();
+    let release!:()=>void;
+    const current=new Promise<void>(resolve=>{release=resolve;});
+    this.writeChains.set(path,current);
+    try{
+      await previous.catch(()=>undefined);
+      await work();
+    }finally{
+      release();
+      if(this.writeChains.get(path)===current)this.writeChains.delete(path);
     }
   }
 
-  async readText(path: string): Promise<string> {
-    return readFile(path, "utf8");
+  async exists(path:string):Promise<boolean>{
+    try{await access(path);return true;}
+    catch{return false;}
   }
 
-  async readBinary(path: string): Promise<Uint8Array> {
-    return new Uint8Array(await readFile(path));
-  }
+  async readText(path:string):Promise<string>{return readFile(path,"utf8");}
 
-  async ensureDir(path: string): Promise<void> {
-    await mkdir(path, { recursive: true });
-  }
+  async readBinary(path:string):Promise<Uint8Array>{return new Uint8Array(await readFile(path));}
 
-  async listDirectories(path: string): Promise<string[]> {
-    if (!(await this.exists(path))) return [];
-    const entries = await readdir(path, { withFileTypes: true });
-    return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  async ensureDir(path:string):Promise<void>{await mkdir(path,{recursive:true});}
+
+  async listDirectories(path:string):Promise<string[]>{
+    if(!(await this.exists(path)))return[];
+    const entries=await readdir(path,{withFileTypes:true});
+    return entries.filter(entry=>entry.isDirectory()).map(entry=>entry.name);
   }
 
   async listFiles(path:string):Promise<string[]>{
@@ -41,9 +45,9 @@ export class NodeFileSystemAdapter implements FileSystemAdapter {
     return entries.filter(entry=>entry.isFile()).map(entry=>entry.name);
   }
 
-  async writeBinary(path: string, content: Uint8Array): Promise<void> {
+  async writeBinary(path:string,content:Uint8Array):Promise<void>{
     await this.ensureDir(dirname(path));
-    await writeFile(path, content);
+    await writeFile(path,content);
   }
 
   async moveFile(sourcePath:string,targetPath:string):Promise<void>{
@@ -60,32 +64,31 @@ export class NodeFileSystemAdapter implements FileSystemAdapter {
 
   async removeFile(path:string):Promise<void>{await rm(path,{force:true});}
 
-  async writeTextAtomic(path: string, content: string, backupPath?: string): Promise<void> {
-    const previous = this.writeChains.get(path) ?? Promise.resolve();
-    let release!: () => void;
-    const current = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    this.writeChains.set(path, current);
-
-    try {
-      await previous.catch(() => undefined);
+  async appendText(path:string,content:string):Promise<void>{
+    if(!content)return;
+    await this.withWriteChain(path,async()=>{
       await this.ensureDir(dirname(path));
-      if (backupPath && (await this.exists(path))) {
+      const handle=await open(path,"a");
+      try{
+        await handle.writeFile(content,{encoding:"utf8"});
+        await handle.sync();
+      }finally{await handle.close();}
+    });
+  }
+
+  async writeTextAtomic(path:string,content:string,backupPath?:string):Promise<void>{
+    await this.withWriteChain(path,async()=>{
+      await this.ensureDir(dirname(path));
+      if(backupPath&&await this.exists(path)){
         await this.ensureDir(dirname(backupPath));
-        await copyFile(path, backupPath);
+        await copyFile(path,backupPath);
       }
-      const tempPath = `${path}.${randomUUID()}.tmp`;
-      try {
-        await writeFile(tempPath, content, "utf8");
-        await rename(tempPath, path);
-      } finally {
-        await rm(tempPath, { force: true });
-      }
-    } finally {
-      release();
-      if (this.writeChains.get(path) === current) this.writeChains.delete(path);
-    }
+      const tempPath=`${path}.${randomUUID()}.tmp`;
+      try{
+        await writeFile(tempPath,content,"utf8");
+        await rename(tempPath,path);
+      }finally{await rm(tempPath,{force:true});}
+    });
   }
 
   async withExclusiveLock<T>(lockPath:string,work:()=>Promise<T>):Promise<T>{
@@ -111,48 +114,46 @@ export class NodeFileSystemAdapter implements FileSystemAdapter {
   }
 }
 
-export class InMemoryFileSystemAdapter implements FileSystemAdapter {
-  readonly files = new Map<string, string>();
-  readonly binaryFiles = new Map<string, Uint8Array>();
+export class InMemoryFileSystemAdapter implements FileSystemAdapter{
+  readonly files=new Map<string,string>();
+  readonly binaryFiles=new Map<string,Uint8Array>();
 
-  private key(path: string): string {
-    return posixPath.normalize(path.replaceAll("\\", "/"));
-  }
+  private key(path:string):string{return posixPath.normalize(path.replaceAll("\\","/"));}
 
-  async exists(path: string): Promise<boolean> {
-    const key = this.key(path);
-    if (this.files.has(key) || this.binaryFiles.has(key)) return true;
-    const prefix = key.endsWith("/") ? key : `${key}/`;
-    return [...this.files.keys(), ...this.binaryFiles.keys()].some((item) => item.startsWith(prefix));
-  }
-
-  async readText(path: string): Promise<string> {
+  async exists(path:string):Promise<boolean>{
     const key=this.key(path);
-    const content = this.files.get(key);
-    if (content !== undefined) return content;
+    if(this.files.has(key)||this.binaryFiles.has(key))return true;
+    const prefix=key.endsWith("/")?key:`${key}/`;
+    return[...this.files.keys(),...this.binaryFiles.keys()].some(item=>item.startsWith(prefix));
+  }
+
+  async readText(path:string):Promise<string>{
+    const key=this.key(path);
+    const content=this.files.get(key);
+    if(content!==undefined)return content;
     const binary=this.binaryFiles.get(key);
     if(binary!==undefined)return new TextDecoder().decode(binary);
     throw new Error(`File not found: ${path}`);
   }
 
-  async readBinary(path: string): Promise<Uint8Array> {
-    const content = this.binaryFiles.get(this.key(path));
-    if (content === undefined) throw new Error(`Binary file not found: ${path}`);
+  async readBinary(path:string):Promise<Uint8Array>{
+    const content=this.binaryFiles.get(this.key(path));
+    if(content===undefined)throw new Error(`Binary file not found: ${path}`);
     return content;
   }
 
-  async ensureDir(): Promise<void> {}
+  async ensureDir():Promise<void>{}
 
-  async listDirectories(path: string): Promise<string[]> {
-    const root = this.key(path).replace(/\/$/, "");
-    const prefix = `${root}/`;
-    const directories = new Set<string>();
-    for (const key of [...this.files.keys(), ...this.binaryFiles.keys()]) {
-      if (!key.startsWith(prefix)) continue;
-      const first = key.slice(prefix.length).split("/")[0];
-      if (first) directories.add(first);
+  async listDirectories(path:string):Promise<string[]>{
+    const root=this.key(path).replace(/\/$/,"");
+    const prefix=`${root}/`;
+    const directories=new Set<string>();
+    for(const key of[...this.files.keys(),...this.binaryFiles.keys()]){
+      if(!key.startsWith(prefix))continue;
+      const first=key.slice(prefix.length).split("/")[0];
+      if(first)directories.add(first);
     }
-    return [...directories];
+    return[...directories];
   }
 
   async listFiles(path:string):Promise<string[]>{
@@ -161,9 +162,7 @@ export class InMemoryFileSystemAdapter implements FileSystemAdapter {
     return[...names];
   }
 
-  async writeBinary(path: string, content: Uint8Array): Promise<void> {
-    this.binaryFiles.set(this.key(path), new Uint8Array(content));
-  }
+  async writeBinary(path:string,content:Uint8Array):Promise<void>{this.binaryFiles.set(this.key(path),new Uint8Array(content));}
 
   async moveFile(sourcePath:string,targetPath:string):Promise<void>{
     const sourceKey=this.key(sourcePath);const targetKey=this.key(targetPath);
@@ -176,11 +175,15 @@ export class InMemoryFileSystemAdapter implements FileSystemAdapter {
 
   async removeFile(path:string):Promise<void>{const key=this.key(path);this.files.delete(key);this.binaryFiles.delete(key);}
 
-  async writeTextAtomic(path: string, content: string, backupPath?: string): Promise<void> {
-    const targetKey = this.key(path);
-    if (backupPath && this.files.has(targetKey)) {
-      this.files.set(this.key(backupPath), this.files.get(targetKey)!);
-    }
-    this.files.set(targetKey, content);
+  async appendText(path:string,content:string):Promise<void>{
+    if(!content)return;
+    const key=this.key(path);
+    this.files.set(key,`${this.files.get(key)??""}${content}`);
+  }
+
+  async writeTextAtomic(path:string,content:string,backupPath?:string):Promise<void>{
+    const targetKey=this.key(path);
+    if(backupPath&&this.files.has(targetKey))this.files.set(this.key(backupPath),this.files.get(targetKey)!);
+    this.files.set(targetKey,content);
   }
 }

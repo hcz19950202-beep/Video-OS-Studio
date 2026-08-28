@@ -29,6 +29,7 @@ const ProjectOperationRecordSchema=z.object({
 });
 type ProjectOperationRecord=z.infer<typeof ProjectOperationRecordSchema>;
 export type ProjectOperationState=Pick<ProjectOperationRecord,"operationId"|"kind"|"expectedRevision"|"appliedRevision"|"status"|"recordedAt">;
+export const PROJECT_OPERATION_COMPACTION_REDUNDANCY_THRESHOLD=256;
 
 export class ProjectRevisionConflictError extends Error{
   readonly code="PROJECT_REVISION_CONFLICT";
@@ -57,6 +58,24 @@ const stableValue=(value:unknown):unknown=>{
   return value;
 };
 const fingerprint=(value:unknown)=>createHash("sha256").update(JSON.stringify(stableValue(value))).digest("hex");
+const serializeRecords=(records:ProjectOperationRecord[])=>records.map(record=>JSON.stringify(ProjectOperationRecordSchema.parse(record))).join("\n")+(records.length?"\n":"");
+const parseRecordText=(text:string)=>{
+  if(!text)return{records:[] as ProjectOperationRecord[],needsRepair:false};
+  const endsWithNewline=text.endsWith("\n");
+  const parts=text.split(/\r?\n/u);
+  const fullLines=parts.slice(0,-1);
+  const tail=endsWithNewline?"":parts.at(-1)??"";
+  const records=fullLines.filter(Boolean).map(line=>ProjectOperationRecordSchema.parse(JSON.parse(line)));
+  if(!tail.trim())return{records,needsRepair:!endsWithNewline};
+  let tailValue:unknown;
+  try{tailValue=JSON.parse(tail);}
+  catch(error){
+    if(error instanceof SyntaxError)return{records,needsRepair:true};
+    throw error;
+  }
+  records.push(ProjectOperationRecordSchema.parse(tailValue));
+  return{records,needsRepair:true};
+};
 
 export type CoordinatedProjectMutation={
   projectId:string;
@@ -91,12 +110,32 @@ export class ProjectMutationCoordinator{
     return this.fs.withExclusiveLock?this.fs.withExclusiveLock(lockPath,local):local();
   }
 
+  private latestRecordList(records:ProjectOperationRecord[]){
+    const seen=new Set<string>();
+    const compacted:ProjectOperationRecord[]=[];
+    for(let index=records.length-1;index>=0;index--){
+      const record=records[index];
+      if(seen.has(record.operationId))continue;
+      seen.add(record.operationId);
+      compacted.push(record);
+    }
+    return compacted.reverse();
+  }
+
   private async readRecords(projectId:string):Promise<ProjectOperationRecord[]>{
     const path=this.operationLogPath(projectId);
     if(!(await this.fs.exists(path)))return[];
     const text=await this.fs.readText(path);
     if(!text.trim())return[];
-    return text.split(/\r?\n/u).filter(Boolean).map(line=>ProjectOperationRecordSchema.parse(JSON.parse(line)));
+    const{records,needsRepair}=parseRecordText(text);
+    const latest=this.latestRecordList(records);
+    const shouldCompact=records.length-latest.length>=PROJECT_OPERATION_COMPACTION_REDUNDANCY_THRESHOLD;
+    if(needsRepair||shouldCompact){
+      const durable=shouldCompact?latest:records;
+      await this.fs.writeTextAtomic(path,serializeRecords(durable));
+      return durable;
+    }
+    return records;
   }
 
   private latestRecords(records:ProjectOperationRecord[]){
@@ -107,9 +146,8 @@ export class ProjectMutationCoordinator{
 
   private async appendRecord(projectId:string,record:ProjectOperationRecord){
     const path=this.operationLogPath(projectId);
-    const previous=await this.fs.exists(path)?await this.fs.readText(path):"";
     const line=`${JSON.stringify(ProjectOperationRecordSchema.parse(record))}\n`;
-    await this.fs.writeTextAtomic(path,`${previous}${line}`);
+    await this.fs.appendText(path,line);
   }
 
   private async reconcilePending(projectId:string,current:Project,records:ProjectOperationRecord[]){
