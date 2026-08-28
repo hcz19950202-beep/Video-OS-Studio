@@ -28,6 +28,7 @@ import {FileWorkflowStore} from "@/lib/workflows/store";
 import {registerW4WorkflowDefinitions} from "@/lib/workflows/w4-definitions";
 import {registerW4WorkflowStages} from "@/lib/workflows/w4-stages";
 import {getGlobalRuntime} from "@/lib/server/global-runtime";
+import {resolveTrustedAssetBaseUrl} from "@/lib/server/trusted-asset-origin";
 
 export const dataRoot=process.env.VIDEO_OS_DATA_ROOT||join(process.cwd(),".video-os-data");
 export const fileSystem=new NodeFileSystemAdapter();
@@ -60,7 +61,7 @@ export const visualPlannerAdapter=new RulesVisualPlannerAdapter();
 export const visualPlanService=new VisualPlanService(fileSystem,projectRepository,visualPlannerAdapter,hyperFramesRenderService,projectMutations);
 export const assetLibraryService=new AssetLibraryService(fileSystem,dataRoot,projectRepository,hyperFramesRenderService,projectMutations);
 
-const fallbackWorkflowAssetBaseUrl=process.env.VIDEO_OS_ASSET_BASE_URL||"http://127.0.0.1:3000";
+const fallbackWorkflowAssetBaseUrl=resolveTrustedAssetBaseUrl();
 const workflowJobPollIntervalMs=250;
 export const workflowStore=getGlobalRuntime(`${dataRoot}:workflow-store`,()=>new FileWorkflowStore(dataRoot));
 export const workflowDefinitions=getGlobalRuntime(`${dataRoot}:workflow-definitions`,()=>registerW4WorkflowDefinitions(registerProductionWorkflowDefinitions(new WorkflowDefinitionRegistry())));

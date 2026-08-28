@@ -1,6 +1,7 @@
 import {z} from "zod";
 import {ExportProfileSchema} from "@/lib/render/profile";
 import {renderJobs} from "@/lib/server/runtime";
+import {resolveTrustedAssetBaseUrl} from "@/lib/server/trusted-asset-origin";
 
 export const runtime="nodejs";
 type Context={params:Promise<{projectId:string}>};
@@ -10,9 +11,8 @@ export async function POST(request:Request,{params}:Context){
   try{
     const{projectId}=await params;
     const{mode,profile}=RequestSchema.parse(await request.json());
-    const origin=new URL(request.url).origin;
-    return Response.json({job:await renderJobs.create(projectId,mode,origin,profile)},{status:202});
+    return Response.json({job:await renderJobs.create(projectId,mode,resolveTrustedAssetBaseUrl(),profile)},{status:202});
   }catch(error){
-    return Response.json({error:error instanceof Error?error.message:String(error),action:"Verify the project, export profile, local Remotion CLI installation and render directory, then retry.",retryable:true},{status:400});
+    return Response.json({error:error instanceof Error?error.message:String(error),action:"Verify the project, export profile, trusted local asset origin, Remotion CLI installation and render directory, then retry.",retryable:true},{status:400});
   }
 }
