@@ -35,7 +35,7 @@ describe("V2.3.1 H5 H.264 export dimension compatibility",()=>{
   it("passes the resolved even dimensions to the Remotion CLI contract",()=>{
     const project=createProject({id:"odd-argv",name:"Odd Argv",width:641,height:361,fps:30,durationInFrames:30});
     const prepared=projectForExportProfile(project,{sizing:"project"});
-    const args=buildRemotionRenderArgs({project:prepared.project,outputPath:"out.mp4",mode:"final",assetBaseUrl:"http://127.0.0.1:3000"},"props.json");
+    const args=buildRemotionRenderArgs({project:prepared.project,outputPath:"out.mp4",mode:"final",assetBaseUrl:"http://127.0.0.1:3000"},"remotion/index.ts","props.json");
 
     const widthIndex=args.indexOf("--width");
     const heightIndex=args.indexOf("--height");
