@@ -61,6 +61,7 @@ export const visualPlanService=new VisualPlanService(fileSystem,projectRepositor
 export const assetLibraryService=new AssetLibraryService(fileSystem,dataRoot,projectRepository,hyperFramesRenderService,projectMutations);
 
 const fallbackWorkflowAssetBaseUrl=process.env.VIDEO_OS_ASSET_BASE_URL||"http://127.0.0.1:3000";
+const workflowJobPollIntervalMs=250;
 export const workflowStore=getGlobalRuntime(`${dataRoot}:workflow-store`,()=>new FileWorkflowStore(dataRoot));
 export const workflowDefinitions=getGlobalRuntime(`${dataRoot}:workflow-definitions`,()=>registerW4WorkflowDefinitions(registerProductionWorkflowDefinitions(new WorkflowDefinitionRegistry())));
 export const workflowStages=getGlobalRuntime(`${dataRoot}:workflow-stages`,()=>{
@@ -75,5 +76,5 @@ export const workflowStages=getGlobalRuntime(`${dataRoot}:workflow-stages`,()=>{
   return registerW4WorkflowStages(registry,{repository:projectRepository,jobs:jobRuntime,fallbackAssetBaseUrl:fallbackWorkflowAssetBaseUrl});
 });
 export const workflowJobRuntime=getGlobalRuntime(`${dataRoot}:workflow-job-runtime`,()=>createWorkflowJobRuntimePort(jobRuntime));
-export const workflowRunner=getGlobalRuntime(`${dataRoot}:workflow-runner`,()=>new WorkflowRunner(workflowStore,workflowDefinitions,workflowStages,workflowJobRuntime));
+export const workflowRunner=getGlobalRuntime(`${dataRoot}:workflow-runner`,()=>new WorkflowRunner(workflowStore,workflowDefinitions,workflowStages,workflowJobRuntime,{jobPollIntervalMs:workflowJobPollIntervalMs}));
 export const workflowService=getGlobalRuntime(`${dataRoot}:workflow-service`,()=>new WorkflowService(projectRepository,workflowStore,workflowDefinitions,workflowRunner));

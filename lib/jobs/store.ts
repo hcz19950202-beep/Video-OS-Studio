@@ -1,10 +1,11 @@
 import {randomUUID} from "node:crypto";
-import {appendFile,mkdir,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
+import {appendFile,mkdir,open,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {JobArtifactsSchema,JobIdSchema,JobRecordSchema,type JobArtifact,type JobRecord} from "@/lib/jobs/schema";
 import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 
 export type JobLogStream="stdout"|"stderr";
+export type JobLogTail={text:string;totalBytes:number};
 const parseJson=<T>(text:string,parser:(value:unknown)=>T)=>parser(JSON.parse(text));
 
 export class FileJobStore{
@@ -85,6 +86,24 @@ export class FileJobStore{
     return this.withPathLock(path,async()=>{
       try{return await readFile(path,"utf8");}
       catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return "";throw error;}
+    });
+  }
+  async readLogTail(jobId:string,stream:JobLogStream,tailBytes:number):Promise<JobLogTail>{
+    const path=this.path(jobId,stream==="stdout"?"stdout.log":"stderr.log");
+    return this.withPathLock(path,async()=>{
+      let handle:Awaited<ReturnType<typeof open>>|undefined;
+      try{
+        handle=await open(path,"r");
+        const totalBytes=(await handle.stat()).size;
+        const readBytes=Math.min(totalBytes,Math.max(0,Math.round(tailBytes)));
+        if(readBytes===0)return{text:"",totalBytes};
+        const buffer=Buffer.allocUnsafe(readBytes);
+        const{bytesRead}=await handle.read(buffer,0,readBytes,totalBytes-readBytes);
+        return{text:buffer.subarray(0,bytesRead).toString("utf8"),totalBytes};
+      }catch(error){
+        if((error as NodeJS.ErrnoException).code==="ENOENT")return{text:"",totalBytes:0};
+        throw error;
+      }finally{await handle?.close();}
     });
   }
   async getArtifacts(jobId:string):Promise<JobArtifact[]>{
