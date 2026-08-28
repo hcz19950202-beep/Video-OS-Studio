@@ -15,10 +15,10 @@ package_json_version: 2.3.1
 package_lock_version: 2.3.1
 
 active_development_workstream: V2.4 AUTONOMOUS PRODUCTION AGENT
-active_stage: B2 ASSET INTELLIGENCE + SEMANTIC RETRIEVAL COMPLETE / B3 READY
-active_branch: feature/v2.4-b2-asset-intelligence / PR #69 — FINAL STATUS SYNC
+active_stage: B3 REUSABLE VIDEO SKILLS COMPLETE / B4 READY
+active_branch: feature/v2.4-b3-video-skills / PR #70 — FINAL STATUS SYNC
 local_action_required: NONE
-next_action: FINAL EXACT-HEAD CI → MERGE PR #69 → EXACT-MAIN CI → START B3 REUSABLE VIDEO SKILLS
+next_action: FINAL EXACT-HEAD CI → MERGE PR #70 → EXACT-MAIN CI → START B4 SELF-QA + REPAIR PROPOSALS
 v2_4_status: DEVELOPMENT ACTIVE
 ```
 
@@ -52,9 +52,9 @@ B7 must not begin until B6 proves one real autonomous video Mission end-to-end.
 R0 Repository / PRD / Runtime Truth Sync    → COMPLETE / PR #66 / exact-main CI #769 PASS
 B0 Production Mission Contracts + Store    → COMPLETE / PR #67 / exact-main CI #781 PASS
 B1 Production Planner + Mission Step Graph → COMPLETE / PR #68 / exact-main CI #792 PASS
-B2 Asset Intelligence + Semantic Retrieval → COMPLETE / PR #69 / product candidate CI #822 PASS / final status-sync CI pending
-B3 Reusable Video Skills                   → READY
-B4 Self-QA + Repair Proposals              → NOT STARTED
+B2 Asset Intelligence + Semantic Retrieval → COMPLETE / PR #69 / exact-main CI #825 PASS
+B3 Reusable Video Skills                   → COMPLETE CANDIDATE / PR #70 / product candidate CI #833 PASS / final status-sync CI pending
+B4 Self-QA + Repair Proposals              → READY
 B5 Controlled Autonomy + Mission Executor  → NOT STARTED
 B6 Autonomous Real Video Acceptance        → NOT STARTED
 B7 Campaign / Batch Production             → NOT STARTED
@@ -136,11 +136,47 @@ B2 intentionally does not claim face/object/topic detection or other real visual
 ### B2 cloud evidence
 
 - CI #820 exposed a TypeScript inference defect in new deterministic analyzer arrays (`tags` / `facts` inferred too narrowly); the fix made them explicit `string[]` without changing runtime behavior.
-- CI #822 / run `33174132672` on exact head `941a1c89df9a765049865e2be7a8db4c2cbaef11`: Ubuntu Verify, Windows Verify, Browser Smoke, and Windows Media Smoke all PASS.
+- CI #822 / run `33174132672` on exact product head `941a1c89df9a765049865e2be7a8db4c2cbaef11`: Ubuntu Verify, Windows Verify, Browser Smoke, and Windows Media Smoke all PASS.
+- Final B2 status-sync CI #824 passed all four latest gates on frozen head `74feb93810fc33a41902b1daf715eb2839c7044b`; its first Browser Smoke attempt hit two existing E2E timing failures and a same-SHA Browser-only re-run passed without product-code changes.
+- PR #69 merged with expected head `74feb93810fc33a41902b1daf715eb2839c7044b`; accepted merge commit is `e2ed06619a4d789e07454ac2080e103097c965df`.
+- exact-main CI #825 / run `33183917957`: Ubuntu Verify, Windows Verify, Browser Smoke, and Windows Media Smoke all PASS on accepted main `e2ed06619a4d789e07454ac2080e103097c965df`.
 - Final diff/security self-review confirmed Agent Project scope is context-owned, logical Asset IDs are preserved, path/original-filename data is excluded from normalized Agent/API outputs, source-descriptor fingerprints remain explicitly scoped, stale derived records are filtered before retrieval, and B2 introduces no generic filesystem/network/process authority.
 - The small post-analysis Project-change window does not justify a new cross-store lock in B2: derived intelligence is explicitly invalidatable metadata, and freshness/search revalidate the current Asset fingerprint before the record is treated as usable truth.
 
-No Local Codex gate is required for accepted B2 because this workstream does not claim real-media semantic intelligence. A later real video-use/local/provider analyzer must receive its own exact-SHA local-media acceptance before such claims are made.
+No Local Codex gate was required for accepted B2 because this workstream does not claim real-media semantic intelligence. A later real video-use/local/provider analyzer must receive its own exact-SHA local-media acceptance before such claims are made.
+
+## B3 accepted product boundary
+
+B3 adds reusable, declarative production knowledge without turning Skills into executable runtime truth or Project truth:
+
+- typed `VideoSkill` contracts with stable lowercase-kebab IDs and strict `major.minor.patch` semantic versions;
+- explicit intended use, discovery terms, preconditions, required context, bounded recipe steps, allow-listed services/components, QA checks, risk policy, and fallback behavior;
+- normalized Skill text rejects machine paths, shell/process patterns, script payloads, and other executable-like content;
+- six deliberately small built-in Skills: `talking-head-hook`, `b2b-proof-card`, `numeric-evidence-emphasis`, `clean-broll-insert`, `problem-proof-cta-ad`, and `caption-emphasis`;
+- registry-level exact `skill-id@version` uniqueness, deterministic version resolution, deterministic discovery/search, and stable ordering;
+- recipe steps must reference services/components explicitly allow-listed by the Skill contract;
+- application-request construction accepts only an exact Skill reference and re-resolves it through the registry before producing a request, preventing arbitrary unregistered Skill objects from bypassing the allow-list;
+- required approved context fails closed before a Skill application request is produced;
+- deterministic application-mode resolver enforces `REUSE > MODIFY > CREATE` when trustworthy reuse/modify hints are supplied;
+- current Agent Skill selection intentionally does not fabricate reuse history: without persisted trusted reuse/modify evidence it produces the default `CREATE` mode rather than pretending reuse already exists;
+- read-only `search_video_skills` Agent tool discovers allow-listed Skills;
+- proposal-only `select_video_skill` Agent tool returns a bounded `VideoSkillSelectionRequest` and does not mutate Project truth;
+- Agent callers cannot supply Project ID or Project revision for Skill selection; both are forced from the active Agent context snapshot;
+- server Agent runtime registers the built-in Skill registry in the actual product tool registry;
+- Production Plan evidence accepts logical `skill` references and requires exact `skill-id@major.minor.patch` syntax; this schema validation records exact identity/version syntax, while registry membership remains enforced by the Skill selection/request path;
+- Skill selection/application in B3 remains a proposal/request boundary only and does not execute recipes or call engine adapters directly.
+
+B3 does not add arbitrary executable code, generic shell/filesystem/network/process authority, direct Project mutation authority, new Mission execution behavior, Self-QA/repair, or new real Remotion/HyperFrames output behavior.
+
+### B3 cloud evidence
+
+- CI #832 on pre-fix head `80d93e2e00276ceeb6e6126908f3b22d0cc7f14a` passed format/lint/typecheck and exposed one assertion-shape error in a new B3 Agent-tool test: deterministic search correctly returned two ranked Skill candidates while the test incorrectly expected a one-item array. Product behavior was unchanged; the test was corrected to assert both candidates and score ordering.
+- CI #833 / run `33186260322` on exact product head `9a12886f08bee89e8350f4477e76b46f52caa19b`: Ubuntu Verify, Windows Verify, Browser Smoke, and Windows Media Smoke all PASS.
+- B3-specific tests cover built-in registry uniqueness, strict version parsing, executable/path rejection, explicit contract fields, recipe allow-list enforcement, deterministic search ranking, required-context failure, registry-bound request creation, `REUSE > MODIFY > CREATE`, exact Plan Skill evidence syntax, Agent tool risk classification, context-owned Project scope/revision, and unknown-Skill rejection.
+- Full diff/security self-review found no new generic execution surface: Provider/Agent input cannot inject Project scope, recipe references are bounded to declared services/components, application requests re-check registry membership, Plan Skill evidence does not contain machine paths, and the Agent selection path never executes a Skill recipe directly.
+- PR #70 has no submitted reviews or unresolved review threads at product-candidate review time.
+
+No Local Codex gate is required for accepted B3 because this boundary is declarative Skills + bounded discovery/selection requests only and does not claim new real Remotion/HyperFrames output behavior.
 
 ## V2.3.1 immutable release truth
 
@@ -202,20 +238,22 @@ REUSE > MODIFY > CREATE
 - default server security remains loopback-first.
 - V2.4 autonomy must use application-owned policies and bounded services, never generic shell/filesystem authority.
 
-## B3 next-work boundary
+## B4 next-work boundary
 
-Start **B3 Reusable Video Skills** only after PR #69 merges and the B2 merge commit passes exact-main CI.
+Start **B4 Self-QA + Repair Proposals** only after PR #70 merges and the B3 merge commit passes exact-main CI.
 
-B3 may add:
+B4 may add:
 
-- typed, versioned declarative Video Skill schemas and registry;
-- a deliberately small built-in set: `talking-head-hook`, `b2b-proof-card`, `numeric-evidence-emphasis`, `clean-broll-insert`, `problem-proof-cta-ad`, and `caption-emphasis`;
-- stable ID/version, intended use, preconditions, required context, recipe/service/component references, QA checks, risk policy, and fallback behavior for each Skill;
-- bounded Agent discovery/selection tools over allow-listed Skills;
-- proposal/request objects that reference selected Skill ID/version without directly mutating Project truth;
-- deterministic `REUSE > MODIFY > CREATE` selection behavior where applicable;
-- Mission/Plan evidence references that can record which Skill/version influenced production.
+- typed `ProductionQAReport` and `QAFinding` schemas with severity, bounded evidence, and logical target references;
+- deterministic technical QA over accepted Project/render/job evidence;
+- script/caption consistency checks where available;
+- Mission-goal requirement checks;
+- rendered-output evidence references without duplicating media truth;
+- bounded repair proposal generation;
+- explicit repair-loop budget contracts;
+- repository/service boundaries for durable QA evidence where required by the authoritative PRD;
+- Agent read/proposal tools over QA evidence only when they preserve existing context, revision, risk, and confirmation boundaries.
 
-B3 must not store provider-generated arbitrary executable code, introduce generic shell/filesystem/network authority, bypass existing Proposal/Apply and service boundaries, or claim new real HyperFrames/Remotion behavior beyond already accepted adapters without a separate exact-SHA local gate.
+B4 must not automatically mutate Project truth, run arbitrary repair code, bypass Proposal/Apply, own Mission execution, or introduce generic shell/filesystem/network authority. Controlled autonomous repair execution belongs to B5 unless a narrower path is separately accepted.
 
-B3 is online/cloud-safe by default and requires no Local Codex gate unless a Skill explicitly adds and claims new real engine output behavior.
+B4 is cloud-safe for schemas, deterministic checks, repositories, and repair proposals. Any claim that depends on real rendered-media inspection must receive the appropriate exact-SHA Local Codex / real-media gate before being represented as accepted real-media QA.
