@@ -35,7 +35,7 @@ export class ProductionMissionRepository{
     return join(this.missionsDir(projectId),`${ProductionMissionIdSchema.parse(missionId)}.lock`);
   }
 
-  async withMissionLock<T>(projectIdInput:string,missionIdInput:string,work:()=>Promise<T>):Promise<T>{
+  private async withMissionLock<T>(projectIdInput:string,missionIdInput:string,work:()=>Promise<T>):Promise<T>{
     const projectId=ProjectIdSchema.parse(projectIdInput);
     const missionId=ProductionMissionIdSchema.parse(missionIdInput);
     const path=this.missionPath(projectId,missionId);
@@ -70,6 +70,32 @@ export class ProductionMissionRepository{
       await this.fs.ensureDir(this.missionsDir(projectId));
       await this.fs.writeTextAtomic(this.missionPath(projectId,missionId),serialize(recovered));
     });
+    return recovered;
+  }
+
+  private async loadForMutationUnderAtomicLock(projectId:string,missionId:string):Promise<ProductionMission>{
+    const path=this.missionPath(projectId,missionId);
+    if(await this.fs.exists(path)){
+      try{return this.parseForPath(await this.fs.readText(path),projectId,missionId);}
+      catch(primaryError){
+        const backupPath=this.backupPath(projectId,missionId);
+        if(!(await this.fs.exists(backupPath)))throw primaryError;
+        try{
+          const recovered=this.parseForPath(await this.fs.readText(backupPath),projectId,missionId);
+          await this.fs.ensureDir(this.missionsDir(projectId));
+          await this.fs.writeTextAtomic(path,serialize(recovered));
+          return recovered;
+        }catch{
+          throw primaryError;
+        }
+      }
+    }
+
+    const backupPath=this.backupPath(projectId,missionId);
+    if(!(await this.fs.exists(backupPath)))throw new ProductionMissionNotFoundError(projectId,missionId);
+    const recovered=this.parseForPath(await this.fs.readText(backupPath),projectId,missionId);
+    await this.fs.ensureDir(this.missionsDir(projectId));
+    await this.fs.writeTextAtomic(path,serialize(recovered));
     return recovered;
   }
 
@@ -115,6 +141,26 @@ export class ProductionMissionRepository{
       await this.fs.writeTextAtomic(path,serialize(mission),this.backupPath(mission.projectId,mission.id));
       return mission;
     });
+  }
+
+  async mutate(
+    projectIdInput:string,
+    missionIdInput:string,
+    mutation:(current:ProductionMission)=>ProductionMission|Promise<ProductionMission>,
+  ):Promise<ProductionMission>{
+    const projectId=ProjectIdSchema.parse(projectIdInput);
+    const missionId=ProductionMissionIdSchema.parse(missionIdInput);
+    return this.withMissionLock(projectId,missionId,()=>this.withAtomicWriteLock(projectId,missionId,async()=>{
+      const current=await this.loadForMutationUnderAtomicLock(projectId,missionId);
+      const next=ProductionMissionSchema.parse(await mutation(current));
+      if(next.projectId!==projectId||next.id!==missionId)throw new Error("Production Mission mutation cannot change repository identity.");
+      await this.fs.writeTextAtomic(
+        this.missionPath(projectId,missionId),
+        serialize(next),
+        this.backupPath(projectId,missionId),
+      );
+      return next;
+    }));
   }
 
   async list(projectIdInput:string):Promise<ProductionMission[]>{
