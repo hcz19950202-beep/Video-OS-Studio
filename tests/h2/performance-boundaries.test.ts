@@ -1,12 +1,16 @@
 import {readFileSync} from "node:fs";
-import {describe,expect,it,vi,beforeEach} from "vitest";
+import {beforeEach,describe,expect,it,vi} from "vitest";
 import {findActiveScriptWordId} from "@/lib/script/playback";
 import {clearWaveformRequestCache,createWaveformCacheKey,loadCachedWaveform} from "@/lib/timeline/waveform-cache";
+import {useScriptPlaybackStore} from "@/store/script-playback-store";
 
 const source=(path:string)=>readFileSync(path,"utf8");
 
 describe("H2 playback and waveform boundaries",()=>{
-  beforeEach(()=>clearWaveformRequestCache());
+  beforeEach(()=>{
+    clearWaveformRequestCache();
+    useScriptPlaybackStore.setState({activeWordKey:null});
+  });
 
   it("deduplicates waveform requests and invalidates on media signature changes",async()=>{
     const base={projectId:"project-1",assetId:"asset-1",points:160,relativePath:"input/a.mp4",durationInFrames:300,hasAudio:true};
@@ -24,6 +28,17 @@ describe("H2 playback and waveform boundaries",()=>{
     expect(changed).not.toBe(key);
     await loadCachedWaveform(changed,loader);
     expect(loader).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not broadcast duplicate active-word identities",()=>{
+    let notifications=0;
+    const unsubscribe=useScriptPlaybackStore.subscribe(()=>{notifications+=1;});
+    const setActiveWordKey=useScriptPlaybackStore.getState().setActiveWordKey;
+    setActiveWordKey("project-1:w1");
+    setActiveWordKey("project-1:w1");
+    setActiveWordKey("project-1:w2");
+    expect(notifications).toBe(2);
+    unsubscribe();
   });
 
   it("finds the active transcript word with a sorted range lookup",()=>{
