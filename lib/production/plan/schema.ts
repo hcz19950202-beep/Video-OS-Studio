@@ -20,7 +20,7 @@ export const ProductionPlanRiskSchema=z.enum(["low","medium","high"]);
 export const ProductionPlanOwnerSchema=z.enum(["agent","workflow","job","human-review"]);
 export const ProductionPlanEvidenceKindSchema=z.enum(["mission","project","script","scene","asset","visual-plan","workflow"]);
 
-const UnsafeExecutablePattern=/(?:[A-Za-z]:[\\/]|\/home\/|\/tmp\/|\\Users\\|\.\.\/|\.\.\\|powershell|cmd\.exe|bash\s+-c|rm\s+-rf|taskkill|child_process|spawn\s*\(|exec\s*\()/i;
+const UnsafeExecutablePattern=/(?:[A-Za-z]:[\\/]|\/home\/|\/tmp\/|\\Users\\|\.\.\/|\.\.\\|powershell\s+(?:-|\/)|cmd\.exe\s+(?:-|\/)|bash\s+-c|rm\s+-rf|taskkill\s+(?:-|\/)|child_process|spawn\s*\(|exec\s*\()/i;
 export const ProductionPlanTextSchema=z.string().trim().min(1).max(1000).superRefine((value,ctx)=>{
   if(UnsafeExecutablePattern.test(value))ctx.addIssue({code:"custom",message:"Plan text must describe production intent, not executable commands or machine paths."});
 });
