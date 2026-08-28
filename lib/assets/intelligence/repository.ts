@@ -25,6 +25,12 @@ export class AssetIntelligenceRepository{
     return record;
   }
 
+  private validateStorageKey(record:AssetIntelligenceRecord,projectId:string,key:string){
+    if(record.projectId!==projectId)throw new Error("Asset Intelligence project identity does not match its repository path.");
+    if(storageKey(record.assetId)!==key)throw new Error("Asset Intelligence asset identity does not match its repository key.");
+    return record;
+  }
+
   private async withPathChain<T>(projectId:string,assetId:string,work:()=>Promise<T>):Promise<T>{
     const path=this.recordPath(projectId,assetId);
     const previous=this.pathChains.get(path)??Promise.resolve();
@@ -100,16 +106,31 @@ export class AssetIntelligenceRepository{
 
   async list(projectIdInput:string):Promise<AssetIntelligenceRecord[]>{
     const projectId=ProjectIdSchema.parse(projectIdInput);
-    const files=await this.fs.listFiles(this.recordsDir(projectId));
-    const primaryNames=files.filter(name=>/^[a-f0-9]{64}\.json$/.test(name));
+    const dir=this.recordsDir(projectId);
+    const files=await this.fs.listFiles(dir);
+    const keys=[...new Set(files.flatMap(name=>{
+      const primary=/^([a-f0-9]{64})\.json$/.exec(name);
+      if(primary)return[primary[1]];
+      const backup=/^([a-f0-9]{64})\.backup\.json$/.exec(name);
+      return backup?[backup[1]]:[];
+    }))];
     const records:AssetIntelligenceRecord[]=[];
-    for(const name of primaryNames){
-      const path=join(this.recordsDir(projectId),name);
+    for(const key of keys){
+      const primaryPath=join(dir,`${key}.json`);
       try{
-        const record=parse(await this.fs.readText(path));
-        if(record.projectId!==projectId)throw new Error("Asset Intelligence project identity does not match its repository path.");
-        if(`${storageKey(record.assetId)}.json`!==name)throw new Error("Asset Intelligence asset identity does not match its repository key.");
-        records.push(record);
+        if(await this.fs.exists(primaryPath)){
+          records.push(this.validateStorageKey(parse(await this.fs.readText(primaryPath)),projectId,key));
+          continue;
+        }
+      }catch{
+        // Try the matching backup below.
+      }
+      const backupPath=join(dir,`${key}.backup.json`);
+      try{
+        if(!(await this.fs.exists(backupPath)))continue;
+        const backup=this.validateStorageKey(parse(await this.fs.readText(backupPath)),projectId,key);
+        const recovered=await this.load(projectId,backup.assetId);
+        if(recovered)records.push(recovered);
       }catch{
         // Invalid derived records are omitted from list() rather than poisoning unrelated retrieval.
       }
