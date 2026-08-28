@@ -7,6 +7,8 @@ import {AssetIntelligenceRecordSchema,type AssetIntelligenceRecord} from "@/lib/
 const PROJECT_ID="project-1";
 const ASSET_ID="asset:hero";
 const HASH=createHash("sha256").update(ASSET_ID).digest("hex");
+const PRIMARY=`/data/projects/${PROJECT_ID}/production/asset-intelligence/${HASH}.json`;
+const BACKUP=`/data/projects/${PROJECT_ID}/production/asset-intelligence/${HASH}.backup.json`;
 
 const record=(overrides:Partial<AssetIntelligenceRecord>={}):AssetIntelligenceRecord=>AssetIntelligenceRecordSchema.parse({
   version:1,
@@ -28,7 +30,7 @@ describe("AssetIntelligenceRepository",()=>{
     const repository=new AssetIntelligenceRepository(fs,"/data");
     await repository.upsert(record());
     const filenames=[...fs.files.keys()].filter(path=>path.includes("asset-intelligence"));
-    expect(filenames).toEqual([`/data/projects/${PROJECT_ID}/production/asset-intelligence/${HASH}.json`]);
+    expect(filenames).toEqual([PRIMARY]);
     expect(await repository.require(PROJECT_ID,ASSET_ID)).toMatchObject({assetId:ASSET_ID});
   });
 
@@ -39,19 +41,30 @@ describe("AssetIntelligenceRepository",()=>{
     const second=record({summary:"Second valid analysis.",generatedAt:"2026-08-28T12:01:00.000Z"});
     await repository.upsert(first);
     await repository.upsert(second);
-    const primary=`/data/projects/${PROJECT_ID}/production/asset-intelligence/${HASH}.json`;
-    fs.files.set(primary,"{broken");
+    fs.files.set(PRIMARY,"{broken");
     const recovered=await repository.require(PROJECT_ID,ASSET_ID);
     expect(recovered).toEqual(first);
-    expect(JSON.parse(fs.files.get(primary)!)).toMatchObject({summary:"First valid analysis."});
+    expect(JSON.parse(fs.files.get(PRIMARY)!)).toMatchObject({summary:"First valid analysis."});
+  });
+
+  it("recovers backup-only records during list so retrieval cannot silently lose them",async()=>{
+    const fs=new InMemoryFileSystemAdapter();
+    const repository=new AssetIntelligenceRepository(fs,"/data");
+    const first=record({summary:"Backup analysis.",generatedAt:"2026-08-28T12:00:00.000Z"});
+    const second=record({summary:"Current analysis.",generatedAt:"2026-08-28T12:01:00.000Z"});
+    await repository.upsert(first);
+    await repository.upsert(second);
+    expect(fs.files.has(BACKUP)).toBe(true);
+    fs.files.delete(PRIMARY);
+    expect(await repository.list(PROJECT_ID)).toEqual([first]);
+    expect(fs.files.has(PRIMARY)).toBe(true);
   });
 
   it("rejects repository-key identity substitution",async()=>{
     const fs=new InMemoryFileSystemAdapter();
     const repository=new AssetIntelligenceRepository(fs,"/data");
     await repository.upsert(record());
-    const primary=`/data/projects/${PROJECT_ID}/production/asset-intelligence/${HASH}.json`;
-    fs.files.set(primary,JSON.stringify(record({assetId:"other-asset"})));
+    fs.files.set(PRIMARY,JSON.stringify(record({assetId:"other-asset"})));
     await expect(repository.require(PROJECT_ID,ASSET_ID)).rejects.toThrow("identity does not match");
   });
 });
