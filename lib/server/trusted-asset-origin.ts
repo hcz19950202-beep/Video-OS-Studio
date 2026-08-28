@@ -18,7 +18,11 @@ const defaultPort=(value:string|undefined)=>{
   return port;
 };
 
-export type TrustedAssetOriginEnv=Pick<NodeJS.ProcessEnv,"VIDEO_OS_ASSET_BASE_URL"|"VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN"|"PORT">;
+export type TrustedAssetOriginEnv={
+  VIDEO_OS_ASSET_BASE_URL?:string;
+  VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN?:string;
+  PORT?:string;
+};
 
 export const resolveTrustedAssetBaseUrl=(env:TrustedAssetOriginEnv=process.env)=>{
   const configured=env.VIDEO_OS_ASSET_BASE_URL?.trim();
