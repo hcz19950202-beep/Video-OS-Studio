@@ -14,13 +14,54 @@ released_tag_object_sha: b91d0c3adbaef09cd5c323481ec6bb04c516dd6e
 package_json_version: 2.3.1
 package_lock_version: 2.3.1
 
-active_development_workstream: NONE / V2.3.1 RELEASED
-active_stage: RELEASE COMPLETE
-active_branch: main
+active_development_workstream: V2.4 AUTONOMOUS PRODUCTION AGENT
+active_stage: R0 PLANNING / REPOSITORY TRUTH SYNC
+active_branch: planning/v2.4-autonomous-production-agent
 local_action_required: NONE
-next_action: V2.4 PLANNING MAY START AS A NEW WORKSTREAM
-v2_4_status: NOT STARTED
+next_action: COMPLETE R0 DOCS CI + MERGE, THEN START B0 PRODUCTION MISSION CONTRACTS
+v2_4_status: PLANNING ACTIVE
 ```
+
+## V2.4 authoritative planning docs
+
+```text
+docs/prd/Video_OS_Studio_V2_4_Autonomous_Production_Agent_Master_PRD.md
+docs/prd/Video_OS_Studio_V2_4_Development_Plan.md
+```
+
+V2.4 product direction:
+
+```text
+User production goal
+→ Production Mission
+→ Production Plan
+→ Agent + reusable Skills + Asset Intelligence
+→ existing Workflow / Durable Jobs / Project Commands
+→ actual render
+→ Self-QA
+→ bounded repair
+→ controlled human checkpoints
+→ final publishable video
+```
+
+V2.4 is an additive production-orchestration layer. It must not create a second Project model, Workflow engine, Job runtime or unrestricted computer-control Agent.
+
+Authoritative sequence:
+
+```text
+R0  Repository / PRD / Runtime Truth Sync
+B0  Production Mission Contracts + Store
+B1  Production Planner + Mission Step Graph
+B2  Asset Intelligence + Semantic Retrieval
+B3  Reusable Video Skills
+B4  Self-QA + Repair Proposals
+B5  Controlled Autonomy + Mission Executor + Production Workspace
+B6  End-to-End Autonomous Real Video Acceptance
+B7  Campaign / Batch Production + Production Dashboard
+Release
+```
+
+B7 must not begin until B6 proves a real single-video autonomous Mission end-to-end.
 
 ## V2.3.1 immutable release truth
 
@@ -46,14 +87,20 @@ Final release-merge CI:
 - Browser Smoke: PASS
 - Windows Media Smoke: PASS
 
+Post-release truth merge:
+
+- PR #65: `docs(v2.3.1): record immutable release truth`
+- main docs commit: `f5a0c1c42f2611273b044a1fada215126e243bfa`
+- post-release main CI #767 / run `33164178367`: PASS
+
 Release-finalization PR:
 
 - PR #64: `release(v2.3.1): finalize patch release`
 - frozen PR head: `2255952ccc2a9a259a9cba64d01b2878bee63831`
 - exact-head PR CI #764 / run `33158661973`: four gates PASS
-- merge commit: `6e07d1dbdd0ec4d64d022f7c821e133ddf207637`
+- release merge commit: `6e07d1dbdd0ec4d64d022f7c821e133ddf207637`
 
-`v2.3.0` remains immutable and must never be moved or recreated.
+`v2.3.0` and `v2.3.1` remain immutable and must never be moved or recreated.
 
 ## V2.3.1 accepted product boundary
 
@@ -96,6 +143,7 @@ H5 Blocker: Windows atomic persistence     → COMPLETE / PR #63 / main e5d449b3
 H5 End-to-End Patch Acceptance             → COMPLETE / PR #61 / main c78f60aa657fd603397c8e41a170971521d609be
 V2.3.1 Release Metadata / Final CI          → COMPLETE / PR #64 / main 6e07d1dbdd0ec4d64d022f7c821e133ddf207637
 V2.3.1 Annotated Immutable Tag              → COMPLETE / v2.3.1 / tag object b91d0c3adbaef09cd5c323481ec6bb04c516dd6e
+V2.3.1 Post-release Truth Sync              → COMPLETE / PR #65 / main f5a0c1c42f2611273b044a1fada215126e243bfa
 ```
 
 ## Package and dependency truth
@@ -115,93 +163,50 @@ hyperframes:          0.8.10
 prettier:             3.8.1
 ```
 
-The release metadata sync structurally verified that only the three package-version fields changed from 2.3.0 to 2.3.1. No dependency, devDependency, engine, integrity, resolved URL, package tree, schema, or runtime pin drift was accepted.
+No V2.4 R0 work may change these values.
 
-## H5 final acceptance summary
-
-### Case A — Player / Timeline / Script
-
-PASS.
-
-- Player playback survived Canvas remount.
-- Timeline playhead stayed synchronized.
-- Script current-word highlighting followed playback and seek.
-- double Space toggled exactly twice with no duplicate keyboard listener.
-
-### Case B — Editing commit boundary
-
-PASS.
-
-- text input while focused: 0 Project command POSTs;
-- commit: exactly 1;
-- slider drag: 0 commands;
-- pointer-up: exactly 1;
-- blur: no duplicate commit;
-- Undo restored durable values.
-
-### Case C — Real Workflow / Jobs / Final
-
-PASS.
-
-Real talking-head media traversed:
-
-`media → video-use → transcript → Visual Planner → HyperFrames Durable Job → Project mutation → Remotion → render-final → encoded MP4`
-
-Final output evidence:
-
-- H.264 / AAC;
-- 640×360;
-- 30 fps;
-- 115.989333 seconds;
-- encoded visual proof PASS;
-- no props/hf-work/orphan-engine residue.
-
-### Case D — Restart / idempotency
-
-PASS.
-
-- durable Agent Session/Proposal/Project state survived restart;
-- Project revision remained unchanged across restart;
-- duplicate Apply was idempotent;
-- shared live PID was probed once;
-- dead PID recovered Jobs to `JOB_INTERRUPTED`, `retryable=true`;
-- operation ledger passed;
-- no stale locks.
-
-### Case E — Local security + H.264 + Windows atomic persistence
-
-PASS.
-
-- default listener loopback-only;
-- spoofed Host could not control trusted renderer origin;
-- remote renderer origin blocked by default;
-- real Next Range 206 and HEAD 200 passed;
-- odd Project Canvas remained 641×361;
-- resolved H.264 Export Profile / Render Job / prepared Remotion Project / actual MP4 all agreed on 640×360;
-- already-even 640×360 remained 640×360;
-- real Windows `FileShare.None` contention passed for both `FileJobStore` and `NodeFileSystemAdapter.writeTextAtomic`;
-- no product-level EPERM/EACCES/EBUSY failure or temp residue.
-
-## Accepted invariants
+## Permanent accepted invariants
 
 ```text
 Source Media != Project Canvas != Export Profile
 Project != Workflow != Job
 Agent Session != Project
+Mission != Project
+Mission != Workflow
+QA Report != Project
 REUSE > MODIFY > CREATE
 ```
 
 - Project JSON remains durable editing truth.
-- Workflow durable state remains separate from Project Schema.
+- Workflow durable state remains separate orchestration truth.
 - Durable Job runtime remains concrete execution truth.
+- Agent Session remains conversation/tool orchestration truth.
+- Production Mission is a production objective/state machine, not Project truth.
 - Agent/provider/tool execution has no direct Project or Workflow mutation authority.
-- Agent mutation requires validated Proposal plus explicit Review/Apply/Confirm boundary.
-- stale Project/Workflow state fails closed.
+- stale Project/Workflow/Mission-dependent mutation state fails closed.
 - default local server boundary remains loopback-first.
-- Windows durable atomic replacement preserves temp-file + atomic rename semantics with bounded transient-error retry.
+- Windows durable atomic replacement keeps bounded transient-error retry semantics.
+- V2.4 autonomy must be enforced through application-owned policies and bounded services, never generic shell/filesystem authority.
+
+## Current R0 gate
+
+R0 is planning/governance only.
+
+Required before merge:
+
+```text
+V2.4 Master PRD present
+V2.4 Development Plan present
+PROJECT_STATUS / AGENTS / SYSTEM / GPT_WEB_HANDOFF aligned
+no product code changes
+package/dependency/schema/engine pins unchanged
+CI green
+```
+
+Local Codex is not required for R0.
 
 ## Next-work boundary
 
-V2.3.1 is fully released and immutable. V2.4 remains **NOT STARTED** in this status document.
+After R0 merges, start **B0 Production Mission Contracts + Store** as a new feature branch/PR from accepted `main`.
 
-Any V2.4 work must begin as a new explicit workstream/branch/PR. It must not rewrite V2.3.1 release truth, move `v2.3.1`, or alter historical acceptance evidence.
+B0 must create durable Mission contracts/repository/service outside `project.json` and must not begin Planner, Asset Intelligence, Skills, QA, controlled autonomy or Campaign implementation prematurely.
