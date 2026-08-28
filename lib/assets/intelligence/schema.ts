@@ -3,15 +3,25 @@ import {AssetKindSchema} from "@/schemas/asset";
 import {ProjectIdSchema} from "@/schemas/project";
 import {SceneSemanticTypeSchema} from "@/schemas/scene";
 
+const UnsafeSourceTextPattern=/(?:[A-Za-z]:[\\/]|(?:^|\s)(?:\/Users\/|\/home\/|\/tmp\/|\/var\/|\/mnt\/)|(?:^|\s)\.\.?[\\/]|(?:^|\s)(?:input|output|assets?|media|original)[\\/]|\\Users\\|[A-Za-z0-9 _.-]+\.(?:mp4|mov|mkv|avi|webm|wav|mp3|m4a|aac|flac|png|jpe?g|webp|gif|srt|vtt|json)\b)/i;
+const safeText=(max:number)=>z.string().trim().min(1).max(max).refine(
+  value=>!UnsafeSourceTextPattern.test(value),
+  "Asset Intelligence text must not contain filesystem paths or media filenames",
+);
+
 export const AssetIntelligenceAssetIdSchema=z.string().trim().min(1).max(256).refine(
   value=>!/[\\/]/.test(value)&&!value.includes("..")&&!/^[A-Za-z]:/.test(value),
   "Asset Intelligence requires logical asset IDs, not filesystem paths",
 );
 
 export const AssetIntelligenceTagSchema=z.string().trim().min(1).max(80).refine(
-  value=>!/[\\/]/.test(value)&&!value.includes(".."),
-  "Asset Intelligence tags must not contain filesystem paths",
+  value=>!/[\\/]/.test(value)&&!value.includes("..")&&!UnsafeSourceTextPattern.test(value),
+  "Asset Intelligence tags must not contain filesystem paths or media filenames",
 );
+
+export const AssetIntelligenceSafeLabelSchema=safeText(200);
+export const AssetIntelligenceSummarySchema=safeText(2_000);
+export const AssetIntelligenceRangeSummarySchema=safeText(500);
 
 export const AssetIntelligenceAnalyzerModeSchema=z.enum(["deterministic","local","provider"]);
 export const AssetIntelligenceAnalyzerSchema=z.object({
@@ -24,7 +34,7 @@ export type AssetIntelligenceAnalyzerDescriptor=z.infer<typeof AssetIntelligence
 export const AssetIntelligenceRangeSchema=z.object({
   startFrame:z.number().int().nonnegative(),
   endFrame:z.number().int().positive(),
-  summary:z.string().trim().min(1).max(500).optional(),
+  summary:AssetIntelligenceRangeSummarySchema.optional(),
   tags:z.array(AssetIntelligenceTagSchema).max(32).default([]),
   confidence:z.number().finite().min(0).max(1).optional(),
 }).strict().superRefine((range,ctx)=>{
@@ -34,7 +44,7 @@ export const AssetIntelligenceRangeSchema=z.object({
 export type AssetIntelligenceRange=z.infer<typeof AssetIntelligenceRangeSchema>;
 
 export const AssetIntelligenceDraftSchema=z.object({
-  summary:z.string().trim().min(1).max(2_000),
+  summary:AssetIntelligenceSummarySchema,
   tags:z.array(AssetIntelligenceTagSchema).max(64).default([]),
   usableRanges:z.array(AssetIntelligenceRangeSchema).max(64).default([]),
 }).strict().superRefine((draft,ctx)=>{
@@ -49,7 +59,7 @@ export const AssetIntelligenceRecordSchema=z.object({
   sourceFingerprint:z.string().regex(/^[a-f0-9]{64}$/),
   sourceProjectRevision:z.number().int().nonnegative(),
   analyzer:AssetIntelligenceAnalyzerSchema,
-  summary:z.string().trim().min(1).max(2_000),
+  summary:AssetIntelligenceSummarySchema,
   tags:z.array(AssetIntelligenceTagSchema).max(64),
   usableRanges:z.array(AssetIntelligenceRangeSchema).max(64),
   generatedAt:z.string().datetime(),
@@ -64,7 +74,7 @@ export const AssetIntelligenceAnalyzerInputSchema=z.object({
   asset:z.object({
     id:AssetIntelligenceAssetIdSchema,
     kind:AssetKindSchema,
-    label:z.string().trim().min(1).max(200).optional(),
+    label:AssetIntelligenceSafeLabelSchema.optional(),
     mimeType:z.string().trim().min(1).max(200).optional(),
     durationInFrames:z.number().int().positive().optional(),
     width:z.number().int().positive().optional(),
@@ -91,9 +101,9 @@ export type AssetIntelligenceQuery=z.infer<typeof AssetIntelligenceQuerySchema>;
 export const AssetIntelligenceSearchResultSchema=z.object({
   assetId:AssetIntelligenceAssetIdSchema,
   kind:AssetKindSchema,
-  label:z.string().trim().min(1).max(200).optional(),
+  label:AssetIntelligenceSafeLabelSchema.optional(),
   score:z.number().finite().min(0).max(1),
-  summary:z.string().trim().min(1).max(2_000),
+  summary:AssetIntelligenceSummarySchema,
   tags:z.array(AssetIntelligenceTagSchema).max(64),
   usableRanges:z.array(AssetIntelligenceRangeSchema).max(8),
   analyzer:AssetIntelligenceAnalyzerSchema,
