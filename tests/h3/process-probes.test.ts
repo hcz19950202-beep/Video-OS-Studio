@@ -65,6 +65,7 @@ describe("H3b executor process probes",()=>{
     const executorPid=777_001;
     const owner=new ProbeRuntimeOwnerStore(root,new Set([executorPid]));
     const store=new FileJobStore(root,owner);
+    await store.ensure();
     const claim=await owner.claimRuntimeOwner(process.ppid);
     const startedAt=new Date(claim.runtimeStartedAt+1_000).toISOString();
     const first=activeJob(randomUUID(),startedAt,executorPid);
