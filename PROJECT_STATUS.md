@@ -8,240 +8,140 @@
 released_product_version: 2.3.0
 hardening_candidate_version: 2.3.1
 project_schema: 2.0.0
-release_status: V2.3.0 RELEASE COMPLETE
-release_tag: v2.3.0
-release_tag_type: annotated
-release_tag_object_sha: 24069497b1986348510ef0d904382f5c3f99855d
-release_commit: 562ffb26d5a04bd2898513893258f857187a00b4
-previous_release_tag: v2.2.0
-previous_release_commit: 0e813e5e1360318211e05c1c5fec5eb82be00224
+released_tag: v2.3.0
+released_commit: 562ffb26d5a04bd2898513893258f857187a00b4
+released_tag_object_sha: 24069497b1986348510ef0d904382f5c3f99855d
 
-v2_2_r0_main: 64c6ea3ece5770a2999a67dabec8d83837aa62d2
-v2_2_w0_main: 9914b1e65d27a7d40e997295d94eeb5ce4c3deea
-v2_2_w1_main: 5c98117a2ca30217ac8865e99eb87fe410ee7192
-v2_2_w2_main: bfcc862aed29969e61c5c3723179585e6c583a07
-v2_2_w3_main: 23193e537a2c403f8d3c82806db991603cb27dca
-v2_2_w4_main: 6a443e56c10b4935efedd65293b6dbd5584cbda1
-v2_2_w5_main: 2bdbe3aa229513e22da5bba51202609743a718b3
-v2_2_w6_main: d629249f9dbc877eadc68ce61f47c16f80a883b1
-v2_2_release_main: 0e813e5e1360318211e05c1c5fec5eb82be00224
-v2_2_post_release_docs_main: 85adebdac436b33b3a737536f32363bfc8e22465
-
-v2_3_r0_main: 34ebc73b8998854e3ee8a067dc547cc158d156b8
-v2_3_a0_main: 64977b6b2fdf97224eefd0819c29fa2f0c8c52fd
-v2_3_a1_main: a307756c0a43b02d6c6ab2b74d4ec37110017d96
-v2_3_a2_main: 44c0bcc2d980feb1fece94cf9d1df3a98666824f
-v2_3_a3_main: f102e8ac6ef87cfb4ca0579ee647d88e2b27e6a8
-v2_3_a4_main: 6cac2deeef20d98b667fee3b2cea49bc54b1600c
-v2_3_a5_main: 4affcaf4c5c050b40c8b3a1f4b5920ac04a4c8ad
-v2_3_a6_main: 05c331947b6d3704daa680e66d5e0cbe1d4982ed
-v2_3_a7_main: 84e2826164ce6557cd99c4b42006ee703773c882
-v2_3_release_main: 562ffb26d5a04bd2898513893258f857187a00b4
-v2_3_post_release_docs_main: 7cb308a773bb910011c471e714182a5368a1d459
-
-release_pr: 51
 package_json_version: 2.3.0
 package_lock_version: 2.3.0
-package_lock_sync_commit: 3e511860a68570988344b48dcdbf28bcc9eee2d5
-release_final_ci_run: 33098478140
-release_final_ci_number: 706
 
-active_development_workstream: V2.3.1 ENGINEERING HARDENING
-active_hardening_stage: R0 HARDENING TRUTH / PRD SYNC
-active_branch: planning/v2.3.1-engineering-hardening
-local_action_required: NONE FOR R0
-next_action: COMPLETE R0 CLOUD CI AND MERGE, THEN BEGIN H0 CORRECTNESS / RESOURCE HYGIENE
+active_development_workstream: V2.3.1 RELEASE FINALIZATION
+active_hardening_stage: H5 PATCH RELEASE ACCEPTANCE COMPLETE
+active_branch: release/v2.3.1-final-acceptance
+local_action_required: NONE / H5 COMPLETE
+next_action: MERGE H5 REPORT-ONLY PR, THEN V2.3.1 RELEASE FINALIZATION
 v2_4_status: NOT STARTED
 ```
 
-## V2.2 delivery status
+## V2.3.1 accepted product boundary
+
+The final accepted H5 product SHA is:
+
+`e5d449b3eb3b69fca23113c2fe75a905049578ea`
+
+Exact-main cloud evidence:
+
+- CI #760 / run `33155438036`
+- Ubuntu Verify: PASS
+- Windows Verify: PASS
+- Browser Smoke: PASS
+- Windows Media Smoke: PASS
+
+Formal Windows H5 local acceptance also passed on this exact SHA with Node `v24.20.0`, npm `11.19.0`, FFmpeg/ffprobe `8.1.1`, real Playwright/Remotion Chromium, real HyperFrames, and real video-use.
+
+Full report:
+
+`docs/acceptance/V2_3_1_H5_PATCH_ACCEPTANCE.md`
+
+## V2.3.1 milestone evidence
 
 ```text
-R0 Repository / Roadmap Sync              → COMPLETE / PR #30
-W0 Workflow Contract                      → COMPLETE / PR #31
-W1 Workflow Runtime Core                  → COMPLETE / PR #32
-W2 Existing Capability Stage Integration  → COMPLETE / PR #33
-W3 Human Review + Invalidation            → COMPLETE / PR #34
-W4 Workflow UI                            → COMPLETE / PR #35
-W5 Failure / Retry / Restart Hardening    → COMPLETE / PR #36
-W6 End-to-End Product Acceptance          → COMPLETE / PR #37
-V2.2.0 Release Finalization               → COMPLETE / PR #38
-Release tag v2.2.0                        → VERIFIED
+R0 Hardening Truth / PRD Sync              → COMPLETE / PR #53 / main 2aeb207c2c4d77ea872edd4c1dec5648a15f20f1
+H0 Correctness / Resource Hygiene          → COMPLETE / PR #54 / main 692a97a8a7500e063675bbe9dfaeef9caf849e81
+H1 Editing Commit Boundary                 → COMPLETE / PR #55 / main afcbef92c8f125251305af9f46b93cee071e7e13
+H2 Playback / Timeline / Waveform          → COMPLETE / PR #56 / main 090b38196026c353ecc4452841fbcbc28cbeb5d2
+H3a Runtime I/O Low-Risk                   → COMPLETE / PR #57 / main 2c519b62b42ecdd537d80e7b53576598a1398c76
+H3b Startup PID Probes                     → COMPLETE / PR #58 / main e2fa211de9f6d6c73be3f0e0431a8fee39b51de8
+H3c Operations Ledger                      → COMPLETE / PR #59 / main f714079a57e391b779849d92320fb5dfc113492a
+H4 Local-First Security Boundary           → COMPLETE / PR #60 / main 4df173cdc40a330d677302ce5038157bf1c439e4
+H5 Blocker: H264 export dimension truth    → COMPLETE / PR #62 / main c34a1d337ea5434f1a9da0c385cac19ffa89d722
+H5 Blocker: Windows atomic persistence     → COMPLETE / PR #63 / main e5d449b3eb3b69fca23113c2fe75a905049578ea
+H5 End-to-End Patch Acceptance             → COMPLETE / PR #61 PENDING REPORT-ONLY MERGE
+V2.3.1 Release Finalization                → ACTIVE NEXT
 ```
 
-## V2.3 delivery status
+## H5 final acceptance summary
 
-```text
-R0 Repository / PRD / Runtime Truth Sync  → COMPLETE / PR #40
-A0 Agent Contracts + Provider Abstraction → COMPLETE / PR #41
-A1 Context Builder + Tool Registry        → COMPLETE / PR #44
-A2 Session Store + Multi-turn Runner      → COMPLETE / PR #45
-A3 Production Real Provider               → COMPLETE / PR #46
-A4 AI Workspace Agent UX + Review / Apply → COMPLETE / PR #47
-A5 Agent ↔ Workflow Integration           → COMPLETE / PR #48
-A6 Failure / Revision / Restart Hardening → COMPLETE / PR #49
-A7 End-to-End Product Acceptance          → COMPLETE / PR #50
-V2.3.0 Release Finalization               → COMPLETE / PR #51
-Release tag v2.3.0                        → VERIFIED
-Post-release truth sync                   → COMPLETE / PR #52
-```
-
-## V2.3.1 Engineering Hardening status
-
-Authoritative documents:
-
-- `docs/prd/Video_OS_Studio_V2_3_1_Engineering_Hardening_Master_PRD.md`
-- `docs/prd/Video_OS_Studio_V2_3_1_Development_Plan.md`
-
-Planned delivery sequence:
-
-```text
-R0 Hardening Truth / PRD Sync              → ACTIVE
-H0 Correctness / Resource Hygiene          → NOT STARTED
-H1 Editing Commit Boundary                 → NOT STARTED
-H2 Playback / Timeline / Waveform          → NOT STARTED
-H3 Durable Runtime I/O                     → NOT STARTED
-H4 Local-First Security Boundary           → NOT STARTED
-H5 End-to-End Patch Acceptance             → NOT STARTED
-V2.3.1 Release Finalization                → NOT STARTED
-```
-
-V2.3.1 is a bounded patch/hardening release. It must preserve the accepted V2.3.0 architecture and must not silently become V2.4.
-
-Admitted focus areas include:
-
-- Remotion Player remount-safe event bridge;
-- editing draft/commit boundaries so one user intent maps to one logical Project mutation;
-- explicit Prettier dependency;
-- provider/Agent iterator and HTTP resource cleanup;
-- HyperFrames/Remotion temporary artifact cleanup;
-- safe server error boundaries and Agent tool diagnostics;
-- bounded provider response parsing;
-- Timeline/Script frame-frequency rendering boundaries;
-- Waveform request caching/deduplication;
-- async current-project response guards and reduced recent-project refresh frequency;
-- Workflow/Job I/O optimization without weakening durable truth;
-- crash-safe operation-log compaction design;
-- loopback/trusted-origin local security hardening.
-
-Explicitly forbidden shortcuts include removing accepted Windows durability locks merely for performance, replacing durable truth with in-memory-only events, weakening unknown-tool fail-closed behavior, enabling arbitrary model strings, or bypassing Agent Proposal/Review/Confirm boundaries.
-
-## Release truth
-
-The accepted immutable V2.3.0 release commit is:
-
-`562ffb26d5a04bd2898513893258f857187a00b4`
-
-The annotated release tag is:
-
-`v2.3.0`
-
-Tag object:
-
-`24069497b1986348510ef0d904382f5c3f99855d`
-
-The annotated tag dereferences exactly to the accepted release commit above. The tag is the immutable V2.3.0 release boundary; later documentation-only or V2.3.1 development commits do not change the tagged release contents.
-
-Previous immutable release evidence remains:
-
-- tag: `v2.2.0`;
-- release commit: `0e813e5e1360318211e05c1c5fec5eb82be00224`;
-- annotated tag object: `df1acb238838ed814b969e20fe85a49253a92861`.
-
-## V2.3 A7 accepted evidence
-
-Frozen exact tested A7 head:
-
-`ae33d177ccefda1a66cf28bb266c48282ca99930`
-
-Cloud CI:
-
-Run #701 / `33091281417` — Ubuntu Verify, Windows Verify, Browser Smoke and Windows Media Smoke all PASS.
-
-Accepted A7 main:
-
-`84e2826164ce6557cd99c4b42006ee703773c882`
-
-Formal local acceptance used Windows / Node `v24.20.0` with real `volcengine-agent-plan / ark-code-latest`.
-
-### Case A — Talking Head selected-context Agent edit
+### Case A — Player / Timeline / Script
 
 PASS.
 
-- real Talking Head Project stopped before Motion Generation;
-- normal Studio compound Scene + Caption selection persisted simultaneously;
-- real `propose_visual_plan` kept model input bounded to `intent` while server-side selection matched Studio context;
-- scoped actionable Remotion proposal;
-- Proposal and Review produced no mutation;
-- Apply mutated Project exactly +1;
-- no duplicate visual/operation;
-- Session / Proposal / applied visual survived reload/reopen.
+- Player playback survived Canvas remount.
+- Timeline playhead stayed synchronized.
+- Script current-word highlighting followed playback and seek.
+- double Space toggled exactly twice with no duplicate keyboard listener.
 
-### Case B — Product Ad / real encoded MP4
+### Case B — Editing commit boundary
 
 PASS.
 
-- real 1920×1080 / 30 fps Product Ad source with proof/number/CTA;
-- real Agent scoped proof Proposal and explicit Apply exactly +1;
-- accepted Agent visual survived the existing Workflow Runtime;
-- FINAL_RENDER completed on attempt 1;
-- real final MP4 verified as H.264 / 1920×1080 / 30 fps / AAC;
-- extracted frames from the encoded MP4 visually proved the accepted Agent treatment was present;
-- no duplicate motion/B-roll/CTA/assets or duplicate Apply operation.
+- text input while focused: 0 Project command POSTs.
+- commit: exactly 1.
+- slider drag: 0 commands.
+- pointer-up: exactly 1.
+- blur: no duplicate commit.
+- Undo restored durable values.
 
-### Case C — stale / Re-plan latest
-
-PASS.
-
-- real durable Session reused across turns;
-- P1 created at revision N without mutation;
-- normal manual Project command moved N → N+1;
-- P1 Apply Selected and Apply All blocked with `AGENT_PROPOSAL_STALE`;
-- Re-plan latest created P2 at N+1 with latest manual edit in Project truth;
-- P2 Review remained non-mutating;
-- Apply moved exactly N+1 → N+2;
-- manual edit preserved and no duplicate mutation/visual/operation.
-
-### Case D — restart / recovery
+### Case C — Real Workflow / Jobs / Final
 
 PASS.
 
-- server stopped cleanly and restarted on the same exact SHA/data root;
-- same Project and same Agent Session rediscovered;
-- user/assistant history and Proposal statuses restored;
-- manual edit and both accepted Agent visuals restored;
-- fresh real read-only `get_project_context` turn observed latest revision and did not mutate it;
-- no duplicate operation, stale lock or orphan process.
+Real talking-head media traversed:
 
-Security gates across A7 passed: no API-key/Authorization persistence or exposure, no provider secret tracking, no unsafe local path exposure to the model, no raw media upload to the LLM provider, clean repository and unchanged exact SHA.
+`media → video-use → transcript → Visual Planner → HyperFrames Durable Job → Project mutation → Remotion → render-final → encoded MP4`
 
-## V2.3 release metadata evidence
+Final evidence:
 
-Release package version:
+- real video-use Job completed;
+- real HyperFrames Job completed;
+- real Final Render Job completed;
+- H.264 / AAC / 640×360 / 30 fps / 115.989333 s;
+- encoded visual proof PASS;
+- no props/hf-work/orphan-engine residue.
 
-`2.3.0`
+### Case D — Restart / idempotency
 
-`package.json`, the package-lock top-level version, and `packages[""]` are all `2.3.0`.
+PASS.
 
-The package-lock sync commit is:
+- durable Agent Session/Proposal/Project state survived restart;
+- Project revision remained unchanged across restart;
+- duplicate Apply was idempotent;
+- shared live PID was probed once;
+- dead PID recovered Jobs to `JOB_INTERRUPTED`, `retryable=true`;
+- operation ledger passed;
+- no stale locks.
 
-`3e511860a68570988344b48dcdbf28bcc9eee2d5`
+### Case E — Local security + H.264 + Windows atomic persistence
 
-Local Codex on Windows / Node `v24.20.0` / npm `11.19.0` generated the real lockfile metadata using `npm install --package-lock-only --ignore-scripts --no-audit --no-fund`.
+PASS.
 
-Verified metadata:
+- default listener loopback-only;
+- spoofed Host could not control trusted renderer origin;
+- remote renderer origin blocked by default;
+- real Next Range 206 and HEAD 200 passed;
+- odd Project Canvas remained 641×361;
+- resolved H.264 Export Profile / Render Job / prepared Remotion Project / actual MP4 all agreed on 640×360;
+- already-even 640×360 remained 640×360;
+- real Windows `FileShare.None` contention passed for both `FileJobStore` and `NodeFileSystemAdapter.writeTextAtomic`;
+- no product-level EPERM/EACCES/EBUSY failure or temp residue.
 
-- package.json version `2.3.0`;
-- package-lock root version `2.3.0`;
-- `packages[""]` version `2.3.0`;
-- dependency version drift: none;
-- engine pin drift: none;
-- `npm ci`: PASS;
-- `npm run typecheck`: PASS;
-- `git diff --check`: PASS;
-- clean tree after push.
+## Release-finalization boundaries
 
-Final exact-head release CI on `5d18c20b0586c9c997eb05572fb80565c3da4079` passed GitHub Actions Run #706 / `33098478140` across Ubuntu Verify, Windows Verify, Browser Smoke and Windows Media Smoke. PR #51 then merged to main as release commit `562ffb26d5a04bd2898513893258f857187a00b4`. Annotated tag `v2.3.0` was created and independently verified to dereference exactly to that release commit.
+V2.3.1 Release Finalization is metadata/docs only unless a release-gate defect is proven.
+
+Required sequence:
+
+1. merge PR #61 after its report-only CI is green;
+2. create a dedicated V2.3.1 release-finalization branch from resulting main;
+3. update `package.json` version to `2.3.1`;
+4. synchronize only package-lock root metadata (`version` and `packages[""]` version) to `2.3.1` without dependency/pin drift;
+5. update release truth docs/status;
+6. run final exact-release GitHub CI across Ubuntu, Windows, Browser Smoke, and Windows Media Smoke;
+7. merge release-finalization with expected-head protection;
+8. create immutable annotated tag `v2.3.1` only after the final release commit is independently verified;
+9. independently verify the tag object and dereferenced commit.
+
+Do not move or recreate `v2.3.0`.
 
 ## Accepted invariants
 
@@ -263,61 +163,18 @@ REUSE > MODIFY > CREATE
 - Project JSON remains durable editing truth.
 - Workflow durable state remains separate from Project Schema.
 - Durable Job runtime remains concrete execution truth.
-- Workflow Stages use registered services/jobs/transactions and do not directly spawn engines.
-- Long-running mutation work preserves Project revision and operation idempotency contracts.
 - Agent/provider/tool execution has no direct Project or Workflow mutation authority.
-- Agent mutation requires a validated Proposal plus explicit Review/Apply/Confirm boundary.
+- Agent mutation requires validated Proposal plus explicit Review/Apply/Confirm boundary.
 - stale Project/Workflow state fails closed.
-- server-side Studio selection is authoritative; model-facing tools cannot invent selection IDs.
+- default local server boundary remains loopback-first.
+- Windows durable atomic replacement preserves temp-file + atomic rename semantics with bounded transient-error retry.
 
-## Accepted V2.3 architecture
+## Release truth
 
-```text
-User editing goal
-→ durable Agent Session
-→ bounded Project / Script / Scene / Clip / Selection / Workflow context
-→ provider-neutral Agent Runner
-→ production provider + allow-listed typed tools
-→ validated Proposal
-→ Review / Diff
-→ explicit user confirmation
-→ existing Project Command / WorkflowService / WorkflowRunner / Durable Jobs
-→ latest durable Project truth
-→ Remotion final render when Workflow reaches FINAL_RENDER
-```
+The currently released immutable boundary remains V2.3.0 until V2.3.1 release finalization completes:
 
-Production real-provider route accepted in V2.3:
+- tag: `v2.3.0`
+- release commit: `562ffb26d5a04bd2898513893258f857187a00b4`
+- annotated tag object: `24069497b1986348510ef0d904382f5c3f99855d`
 
-`volcengine-agent-plan / ark-code-latest`
-
-Existing provider abstraction also contains OpenAI Responses and DeepSeek Chat Completions adapters, but release acceptance used the Volcengine Agent Plan route above.
-
-## V2.3 milestone evidence
-
-A3 accepted production real-provider behavior with a real tool loop and no mutation/secret leakage.
-
-A4 accepted Agent Workspace, durable Sessions, real visual Proposal → Review/Diff → explicit Apply/Undo, stale blocking and reload/reopen.
-
-A5 accepted Agent ↔ Workflow proposal-only integration, dedicated Workflow Action Review, no mutation before confirmation, and execution through existing Workflow Runtime.
-
-A6 accepted backup self-heal, restart/recovery, provider cancel→fresh retry, stale conflicts, concurrent duplicate Apply idempotency, safe error handling and Windows media regression.
-
-A7 accepted the complete real product path and final encoded-video proof described above.
-
-## Release completion boundary
-
-PR #51 was metadata/finalization only. It changed release metadata and repository release truth without changing product code, Project Schema, engine pins, tests, provider behavior, Agent/Workflow/Job architecture, or accepted A7 behavior.
-
-The completed V2.3.0 release sequence is:
-
-1. A7 product acceptance completed and merged;
-2. package and lockfile metadata synchronized to `2.3.0`;
-3. final exact-head GitHub CI #706 passed all four jobs;
-4. PR #51 merged as `562ffb26d5a04bd2898513893258f857187a00b4`;
-5. annotated tag `v2.3.0` was created;
-6. tag object `24069497b1986348510ef0d904382f5c3f99855d` was verified to target that exact release commit;
-7. post-release documentation PR #52 merged as `7cb308a773bb910011c471e714182a5368a1d459`.
-
-V2.3.1 Engineering Hardening is now the only active development workstream. V2.4 is not active and must not begin implicitly inside hardening work.
-
-The experimental branch `feature/v2.2-w55-workflow-template` remains outside the accepted release path and must not be merged implicitly.
+V2.4 is NOT STARTED and must not begin implicitly inside release finalization.
