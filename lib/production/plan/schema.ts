@@ -1,5 +1,6 @@
 import {z} from "zod";
 import {ProductionMissionIdSchema} from "@/lib/production/mission/schema";
+import {VideoSkillEvidenceIdSchema} from "@/lib/production/skills/schema";
 import {ProjectIdSchema} from "@/schemas/project";
 
 export const ProductionPlanIdSchema=z.string().uuid();
@@ -18,7 +19,7 @@ export const ProductionPlanStepKindSchema=z.enum([
 ]);
 export const ProductionPlanRiskSchema=z.enum(["low","medium","high"]);
 export const ProductionPlanOwnerSchema=z.enum(["agent","workflow","job","human-review"]);
-export const ProductionPlanEvidenceKindSchema=z.enum(["mission","project","script","scene","asset","visual-plan","workflow"]);
+export const ProductionPlanEvidenceKindSchema=z.enum(["mission","project","script","scene","asset","visual-plan","workflow","skill"]);
 
 const UnsafeExecutablePattern=/(?:[A-Za-z]:[\\/]|\/home\/|\/tmp\/|\\Users\\|\.\.\/|\.\.\\|powershell\s+(?:-|\/)|cmd\.exe\s+(?:-|\/)|bash\s+-c|rm\s+-rf|taskkill\s+(?:-|\/)|child_process|spawn\s*\(|exec\s*\()/i;
 export const ProductionPlanTextSchema=z.string().trim().min(1).max(1000).superRefine((value,ctx)=>{
@@ -39,7 +40,9 @@ const ownersByKind:Record<z.infer<typeof ProductionPlanStepKindSchema>,ReadonlyS
 export const ProductionPlanEvidenceRefSchema=z.object({
   kind:ProductionPlanEvidenceKindSchema,
   id:LogicalEvidenceIdSchema,
-}).strict();
+}).strict().superRefine((evidence,ctx)=>{
+  if(evidence.kind==="skill"&&!VideoSkillEvidenceIdSchema.safeParse(evidence.id).success)ctx.addIssue({code:"custom",path:["id"],message:"Skill evidence must record an exact allow-listed Skill ID and semantic version as skill-id@major.minor.patch."});
+});
 
 export const ProductionPlanStepSchema=z.object({
   id:ProductionPlanStepIdSchema,
