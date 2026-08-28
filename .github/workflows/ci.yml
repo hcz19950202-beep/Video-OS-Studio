@@ -86,8 +86,18 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
+      - name: Checkout exact tested SHA
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact source SHA
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_SHA) { throw "Exact-SHA checkout mismatch." }
+          "B4_REAL_MEDIA_SHA=$actual" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -110,5 +120,5 @@ jobs:
           ffprobe -version
           $chrome = "C:\Program Files\Google\Chrome\Application\chrome.exe"
           if (!(Test-Path $chrome)) { throw "Chrome executable not found at $chrome" }
-      - name: Windows real-media smoke
+      - name: Windows exact-SHA real-media + B4 QA smoke
         run: npm run test:windows-media

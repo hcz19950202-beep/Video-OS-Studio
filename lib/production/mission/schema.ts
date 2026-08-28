@@ -7,6 +7,7 @@ import {ProjectIdSchema} from "@/schemas/project";
 export const ProductionMissionIdSchema=z.string().uuid();
 export type ProductionMissionId=z.infer<typeof ProductionMissionIdSchema>;
 export const ProductionMissionPlanIdSchema=z.string().uuid();
+export const ProductionMissionQAReportIdSchema=z.string().uuid();
 
 export const ProductionMissionStatusSchema=z.enum([
   "draft",
@@ -41,14 +42,17 @@ export const ProductionMissionTargetSchema=z.object({
 }).strict();
 export type ProductionMissionTarget=z.infer<typeof ProductionMissionTargetSchema>;
 
-const UniqueIdArray=<T extends z.ZodTypeAny>(schema:T,label:string)=>z.array(schema).default([]).superRefine((values,ctx)=>{
-  const seen=new Set<string>();
-  for(const[index,value]of values.entries()){
-    const id=String(value);
-    if(seen.has(id))ctx.addIssue({code:"custom",path:[index],message:`Duplicate ${label} ${id}`});
-    seen.add(id);
-  }
-});
+const UniqueIdArray=<T extends z.ZodTypeAny>(schema:T,label:string,maxItems?:number)=>{
+  const values=maxItems===undefined?z.array(schema):z.array(schema).max(maxItems);
+  return values.default([]).superRefine((items,ctx)=>{
+    const seen=new Set<string>();
+    for(const[index,value]of items.entries()){
+      const id=String(value);
+      if(seen.has(id))ctx.addIssue({code:"custom",path:[index],message:`Duplicate ${label} ${id}`});
+      seen.add(id);
+    }
+  });
+};
 
 export const ProductionMissionSchema=z.object({
   id:ProductionMissionIdSchema,
@@ -60,6 +64,7 @@ export const ProductionMissionSchema=z.object({
   baseProjectRevision:z.number().int().nonnegative(),
   status:ProductionMissionStatusSchema,
   planId:ProductionMissionPlanIdSchema.optional(),
+  qaReportIds:UniqueIdArray(ProductionMissionQAReportIdSchema,"qa report id",128),
   agentSessionIds:UniqueIdArray(AgentSessionIdSchema,"agent session id"),
   workflowRunIds:UniqueIdArray(WorkflowRunIdSchema,"workflow run id"),
   jobIds:UniqueIdArray(JobIdSchema,"job id"),

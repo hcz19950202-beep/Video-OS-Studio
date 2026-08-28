@@ -14,6 +14,10 @@ import {FileJobStore} from "@/lib/jobs/store";
 import {MediaDataMaintenanceService} from "@/lib/media/data-maintenance";
 import {MediaImportService} from "@/lib/media/import-service";
 import {WaveformService} from "@/lib/media/waveform-service";
+import {ProductionMissionRepository} from "@/lib/production/mission/repository";
+import {ProductionMissionService} from "@/lib/production/mission/service";
+import {QAReportRepository} from "@/lib/production/qa/repository";
+import {ProductionQAService} from "@/lib/production/qa/service";
 import {ProjectMutationCoordinator} from "@/lib/project/mutation-coordinator";
 import {ProjectRepository} from "@/lib/project/repository";
 import {RenderJobManager} from "@/lib/render/render-jobs";
@@ -58,6 +62,11 @@ export const jobRuntime=getGlobalRuntime(`${dataRoot}:job-runtime`,()=>new Durab
   videoUse:videoUseService,
 })));
 export const renderJobs=new RenderJobManager(jobRuntime);
+
+export const productionMissionRepository=getGlobalRuntime(`${dataRoot}:production-mission-repository`,()=>new ProductionMissionRepository(fileSystem,dataRoot));
+export const productionMissionService=getGlobalRuntime(`${dataRoot}:production-mission-service`,()=>new ProductionMissionService(productionMissionRepository,projectRepository));
+export const qaReportRepository=getGlobalRuntime(`${dataRoot}:qa-report-repository`,()=>new QAReportRepository(fileSystem,dataRoot));
+export const productionQAService=getGlobalRuntime(`${dataRoot}:production-qa-service`,()=>new ProductionQAService(qaReportRepository,projectRepository,jobStore,productionMissionService,fileSystem,ffmpegAdapter));
 
 export const visualPlannerAdapter=new RulesVisualPlannerAdapter();
 export const visualPlanService=new VisualPlanService(fileSystem,projectRepository,visualPlannerAdapter,hyperFramesRenderService,projectMutations);

@@ -4,6 +4,7 @@ import {createVisualPlanProposalTool,type VisualPlanGenerator} from "@/lib/ai/to
 import {createWorkflowAgentTools,type AgentWorkflowReader} from "@/lib/ai/tools/workflow-tools";
 import {createAssetIntelligenceReadTool,type AgentAssetIntelligenceReader} from "@/lib/ai/tools/asset-intelligence-tools";
 import {createVideoSkillAgentTools} from "@/lib/ai/tools/skill-tools";
+import {createQAReportReadTool,type AgentQAReportReader} from "@/lib/ai/tools/qa-tools";
 import type {VideoSkillRegistry} from "@/lib/production/skills/registry";
 
 export type A1AgentToolDependencies={
@@ -11,6 +12,7 @@ export type A1AgentToolDependencies={
   workflows?:AgentWorkflowReader;
   assetIntelligence?:AgentAssetIntelligenceReader;
   videoSkills?:VideoSkillRegistry;
+  qaReports?:AgentQAReportReader;
 };
 
 export function createA1AgentToolRegistry(dependencies:A1AgentToolDependencies):AgentToolRegistry{
@@ -18,6 +20,7 @@ export function createA1AgentToolRegistry(dependencies:A1AgentToolDependencies):
     createProjectContextReadTool(),
     ...(dependencies.assetIntelligence?[createAssetIntelligenceReadTool(dependencies.assetIntelligence)]:[]),
     ...(dependencies.videoSkills?createVideoSkillAgentTools(dependencies.videoSkills):[]),
+    ...(dependencies.qaReports?[createQAReportReadTool(dependencies.qaReports)]:[]),
     createVisualPlanProposalTool(dependencies.visualPlans),
     ...(dependencies.workflows?createWorkflowAgentTools(dependencies.workflows):[]),
   ]);
@@ -25,6 +28,7 @@ export function createA1AgentToolRegistry(dependencies:A1AgentToolDependencies):
 
 export * from "@/lib/ai/tools/asset-intelligence-tools";
 export * from "@/lib/ai/tools/proposal-tools";
+export * from "@/lib/ai/tools/qa-tools";
 export * from "@/lib/ai/tools/read-tools";
 export * from "@/lib/ai/tools/registry";
 export * from "@/lib/ai/tools/schema";

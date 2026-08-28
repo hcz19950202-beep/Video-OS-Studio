@@ -1,14 +1,19 @@
 import { access, mkdtemp, mkdir, rm, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { NodeFfmpegAdapter } from "@/adapters/ffmpeg";
 import { NodeFileSystemAdapter } from "@/adapters/filesystem";
 import { NodeRemotionCliAdapter } from "@/adapters/remotion-cli";
 import { createStreamingFileResponse } from "@/lib/http/streaming-file";
+import { FileJobStore } from "@/lib/jobs/store";
 import { MediaImportService } from "@/lib/media/import-service";
 import { ProjectRepository } from "@/lib/project/repository";
 import { nodeToolRunner } from "@/lib/process/tool-runner";
+import { ProductionMissionRepository } from "@/lib/production/mission/repository";
+import { ProductionMissionService } from "@/lib/production/mission/service";
+import { QAReportRepository } from "@/lib/production/qa/repository";
+import { ProductionQAService } from "@/lib/production/qa/service";
 
 const roots: string[] = [];
 const windowsMediaIt = process.env.H6_WINDOWS_MEDIA_SMOKE === "1" ? it : it.skip;
@@ -32,7 +37,7 @@ afterEach(async () => {
 
 describe("H6 Windows real-media smoke", () => {
   windowsMediaIt(
-    "imports MP4/MOV/image/audio/subtitle, probes and normalizes media, serves Range, and renders a short Final",
+    "imports media, renders a real Final, and accepts that exact artifact through B4 Production QA",
     async () => {
       expect(process.platform).toBe("win32");
       const root = await mkdtemp(join(tmpdir(), "video-os-h6-windows-media-"));
@@ -205,7 +210,19 @@ describe("H6 Windows real-media smoke", () => {
         fps: 30,
         durationInFrames: 30,
       });
-      const renderPath = join(root, "render", "h6-final.mp4");
+      renderProject.scenes = [
+        { id: "h6-hook", name: "Hook", semanticType: "hook", startFrame: 0, endFrame: 10 },
+        { id: "h6-proof", name: "Proof", semanticType: "proof", startFrame: 10, endFrame: 20 },
+        { id: "h6-cta", name: "CTA", semanticType: "cta", startFrame: 20, endFrame: 30 },
+      ];
+      await repository.save(renderProject);
+
+      const renderRelativePath = "render/final-b4-qa-smoke.mp4";
+      const renderPath = repository.resolveProjectFile(
+        renderProject.project.id,
+        renderRelativePath,
+      );
+      await mkdir(dirname(renderPath), { recursive: true });
       await new NodeRemotionCliAdapter().render(
         {
           project: renderProject,
@@ -218,9 +235,121 @@ describe("H6 Windows real-media smoke", () => {
         { timeoutMs: 180_000 },
       );
       const rendered = await ffmpeg.probe(renderPath);
-      expect(rendered).toMatchObject({ width: 320, height: 180 });
+      expect(rendered).toMatchObject({ width: 320, height: 180, hasAudio: false });
       expect(rendered.durationSeconds).toBeGreaterThan(0);
       await expect(access(`${renderPath}.props.json`)).rejects.toThrow();
+
+      const missionId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+      const renderJobId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+      const qaReportId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+      const qaRepairId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+      const timestamp = "2026-08-28T12:00:00.000Z";
+
+      const missionRepository = new ProductionMissionRepository(fs, dataRoot);
+      const missionService = new ProductionMissionService(missionRepository, repository, {
+        createId: () => missionId,
+        now: () => timestamp,
+      });
+      const mission = await missionService.create({
+        projectId: renderProject.project.id,
+        title: "B4 exact artifact QA smoke",
+        brief: "Validate the real short Final through the bounded B4 Production QA path.",
+        target: { targetDurationSeconds: 1 },
+        autonomyPolicy: { mode: "guided", finalReviewRequired: true },
+      });
+
+      const jobStore = new FileJobStore(dataRoot);
+      await jobStore.ensure();
+      await jobStore.create({
+        id: renderJobId,
+        type: "render-final",
+        projectId: renderProject.project.id,
+        status: "completed",
+        stage: "completed",
+        progress: 1,
+        attempt: 1,
+        input: {},
+        output: {
+          outputRelativePath: renderRelativePath,
+          mode: "final",
+          sourceProjectRevision: renderProject.project.revision,
+          profile: {
+            sizing: "project",
+            width: 320,
+            height: 180,
+            fps: 30,
+            container: "mp4",
+            codec: "h264",
+            audio: "none",
+            quality: "draft",
+          },
+        },
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        startedAt: timestamp,
+        finishedAt: timestamp,
+      });
+      await jobStore.saveArtifacts(renderJobId, [
+        {
+          id: "render-output",
+          kind: "render",
+          label: "B4 real final",
+          relativePath: renderRelativePath,
+          mimeType: "video/mp4",
+        },
+      ]);
+
+      const qaRepository = new QAReportRepository(fs, dataRoot);
+      const qaService = new ProductionQAService(
+        qaRepository,
+        repository,
+        jobStore,
+        missionService,
+        fs,
+        ffmpeg,
+        {
+          now: () => timestamp,
+          createReportId: () => qaReportId,
+          createRepairId: () => qaRepairId,
+        },
+      );
+      const report = await qaService.run(renderProject.project.id, {
+        missionId: mission.id,
+        renderJobId,
+        expectations: { expectAudio: false, sceneCoverageMinRatio: 1 },
+      });
+
+      expect(report.status).toBe("pass");
+      expect(report.repairProposal).toBeUndefined();
+      expect(report.technicalEvidence).toMatchObject({
+        renderArtifactId: "render-output",
+        width: 320,
+        height: 180,
+        hasAudio: false,
+      });
+      for (const findingId of [
+        "technical-render-artifact",
+        "technical-output-exists",
+        "technical-probe",
+        "technical-duration",
+        "technical-dimensions",
+        "technical-fps",
+        "technical-audio",
+        "technical-project-revision",
+        "content-hook",
+        "content-cta",
+        "content-evidence",
+        "visual-scene-coverage",
+        "goal-duration-target",
+      ]) {
+        expect(report.findings.find((finding) => finding.id === findingId)?.status).toBe("pass");
+      }
+      expect(
+        (await missionService.require(renderProject.project.id, mission.id)).qaReportIds,
+      ).toEqual([qaReportId]);
+      expect(await qaRepository.load(renderProject.project.id, qaReportId)).toEqual(report);
+      expect(JSON.stringify(report)).not.toContain(renderRelativePath);
+      expect(JSON.stringify(report)).not.toContain(dataRoot);
     },
     240_000,
   );
