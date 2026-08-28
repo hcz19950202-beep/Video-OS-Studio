@@ -15,6 +15,7 @@ const record=(overrides:Partial<AssetIntelligenceRecord>={}):AssetIntelligenceRe
   projectId:PROJECT_ID,
   assetId:ASSET_ID,
   sourceFingerprint:"a".repeat(64),
+  sourceFingerprintScope:"project-asset-descriptor-v1",
   sourceProjectRevision:3,
   analyzer:{id:"deterministic-media-metadata",version:"1",mode:"deterministic"},
   summary:"A portrait talking-head source with audio.",
