@@ -7,6 +7,7 @@ export type WaveformCacheKeyInput={
   hasAudio?:boolean;
 };
 
+const MAX_CACHE_ENTRIES=128;
 const peaksCache=new Map<string,number[]>();
 const inFlight=new Map<string,Promise<number[]>>();
 
@@ -19,12 +20,26 @@ export const createWaveformCacheKey=(input:WaveformCacheKeyInput)=>JSON.stringif
   input.hasAudio??null,
 ]);
 
+const remember=(key:string,peaks:number[])=>{
+  peaksCache.delete(key);
+  peaksCache.set(key,peaks);
+  while(peaksCache.size>MAX_CACHE_ENTRIES){
+    const oldest=peaksCache.keys().next().value as string|undefined;
+    if(oldest===undefined)break;
+    peaksCache.delete(oldest);
+  }
+};
+
 export const loadCachedWaveform=(key:string,loader:()=>Promise<number[]>):Promise<number[]>=>{
-  if(peaksCache.has(key))return Promise.resolve(peaksCache.get(key)!);
+  if(peaksCache.has(key)){
+    const peaks=peaksCache.get(key)!;
+    remember(key,peaks);
+    return Promise.resolve(peaks);
+  }
   const pending=inFlight.get(key);
   if(pending)return pending;
   const request=loader().then(peaks=>{
-    peaksCache.set(key,peaks);
+    remember(key,peaks);
     return peaks;
   }).finally(()=>{inFlight.delete(key);});
   inFlight.set(key,request);
