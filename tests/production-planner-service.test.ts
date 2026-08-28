@@ -11,6 +11,7 @@ import type {Project} from "@/schemas/project";
 const PROJECT_ID="project-1";
 const MISSION_ID="22222222-2222-4222-8222-222222222222";
 const PLAN_ID="11111111-1111-4111-8111-111111111111";
+const SECOND_PLAN_ID="33333333-3333-4333-8333-333333333333";
 
 const missionFixture=(overrides:Partial<ProductionMission>={}):ProductionMission=>ProductionMissionSchema.parse({
   id:MISSION_ID,projectId:PROJECT_ID,title:"Australian builder ad",brief:"Create a direct B2B product ad with proof and CTA.",
@@ -50,6 +51,30 @@ describe("ProductionPlannerService",()=>{
     expect((await missions.require(PROJECT_ID,MISSION_ID)).status).toBe("ready");
     expect(await plans.require(PROJECT_ID,PLAN_ID)).toEqual(plan);
     expect([...fs.files.keys()].some(path=>path.endsWith("/project.json"))).toBe(false);
+  });
+
+  it("preserves immutable re-plan lineage and advances only the Mission plan link",async()=>{
+    const fs=new InMemoryFileSystemAdapter();
+    const missions=new ProductionMissionRepository(fs,"/data");
+    const plans=new ProductionPlanRepository(fs,"/data");
+    await missions.create(missionFixture());
+    const ids=[PLAN_ID,SECOND_PLAN_ID];
+    const service=new ProductionPlannerService(
+      missions,
+      plans,
+      {load:async()=>projectAtRevision(5)},
+      new MockProductionPlanner(),
+      {createId:()=>ids.shift()??SECOND_PLAN_ID,now:()=>"2026-08-28T12:00:05.000Z"},
+    );
+
+    const first=await service.generate(PROJECT_ID,MISSION_ID);
+    const second=await service.generate(PROJECT_ID,MISSION_ID);
+
+    expect(second.supersedesPlanId).toBe(first.id);
+    expect(await plans.require(PROJECT_ID,first.id)).toEqual(first);
+    expect(await plans.require(PROJECT_ID,second.id)).toEqual(second);
+    expect((await missions.require(PROJECT_ID,MISSION_ID)).planId).toBe(second.id);
+    expect((await plans.list(PROJECT_ID,MISSION_ID)).map(plan=>plan.id).sort()).toEqual([PLAN_ID,SECOND_PLAN_ID].sort());
   });
 
   it("rejects an explicit stale revision before invoking the planner",async()=>{
