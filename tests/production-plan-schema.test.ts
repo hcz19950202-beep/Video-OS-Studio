@@ -21,19 +21,24 @@ describe("ProductionPlanSchema",()=>{
   });
 
   it("rejects unknown step kinds and arbitrary executable fields",()=>{
-    const unknown=basePlan() as any;
-    unknown.steps[0].kind="shell";
+    const source=basePlan();
+    const unknown={...source,steps:[{...source.steps[0],kind:"shell"},source.steps[1]]};
     expect(()=>ProductionPlanSchema.parse(unknown)).toThrow();
 
-    const command=basePlan() as any;
-    command.steps[0].command="powershell -Command Remove-Item";
+    const command={...source,steps:[{...source.steps[0],command:"powershell -Command Remove-Item"},source.steps[1]]};
     expect(()=>ProductionPlanSchema.parse(command)).toThrow();
   });
 
   it("rejects executable/path-like text in normalized plan intent",()=>{
-    const plan=basePlan();
-    plan.steps[0].objective="Run powershell to inspect C:\\Users\\secret\\project.json";
+    const source=basePlan();
+    const plan={...source,steps:[{...source.steps[0],objective:"Run powershell -Command Get-Item C:\\Users\\secret\\project.json"},source.steps[1]]};
     expect(()=>ProductionPlanSchema.parse(plan)).toThrow("executable commands or machine paths");
+  });
+
+  it("allows ordinary production topics that mention tool names without executable instructions",()=>{
+    const source=basePlan();
+    const plan={...source,summary:"Create an educational video explaining PowerShell fundamentals."};
+    expect(()=>ProductionPlanSchema.parse(plan)).not.toThrow();
   });
 
   it("rejects missing dependencies, self dependencies and cycles",()=>{
@@ -55,8 +60,8 @@ describe("ProductionPlanSchema",()=>{
     highRisk.steps[1].reviewRequired=false;
     expect(()=>ProductionPlanSchema.parse(highRisk)).toThrow("High-risk");
 
-    const wrongOwner=basePlan() as any;
-    wrongOwner.steps.push({id:"review",kind:"human-review",title:"Review",objective:"Review the result.",dependsOn:["edit-project"],risk:"high",owner:"agent",reviewRequired:true,requiresProjectRevision:true,evidence:[]});
+    const source=basePlan();
+    const wrongOwner={...source,steps:[...source.steps,{id:"review",kind:"human-review",title:"Review",objective:"Review the result.",dependsOn:["edit-project"],risk:"high",owner:"agent",reviewRequired:true,requiresProjectRevision:true,evidence:[]}]};
     expect(()=>ProductionPlanSchema.parse(wrongOwner)).toThrow("Human-review");
   });
 });
