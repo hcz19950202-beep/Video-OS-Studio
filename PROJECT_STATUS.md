@@ -67,7 +67,7 @@ B7 must not begin until B6 proves a real single-video autonomous Mission end-to-
 
 ```text
 R0 Repository / PRD / Runtime Truth Sync    → COMPLETE / PR #66 / main eb261969676529669f0c5c8e267d773a67f40ecc / exact-main CI #769 PASS
-B0 Production Mission Contracts + Store    → COMPLETE / PR #67 / implementation candidate 70a94732ceb31f5304fa732d2112f20bbe8095ca / CI #776 four gates PASS / merge only after final status-sync exact-head CI
+B0 Production Mission Contracts + Store    → COMPLETE / PR #67 / final PR head ee0fd2c5dab9552b4f14bdde00b4591fdf26257c / exact-head CI #777 PASS
 B1 Production Planner + Mission Step Graph → READY / not started
 B2 Asset Intelligence + Semantic Retrieval → NOT STARTED
 B3 Reusable Video Skills                   → NOT STARTED
@@ -97,17 +97,17 @@ B0 introduces a durable Production Mission layer outside `project.json`:
 
 B0 explicitly does **not** implement Planner, Asset Intelligence, Video Skills, QA, Mission Executor, Campaign production, Project Schema migration, dependency upgrades or engine/runtime changes.
 
-B0 cloud evidence on implementation candidate `70a94732ceb31f5304fa732d2112f20bbe8095ca`:
+B0 final exact-head cloud evidence on `ee0fd2c5dab9552b4f14bdde00b4591fdf26257c`:
 
 ```text
-CI #776 / run 33166915320
+CI #777 / run 33167258148
 Ubuntu Verify:       PASS
 Windows Verify:      PASS
 Browser Smoke:       PASS
 Windows Media Smoke: PASS
 ```
 
-The final PR head additionally contains only this repository-truth status sync and must pass the same exact-head CI before PR #67 may merge.
+No Local Codex gate was required because B0 did not modify browser/media/process/runtime behavior or the accepted shared filesystem implementation; its real Node filesystem concurrency behavior was exercised inside cloud unit gates on both Ubuntu and Windows.
 
 ## V2.3.1 immutable release truth
 
