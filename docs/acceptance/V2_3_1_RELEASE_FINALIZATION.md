@@ -2,9 +2,34 @@
 
 ## Status
 
-`RELEASE_FINALIZATION = IN PROGRESS`
+`RELEASE_FINALIZATION = COMPLETE`
 
-V2.3.1 product hardening and H5 acceptance are complete. This document records the metadata-only release-finalization boundary before the immutable `v2.3.1` tag is created.
+V2.3.1 product hardening, H5 acceptance, release metadata synchronization, exact-head release CI, final merge, and immutable annotated tag verification are complete.
+
+## Immutable release truth
+
+Release tag:
+
+`v2.3.1`
+
+Annotated tag object SHA:
+
+`b91d0c3adbaef09cd5c323481ec6bb04c516dd6e`
+
+Dereferenced release commit:
+
+`6e07d1dbdd0ec4d64d022f7c821e133ddf207637`
+
+Git object verification confirmed:
+
+- `refs/tags/v2.3.1` points to object type `tag`;
+- tag object SHA is `b91d0c3adbaef09cd5c323481ec6bb04c516dd6e`;
+- tag name is `v2.3.1`;
+- tag message is `Video OS Studio v2.3.1`;
+- the tag object targets object type `commit`;
+- the target commit is exactly `6e07d1dbdd0ec4d64d022f7c821e133ddf207637`.
+
+The tag is annotated and unsigned. It must never be moved or recreated.
 
 ## Accepted product boundary
 
@@ -33,11 +58,11 @@ Release branch:
 
 `release/v2.3.1`
 
-Branch base:
+Release branch base:
 
 `c78f60aa657fd603397c8e41a170971521d609be`
 
-Package metadata is now synchronized to:
+Package metadata synchronized to:
 
 ```text
 package.json version:                 2.3.1
@@ -45,21 +70,78 @@ package-lock.json top-level version:  2.3.1
 package-lock packages[""].version:    2.3.1
 ```
 
-One-shot metadata-sync workflow evidence:
+One-shot metadata-sync evidence:
 
 - temporary workflow commit: `00e4abcdf35de5e9622d94ac0191614d2f46952c`;
 - workflow run: `33158443639` — PASS;
 - synchronized package commit: `18c6b07e659a3dad9faaf1bfa391a72b38b50ddd`;
 - temporary workflow removed by commit: `39aac1149a6e32ef5eea8821caa8023e313dec22`;
-- final branch diff after workflow removal contains no temporary workflow file.
+- final release PR diff contained no temporary workflow file.
 
-The sync run structurally compared JSON before and after the version command and failed closed unless the only package changes were:
+The sync structurally compared package JSON before and after and failed closed unless the only package changes were:
 
 1. `package.json.version`: `2.3.0 → 2.3.1`;
 2. `package-lock.json.version`: `2.3.0 → 2.3.1`;
 3. `package-lock.json.packages[""].version`: `2.3.0 → 2.3.1`.
 
 No dependency, devDependency, engine, integrity, resolved URL, package tree, or runtime pin drift was permitted.
+
+## Release PR and exact-head gate
+
+Release-finalization PR:
+
+- PR #64: `release(v2.3.1): finalize patch release`;
+- base: `main` at `c78f60aa657fd603397c8e41a170971521d609be`;
+- frozen final PR head: `2255952ccc2a9a259a9cba64d01b2878bee63831`;
+- final PR diff: only `package.json`, `package-lock.json`, `PROJECT_STATUS.md`, and this release-finalization document.
+
+Exact-head PR CI:
+
+- CI #764 / run `33158661973`;
+- Ubuntu Verify: PASS;
+- Windows Verify: PASS;
+- Browser Smoke: PASS;
+- Windows Media Smoke: PASS.
+
+PR #64 was merged with expected-head protection using the frozen head above.
+
+Release merge commit:
+
+`6e07d1dbdd0ec4d64d022f7c821e133ddf207637`
+
+Independent main verification confirmed `main` pointed exactly to that commit before tag creation.
+
+## Final release-merge CI
+
+The release merge commit itself was revalidated after merge:
+
+- CI #765 / run `33158996259`;
+- exact SHA: `6e07d1dbdd0ec4d64d022f7c821e133ddf207637`;
+- Ubuntu Verify: PASS;
+- Windows Verify: PASS;
+- Browser Smoke: PASS;
+- Windows Media Smoke: PASS.
+
+The annotated tag was created only after this exact release-merge CI was fully green.
+
+## Annotated tag creation evidence
+
+Before creation, the remote `refs/tags/v2.3.1` lookup returned not found, so no existing tag was overwritten.
+
+A one-shot release-branch workflow then:
+
+1. verified `origin/main` was exactly `6e07d1dbdd0ec4d64d022f7c821e133ddf207637`;
+2. refused to proceed if `v2.3.1` already existed;
+3. created `git tag -a v2.3.1` against the exact release commit;
+4. verified local object type `tag` and local dereference;
+5. pushed only `refs/tags/v2.3.1`;
+6. verified the remote tag object and remote `^{}` dereference.
+
+Tag workflow run:
+
+`33161046546` — PASS
+
+The temporary tag workflow was then deleted from the release branch. It never modified `main` and does not belong to the immutable release commit.
 
 ## Frozen technical invariants
 
@@ -74,36 +156,17 @@ hyperframes:          0.8.10
 prettier:             3.8.1
 ```
 
-V2.4 remains NOT STARTED.
-
-## Final release gate
-
-Before `v2.3.1` may be created:
-
-1. open the release-finalization PR against `main`;
-2. freeze its exact final head after metadata/docs changes;
-3. run the repository's four release gates on that exact head:
-   - Ubuntu Verify;
-   - Windows Verify;
-   - Browser Smoke;
-   - Windows Media Smoke;
-4. verify the PR diff contains only release metadata/docs and no product implementation drift;
-5. merge with expected-head protection;
-6. independently verify `main` points to the resulting release merge commit;
-7. create an **annotated** tag `v2.3.1` pointing to that exact release merge commit;
-8. independently verify the tag object and dereferenced commit;
-9. never move/recreate `v2.3.0` or `v2.3.1`.
-
 ## Local gate policy
 
-No new Local Codex product gate is required for the metadata/docs-only finalization unless cloud CI or diff review exposes a release defect. H5 already supplied the exact-product Windows runtime acceptance. `npm ci`, package/lock consistency, build, browser, and Windows media behavior are revalidated by the final exact-head cloud CI.
+No additional Local Codex product gate was required for the metadata/docs-only release-finalization PR. H5 already supplied exact-product Windows runtime acceptance, and both the release PR head and final release merge commit passed the complete cloud four-gate matrix.
 
-## Release truth before tag creation
+## Final decision
 
-Until the final merge and annotated tag complete:
+```text
+V2.3.1_H5_LOCAL_GATE = PASS
+V2.3.1_RELEASE_FINALIZATION = PASS
+V2.3.1_ANNOTATED_TAG = PASS
+V2.3.1_RELEASE = COMPLETE
+```
 
-- currently released immutable version remains `v2.3.0`;
-- V2.3.1 is a release candidate with package metadata `2.3.1`;
-- no claim of an immutable V2.3.1 release is valid yet.
-
-After the final tag is independently verified, this release is complete and a post-release truth update may record the immutable tag object SHA without moving the tag.
+V2.4 remains **NOT STARTED**. Any V2.4 work must begin as a separate explicit workstream and must not move or recreate `v2.3.0` or `v2.3.1`.
