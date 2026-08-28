@@ -3,6 +3,7 @@ import type {Project} from "@/schemas/project";
 import {
   CreateProductionMissionInputSchema,
   ProductionMissionIdSchema,
+  ProductionMissionQAReportIdSchema,
   ProductionMissionSchema,
   UpdateProductionMissionDetailsInputSchema,
   isTerminalProductionMissionStatus,
@@ -58,6 +59,7 @@ export class ProductionMissionService{
       autonomyPolicy:parsed.autonomyPolicy,
       baseProjectRevision:project.project.revision,
       status:"draft",
+      qaReportIds:[],
       agentSessionIds:[],
       workflowRunIds:[],
       jobIds:[],
@@ -94,6 +96,17 @@ export class ProductionMissionService{
         ...update,
         updatedAt:this.now(),
       });
+    });
+  }
+
+  async linkQAReport(projectIdInput:string,missionIdInput:string,reportIdInput:string):Promise<ProductionMission>{
+    const projectId=ProjectIdSchema.parse(projectIdInput);
+    const missionId=ProductionMissionIdSchema.parse(missionIdInput);
+    const reportId=ProductionMissionQAReportIdSchema.parse(reportIdInput);
+    await this.requireProject(projectId);
+    return this.repository.mutate(projectId,missionId,current=>{
+      if(current.qaReportIds.includes(reportId))return current;
+      return ProductionMissionSchema.parse({...current,qaReportIds:[...current.qaReportIds,reportId],updatedAt:this.now()});
     });
   }
 

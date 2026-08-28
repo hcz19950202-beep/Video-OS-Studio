@@ -7,6 +7,7 @@ import {ProjectIdSchema} from "@/schemas/project";
 export const ProductionMissionIdSchema=z.string().uuid();
 export type ProductionMissionId=z.infer<typeof ProductionMissionIdSchema>;
 export const ProductionMissionPlanIdSchema=z.string().uuid();
+export const ProductionMissionQAReportIdSchema=z.string().uuid();
 
 export const ProductionMissionStatusSchema=z.enum([
   "draft",
@@ -60,6 +61,7 @@ export const ProductionMissionSchema=z.object({
   baseProjectRevision:z.number().int().nonnegative(),
   status:ProductionMissionStatusSchema,
   planId:ProductionMissionPlanIdSchema.optional(),
+  qaReportIds:UniqueIdArray(ProductionMissionQAReportIdSchema,"qa report id"),
   agentSessionIds:UniqueIdArray(AgentSessionIdSchema,"agent session id"),
   workflowRunIds:UniqueIdArray(WorkflowRunIdSchema,"workflow run id"),
   jobIds:UniqueIdArray(JobIdSchema,"job id"),
