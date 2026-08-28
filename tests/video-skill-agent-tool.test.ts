@@ -3,6 +3,7 @@ import type {AgentContextSnapshot} from "@/lib/ai/context";
 import {AgentToolRegistry} from "@/lib/ai/tools/registry";
 import {createVideoSkillAgentTools,SEARCH_VIDEO_SKILLS_TOOL_ID,SELECT_VIDEO_SKILL_TOOL_ID} from "@/lib/ai/tools/skill-tools";
 import {builtInVideoSkillRegistry} from "@/lib/production/skills";
+import type {VideoSkillSearchResult} from "@/lib/production/skills/schema";
 
 const executionContext=(options:{assets?:boolean;revision?:number}={})=>({
   sessionId:"session-1",
@@ -30,7 +31,11 @@ describe("V2.4 B3 Video Skill Agent tools",()=>{
     const registry=new AgentToolRegistry(createVideoSkillAgentTools(builtInVideoSkillRegistry));
     const response=await registry.execute({id:"call-search",toolId:SEARCH_VIDEO_SKILLS_TOOL_ID,arguments:{query:"caption emphasis",maxResults:2}},executionContext());
     expect(response.status).toBe("success");
-    expect(response.output).toMatchObject({results:[{skill:{id:"caption-emphasis",version:"1.0.0"},missingContext:[]}]});
+    const results=(response.output as {results:VideoSkillSearchResult[]}).results;
+    expect(results).toHaveLength(2);
+    expect(results[0]).toMatchObject({skill:{id:"caption-emphasis",version:"1.0.0"},missingContext:[],score:1});
+    expect(results[1]).toMatchObject({skill:{id:"numeric-evidence-emphasis",version:"1.0.0"}});
+    expect(results[0].score).toBeGreaterThan(results[1].score);
   });
 
   it("forces Project scope and revision from the current Agent context",async()=>{
