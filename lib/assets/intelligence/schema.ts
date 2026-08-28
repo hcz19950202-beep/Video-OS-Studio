@@ -22,6 +22,7 @@ export const AssetIntelligenceTagSchema=z.string().trim().min(1).max(80).refine(
 export const AssetIntelligenceSafeLabelSchema=safeText(200);
 export const AssetIntelligenceSummarySchema=safeText(2_000);
 export const AssetIntelligenceRangeSummarySchema=safeText(500);
+export const AssetIntelligenceFingerprintScopeSchema=z.literal("project-asset-descriptor-v1");
 
 export const AssetIntelligenceAnalyzerModeSchema=z.enum(["deterministic","local","provider"]);
 export const AssetIntelligenceAnalyzerSchema=z.object({
@@ -57,6 +58,7 @@ export const AssetIntelligenceRecordSchema=z.object({
   projectId:ProjectIdSchema,
   assetId:AssetIntelligenceAssetIdSchema,
   sourceFingerprint:z.string().regex(/^[a-f0-9]{64}$/),
+  sourceFingerprintScope:AssetIntelligenceFingerprintScopeSchema,
   sourceProjectRevision:z.number().int().nonnegative(),
   analyzer:AssetIntelligenceAnalyzerSchema,
   summary:AssetIntelligenceSummarySchema,
