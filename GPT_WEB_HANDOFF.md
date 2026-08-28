@@ -1,7 +1,6 @@
 # Video OS Studio — GPT Web / Local Codex Handoff
 
-> Updated: 2026-08-26 (Asia/Shanghai)  
-> Current milestone: **V2.3 Real AI Director / AI Editing Agent**  
+> Current milestone: **V2.4 Autonomous Production Agent**  
 > Current-state source of truth: [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 
 ## 1. Current truth
@@ -12,42 +11,73 @@ Repository:
 hcz19950202-beep/Video-OS-Studio
 ```
 
-Released baseline:
+Immutable released baseline:
 
 ```text
-Video OS Studio v2.2.0
-Release tag: v2.2.0
-Release commit: 0e813e5e1360318211e05c1c5fec5eb82be00224
+Video OS Studio v2.3.1
+Release tag: v2.3.1
+Release commit: 6e07d1dbdd0ec4d64d022f7c821e133ddf207637
+Annotated tag object: b91d0c3adbaef09cd5c323481ec6bb04c516dd6e
 Project Schema: 2.0.0
 ```
 
-V2.2 is closed. V2.3 is a new workstream for the production Real AI Director / multi-turn AI Editing Agent.
+V2.3.1 is closed and immutable. V2.4 is a new workstream for autonomous, inspectable end-to-end video production.
 
-## 2. Authoritative V2.3 documents
+## 2. Authoritative V2.4 documents
 
 Read after `PROJECT_STATUS.md`, `AGENTS.md` and `SYSTEM.md`:
 
 ```text
-docs/prd/Video_OS_Studio_V2_3_Real_AI_Director_Agent_Master_PRD.md
-docs/prd/Video_OS_Studio_V2_3_Development_Plan.md
+docs/prd/Video_OS_Studio_V2_4_Autonomous_Production_Agent_Master_PRD.md
+docs/prd/Video_OS_Studio_V2_4_Development_Plan.md
 ```
 
-V2.3 sequence:
+V2.4 sequence:
 
 ```text
 R0 Repository / PRD / Runtime Truth Sync
-→ A0 Agent Contracts + Provider Abstraction
-→ A1 Context Builder + Allow-listed Tool Registry
-→ A2 Agent Session Store + Multi-turn Runner
-→ A3 Production Real Provider Adapter
-→ A4 AI Workspace Agent UX + Review / Apply
-→ A5 Agent ↔ Workflow Integration
-→ A6 Failure / Revision / Retry / Restart Hardening
-→ A7 End-to-End Real Provider Product Acceptance
-→ V2.3 Release
+→ B0 Production Mission Contracts + Store
+→ B1 Production Planner + Mission Step Graph
+→ B2 Asset Intelligence + Semantic Retrieval
+→ B3 Reusable Video Skills
+→ B4 Self-QA + Repair Proposals
+→ B5 Controlled Autonomy + Mission Executor + Production Workspace
+→ B6 End-to-End Autonomous Real Video Acceptance
+→ B7 Campaign / Batch Production + Production Dashboard
+→ V2.4 Release
 ```
 
-## 3. Development model
+B7 must not begin before B6 proves one real autonomous video Mission end-to-end.
+
+## 3. Product direction
+
+V2.3.1 proved:
+
+```text
+User editing goal
+→ Agent
+→ Proposal / Review / Apply
+→ Project / Workflow / Job truth
+```
+
+V2.4 targets:
+
+```text
+User production goal
+→ Production Mission
+→ Production Plan
+→ Agent + Skills + Asset Intelligence
+→ existing Workflow / Durable Jobs / Project mutation paths
+→ actual Render
+→ Self-QA
+→ bounded repair
+→ controlled checkpoints
+→ publishable final video
+```
+
+Mission is not Project truth. Plan is not Workflow truth. QA is not Project truth.
+
+## 4. Development model
 
 ```text
 GPT Web + GitHub
@@ -55,112 +85,182 @@ GPT Web + GitHub
     ├─ product decisions / architecture / PRD
     ├─ cloud-safe implementation
     ├─ branches / PRs / CI
+    ├─ schemas / services / APIs
+    ├─ deterministic provider/tool/mission fixtures
     ├─ unit / route / contract / integration tests
-    ├─ mocked-provider tests
     ├─ browser automation when cloud-safe
     └─ review + merge + PROJECT_STATUS
 
 Local Codex on Windows
     │
-    ├─ live provider credential/network smoke
+    ├─ live provider/network when required
     ├─ real browser
     ├─ real media outside Git
     ├─ FFmpeg / ffprobe
-    ├─ Remotion / Chrome
+    ├─ Remotion / Chromium
     ├─ HyperFrames
-    ├─ video-use / Python
-    ├─ process termination / restart recovery
-    └─ in-scope local fixes + evidence
+    ├─ video-use
+    ├─ Windows process / restart recovery
+    ├─ actual Mission execution
+    └─ final encoded-video / QA evidence
 ```
 
-GitHub is the only code source of truth. The two environments never maintain competing implementations.
+GitHub remains the only code/release source of truth. The two environments never maintain competing implementations.
 
-## 4. Online-first policy
+## 5. Online-first policy
 
-Do not hand a workstream to Local Codex just because code exists.
+Do not hand a workstream to Local Codex simply because implementation exists.
 
-GPT Web continues all cloud-safe implementation, tests, CI fixes and merge work until the next unproven gate genuinely depends on local/live behavior.
+GPT Web continues all cloud-safe implementation/tests/CI fixes/merge work until the next unresolved gate genuinely depends on local/live behavior.
 
 Expected ownership:
 
 ```text
 R0: online only
-A0: online only
-A1: online only
-A2: online first; process-kill evidence can wait for A6
-A3: online implementation + mocked provider tests, then live-provider Codex gate
-A4: online UI/API/browser tests first, then real browser + real provider Codex gate
-A5: online first; local only for real workflow/media/engine evidence
-A6: online chaos tests + mandatory Windows/restart Codex gate
-A7: mandatory real provider/browser/media/encoded-output Codex acceptance
+B0: online first
+B1: online only
+B2: online contracts/index first; local if claiming real-media intelligence
+B3: online
+B4: online QA contracts first; local for real encoded/visual QA claims
+B5: online executor/risk/UI/browser first; mandatory local Mission/restart gate
+B6: mandatory real browser/media/engines/encoded-output exact-SHA acceptance
+B7: online orchestration first; local batch/resource/process gate when claimed
 ```
 
-## 5. Permanent architecture invariants
+## 6. Permanent architecture invariants
 
 ```text
 Source Media != Project Canvas != Export Profile
 Project != Workflow != Job
 Agent Session != Project
+Mission != Project
+Mission != Workflow
+QA Report != Project
 ```
 
 And:
 
 - Project JSON is durable editing truth;
-- internal time is frames;
-- Agent sessions live outside Project JSON;
+- internal Project time is frames;
+- Mission/Plan/QA live outside Project JSON;
 - Project Schema stays `2.0.0` by default;
-- durable changes use existing Commands / Transactions / bounded services;
-- Agent/Workflow never hand-edit runtime `project.json`;
-- UI/Agent/Workflow never spawn external CLIs directly;
+- durable edits use existing Commands / Transactions / bounded services;
+- Mission/Agent/Workflow never hand-edit runtime `project.json`;
+- UI/Mission/Agent/Workflow never spawn engine CLIs directly;
 - long-running work preserves revision/idempotency;
 - Remotion remains master renderer;
 - HyperFrames/video-use/FFmpeg remain behind adapters/services;
-- `VIDEO_OS_DATA_ROOT` separates runtime data from repo code;
+- `VIDEO_OS_DATA_ROOT` separates runtime data from repository code;
+- server remains loopback-first by default;
 - `REUSE > MODIFY > CREATE`.
 
-## 6. Real Agent safety contract
+## 7. Controlled autonomy contract
 
-Required mutation flow:
+V2.4 may run more production steps without per-action clicks, but it does not grant generic computer access.
+
+Required execution pattern:
 
 ```text
-User goal
-→ bounded context
-→ provider + typed allow-listed tools
-→ explanation / validated proposal
-→ Preview Diff
-→ user confirmation
-→ existing Command Transaction / bounded service
+Mission / Agent decision
+→ application-owned autonomy + risk policy
+→ typed allow-listed tool/service
+→ expected revision / idempotency guard
+→ accepted Project / Workflow / Job path
 ```
 
-The Agent does not receive generic shell/filesystem/Git/network tools.
+Forbidden:
 
-Provider tool calls are schema-validated before execution. Unknown tools are rejected.
+- generic shell/PowerShell/bash;
+- arbitrary filesystem;
+- arbitrary Git;
+- unrestricted network fetch;
+- raw Project/Workflow writes;
+- direct engine process spawn.
 
-Proposal generated at Project revision N cannot silently apply to revision N+1.
+The provider cannot self-authorize unrestricted behavior or downgrade high-risk operations.
 
-Retry of one confirmed operation must not duplicate Project mutations.
+Human-modified/protected edits must not be silently overwritten.
 
-Provider secrets remain server-side in `.env.local` and never enter Project/session/browser/repository truth.
+## 8. Mission / Plan contract
 
-## 7. Existing capabilities to reuse
+Mission stores production objective and lifecycle, not full Project/Workflow/Job state.
 
-V2.3 should reuse rather than recreate:
+Plan stores intended step graph with dependencies, risk, execution owner and evidence refs.
 
-- `AIWorkspacePanel`;
-- Studio selection context;
-- `VisualPlanService` / `RulesVisualPlannerAdapter`;
+A Mission step only advances from real accepted evidence.
+
+Model text alone cannot mark a render, Job, Workflow stage or Project mutation completed.
+
+Cancellation prevents future autonomous advancement.
+
+## 9. Asset Intelligence contract
+
+Asset Intelligence provides derived semantic metadata/search over existing Project assets.
+
+It must:
+
+- return logical asset IDs;
+- keep provenance/version/invalidation;
+- avoid unnecessary absolute path exposure;
+- never imply automatic raw-media upload;
+- remain derived metadata rather than media truth.
+
+## 10. Video Skills contract
+
+Video Skills are typed, versioned, declarative reusable production recipes.
+
+Initial high-value Skill families include:
+
+```text
+talking-head hook
+B2B proof card
+numeric evidence emphasis
+clean B-roll insert
+problem-proof-CTA ad
+caption emphasis
+```
+
+Skills may reference accepted components/services but never arbitrary executable model code.
+
+## 11. Self-QA contract
+
+QA must inspect actual durable/rendered evidence where output correctness is claimed.
+
+Minimum categories:
+
+```text
+technical
+content
+visual
+brand
+goal/marketing alignment
+```
+
+QA finding → bounded repair proposal/step → autonomy/review/revision checks → accepted mutation/service path → relevant re-QA.
+
+Repair loops are budgeted. No infinite autonomous regeneration.
+
+## 12. Existing capabilities to reuse
+
+V2.4 reuses instead of recreating:
+
+- Real AI Director / Agent Session runtime;
+- provider-neutral adapter;
+- typed Tool Registry;
+- `AIWorkspacePanel` / Studio selection context;
+- Proposal / Review / Apply path;
+- `VisualPlanService` / Rules Director;
 - Project Commands / Transactions / `ProjectMutationCoordinator`;
 - Workflow Runtime;
 - Durable Jobs;
-- Remotion / HyperFrames / video-use / FFmpeg services.
+- Remotion / HyperFrames / video-use / FFmpeg services;
+- accepted path-safety / atomic-persistence helpers.
 
-The Rules Director remains deterministic fallback/baseline and can be exposed as an Agent tool.
-
-## 8. GPT Web workstream protocol
+## 13. GPT Web workstream protocol
 
 Before editing:
 
-1. resolve live GitHub main/PR/CI;
+1. resolve live GitHub main/active PR/CI;
 2. read current status/constitution/system/active PRD;
 3. inspect existing implementation;
 4. create one bounded branch;
@@ -168,25 +268,27 @@ Before editing:
 6. add tests;
 7. open/update PR;
 8. fix CI until green;
-9. merge when all required gates pass;
-10. update current status and immediately continue to the next cloud-safe workstream.
+9. run exact local gate only when required;
+10. merge after all gates pass;
+11. update current status and continue to the next cloud-safe workstream.
 
-## 9. Exact Local Codex trigger
+## 14. Local Codex trigger
 
-Local evidence is required when correctness depends on one or more of:
+Local evidence is required when correctness depends on:
 
-- live provider API key/network/tool-calling behavior;
+- live provider API/network;
 - Windows process semantics;
 - real browser interaction;
 - real media/codecs;
-- FFmpeg / ffprobe;
-- video-use / Python;
-- HyperFrames runtime;
-- Remotion / Chromium final rendering;
-- application/process interruption/restart;
-- final encoded-video proof.
+- FFmpeg/ffprobe;
+- video-use;
+- HyperFrames;
+- Remotion/Chromium;
+- Mission interruption/restart;
+- actual encoded-video/visual QA evidence;
+- batch resource/process isolation.
 
-## 10. Exact handoff contract
+## 15. Exact handoff contract
 
 Every handoff must contain:
 
@@ -198,8 +300,9 @@ Active workstream
 Goal
 Allowed files/areas
 Forbidden scope
-Setup / isolated VIDEO_OS_DATA_ROOT
-Secret/provider setup rules when applicable
+VIDEO_OS_DATA_ROOT
+Environment
+Provider-secret rules when applicable
 Commands
 Required fixtures
 Manual actions
@@ -209,72 +312,61 @@ Stop rules
 Expected return format
 ```
 
-Codex begins with fetch/checkout and verifies HEAD equals the supplied SHA.
+Codex verifies HEAD equals supplied SHA before testing.
 
-If Codex pushes any code/config/test/runtime fix, it stops local acceptance. GPT Web reviews the new HEAD + GitHub CI and freezes a new exact SHA before local testing continues.
+If Codex pushes any code/config/test/runtime fix, local acceptance stops. GPT Web reviews new HEAD + CI and freezes a new SHA before acceptance resumes.
 
 Codex never merges and never starts the next workstream.
 
-## 11. V2.3 provider handoff rule
+## 16. B6 end-to-end local proof
 
-A3 is the first expected mandatory live-provider local gate.
-
-The cloud branch must already have:
+B6 must prove a real Mission path such as:
 
 ```text
-provider-neutral contracts
-real provider adapter
-mocked provider/HTTP tests
-secret redaction tests
-error normalization tests
-CI green
+real production brief
++ real talking-head/product source media
+→ Mission
+→ Plan
+→ Agent / Skill / Asset selection
+→ Workflow / Durable Jobs
+→ Project edits
+→ HyperFrames when selected
+→ Remotion final render
+→ QA
+→ at least one bounded repair
+→ final H.264/AAC MP4
 ```
 
-Only then provide Codex an exact SHA and ask for a live `.env.local` smoke using a real key. Never send the secret through GitHub/chat/report output.
+Required evidence:
 
-## 12. V2.3 UI/media handoff rule
+- exact tested SHA;
+- Mission/Plan/Session/Proposal/Workflow/Job IDs;
+- Project revisions;
+- autonomy/checkpoint decisions;
+- Skill/Asset evidence;
+- QA finding/repair evidence;
+- ffprobe + encoded frames;
+- restart/reopen;
+- no duplicate mutation;
+- no orphan/temp/lock residue.
 
-A4/A7 local acceptance must prove the real product path:
+## 17. Release boundary
+
+`v2.3.1` is immutable and must never move.
+
+Do not bump V2.4 package version during R0–B5.
+
+B6 must pass before release finalization. B7 begins only after B6 and may be deferred if it would destabilize the accepted single-video production core.
+
+Final release follows:
 
 ```text
-real Project
-→ Agent session
-→ selected Scene/Script/Clip context
-→ live provider tool use
-→ proposal
-→ Review/Diff
-→ user Apply
-→ revision-safe Project mutation
-→ reload/reopen
-→ real Preview/Final Render when visual changes are accepted
+accepted exact product SHA
+→ release metadata/docs
+→ exact-head four-gate CI
+→ merge
+→ final merge-commit CI
+→ annotated immutable tag
+→ independent tag-object/dereference verification
+→ post-release truth sync
 ```
-
-Where final visuals are part of acceptance, inspect the actual encoded output rather than inferring success from Project JSON.
-
-## 13. Local return format
-
-Codex returns:
-
-```text
-Final branch HEAD
-Commits pushed
-Environment summary
-Provider/model summary without secret
-Commands executed
-Automated test results
-Browser/media/engine evidence
-Project/session/proposal/operation IDs
-Revision/idempotency evidence
-Defects found
-Fixes applied
-Regression tests
-Remaining failures
-```
-
-No PASS is accepted without evidence named by the active handoff.
-
-## 14. Release boundary
-
-The V2.2.0 tag `v2.2.0` is immutable and must never be moved.
-
-Do not begin V2.3 release-version bump/tag work before A7 is accepted.
