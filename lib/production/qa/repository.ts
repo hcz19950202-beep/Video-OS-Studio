@@ -8,18 +8,41 @@ const serialize=(report:QAReport)=>JSON.stringify(QAReportSchema.parse(report),n
 const parse=(text:string)=>QAReportSchema.parse(JSON.parse(text));
 
 export class QAReportRepository{
+  private readonly createChains=new Map<string,Promise<void>>();
+
   constructor(private readonly fs:FileSystemAdapter,readonly dataRoot:string){}
 
   private reportDir(projectId:string){return join(this.dataRoot,"projects",ProjectIdSchema.parse(projectId),"production","qa");}
   private reportPath(projectId:string,reportId:string){return join(this.reportDir(projectId),`${QAReportIdSchema.parse(reportId)}.json`);}
+  private reportLockPath(projectId:string,reportId:string){return `${this.reportPath(projectId,reportId)}.lock`;}
+
+  private async withCreateChain<T>(path:string,work:()=>Promise<T>):Promise<T>{
+    const previous=this.createChains.get(path)??Promise.resolve();
+    let release!:()=>void;
+    const current=new Promise<void>(resolve=>{release=resolve;});
+    this.createChains.set(path,current);
+    await previous.catch(()=>undefined);
+    try{return await work();}
+    finally{
+      release();
+      if(this.createChains.get(path)===current)this.createChains.delete(path);
+    }
+  }
+
+  private async withDurableLock<T>(projectId:string,reportId:string,work:()=>Promise<T>):Promise<T>{
+    if(this.fs.withExclusiveLock)return this.fs.withExclusiveLock(this.reportLockPath(projectId,reportId),work);
+    return work();
+  }
 
   async create(reportInput:QAReport):Promise<QAReport>{
     const report=QAReportSchema.parse(reportInput);
     const path=this.reportPath(report.projectId,report.id);
-    await this.fs.ensureDir(this.reportDir(report.projectId));
-    if(await this.fs.exists(path))throw new Error(`QA report ${report.id} already exists.`);
-    await this.fs.writeTextAtomic(path,serialize(report));
-    return report;
+    return this.withCreateChain(path,()=>this.withDurableLock(report.projectId,report.id,async()=>{
+      await this.fs.ensureDir(this.reportDir(report.projectId));
+      if(await this.fs.exists(path))throw new Error(`QA report ${report.id} already exists.`);
+      await this.fs.writeTextAtomic(path,serialize(report));
+      return report;
+    }));
   }
 
   async load(projectIdInput:string,reportIdInput:string):Promise<QAReport|null>{

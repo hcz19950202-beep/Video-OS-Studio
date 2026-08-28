@@ -20,7 +20,7 @@ const OUTPUT_PATH=`/data/projects/${PROJECT_ID}/${OUTPUT_RELATIVE_PATH}`;
 const projectAt=(revision=7)=>({
   project:{id:PROJECT_ID,revision,name:"QA project",createdAt:"2026-08-28T10:00:00.000Z",updatedAt:"2026-08-28T10:00:00.000Z"},
   canvas:{width:1080,height:1920,fps:30,durationInFrames:1350},
-  script:{segments:[{active:true,words:[
+  script:{segments:[{status:"active",words:[
     {text:"Labour",startFrame:0,endFrame:10},
     {text:"15 days",startFrame:150,endFrame:170},
     {text:"Send your project",startFrame:1200,endFrame:1240},
@@ -47,7 +47,7 @@ const defaultProbe:MediaProbeResult={durationSeconds:45,width:1080,height:1920,f
 const setup=async(options:{project?:Project;job?:JobRecord;artifacts?:JobArtifact[];probe?:MediaProbeResult;probeError?:Error;writeOutput?:boolean}={})=>{
   const fs=new InMemoryFileSystemAdapter();
   const project=options.project??projectAt();
-  if(options.writeOutput!==false){await fs.ensureDir(`/data/projects/${PROJECT_ID}/render`);await fs.writeBinary(OUTPUT_PATH,new Uint8Array([1,2,3]));}
+  if(options.writeOutput!==false)await fs.writeBinary(OUTPUT_PATH,new Uint8Array([1,2,3]));
   const projects:ProductionQAProjectReader={load:async()=>project,resolveProjectFile:(projectId,relativePath)=>`/data/projects/${projectId}/${relativePath}`};
   const jobs:ProductionQAJobReader={get:async()=>options.job??completedJob(),getArtifacts:async()=>options.artifacts??[renderArtifact]};
   let linked:string|undefined;

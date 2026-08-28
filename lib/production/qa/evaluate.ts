@@ -1,5 +1,6 @@
 import type {ProductionMission} from "@/lib/production/mission/schema";
 import {QAFindingSchema,type QAFinding,type QAExpectations} from "@/lib/production/qa/schema";
+import type {Clip} from "@/schemas/clip";
 import type {Project} from "@/schemas/project";
 
 const normalized=(value:string)=>value.toLocaleLowerCase();
@@ -7,13 +8,14 @@ const containsAny=(haystack:string,terms:string[])=>terms.some(term=>normalized(
 const finding=(input:QAFinding)=>QAFindingSchema.parse(input);
 const evidence=(source:QAFinding["evidence"][number]["source"],summary:string,ref?:string)=>({source,summary,...(ref?{ref}:{})});
 const activeSegments=(project:Project)=>project.script.segments.filter(segment=>segment.status!=="removed");
+const isEnabledCaption=(clip:Clip):clip is Extract<Clip,{type:"caption"}>=>clip.enabled&&clip.type==="caption";
 
 const activeScriptText=(project:Project)=>activeSegments(project).flatMap(segment=>segment.words).map(word=>word.text).join(" ");
-const allCaptionText=(project:Project)=>project.tracks.flatMap(track=>track.clips).filter(clip=>clip.enabled&&clip.type==="caption").map(clip=>clip.text).join(" ");
+const allCaptionText=(project:Project)=>project.tracks.flatMap(track=>track.clips).filter(isEnabledCaption).map(clip=>clip.text).join(" ");
 const hookWindowText=(project:Project,seconds:number)=>{
   const endFrame=Math.max(1,Math.round(seconds*project.canvas.fps));
   const script=activeSegments(project).flatMap(segment=>segment.words).filter(word=>word.startFrame<endFrame).map(word=>word.text);
-  const captions=project.tracks.flatMap(track=>track.clips).filter(clip=>clip.enabled&&clip.type==="caption"&&clip.startFrame<endFrame).map(clip=>clip.text);
+  const captions=project.tracks.flatMap(track=>track.clips).filter(isEnabledCaption).filter(clip=>clip.startFrame<endFrame).map(clip=>clip.text);
   return [...script,...captions].join(" ");
 };
 
@@ -55,7 +57,7 @@ export const evaluateProjectSemanticQA=(project:Project,mission:ProductionMissio
   if(expectations.expectCaptions===undefined){
     findings.push(finding({id:"visual-captions",category:"visual",status:"not-evaluated",severity:"info",message:"Caption presence was not evaluated because no caption expectation was supplied.",evidence:[]}));
   }else{
-    const captionCount=project.tracks.flatMap(track=>track.clips).filter(clip=>clip.enabled&&clip.type==="caption").length;
+    const captionCount=project.tracks.flatMap(track=>track.clips).filter(isEnabledCaption).length;
     const pass=expectations.expectCaptions?captionCount>0:captionCount===0;
     findings.push(finding({id:"visual-captions",category:"visual",status:pass?"pass":"fail",severity:pass?"info":"warning",message:pass?"Project Timeline caption presence matches the configured expectation.":"Project Timeline caption presence does not match the configured expectation.",evidence:[evidence("project-timeline",`Timeline contains ${captionCount} enabled caption clip${captionCount===1?"":"s"}; this does not prove rendered caption legibility.`)]}));
   }
