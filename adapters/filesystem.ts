@@ -2,6 +2,7 @@ import {access,copyFile,mkdir,open,readFile,readdir,rename,rm,writeFile} from "n
 import {randomUUID} from "node:crypto";
 import {dirname,posix as posixPath} from "node:path";
 import type {FileSystemAdapter} from "@/adapters/contracts";
+import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
 
 const lockSleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
@@ -86,7 +87,7 @@ export class NodeFileSystemAdapter implements FileSystemAdapter{
       const tempPath=`${path}.${randomUUID()}.tmp`;
       try{
         await writeFile(tempPath,content,"utf8");
-        await rename(tempPath,path);
+        await replaceFileAtomically(tempPath,path);
       }finally{await rm(tempPath,{force:true});}
     });
   }
