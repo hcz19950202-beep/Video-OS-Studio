@@ -4,6 +4,8 @@ import {NodeFfmpegAdapter} from "@/adapters/ffmpeg";
 import {NodeRemotionCliAdapter} from "@/adapters/remotion-cli";
 import {NodeHyperFramesAdapter} from "@/adapters/hyperframes";
 import {NodeVideoUseAdapter} from "@/adapters/video-use";
+import {AssetIntelligenceRepository} from "@/lib/assets/intelligence/repository";
+import {AssetIntelligenceService,DeterministicAssetIntelligenceAnalyzer} from "@/lib/assets/intelligence/service";
 import {AssetLibraryService} from "@/lib/assets/service";
 import {HyperFramesRenderService} from "@/lib/hyperframes/render-service";
 import {createJobExecutors} from "@/lib/jobs/executors";
@@ -60,6 +62,9 @@ export const renderJobs=new RenderJobManager(jobRuntime);
 export const visualPlannerAdapter=new RulesVisualPlannerAdapter();
 export const visualPlanService=new VisualPlanService(fileSystem,projectRepository,visualPlannerAdapter,hyperFramesRenderService,projectMutations);
 export const assetLibraryService=new AssetLibraryService(fileSystem,dataRoot,projectRepository,hyperFramesRenderService,projectMutations);
+export const assetIntelligenceRepository=getGlobalRuntime(`${dataRoot}:asset-intelligence-repository`,()=>new AssetIntelligenceRepository(fileSystem,dataRoot));
+export const assetIntelligenceAnalyzer=getGlobalRuntime(`${dataRoot}:asset-intelligence-analyzer`,()=>new DeterministicAssetIntelligenceAnalyzer());
+export const assetIntelligenceService=getGlobalRuntime(`${dataRoot}:asset-intelligence-service`,()=>new AssetIntelligenceService(projectRepository,assetIntelligenceRepository,assetIntelligenceAnalyzer));
 
 const fallbackWorkflowAssetBaseUrl=resolveTrustedAssetBaseUrl();
 const workflowJobPollIntervalMs=250;
