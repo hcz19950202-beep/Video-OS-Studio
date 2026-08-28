@@ -77,19 +77,27 @@ describe("ProductionPlannerService",()=>{
     await expect(service.requireFresh(PROJECT_ID,PLAN_ID)).rejects.toBeInstanceOf(ProductionPlanRevisionConflictError);
   });
 
-  it("does not overwrite a Mission that changes while planning",async()=>{
+  it("does not overwrite semantic Mission changes even when updatedAt is unchanged",async()=>{
     const fs=new InMemoryFileSystemAdapter();
     const missions=new ProductionMissionRepository(fs,"/data");
     const plans=new ProductionPlanRepository(fs,"/data");
     await missions.create(missionFixture());
     const planner:ProductionPlannerAdapter={generate:async context=>{
-      await missions.mutate(PROJECT_ID,MISSION_ID,current=>({...current,title:"User changed the brief",updatedAt:"2026-08-28T12:00:02.000Z"}));
+      await missions.mutate(PROJECT_ID,MISSION_ID,current=>({...current,title:"User changed the brief"}));
       return new MockProductionPlanner().generate(context);
     }};
     const service=new ProductionPlannerService(missions,plans,{load:async()=>projectAtRevision(5)},planner,{createId:()=>PLAN_ID,now:()=>"2026-08-28T12:00:05.000Z"});
     await expect(service.generate(PROJECT_ID,MISSION_ID)).rejects.toBeInstanceOf(ProductionMissionPlanConflictError);
-    expect(await missions.require(PROJECT_ID,MISSION_ID)).toMatchObject({title:"User changed the brief",status:"draft",planId:undefined});
+    expect(await missions.require(PROJECT_ID,MISSION_ID)).toMatchObject({title:"User changed the brief",status:"draft",planId:undefined,updatedAt:"2026-08-28T12:00:00.000Z"});
     expect((await plans.list(PROJECT_ID,MISSION_ID)).map(plan=>plan.id)).toEqual([PLAN_ID]);
+  });
+
+  it("leaves Mission and Plan storage unchanged when planner generation fails",async()=>{
+    const planner:ProductionPlannerAdapter={generate:()=>{throw new Error("planner unavailable");}};
+    const{missions,plans,service}=await setup({load:async()=>projectAtRevision(5)},planner);
+    await expect(service.generate(PROJECT_ID,MISSION_ID)).rejects.toThrow("planner unavailable");
+    expect(await plans.list(PROJECT_ID,MISSION_ID)).toEqual([]);
+    expect(await missions.require(PROJECT_ID,MISSION_ID)).toMatchObject({status:"draft",planId:undefined});
   });
 
   it("refuses to plan completed or cancelled Missions",async()=>{
