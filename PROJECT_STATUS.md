@@ -67,7 +67,7 @@ B7 must not begin until B6 proves a real single-video autonomous Mission end-to-
 
 ```text
 R0 Repository / PRD / Runtime Truth Sync    → COMPLETE / PR #66 / main eb261969676529669f0c5c8e267d773a67f40ecc / exact-main CI #769 PASS
-B0 Production Mission Contracts + Store    → COMPLETE / PR #67 / final PR head ee0fd2c5dab9552b4f14bdde00b4591fdf26257c / exact-head CI #777 PASS
+B0 Production Mission Contracts + Store    → COMPLETE / PR #67 / accepted final PR head a38c453afb4c852ba3c9b4ac282767414010c584 / CI #778 four gates PASS after Browser flaky rerun
 B1 Production Planner + Mission Step Graph → READY / not started
 B2 Asset Intelligence + Semantic Retrieval → NOT STARTED
 B3 Reusable Video Skills                   → NOT STARTED
@@ -97,15 +97,17 @@ B0 introduces a durable Production Mission layer outside `project.json`:
 
 B0 explicitly does **not** implement Planner, Asset Intelligence, Video Skills, QA, Mission Executor, Campaign production, Project Schema migration, dependency upgrades or engine/runtime changes.
 
-B0 final exact-head cloud evidence on `ee0fd2c5dab9552b4f14bdde00b4591fdf26257c`:
+B0 accepted exact-head cloud evidence on `a38c453afb4c852ba3c9b4ac282767414010c584`:
 
 ```text
-CI #777 / run 33167258148
+CI #778 / run 33167629607
 Ubuntu Verify:       PASS
 Windows Verify:      PASS
-Browser Smoke:       PASS
+Browser Smoke:       PASS on rerun
 Windows Media Smoke: PASS
 ```
+
+The first Browser Smoke attempt on CI #778 timed out in the pre-existing A5 browser acceptance while waiting 20 seconds for one WorkflowRun. The B0 product implementation had already passed Browser Smoke on CI #776 and #777, and `a38c453...` differed from the #777 head only by `PROJECT_STATUS.md`. Re-running the failed Browser job on the same exact `a38c453...` head passed without any product or test change, classifying the first failure as CI/Playwright flake rather than a B0 product defect.
 
 No Local Codex gate was required because B0 did not modify browser/media/process/runtime behavior or the accepted shared filesystem implementation; its real Node filesystem concurrency behavior was exercised inside cloud unit gates on both Ubuntu and Windows.
 
