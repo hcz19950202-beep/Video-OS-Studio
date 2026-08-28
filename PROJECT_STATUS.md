@@ -15,10 +15,10 @@ package_json_version: 2.3.1
 package_lock_version: 2.3.1
 
 active_development_workstream: V2.4 AUTONOMOUS PRODUCTION AGENT
-active_stage: B1 PRODUCTION PLANNER + MISSION STEP GRAPH COMPLETE / B2 READY
-active_branch: NONE ON ACCEPTED MAIN — CREATE B2 BRANCH AFTER PR #68 MERGE
+active_stage: B2 ASSET INTELLIGENCE + SEMANTIC RETRIEVAL COMPLETE / B3 READY
+active_branch: feature/v2.4-b2-asset-intelligence / PR #69 — FINAL STATUS SYNC
 local_action_required: NONE
-next_action: MERGE B1 PR #68 AFTER FINAL EXACT-HEAD CI, THEN START B2 ASSET INTELLIGENCE + SEMANTIC RETRIEVAL
+next_action: FINAL EXACT-HEAD CI → MERGE PR #69 → EXACT-MAIN CI → START B3 REUSABLE VIDEO SKILLS
 v2_4_status: DEVELOPMENT ACTIVE
 ```
 
@@ -51,9 +51,9 @@ B7 must not begin until B6 proves one real autonomous video Mission end-to-end.
 ```text
 R0 Repository / PRD / Runtime Truth Sync    → COMPLETE / PR #66 / exact-main CI #769 PASS
 B0 Production Mission Contracts + Store    → COMPLETE / PR #67 / exact-main CI #781 PASS
-B1 Production Planner + Mission Step Graph → COMPLETE / PR #68 / product candidate CI #790 PASS / final status-sync CI pending
-B2 Asset Intelligence + Semantic Retrieval → READY
-B3 Reusable Video Skills                   → NOT STARTED
+B1 Production Planner + Mission Step Graph → COMPLETE / PR #68 / exact-main CI #792 PASS
+B2 Asset Intelligence + Semantic Retrieval → COMPLETE / PR #69 / product candidate CI #822 PASS / final status-sync CI pending
+B3 Reusable Video Skills                   → READY
 B4 Self-QA + Repair Proposals              → NOT STARTED
 B5 Controlled Autonomy + Mission Executor  → NOT STARTED
 B6 Autonomous Real Video Acceptance        → NOT STARTED
@@ -106,9 +106,41 @@ B1 does not implement Plan execution, Asset Intelligence, Video Skills, QA/repai
 - CI #782 exposed only lint errors in newly added B1 tests; product runtime was not exercised and the test lint defects were corrected.
 - CI #787 passed format/lint/typecheck and exposed only assertion-shape mismatches in B1 tests; the tested product behavior itself matched the intended optional-field and owner-contract semantics.
 - CI #790 / run `33170780714`: Ubuntu / Windows / Browser / Windows Media all PASS after final B1 self-review and immutable re-plan-lineage coverage.
-- PR #68 has no external review/thread blockers at the B1 completion checkpoint.
+- CI #792 passed all four gates on the final B1 status-sync head after PR #68 was marked complete; the accepted merge commit is `b7a7b530a63c11e77ffc5fe3eab215cf9858d0d5`.
+- PR #68 merged with no unresolved review/thread blockers.
 
-No Local Codex gate is required for B1 because B1 does not change real browser/media/process/runtime behavior. Local/live acceptance remains reserved for later workstreams that claim real media intelligence or autonomous execution behavior.
+No Local Codex gate was required for B1 because B1 did not change real browser/media/process/runtime behavior.
+
+## B2 accepted product boundary
+
+B2 adds derived Asset Intelligence and bounded semantic retrieval above existing Project Asset truth without creating a second media store:
+
+- durable derived Asset Intelligence records outside `project.json` beneath the production runtime area;
+- Project Asset IDs remain media identity truth; repository filenames use `SHA-256(assetId)` Windows-safe storage keys without changing logical IDs;
+- primary/backup recovery, including recovery when only a valid backup remains;
+- explicit `project-asset-descriptor-v1` source fingerprint scope so descriptor hashes are never represented as raw media-content hashes;
+- descriptor-based invalidation when a Project Asset disappears or relevant descriptor fields change;
+- unrelated Project revision changes do not invalidate otherwise matching derived intelligence;
+- deterministic metadata analyzer with normalized semantic summary/tags and bounded range support;
+- stable semantic/tag/kind retrieval with deterministic ordering and hard required-tag filtering;
+- normalized summary/tag/range/label schemas reject filesystem paths and original media filenames;
+- unsafe/original-filename labels are excluded from analyzer input and Agent-facing retrieval;
+- read-only `search_asset_intelligence` Agent tool with Project scope forced from the active Agent context;
+- server Agent runtime registers the retrieval tool in the actual product tool registry;
+- bounded per-Asset analysis and freshness API;
+- API and Agent execution errors are normalized so internal runtime paths are not returned to clients/models;
+- stale records are excluded from semantic search results even if derived data remains durably present for audit/recovery.
+
+B2 intentionally does not claim face/object/topic detection or other real visual understanding. No specific real detector/model is mandated by V2.4; this accepted boundary is deterministic Asset Intelligence + Semantic Retrieval only.
+
+### B2 cloud evidence
+
+- CI #820 exposed a TypeScript inference defect in new deterministic analyzer arrays (`tags` / `facts` inferred too narrowly); the fix made them explicit `string[]` without changing runtime behavior.
+- CI #822 / run `33174132672` on exact head `941a1c89df9a765049865e2be7a8db4c2cbaef11`: Ubuntu Verify, Windows Verify, Browser Smoke, and Windows Media Smoke all PASS.
+- Final diff/security self-review confirmed Agent Project scope is context-owned, logical Asset IDs are preserved, path/original-filename data is excluded from normalized Agent/API outputs, source-descriptor fingerprints remain explicitly scoped, stale derived records are filtered before retrieval, and B2 introduces no generic filesystem/network/process authority.
+- The small post-analysis Project-change window does not justify a new cross-store lock in B2: derived intelligence is explicitly invalidatable metadata, and freshness/search revalidate the current Asset fingerprint before the record is treated as usable truth.
+
+No Local Codex gate is required for accepted B2 because this workstream does not claim real-media semantic intelligence. A later real video-use/local/provider analyzer must receive its own exact-SHA local-media acceptance before such claims are made.
 
 ## V2.3.1 immutable release truth
 
@@ -127,7 +159,7 @@ Post-release truth PR:       #65
 ```text
 package.json version:                 2.3.1
 package-lock.json top-level version:  2.3.1
-package-lock packages[""].version:    2.3.1
+package-lock packages[""] .version:   2.3.1
 
 Project Schema:       2.0.0
 Node:                 24.x
@@ -153,6 +185,7 @@ Production Plan != Project
 Production Plan != Workflow
 Production Plan != Job
 QA Report != Project
+Skill != Project
 REUSE > MODIFY > CREATE
 ```
 
@@ -162,25 +195,27 @@ REUSE > MODIFY > CREATE
 - Agent Session remains conversation/tool orchestration truth.
 - Production Mission is a production objective/state machine, not Project truth.
 - Production Plan is an inspectable proposal/step graph, not an executor or mutation log.
+- Asset Intelligence is derived metadata, not Project/media truth.
+- Video Skills are declarative reusable production knowledge, not Project truth or arbitrary executable code.
 - Agent/provider/tool execution has no direct Project or Workflow mutation authority.
 - stale Project/Workflow/Mission-dependent mutation state fails closed.
 - default server security remains loopback-first.
 - V2.4 autonomy must use application-owned policies and bounded services, never generic shell/filesystem authority.
 
-## B2 next-work boundary
+## B3 next-work boundary
 
-Start **B2 Asset Intelligence + Semantic Retrieval** only after PR #68 merges and the B1 merge commit passes exact-main CI.
+Start **B3 Reusable Video Skills** only after PR #69 merges and the B2 merge commit passes exact-main CI.
 
-B2 may add:
+B3 may add:
 
-- typed derived asset-analysis records outside Project Asset truth;
-- analysis provenance/versioning and invalidation contracts;
-- deterministic analyzer fixtures;
-- semantic tags/summaries and bounded usable ranges when supported by evidence;
-- retrieval/ranking by Scene, script, Mission, or production need;
-- Agent/tool-facing retrieval that returns logical Asset IDs and bounded metadata rather than filesystem paths;
-- optional real analyzer adapters only behind explicit bounded interfaces.
+- typed, versioned declarative Video Skill schemas and registry;
+- a deliberately small built-in set: `talking-head-hook`, `b2b-proof-card`, `numeric-evidence-emphasis`, `clean-broll-insert`, `problem-proof-cta-ad`, and `caption-emphasis`;
+- stable ID/version, intended use, preconditions, required context, recipe/service/component references, QA checks, risk policy, and fallback behavior for each Skill;
+- bounded Agent discovery/selection tools over allow-listed Skills;
+- proposal/request objects that reference selected Skill ID/version without directly mutating Project truth;
+- deterministic `REUSE > MODIFY > CREATE` selection behavior where applicable;
+- Mission/Plan evidence references that can record which Skill/version influenced production.
 
-B2 must reuse existing Project Asset IDs and existing media services rather than create a second Asset store. It must not implicitly upload raw local media to a remote provider.
+B3 must not store provider-generated arbitrary executable code, introduce generic shell/filesystem/network authority, bypass existing Proposal/Apply and service boundaries, or claim new real HyperFrames/Remotion behavior beyond already accepted adapters without a separate exact-SHA local gate.
 
-If B2 remains deterministic/mock-only, cloud gates are sufficient and no claim of real-media intelligence may be made. If B2 claims real video intelligence, a mandatory Local Codex exact-SHA gate must prove real local video analysis, durable semantic metadata, retrieval against real production need, restart/reopen behavior, and no path/raw-media leakage.
+B3 is online/cloud-safe by default and requires no Local Codex gate unless a Skill explicitly adds and claims new real engine output behavior.
