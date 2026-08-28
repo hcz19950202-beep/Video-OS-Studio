@@ -1,19 +1,7 @@
 import {describe,expect,it,vi} from "vitest";
-import {buildAgentContextSnapshot} from "@/lib/ai/context";
+import type {AgentContextSnapshot} from "@/lib/ai/context";
 import {createAssetIntelligenceReadTool,SEARCH_ASSET_INTELLIGENCE_TOOL_ID,type AgentAssetIntelligenceReader} from "@/lib/ai/tools/asset-intelligence-tools";
 import {AgentToolRegistry} from "@/lib/ai/tools/registry";
-import type {Project} from "@/schemas/project";
-
-const projectFixture=():Project=>({
-  version:"2.0.0",
-  project:{id:"project-1",name:"Project One",revision:7,createdAt:"2026-08-28T11:00:00.000Z",updatedAt:"2026-08-28T11:00:00.000Z"},
-  canvas:{width:1080,height:1920,fps:30,durationInFrames:900},
-  assets:[{id:"asset-proof",kind:"image",relativePath:"input/private-proof.png",label:"Factory proof",width:1600,height:900}],
-  tracks:[],script:{baseSourceRanges:[],segments:[]},scenes:[],markers:[],
-  brand:{name:"",primaryColor:"#ffffff",secondaryColor:"#111111",accentColor:"#2563eb",fontFamily:"Inter",logoAssetId:null},linkedStyles:[],
-  language:{source:"auto",target:"en",captionLanguage:"en"},
-  workflow:{scenario:"product-ad",starterPrompt:"",sceneTaxonomy:["hook","problem","solution","proof","cta"],captionHint:"primary",visualIntensity:"high"},
-} as unknown as Project);
 
 const resultFixture=()=>({
   assetId:"asset-proof",
@@ -27,7 +15,10 @@ const resultFixture=()=>({
   generatedAt:"2026-08-28T12:00:00.000Z",
 });
 
-const executionContext=()=>({sessionId:"session-1",context:buildAgentContextSnapshot(projectFixture())});
+const executionContext=()=>({
+  sessionId:"session-1",
+  context:{projectId:"project-1"} as AgentContextSnapshot,
+});
 
 describe("search_asset_intelligence Agent tool",()=>{
   it("is read-only and scopes retrieval to the current Agent Project",async()=>{
