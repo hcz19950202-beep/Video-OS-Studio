@@ -7,5 +7,5 @@ type ScriptPlaybackState={
 
 export const useScriptPlaybackStore=create<ScriptPlaybackState>(set=>({
   activeWordKey:null,
-  setActiveWordKey:activeWordKey=>set({activeWordKey}),
+  setActiveWordKey:activeWordKey=>set(state=>state.activeWordKey===activeWordKey?state:{activeWordKey}),
 }));
