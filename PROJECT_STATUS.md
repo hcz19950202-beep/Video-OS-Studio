@@ -6,38 +6,39 @@
 
 ```yaml
 released_product_version: 2.3.0
-hardening_candidate_version: 2.3.1
+release_candidate_version: 2.3.1
 project_schema: 2.0.0
 released_tag: v2.3.0
 released_commit: 562ffb26d5a04bd2898513893258f857187a00b4
 released_tag_object_sha: 24069497b1986348510ef0d904382f5c3f99855d
 
-package_json_version: 2.3.0
-package_lock_version: 2.3.0
+package_json_version: 2.3.1
+package_lock_version: 2.3.1
 
 active_development_workstream: V2.3.1 RELEASE FINALIZATION
-active_hardening_stage: H5 PATCH RELEASE ACCEPTANCE COMPLETE
-active_branch: release/v2.3.1-final-acceptance
-local_action_required: NONE / H5 COMPLETE
-next_action: MERGE H5 REPORT-ONLY PR, THEN V2.3.1 RELEASE FINALIZATION
+active_stage: FINAL RELEASE CANDIDATE CI / MERGE / TAG
+active_branch: release/v2.3.1
+local_action_required: NONE
+next_action: OPEN RELEASE PR → EXACT-HEAD FOUR-GATE CI → EXPECTED-HEAD MERGE → ANNOTATED v2.3.1 TAG
 v2_4_status: NOT STARTED
 ```
 
 ## V2.3.1 accepted product boundary
 
-The final accepted H5 product SHA is:
+Final H5 accepted product SHA:
 
 `e5d449b3eb3b69fca23113c2fe75a905049578ea`
 
-Exact-main cloud evidence:
+H5 acceptance/report merge on main:
 
-- CI #760 / run `33155438036`
-- Ubuntu Verify: PASS
-- Windows Verify: PASS
-- Browser Smoke: PASS
-- Windows Media Smoke: PASS
+`c78f60aa657fd603397c8e41a170971521d609be`
 
-Formal Windows H5 local acceptance also passed on this exact SHA with Node `v24.20.0`, npm `11.19.0`, FFmpeg/ffprobe `8.1.1`, real Playwright/Remotion Chromium, real HyperFrames, and real video-use.
+Evidence:
+
+- exact-main CI #760 / run `33155438036`: Ubuntu / Windows / Browser / Windows Media PASS;
+- full Windows H5 A–E on `e5d449b...`: PASS;
+- H5 report-only CI #762: PASS;
+- PR #61 merged as `c78f60aa657fd603397c8e41a170971521d609be`.
 
 Full report:
 
@@ -56,9 +57,30 @@ H3c Operations Ledger                      → COMPLETE / PR #59 / main f714079a
 H4 Local-First Security Boundary           → COMPLETE / PR #60 / main 4df173cdc40a330d677302ce5038157bf1c439e4
 H5 Blocker: H264 export dimension truth    → COMPLETE / PR #62 / main c34a1d337ea5434f1a9da0c385cac19ffa89d722
 H5 Blocker: Windows atomic persistence     → COMPLETE / PR #63 / main e5d449b3eb3b69fca23113c2fe75a905049578ea
-H5 End-to-End Patch Acceptance             → COMPLETE / PR #61 PENDING REPORT-ONLY MERGE
-V2.3.1 Release Finalization                → ACTIVE NEXT
+H5 End-to-End Patch Acceptance             → COMPLETE / PR #61 / main c78f60aa657fd603397c8e41a170971521d609be
+V2.3.1 Release Metadata Sync               → COMPLETE / package + lock = 2.3.1
+V2.3.1 Final Release CI / Merge / Tag      → ACTIVE
 ```
+
+## Release metadata truth
+
+Release branch:
+
+`release/v2.3.1`
+
+Package metadata:
+
+```text
+package.json version:                 2.3.1
+package-lock.json top-level version:  2.3.1
+package-lock packages[""].version:    2.3.1
+```
+
+The one-shot metadata sync passed a structural before/after guard that allowed only those three version changes. The temporary workflow was removed after use, so it does not belong in the final release diff.
+
+Detailed record:
+
+`docs/acceptance/V2_3_1_RELEASE_FINALIZATION.md`
 
 ## H5 final acceptance summary
 
@@ -75,11 +97,11 @@ PASS.
 
 PASS.
 
-- text input while focused: 0 Project command POSTs.
-- commit: exactly 1.
-- slider drag: 0 commands.
-- pointer-up: exactly 1.
-- blur: no duplicate commit.
+- text input while focused: 0 Project command POSTs;
+- commit: exactly 1;
+- slider drag: 0 commands;
+- pointer-up: exactly 1;
+- blur: no duplicate commit;
 - Undo restored durable values.
 
 ### Case C — Real Workflow / Jobs / Final
@@ -90,12 +112,12 @@ Real talking-head media traversed:
 
 `media → video-use → transcript → Visual Planner → HyperFrames Durable Job → Project mutation → Remotion → render-final → encoded MP4`
 
-Final evidence:
+Final output evidence:
 
-- real video-use Job completed;
-- real HyperFrames Job completed;
-- real Final Render Job completed;
-- H.264 / AAC / 640×360 / 30 fps / 115.989333 s;
+- H.264 / AAC;
+- 640×360;
+- 30 fps;
+- 115.989333 seconds;
 - encoded visual proof PASS;
 - no props/hf-work/orphan-engine residue.
 
@@ -125,23 +147,27 @@ PASS.
 - real Windows `FileShare.None` contention passed for both `FileJobStore` and `NodeFileSystemAdapter.writeTextAtomic`;
 - no product-level EPERM/EACCES/EBUSY failure or temp residue.
 
-## Release-finalization boundaries
+## Final release gate
 
-V2.3.1 Release Finalization is metadata/docs only unless a release-gate defect is proven.
+V2.3.1 Release Finalization is metadata/docs only unless the release CI proves a defect.
 
-Required sequence:
+Required remaining sequence:
 
-1. merge PR #61 after its report-only CI is green;
-2. create a dedicated V2.3.1 release-finalization branch from resulting main;
-3. update `package.json` version to `2.3.1`;
-4. synchronize only package-lock root metadata (`version` and `packages[""]` version) to `2.3.1` without dependency/pin drift;
-5. update release truth docs/status;
-6. run final exact-release GitHub CI across Ubuntu, Windows, Browser Smoke, and Windows Media Smoke;
-7. merge release-finalization with expected-head protection;
-8. create immutable annotated tag `v2.3.1` only after the final release commit is independently verified;
-9. independently verify the tag object and dereferenced commit.
+1. open the `release/v2.3.1` PR against `main`;
+2. freeze the exact final PR head;
+3. run the repository's four gates on that exact head:
+   - Ubuntu Verify;
+   - Windows Verify;
+   - Browser Smoke;
+   - Windows Media Smoke;
+4. audit the final PR diff for metadata/docs only and zero dependency/pin/schema drift;
+5. merge with expected-head protection;
+6. independently verify `main` at the release merge commit;
+7. create annotated immutable tag `v2.3.1` pointing to that exact release merge commit;
+8. independently verify the tag object and dereferenced commit;
+9. optionally add a post-release truth-only docs commit recording the immutable tag object SHA; never move the tag.
 
-Do not move or recreate `v2.3.0`.
+No new Local Codex gate is required for this metadata/docs-only step unless cloud CI or diff review exposes a real release defect.
 
 ## Accepted invariants
 
@@ -153,6 +179,7 @@ remotion:             4.0.513
 @remotion/cli:        4.0.513
 hyperframes:          0.8.10
 @playwright/test:     1.62.1
+prettier:             3.8.1
 
 Source Media != Project Canvas != Export Profile
 Project != Workflow != Job
@@ -169,12 +196,12 @@ REUSE > MODIFY > CREATE
 - default local server boundary remains loopback-first.
 - Windows durable atomic replacement preserves temp-file + atomic rename semantics with bounded transient-error retry.
 
-## Release truth
+## Release truth before V2.3.1 tag
 
-The currently released immutable boundary remains V2.3.0 until V2.3.1 release finalization completes:
+The currently released immutable boundary remains V2.3.0 until V2.3.1 release finalization and annotated tag verification complete:
 
 - tag: `v2.3.0`
 - release commit: `562ffb26d5a04bd2898513893258f857187a00b4`
 - annotated tag object: `24069497b1986348510ef0d904382f5c3f99855d`
 
-V2.4 is NOT STARTED and must not begin implicitly inside release finalization.
+V2.3.1 is currently a release candidate with synchronized package metadata. V2.4 is NOT STARTED.
