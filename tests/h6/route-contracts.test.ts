@@ -315,27 +315,43 @@ describe("H6 route contracts", () => {
     expect((await retried.json()).job.attempt).toBe(2);
   });
 
-  it("creates project render jobs with the request origin as asset base URL", async () => {
-    fakes.renderJobs.create.mockResolvedValue({
-      id: job.id,
-      projectId: "h6-project",
-      mode: "final",
-    });
-    const response = await rendersRoute.POST(
-      new Request("http://127.0.0.1:3456/api/projects/h6-project/renders", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mode: "final", profile: { quality: "draft", audio: "none" } }),
-      }),
-      { params: Promise.resolve({ projectId: "h6-project" }) },
-    );
+  it("creates render jobs with the trusted server asset origin instead of request Host", async () => {
+    const previousAssetBaseUrl = process.env.VIDEO_OS_ASSET_BASE_URL;
+    const previousRemoteOptIn = process.env.VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN;
+    const previousPort = process.env.PORT;
+    delete process.env.VIDEO_OS_ASSET_BASE_URL;
+    delete process.env.VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN;
+    delete process.env.PORT;
 
-    expect(response.status).toBe(202);
-    expect(fakes.renderJobs.create).toHaveBeenCalledWith(
-      "h6-project",
-      "final",
-      "http://127.0.0.1:3456",
-      expect.objectContaining({ quality: "draft", audio: "none" }),
-    );
+    try {
+      fakes.renderJobs.create.mockResolvedValue({
+        id: job.id,
+        projectId: "h6-project",
+        mode: "final",
+      });
+      const response = await rendersRoute.POST(
+        new Request("http://attacker.example:3456/api/projects/h6-project/renders", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ mode: "final", profile: { quality: "draft", audio: "none" } }),
+        }),
+        { params: Promise.resolve({ projectId: "h6-project" }) },
+      );
+
+      expect(response.status).toBe(202);
+      expect(fakes.renderJobs.create).toHaveBeenCalledWith(
+        "h6-project",
+        "final",
+        "http://127.0.0.1:3000",
+        expect.objectContaining({ quality: "draft", audio: "none" }),
+      );
+    } finally {
+      if (previousAssetBaseUrl === undefined) delete process.env.VIDEO_OS_ASSET_BASE_URL;
+      else process.env.VIDEO_OS_ASSET_BASE_URL = previousAssetBaseUrl;
+      if (previousRemoteOptIn === undefined) delete process.env.VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN;
+      else process.env.VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN = previousRemoteOptIn;
+      if (previousPort === undefined) delete process.env.PORT;
+      else process.env.PORT = previousPort;
+    }
   });
 });
