@@ -106,6 +106,20 @@ describe("H3c operations ledger",()=>{
     await expect(rename(coordinator,1,"rename-1","Different payload")).rejects.toBeInstanceOf(ProjectOperationIdReuseError);
   });
 
+  it("does not compact a large ledger made only of unique latest operation states",async()=>{
+    const{fs,coordinator,logPath}=await setup();
+    await rename(coordinator,0,"rename-1","First");
+    const applied=JSON.parse((await fs.readText(logPath)).trim().split("\n").at(-1)!);
+    const unique=Array.from({length:PROJECT_OPERATION_COMPACTION_REDUNDANCY_THRESHOLD+44},(_,index)=>JSON.stringify({...applied,operationId:`unique-${index}`})).join("\n")+"\n";
+    await fs.writeTextAtomic(logPath,unique);
+    const writesBeforeRead=fs.operationAtomicWrites;
+
+    const state=await coordinator.getOperation("p1","unique-0");
+    expect(state).toMatchObject({operationId:"unique-0",status:"applied"});
+    expect(fs.operationAtomicWrites).toBe(writesBeforeRead);
+    expect((await fs.readText(logPath)).trim().split("\n")).toHaveLength(PROJECT_OPERATION_COMPACTION_REDUNDANCY_THRESHOLD+44);
+  });
+
   it("fails closed for a corrupted newline-terminated ledger record instead of hiding interior damage",async()=>{
     const{fs,coordinator,logPath}=await setup();
     await rename(coordinator,0,"rename-1","First");
