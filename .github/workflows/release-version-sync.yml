@@ -1,0 +1,81 @@
+name: Release Version Metadata Sync
+
+on:
+  push:
+    branches:
+      - release/v2.3.1
+    paths:
+      - .github/workflows/release-version-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync-version-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v2.3.1
+          fetch-depth: 0
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: npm
+
+      - name: Snapshot package metadata
+        shell: bash
+        run: |
+          cp package.json "$RUNNER_TEMP/package.before.json"
+          cp package-lock.json "$RUNNER_TEMP/package-lock.before.json"
+
+      - name: Update version metadata only
+        run: npm version 2.3.1 --no-git-tag-version --ignore-scripts
+
+      - name: Verify no package or lock drift
+        shell: node {0}
+        run: |
+          const fs = require('fs');
+          const assert = require('assert/strict');
+
+          const beforePackage = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/package.before.json', 'utf8'));
+          const afterPackage = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          assert.equal(beforePackage.version, '2.3.0');
+          assert.equal(afterPackage.version, '2.3.1');
+          delete beforePackage.version;
+          delete afterPackage.version;
+          assert.deepEqual(afterPackage, beforePackage, 'package.json drift beyond version');
+
+          const beforeLock = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/package-lock.before.json', 'utf8'));
+          const afterLock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          assert.equal(beforeLock.version, '2.3.0');
+          assert.equal(beforeLock.packages[''].version, '2.3.0');
+          assert.equal(afterLock.version, '2.3.1');
+          assert.equal(afterLock.packages[''].version, '2.3.1');
+          delete beforeLock.version;
+          delete afterLock.version;
+          delete beforeLock.packages[''].version;
+          delete afterLock.packages[''].version;
+          assert.deepEqual(afterLock, beforeLock, 'package-lock.json drift beyond root version metadata');
+
+          console.log('RELEASE_VERSION_METADATA_ONLY=PASS');
+
+      - name: Verify only package files changed
+        shell: bash
+        run: |
+          changed="$(git diff --name-only)"
+          printf '%s\n' "$changed"
+          test "$changed" = $'package-lock.json\npackage.json' || test "$changed" = $'package.json\npackage-lock.json'
+          git diff --check
+
+      - name: Commit synchronized metadata
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore(release): set package version to 2.3.1"
+          git push origin HEAD:release/v2.3.1
