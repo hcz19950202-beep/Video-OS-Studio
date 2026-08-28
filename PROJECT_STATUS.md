@@ -15,11 +15,11 @@ package_json_version: 2.3.1
 package_lock_version: 2.3.1
 
 active_development_workstream: V2.4 AUTONOMOUS PRODUCTION AGENT
-active_stage: R0 PLANNING / REPOSITORY TRUTH SYNC
-active_branch: planning/v2.4-autonomous-production-agent
+active_stage: B0 PRODUCTION MISSION CONTRACTS + STORE COMPLETE / B1 READY
+active_branch: NONE — CREATE B1 BRANCH FROM ACCEPTED B0 MAIN
 local_action_required: NONE
-next_action: COMPLETE R0 DOCS CI + MERGE, THEN START B0 PRODUCTION MISSION CONTRACTS
-v2_4_status: PLANNING ACTIVE
+next_action: START B1 PRODUCTION PLANNER + MISSION STEP GRAPH
+v2_4_status: DEVELOPMENT ACTIVE
 ```
 
 ## V2.4 authoritative planning docs
@@ -62,6 +62,52 @@ Release
 ```
 
 B7 must not begin until B6 proves a real single-video autonomous Mission end-to-end.
+
+## V2.4 milestone evidence
+
+```text
+R0 Repository / PRD / Runtime Truth Sync    → COMPLETE / PR #66 / main eb261969676529669f0c5c8e267d773a67f40ecc / exact-main CI #769 PASS
+B0 Production Mission Contracts + Store    → COMPLETE / PR #67 / implementation candidate 70a94732ceb31f5304fa732d2112f20bbe8095ca / CI #776 four gates PASS / merge only after final status-sync exact-head CI
+B1 Production Planner + Mission Step Graph → READY / not started
+B2 Asset Intelligence + Semantic Retrieval → NOT STARTED
+B3 Reusable Video Skills                   → NOT STARTED
+B4 Self-QA + Repair Proposals              → NOT STARTED
+B5 Controlled Autonomy + Mission Executor  → NOT STARTED
+B6 Autonomous Real Video Acceptance        → NOT STARTED
+B7 Campaign / Batch Production             → NOT STARTED
+```
+
+### B0 accepted product boundary
+
+B0 introduces a durable Production Mission layer outside `project.json`:
+
+- strict `ProductionMission` schema;
+- Windows-safe UUID Mission IDs;
+- bounded target and autonomy-policy contracts;
+- references to the existing Agent Session / WorkflowRun / Durable Job ID schemas rather than duplicate runtime truth;
+- persistence beneath `VIDEO_OS_DATA_ROOT/projects/<projectId>/production/missions`;
+- atomic primary/backup writes;
+- durable exclusive-lock protection;
+- corrupt-primary backup recovery with lock-time primary recheck;
+- repository-path identity validation;
+- cross-instance atomic read-modify-write through `repository.mutate()`;
+- Project revision capture on Mission creation without Project mutation;
+- bounded Mission detail update and terminal-state behavior;
+- idempotent cancellation.
+
+B0 explicitly does **not** implement Planner, Asset Intelligence, Video Skills, QA, Mission Executor, Campaign production, Project Schema migration, dependency upgrades or engine/runtime changes.
+
+B0 cloud evidence on implementation candidate `70a94732ceb31f5304fa732d2112f20bbe8095ca`:
+
+```text
+CI #776 / run 33166915320
+Ubuntu Verify:       PASS
+Windows Verify:      PASS
+Browser Smoke:       PASS
+Windows Media Smoke: PASS
+```
+
+The final PR head additionally contains only this repository-truth status sync and must pass the same exact-head CI before PR #67 may merge.
 
 ## V2.3.1 immutable release truth
 
@@ -163,7 +209,7 @@ hyperframes:          0.8.10
 prettier:             3.8.1
 ```
 
-No V2.4 R0 work may change these values.
+V2.4 B0 does not change these values. Any later change requires an explicit scoped workstream and acceptance gate.
 
 ## Permanent accepted invariants
 
@@ -188,25 +234,19 @@ REUSE > MODIFY > CREATE
 - Windows durable atomic replacement keeps bounded transient-error retry semantics.
 - V2.4 autonomy must be enforced through application-owned policies and bounded services, never generic shell/filesystem authority.
 
-## Current R0 gate
+## B1 next-work boundary
 
-R0 is planning/governance only.
+Start **B1 Production Planner + Mission Step Graph** from the accepted B0 merge on `main`.
 
-Required before merge:
+B1 may add:
 
-```text
-V2.4 Master PRD present
-V2.4 Development Plan present
-PROJECT_STATUS / AGENTS / SYSTEM / GPT_WEB_HANDOFF aligned
-no product code changes
-package/dependency/schema/engine pins unchanged
-CI green
-```
+- durable Production Plan contracts/repository;
+- Mission step graph and dependency validation;
+- Planner service that reads bounded Mission + Project context;
+- explicit review checkpoints;
+- Mission ↔ Plan references without copying Project/Workflow/Job truth;
+- stale `baseProjectRevision` handling for planning inputs.
 
-Local Codex is not required for R0.
+B1 must not prematurely implement Asset Intelligence, reusable Video Skills, Self-QA/repair, Mission Executor, unrestricted autonomy, campaign/batch production or a new Workflow/Job engine.
 
-## Next-work boundary
-
-After R0 merges, start **B0 Production Mission Contracts + Store** as a new feature branch/PR from accepted `main`.
-
-B0 must create durable Mission contracts/repository/service outside `project.json` and must not begin Planner, Asset Intelligence, Skills, QA, controlled autonomy or Campaign implementation prematurely.
+Local Codex is not required for B1 unless the implementation introduces or changes real browser/media/process/runtime behavior.
