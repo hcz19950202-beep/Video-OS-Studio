@@ -108,8 +108,12 @@ describe("ProductionMissionService",()=>{
       createId:()=>MISSION_ID,
       now:()=>"2026-08-28T12:00:00.000Z",
     });
-    const created=await service.create(createInput);
-    await repository.save(ProductionMissionSchema.parse({...created,status:"completed",updatedAt:"2026-08-28T12:00:01.000Z"}));
+    await service.create(createInput);
+    await repository.mutate(PROJECT_ID,MISSION_ID,current=>ProductionMissionSchema.parse({
+      ...current,
+      status:"completed",
+      updatedAt:"2026-08-28T12:00:01.000Z",
+    }));
 
     await expect(service.updateDetails(PROJECT_ID,MISSION_ID,{title:"Too late"})).rejects.toBeInstanceOf(ProductionMissionTerminalStateError);
     await expect(service.cancel(PROJECT_ID,MISSION_ID)).rejects.toBeInstanceOf(ProductionMissionTerminalStateError);
