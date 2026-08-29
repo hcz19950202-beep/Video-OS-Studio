@@ -52,11 +52,12 @@ const UniqueReferenceArray=(label:string)=>z.array(ProductionCampaignSharedRefer
 });
 
 export const ProductionCampaignSharedReferencesSchema=z.object({
+  brandIds:UniqueReferenceArray("brand reference"),
   assetIds:UniqueReferenceArray("asset reference"),
   policyIds:UniqueReferenceArray("policy reference"),
   skillIds:UniqueReferenceArray("skill reference"),
   exportTemplateIds:UniqueReferenceArray("export template reference"),
-}).strict().default({assetIds:[],policyIds:[],skillIds:[],exportTemplateIds:[]});
+}).strict().default({brandIds:[],assetIds:[],policyIds:[],skillIds:[],exportTemplateIds:[]});
 export type ProductionCampaignSharedReferences=z.infer<typeof ProductionCampaignSharedReferencesSchema>;
 
 export const ProductionCampaignMissionRefSchema=z.object({
