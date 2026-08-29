@@ -36,6 +36,14 @@ export interface ProductionAgentStepPort{
   execute(input:ProductionStepRunnerInput):Promise<StepExecutionResult>;
 }
 
+export interface ProductionQAStepPort{
+  execute(input:ProductionStepRunnerInput):Promise<StepExecutionResult>;
+}
+
+export interface ProductionRepairStepPort{
+  execute(input:ProductionStepRunnerInput):Promise<StepExecutionResult>;
+}
+
 export interface ProductionAssetBaseUrlResolver{
   resolve(projectId:string):Promise<string>;
 }
@@ -43,6 +51,8 @@ export interface ProductionAssetBaseUrlResolver{
 export interface ProductionApplicationRunnerOptions{
   pollIntervalMs?:number;
   waitTimeoutMs?:number;
+  qa?:ProductionQAStepPort;
+  repair?:ProductionRepairStepPort;
 }
 
 type ResolvedVisualPlanProposal={
@@ -126,6 +136,8 @@ const jobFailureResult=(job:JobRecord):StepExecutionResult=>{
 export class ApplicationProductionStepRunner implements ProductionStepRunner{
   private readonly pollIntervalMs:number;
   private readonly waitTimeoutMs:number;
+  private readonly qa?:ProductionQAStepPort;
+  private readonly repair?:ProductionRepairStepPort;
 
   constructor(
     private readonly agent:ProductionAgentStepPort,
@@ -138,6 +150,8 @@ export class ApplicationProductionStepRunner implements ProductionStepRunner{
   ){
     this.pollIntervalMs=Math.max(1,options.pollIntervalMs??25);
     this.waitTimeoutMs=Math.max(1_000,options.waitTimeoutMs??15*60_000);
+    this.qa=options.qa;
+    this.repair=options.repair;
   }
 
   private async waitForJob(jobId:string):Promise<JobRecord|null>{
@@ -245,6 +259,10 @@ export class ApplicationProductionStepRunner implements ProductionStepRunner{
         return this.executeRender(input,"render-overlay");
       case"render-final":
         return this.executeRender(input,"render-final");
+      case"qa":
+        return this.qa?.execute(input)??blocked("PRODUCTION_QA_HANDLER_UNAVAILABLE","No bounded Production QA handler is configured for this runner.");
+      case"repair":
+        return this.repair?.execute(input)??blocked("PRODUCTION_REPAIR_HANDLER_UNAVAILABLE","No bounded Production repair handler is configured for this runner.");
       case"human-review":{
         const checkpoint=input.execution.steps.find(step=>step.stepId===input.step.id)?.checkpoint;
         if(checkpoint?.status!=="approved")return blocked("HUMAN_REVIEW_EVIDENCE_REQUIRED","Human-review step cannot complete without an approved durable checkpoint.");
