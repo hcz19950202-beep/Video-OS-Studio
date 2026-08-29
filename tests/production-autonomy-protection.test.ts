@@ -83,10 +83,11 @@ describe("V2.4 B5b controlled autonomy and protected edits",()=>{
     expect((await reopened.load(PROJECT_ID)).records.map(record=>record.state).sort()).toEqual(["human-modified","protected"]);
   });
 
-  it("allows new creation and AI-owned targets but reviews unknown/human work and blocks explicit/native locks",async()=>{
+  it("allows new creation and append, reviews unknown/human overwrite, and blocks explicit/native locks",async()=>{
     const project=projectFixture();
     expect(evaluateProductionEditProtection(project,[{kind:"scene",id:"new-scene",action:"create"}]).decision).toBe("allow");
-    expect(evaluateProductionEditProtection(project,[{kind:"track",id:"motion-main",action:"append"}]).decision).toBe("review");
+    expect(evaluateProductionEditProtection(project,[{kind:"track",id:"motion-main",action:"append"}]).decision).toBe("allow");
+    expect(evaluateProductionEditProtection(project,[{kind:"track",id:"motion-main",action:"modify"}]).decision).toBe("review");
 
     const{service}=protectionSetup();
     await service.markAiOwned(PROJECT_ID,{kind:"track",id:"motion-main"},5);

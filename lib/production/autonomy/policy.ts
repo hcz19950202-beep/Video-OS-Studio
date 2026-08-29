@@ -79,6 +79,7 @@ export const evaluateProductionEditProtection=(
     if(record?.state==="ai-owned")continue;
 
     if(target.action==="create"&&!exists)continue;
+    if(target.action==="append"&&exists)continue;
     findings.push(finding(target,"review","EDIT_TARGET_OWNERSHIP_UNKNOWN","Existing target ownership is unknown, so autonomous overwrite requires explicit review."));
   }
 

@@ -52,8 +52,8 @@ export const ProductionEditProtectionRecordSchema=z.object({
 });
 export type ProductionEditProtectionRecord=z.infer<typeof ProductionEditProtectionRecordSchema>;
 
-export const productionLogicalTargetKey=(targetInput:ProductionLogicalTarget)=>{
-  const target=ProductionLogicalTargetSchema.parse(targetInput);
+export const productionLogicalTargetKey=(targetInput:ProductionLogicalTarget|ProductionMutationTarget)=>{
+  const target=ProductionLogicalTargetSchema.parse({kind:targetInput.kind,...(targetInput.id===undefined?{}:{id:targetInput.id})});
   return target.id===undefined?target.kind:`${target.kind}:${target.id}`;
 };
 export const productionMutationTargetKey=(targetInput:ProductionMutationTarget)=>{
