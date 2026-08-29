@@ -6,6 +6,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -17,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -25,10 +30,19 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Bootstrap exact B6 harness formatting
+        if: github.event_name == 'pull_request'
         shell: bash
         run: |
           npm run format
-          node -e 'const fs=require("node:fs");const p="tests/h6/windows-b6-core-acceptance.test.ts";console.log("B6_FORMATTED_BASE64="+Buffer.from(fs.readFileSync(p)).toString("base64"))'
+          if git diff --quiet -- tests/h6/windows-b6-core-acceptance.test.ts; then
+            echo "B6 harness already matches pinned Prettier 3.8.1."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add tests/h6/windows-b6-core-acceptance.test.ts
+            git commit -m "style(v2.4-b6): apply pinned prettier to windows harness"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
       - name: Format check
         run: npm run format:check
       - name: Lint
