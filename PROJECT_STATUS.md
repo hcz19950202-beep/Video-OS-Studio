@@ -15,14 +15,15 @@ package_json_version: 2.3.1
 package_lock_version: 2.3.1
 
 active_development_workstream: V2.4 AUTONOMOUS PRODUCTION AGENT
-active_stage: B7 CAMPAIGN / BATCH PRODUCTION — CLOUD ACCEPTANCE PASS / LOCAL WINDOWS FINAL GATE NEXT
+active_stage: B7 CAMPAIGN / BATCH PRODUCTION — LOCAL REAL-MEDIA DEFECT REPAIR
 active_branch: feature/v2.4-b7-campaign-production / PR #79
 accepted_b6_main: 37602f0fd3cb9558fb51259b23936521d216098b
-b7_last_product_head: f7799cdfa1459f6d1aea613d69faab53059f3c1e
-b7_cloud_ci: CI #955 / run 33259603403 / PASS
-local_action_required: PENDING — only after the final post-status exact HEAD is green and frozen
-next_action: FINAL EXACT-HEAD CI → FREEZE SHA → LOCAL CODEX VERIFY ONLY REAL 2-VIDEO BATCH → UPDATE PR #79 → MERGE → EXACT-MAIN CI
-v2_4_status: B7 ACCEPTANCE ACTIVE
+b7_last_cloud_candidate: 8bd1dab21206c745531cfb53b65b1e8c529f7393
+b7_last_cloud_ci: CI #956 / run 33263067354 / PASS
+b7_local_gate: FAIL — real user media exposed Remotion frame extraction failure
+local_action_required: NONE — GPT Web development reopened; do not rerun Codex yet
+next_action: FIX REAL-MEDIA RENDER PATH → REGRESSION TEST → FULL CLOUD CI → FREEZE NEW SHA → LOCAL CODEX VERIFY ONLY
+v2_4_status: B7 DEVELOPMENT REOPENED
 ```
 
 ## V2.4 authoritative docs and sequence
@@ -62,10 +63,8 @@ B5a Mission Executor Core                   → COMPLETE / PR #73 / main b222f21
 B5b Controlled Autonomy + Protected Edits   → COMPLETE / PR #75 / main 078f06992f9e474f806ac5869e7a5d9951ec17d0 / CI #856 PASS
 B5c Production Workspace / Mission UI       → COMPLETE / PR #77 / main 3edf0ef14a92b8307e36b8c21dcd9fc6d634181b / CI #894 PASS
 B6  Autonomous Real Video Acceptance        → COMPLETE / PR #78 / main 37602f0fd3cb9558fb51259b23936521d216098b / CI #929 PASS
-B7  Campaign / Batch Production             → CLOUD ACCEPTANCE PASS / PR #79 / LOCAL REAL-BATCH GATE PENDING
+B7  Campaign / Batch Production             → DEVELOPMENT REOPENED / PR #79 / LOCAL REAL-MEDIA GATE FAILED
 ```
-
-PR #76 was the B5c Draft container; PR #77 replaced it without changing the accepted B5c product head and was merged. PR #78 B6 passed both exact-SHA cloud acceptance and isolated Local Windows VERIFY ONLY acceptance before merge.
 
 ## B6 accepted core
 
@@ -87,9 +86,7 @@ real Project/media
 → final QA pass
 ```
 
-B6 preserves stable operation/Job identities, revision-safe recovery, stale fail-closed behavior, bounded repair loops, protected/manual edit semantics, and no generic shell/filesystem/network/computer authority.
-
-## B7 current product boundary
+## B7 product boundary
 
 B7 is a Campaign control plane above accepted isolated Production Missions; it is not a second editor or second Project truth.
 
@@ -101,108 +98,75 @@ Implemented on PR #79:
 - bounded Campaign Mission concurrency (`1..8`, default `2`);
 - resource limiting for heavy render work;
 - per-Mission cancel and failure isolation;
-- explicit retry-failed semantics that do not rerun successful siblings;
+- retry-failed semantics that do not rerun successful siblings;
 - duplicate enqueue and skipped-success paths are durable no-ops;
 - waiting-review / blocked resume is explicit and never auto-approves underlying review truth;
-- Campaign archive does not implicitly delete Projects or Missions;
-- Campaign Dashboard joins durable Campaign state with current Mission/Project Workspace truth;
-- dashboard reload/restart reconstructs from durable state rather than browser memory;
+- archive does not implicitly delete Projects or Missions;
+- Campaign Dashboard reconstructs from durable Campaign + Mission/Project truth;
 - Campaign execution bridges into the accepted protected `ProductionExecutionService` path;
-- read-only Campaign/Dashboard runtime does not require AI provider initialization; execution provider setup is lazy;
 - no shared mutable Project truth between outputs.
 
-## B7 deterministic/cloud acceptance
+## B7 cloud candidate history
 
-Last product head before this governance sync:
-
-`f7799cdfa1459f6d1aea613d69faab53059f3c1e`
-
-CI #955 / run `33259603403` passed all six jobs:
+Exact SHA `8bd1dab21206c745531cfb53b65b1e8c529f7393` passed CI #956 / run `33263067354` across six jobs:
 
 ```text
-ubuntu-verify                    PASS — format / lint / typecheck / unit / build
-windows-verify                   PASS — format / lint / typecheck / unit
-browser-smoke                    PASS — durable Campaign Dashboard browser coverage
-windows-media-smoke              PASS — accepted real-media/B4 regression
-windows-b6-core-acceptance       PASS — B6 single-video real-engine regression remains intact
-windows-b7-campaign-acceptance   PASS — exact-SHA Windows two-video real-render batch gate
+ubuntu-verify                    PASS
+windows-verify                   PASS
+browser-smoke                    PASS
+windows-media-smoke              PASS
+windows-b6-core-acceptance       PASS
+windows-b7-campaign-acceptance   PASS
 ```
 
-B7 cloud/deterministic coverage proves:
+Cloud B7 used two generated 4.2-second H.264/AAC fixtures and proved configured Mission concurrency `2`, observed Mission concurrency `2`, heavy render resource limit `1`, two distinct Projects/Jobs/MP4s, durable reload, and no `.props.json` / `.hf-work` residue.
 
-- N Mission/Project isolation;
-- one Mission failure does not corrupt successful siblings;
-- one Mission cancel does not kill another;
-- configured concurrency is honored;
-- duplicate enqueue/idempotency;
-- retry-failed reruns only failed Missions;
-- repository/runtime reconstruction preserves Campaign truth;
-- Dashboard reload uses durable state;
-- archive preserves Project/Mission truth;
-- API action allow-listing;
-- B6 regression remains green.
+That SHA is no longer an acceptance candidate because the mandatory Local Windows real-user-media gate failed.
 
-Windows B7 CI evidence at `f7799cdfa1459f6d1aea613d69faab53059f3c1e`:
+## B7 Local Windows real-user-media failure
+
+Local Codex ran VERIFY ONLY on exact SHA `8bd1dab21206c745531cfb53b65b1e8c529f7393` in a detached clean worktree with two distinct real user MP4s:
 
 ```text
-Campaign status: completed
-Campaign concurrency configured: 2
-max Mission concurrency observed: 2
-heavy render resource limit observed: 1
-source fixtures: two distinct H.264/AAC 640x360 videos, 4.2 s each
-render outputs: two distinct real Remotion MP4 Jobs
-output dimensions: 640x360
-output fps: 30
-output duration: 4.245333 s each
-output audio: present
-Durable reload status: completed
-Project revisions: isolated at revision 2 per output
-.props.json residue: none
-.hf-work residue: none
+Source A: H.264/AAC, 720x1280, 30 fps, 583.354921 s, 89,591,973 bytes
+Source B: H.264/AAC, 1024x576, 30 fps, 65.921451 s, 4,274,293 bytes
 ```
 
-The CI sources are encoded fixtures, so this evidence does **not** replace the Development Plan's Local Codex real-video batch acceptance when B7 claims actual local resource/process isolation.
+Mission 2 rendered successfully to a real H.264/AAC 640x360 MP4. Mission 1 failed twice inside the Remotion compositor and the Mission then blocked after exhausting the declared render budget.
 
-## B7 remaining mandatory gate
-
-After this status-sync commit receives a completely green exact-head CI, freeze that exact SHA and run Local Codex in VERIFY ONLY mode using a separate clean detached Git worktree.
-
-Required local case:
+Underlying render error:
 
 ```text
-Windows
-Node 24.x
-FFmpeg / ffprobe
-Chrome
-exact frozen SHA
-2 distinct real user MOV/MP4 videos, each >= 3 seconds
-npm ci
-npm run test:windows-b7
+Could not extract frame from compositor:
+No frame found at position 3635200 for source
+The proxy returned HTTP 500 at time=2.3666666666666667.
+remotion-render exited with code 1.
 ```
 
-The local run must prove:
+The final `PRODUCTION_EXECUTION_BUDGET_EXCEEDED` error is the bounded executor's consequence of two render failures; it is not the decoder root cause.
 
-- both real user videos import independently;
-- two isolated Projects/Missions exist;
-- Campaign Mission concurrency reaches the configured bound where allowed;
-- render resource limiting remains bounded;
-- two distinct real Remotion outputs are produced;
-- outputs are valid H.264/AAC MP4s with expected dimensions/fps/duration;
-- durable Campaign/Dashboard state survives repository reconstruction;
-- no cross-Project mutation/state leakage;
-- no duplicate Jobs/mutation identities;
-- no `.props.json`, `.hf-work`, stale lock, temporary acceptance residue or new orphan engine/process;
-- acceptance worktree stays clean;
-- user's primary worktree and existing local changes are untouched.
+The acceptance worktree remained source-clean and no new persistent Node/FFmpeg orphan was confirmed. The user's primary repository HEAD and existing `next-env.d.ts` content stayed unchanged, but a new untracked `.video_agent/plugin_root` appeared during the verification session. Its source was not proven to be Video OS product code; the next local acceptance must prevent verifier/plugin state from touching the primary repository and must require an exact before/after status match.
 
-Local Codex must not edit source, format source, fix failures, stash/reset/restore user work, commit, push, merge, move the SHA, or weaken acceptance. Any genuine code/runtime defect returns to GPT Web + GitHub for repair and a new frozen SHA.
+## B7 repair boundary
 
-## Package and dependency truth
+GPT Web + GitHub own the repair. Local Codex remains VERIFY ONLY.
+
+The repair must:
+
+- address the real-media Remotion frame extraction path rather than increasing Mission retry/render budgets;
+- keep Project Schema `2.0.0` unchanged;
+- preserve B6 accepted single-video behavior;
+- add a deterministic regression capable of exercising problematic timestamp/frame-gap media characteristics;
+- rerun the complete cloud CI, including B6 and B7 Windows real-engine gates;
+- freeze a new exact SHA only after all cloud gates pass;
+- rerun Local Windows B7 with two real user videos before PR #79 can leave Draft or merge.
+
+## Package and dependency truth before repair
 
 ```text
 package.json version:                 2.3.1
 package-lock.json top-level version:  2.3.1
-package-lock packages[""].version:    2.3.1
+packages[""].version:                 2.3.1
 Project Schema:                       2.0.0
 Node:                                 24.x
 remotion:                             4.0.513
@@ -213,7 +177,7 @@ hyperframes:                          0.8.10
 prettier:                             3.8.1
 ```
 
-No B7 change alters these pins or Project Schema.
+Any new Remotion-family package used by the repair must be pinned to the existing `4.0.513` family and accepted by a fresh lockfile/CI cycle.
 
 ## Permanent accepted invariants
 
@@ -238,9 +202,8 @@ REUSE > MODIFY > CREATE
 ```
 
 - `project.json` remains the editing truth for each output;
-- stale Project/Workflow/Mission-dependent mutation state fails closed;
-- default server security remains loopback-first;
+- stale mutation-dependent state fails closed;
 - Project mutation must pass accepted application-owned mutation services and revision guards;
 - protected/manual edits must not be silently overwritten;
-- Campaign scheduling never grants generic shell/filesystem/network/process/computer authority;
-- Campaign retry/cancel/archive operations must not silently destroy sibling output truth.
+- Campaign retry/cancel/archive operations must not silently destroy sibling output truth;
+- no generic shell/filesystem/network/process/computer authority is introduced by B7 or its repair.
