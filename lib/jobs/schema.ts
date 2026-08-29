@@ -36,7 +36,7 @@ export type JobRecord=z.infer<typeof JobRecordSchema>;
 
 export const JobArtifactsSchema=z.array(JobArtifactSchema);
 
-export const CreateJobSchema=z.object({type:JobTypeSchema,projectId:ProjectIdSchema.optional(),input:z.record(z.string(),z.unknown()).default({})});
+export const CreateJobSchema=z.object({jobId:JobIdSchema.optional(),type:JobTypeSchema,projectId:ProjectIdSchema.optional(),input:z.record(z.string(),z.unknown()).default({})});
 export type CreateJobInput=z.infer<typeof CreateJobSchema>;
 
 export const isTerminalJobStatus=(status:JobStatus)=>["completed","failed","cancelled","interrupted"].includes(status);
