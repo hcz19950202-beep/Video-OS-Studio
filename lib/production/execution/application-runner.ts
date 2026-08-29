@@ -1,6 +1,7 @@
 import {z} from "zod";
-import type {AgentProposal,AgentSession} from "@/lib/ai/schema";
+import type {AgentProposal} from "@/lib/ai/schema";
 import type {AgentSessionRepository} from "@/lib/ai/session/repository";
+import type {AgentSession} from "@/lib/ai/session/schema";
 import type {DurableJobRuntime} from "@/lib/jobs/runtime";
 import type {JobRecord,JobType} from "@/lib/jobs/schema";
 import type {ProductionMutationTarget} from "@/lib/production/autonomy/schema";
@@ -9,11 +10,10 @@ import type {
   ProductionStepRunnerInput,
 } from "@/lib/production/execution/executor";
 import type {StepExecutionResult} from "@/lib/production/execution/schema";
-import type {VisualPlanService} from "@/lib/visual-planner/service";
 import {visualClipIdForSuggestion} from "@/lib/visual-planner/diff";
+import type {VisualPlanService} from "@/lib/visual-planner/service";
 import {VisualPlanSchema,type VisualPlan} from "@/lib/visual-planner/schema";
 import type {WorkflowService} from "@/lib/workflows/service";
-import type {WorkflowRun} from "@/lib/workflows/schema";
 
 const VisualPlanPayloadSchema=z.object({
   plan:VisualPlanSchema,
@@ -52,7 +52,7 @@ export class ProductionVisualPlanProposalResolver{
     const evidenceIds=unique(input.step.evidence.filter(item=>item.kind==="visual-plan").map(item=>item.id));
     if(evidenceIds.length!==1)throw new Error("Autonomous visual edit requires exactly one visual-plan evidence reference.");
     const proposalId=evidenceIds[0]!;
-    const matches:(ResolvedVisualPlanProposal)[]=[];
+    const matches:ResolvedVisualPlanProposal[]=[];
     for(const session of await this.sessions.list(input.mission.projectId)){
       for(const proposal of session.proposals){
         if(proposal.id!==proposalId)continue;
@@ -65,7 +65,7 @@ export class ProductionVisualPlanProposalResolver{
     if(matches.length!==1)throw new Error("Visual-plan evidence must resolve to exactly one persisted Agent proposal.");
     const resolved=matches[0]!;
     if(resolved.session.projectId!==input.mission.projectId||resolved.proposal.projectId!==input.mission.projectId||resolved.plan.projectId!==input.mission.projectId)throw new Error("Visual-plan evidence belongs to a different Project.");
-    if(resolved.proposal.baseProjectRevision!==input.expectedProjectRevision||resolved.plan.baseProjectRevision!==input.expectedProjectRevision)throw new Error("Visual-plan evidence is stale for the current Production execution revision.");
+    if(resolved.proposal.baseProjectRevision!==input.expectedProjectRevision)throw new Error("Visual-plan evidence is stale for the current Production execution revision.");
     const suggestionIds=new Set(resolved.plan.suggestions.map(suggestion=>suggestion.id));
     if(resolved.selectedIds.some(id=>!suggestionIds.has(id)))throw new Error("Visual-plan evidence selected an unknown suggestion.");
     return resolved;
@@ -106,9 +106,10 @@ const workflowReference=(input:ProductionStepRunnerInput)=>{
 };
 
 const jobFailureResult=(job:JobRecord):StepExecutionResult=>{
-  const code=job.error?.code?.replace(/[^A-Za-z0-9_]/g,"_").toUpperCase()||"PRODUCTION_JOB_FAILED";
-  const message=job.error?.message||"The bounded production Job did not complete successfully.";
-  return job.error?.retryable===false||job.status==="cancelled"?blocked(code,message):retryable(code,message);
+  const retry=job.error?.retryable!==false&&job.status!=="cancelled";
+  return retry
+    ?retryable("PRODUCTION_JOB_INCOMPLETE","The bounded production Job did not complete successfully and may be retried from durable state.")
+    :blocked("PRODUCTION_JOB_FAILED","The bounded production Job failed with a non-retryable durable state.");
 };
 
 export class ApplicationProductionStepRunner implements ProductionStepRunner{
@@ -175,12 +176,14 @@ export class ApplicationProductionStepRunner implements ProductionStepRunner{
       });
       if(run.status==="pending")await this.workflows.start(run.id);
       await this.workflows.runner.waitForIdle(run.id);
-      run=await this.workflows.get(run.id) as WorkflowRun;
-      if(!run)return blocked("WORKFLOW_EVIDENCE_MISSING","Durable Workflow disappeared before completion evidence could be recorded.");
+      const settled=await this.workflows.get(run.id);
+      if(!settled)return blocked("WORKFLOW_EVIDENCE_MISSING","Durable Workflow disappeared before completion evidence could be recorded.");
+      run=settled;
       if(run.status==="waiting_review")return blocked("WORKFLOW_REVIEW_REQUIRED","Workflow reached its own durable human-review checkpoint and cannot be auto-approved by the Mission runner.");
       if(run.status!=="completed"){
-        const message=run.error?.message||"The durable Workflow did not complete successfully.";
-        return run.error?.retryable===false||run.status==="cancelled"?blocked("WORKFLOW_EXECUTION_FAILED",message):retryable("WORKFLOW_EXECUTION_FAILED",message);
+        return run.error?.retryable===false||run.status==="cancelled"
+          ?blocked("WORKFLOW_EXECUTION_FAILED","The durable Workflow failed with a non-retryable state.")
+          :retryable("WORKFLOW_EXECUTION_INCOMPLETE","The durable Workflow did not complete and may be retried from persisted state.");
       }
       const project=await this.workflows.projects.load(input.mission.projectId);
       const jobIds=unique(run.stageExecutions.flatMap(stage=>stage.jobIds)).slice(0,24);
