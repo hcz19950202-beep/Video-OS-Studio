@@ -16,10 +16,13 @@ import {MediaImportService} from "@/lib/media/import-service";
 import {WaveformService} from "@/lib/media/waveform-service";
 import {ProductionEditProtectionRepository} from "@/lib/production/autonomy/repository";
 import {ProductionEditProtectionService} from "@/lib/production/autonomy/service";
+import {ProductionExecutionRepository} from "@/lib/production/execution/repository";
 import {ProductionMissionRepository} from "@/lib/production/mission/repository";
 import {ProductionMissionService} from "@/lib/production/mission/service";
+import {ProductionPlanRepository} from "@/lib/production/plan/repository";
 import {QAReportRepository} from "@/lib/production/qa/repository";
 import {ProductionQAService} from "@/lib/production/qa/service";
+import {ProductionWorkspaceService} from "@/lib/production/workspace/service";
 import {ProjectMutationCoordinator} from "@/lib/project/mutation-coordinator";
 import {ProjectRepository} from "@/lib/project/repository";
 import {RenderJobManager} from "@/lib/render/render-jobs";
@@ -67,10 +70,13 @@ export const renderJobs=new RenderJobManager(jobRuntime);
 
 export const productionMissionRepository=getGlobalRuntime(`${dataRoot}:production-mission-repository`,()=>new ProductionMissionRepository(fileSystem,dataRoot));
 export const productionMissionService=getGlobalRuntime(`${dataRoot}:production-mission-service`,()=>new ProductionMissionService(productionMissionRepository,projectRepository));
+export const productionPlanRepository=getGlobalRuntime(`${dataRoot}:production-plan-repository`,()=>new ProductionPlanRepository(fileSystem,dataRoot));
+export const productionExecutionRepository=getGlobalRuntime(`${dataRoot}:production-execution-repository`,()=>new ProductionExecutionRepository(fileSystem,dataRoot));
 export const productionEditProtectionRepository=getGlobalRuntime(`${dataRoot}:production-edit-protection-repository`,()=>new ProductionEditProtectionRepository(fileSystem,dataRoot));
 export const productionEditProtectionService=getGlobalRuntime(`${dataRoot}:production-edit-protection-service`,()=>new ProductionEditProtectionService(productionEditProtectionRepository));
 export const qaReportRepository=getGlobalRuntime(`${dataRoot}:qa-report-repository`,()=>new QAReportRepository(fileSystem,dataRoot));
 export const productionQAService=getGlobalRuntime(`${dataRoot}:production-qa-service`,()=>new ProductionQAService(qaReportRepository,projectRepository,jobStore,productionMissionService,fileSystem,ffmpegAdapter));
+export const productionWorkspaceService=getGlobalRuntime(`${dataRoot}:production-workspace-service`,()=>new ProductionWorkspaceService(projectRepository,productionMissionRepository,productionPlanRepository,productionExecutionRepository,qaReportRepository));
 
 export const visualPlannerAdapter=new RulesVisualPlannerAdapter();
 export const visualPlanService=new VisualPlanService(fileSystem,projectRepository,visualPlannerAdapter,hyperFramesRenderService,projectMutations);

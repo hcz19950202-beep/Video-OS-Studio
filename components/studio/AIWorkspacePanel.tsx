@@ -4,6 +4,8 @@ import {useState} from "react";
 import type {Project} from "@/schemas/project";
 import {VisualPlannerPanel} from "@/components/planner/VisualPlannerPanel";
 import {AgentWorkspacePanel} from "@/components/studio/AgentWorkspacePanel";
+import {ProductionMissionPanel} from "@/components/studio/ProductionMissionPanel";
+import missionStyles from "@/components/studio/ProductionMissionPanel.module.css";
 import {WorkflowPanel} from "@/components/studio/WorkflowPanel";
 import {useSelectionStore} from "@/store/selection-store";
 import {getStudioMetrics} from "@/lib/studio/metrics";
@@ -12,7 +14,7 @@ import {workflowMessages} from "@/lib/i18n/workflow";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
 
 export const AIWorkspacePanel=({project,onProjectChange}:{project:Project;onProjectChange:(project:Project)=>void})=>{
-  const{locale}=useStudioPreferences();const[mode,setMode]=useState<"agent"|"composer"|"workflow">("composer");
+  const{locale}=useStudioPreferences();const[mode,setMode]=useState<"mission"|"agent"|"composer"|"workflow">("composer");
   const selectedClipId=useSelectionStore(state=>state.selectedClipId);
   const selectedSceneId=useSelectionStore(state=>state.selectedSceneId);
   const selectedScriptRange=useSelectionStore(state=>state.selectedScriptRange);
@@ -24,11 +26,12 @@ export const AIWorkspacePanel=({project,onProjectChange}:{project:Project;onProj
 
   return <div className="v21-ai-workspace">
     <div className="v22-ai-mode-switch" role="tablist" aria-label={zh?"AI 工作模式":"AI workspace mode"}>
+      <button type="button" role="tab" aria-selected={mode==="mission"} className={mode==="mission"?"active":""} onClick={()=>setMode("mission")}>{zh?"任务":"Mission"}</button>
       <button type="button" role="tab" aria-selected={mode==="agent"} className={mode==="agent"?"active":""} onClick={()=>setMode("agent")}>{zh?"Agent":"Agent"}</button>
       <button type="button" role="tab" aria-selected={mode==="composer"} className={mode==="composer"?"active":""} onClick={()=>setMode("composer")}>{workflowText.composer}</button>
       <button type="button" role="tab" aria-selected={mode==="workflow"} className={mode==="workflow"?"active":""} onClick={()=>setMode("workflow")}>{workflowText.workflow}</button>
     </div>
-    {mode==="agent"?<AgentWorkspacePanel key={`agent-${project.project.id}`} project={project} onProjectChange={onProjectChange}/>:mode==="workflow"?<WorkflowPanel key={`workflow-${project.project.id}`} project={project} onProjectChange={onProjectChange}/>:<>
+    {mode==="mission"?<div className={missionStyles.root}><ProductionMissionPanel key={`mission-${project.project.id}`} project={project}/></div>:mode==="agent"?<AgentWorkspacePanel key={`agent-${project.project.id}`} project={project} onProjectChange={onProjectChange}/>:mode==="workflow"?<WorkflowPanel key={`workflow-${project.project.id}`} project={project} onProjectChange={onProjectChange}/>:<>
       <section className="v21-ai-context">
         <header><small>AI COMPOSER · CONTEXT</small><strong>{zh?"导演上下文":"Director Context"}</strong></header>
         <div className="v21-ai-context-project"><strong>{project.project.name}</strong><span>{project.canvas.width}×{project.canvas.height} · {canvas.aspectLabel} · {project.canvas.fps} fps</span></div>
