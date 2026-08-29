@@ -76,7 +76,7 @@ export class ProductionPlannerService{
 
     await this.missions.mutate(projectId,mission.id,current=>{
       if(missionPlanningSignature(current)!==missionSignature||!canPlanStatus(current.status))throw new ProductionMissionPlanConflictError();
-      return {...current,planId:plan.id,status:"ready",updatedAt:this.now()};
+      return{...current,planId:plan.id,status:"ready",activeStepId:undefined,updatedAt:this.now()};
     });
     return plan;
   }

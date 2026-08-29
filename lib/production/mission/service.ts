@@ -91,11 +91,7 @@ export class ProductionMissionService{
     await this.requireProject(projectId);
     return this.repository.mutate(projectId,missionId,current=>{
       if(isTerminalProductionMissionStatus(current.status))throw new ProductionMissionTerminalStateError(current.id,current.status);
-      return ProductionMissionSchema.parse({
-        ...current,
-        ...update,
-        updatedAt:this.now(),
-      });
+      return ProductionMissionSchema.parse({...current,...update,updatedAt:this.now()});
     });
   }
 
@@ -117,11 +113,7 @@ export class ProductionMissionService{
     return this.repository.mutate(projectId,missionId,current=>{
       if(current.status==="cancelled")return current;
       if(current.status==="completed")throw new ProductionMissionTerminalStateError(current.id,current.status);
-      return ProductionMissionSchema.parse({
-        ...current,
-        status:"cancelled",
-        updatedAt:this.now(),
-      });
+      return ProductionMissionSchema.parse({...current,status:"cancelled",activeStepId:undefined,updatedAt:this.now()});
     });
   }
 }

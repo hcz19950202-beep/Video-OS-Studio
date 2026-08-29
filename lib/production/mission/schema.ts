@@ -8,6 +8,8 @@ export const ProductionMissionIdSchema=z.string().uuid();
 export type ProductionMissionId=z.infer<typeof ProductionMissionIdSchema>;
 export const ProductionMissionPlanIdSchema=z.string().uuid();
 export const ProductionMissionQAReportIdSchema=z.string().uuid();
+export const ProductionMissionExecutionIdSchema=z.string().uuid();
+export const ProductionMissionActiveStepIdSchema=z.string().min(1).max(64).regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/,"Mission active step IDs may contain only letters, numbers, underscores, and hyphens");
 
 export const ProductionMissionStatusSchema=z.enum([
   "draft",
@@ -64,6 +66,8 @@ export const ProductionMissionSchema=z.object({
   baseProjectRevision:z.number().int().nonnegative(),
   status:ProductionMissionStatusSchema,
   planId:ProductionMissionPlanIdSchema.optional(),
+  executionId:ProductionMissionExecutionIdSchema.optional(),
+  activeStepId:ProductionMissionActiveStepIdSchema.optional(),
   qaReportIds:UniqueIdArray(ProductionMissionQAReportIdSchema,"qa report id",128),
   agentSessionIds:UniqueIdArray(AgentSessionIdSchema,"agent session id"),
   workflowRunIds:UniqueIdArray(WorkflowRunIdSchema,"workflow run id"),
@@ -72,6 +76,7 @@ export const ProductionMissionSchema=z.object({
   updatedAt:z.string().datetime(),
 }).strict().superRefine((mission,ctx)=>{
   if(mission.updatedAt<mission.createdAt)ctx.addIssue({code:"custom",path:["updatedAt"],message:"Mission updatedAt cannot precede createdAt"});
+  if((mission.status==="completed"||mission.status==="cancelled"||mission.status==="failed")&&mission.activeStepId!==undefined)ctx.addIssue({code:"custom",path:["activeStepId"],message:"Terminal Missions cannot retain an active execution step."});
 });
 export type ProductionMission=z.infer<typeof ProductionMissionSchema>;
 
