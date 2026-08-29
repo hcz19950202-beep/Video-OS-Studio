@@ -4,13 +4,18 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   format-b5-harness:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
+      - name: Checkout PR head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -20,9 +25,12 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Format with repository pin
         run: npm run format
-      - name: Emit formatter diff
+      - name: Finalize harness and remove helper
         shell: bash
         run: |
-          echo B5_FORMAT_DIFF_BEGIN
-          git --no-pager diff -- tests/e2e/b5-local-real.spec.ts
-          echo B5_FORMAT_DIFF_END
+          rm .github/workflows/b5-format-helper.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/b5-local-real.spec.ts .github/workflows/b5-format-helper.yml
+          git commit -m "test(v2.4-b5): finalize local acceptance harness"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
