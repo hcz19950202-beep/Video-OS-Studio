@@ -23,14 +23,17 @@ const stepById=(plan:ProductionPlan|null,id:string|undefined)=>id===undefined?un
 const executionStepById=(execution:ProductionExecution|null,id:string|undefined)=>id===undefined?undefined:execution?.steps.find(step=>step.stepId===id);
 
 const deriveActivityState=(mission:ProductionMission,execution:ProductionExecution|null):ProductionWorkspaceActivityState=>{
+  if(mission.status==="cancelled")return"cancelled";
+  if(mission.status==="completed")return"completed";
+  if(mission.status==="failed")return"failed";
   const active=executionStepById(execution,execution?.activeStepId);
   if(active?.status==="retrying")return"retrying";
   if(active?.status==="waiting-review"||execution?.status==="waiting-review"||mission.status==="waiting-review")return"waiting-review";
   if(active?.status==="blocked"||execution?.status==="blocked"||mission.status==="blocked")return"blocked";
+  if(execution?.status==="cancelled")return"cancelled";
+  if(execution?.status==="failed")return"failed";
+  if(execution?.status==="completed")return"completed";
   if(execution?.status==="running"||mission.status==="running")return"running";
-  if(execution?.status==="cancelled"||mission.status==="cancelled")return"cancelled";
-  if(execution?.status==="completed"||mission.status==="completed")return"completed";
-  if(execution?.status==="failed"||mission.status==="failed")return"failed";
   if(mission.status==="planning")return"planning";
   if(mission.status==="ready")return"ready";
   return"draft";
