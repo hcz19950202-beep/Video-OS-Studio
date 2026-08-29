@@ -16,9 +16,9 @@ package_lock_version: 2.3.1
 
 active_development_workstream: V2.4 AUTONOMOUS PRODUCTION AGENT
 active_stage: B5B CONTROLLED AUTONOMY COMPLETE CANDIDATE / B5C NEXT
-active_branch: feature/v2.4-b5b-controlled-autonomy / PR #74
+active_branch: feature/v2.4-b5b-controlled-autonomy / PR #75
 local_action_required: NONE
-next_action: FINAL STATUS-SYNC CI → READY PR #74 → EXPECTED-HEAD MERGE → EXACT-MAIN CI → START B5C PRODUCTION WORKSPACE
+next_action: FINAL EXACT-HEAD CI → EXPECTED-HEAD MERGE PR #75 → EXACT-MAIN CI → START B5C PRODUCTION WORKSPACE
 v2_4_status: DEVELOPMENT ACTIVE
 ```
 
@@ -56,11 +56,13 @@ B2  Asset Intelligence + Semantic Retrieval → COMPLETE / PR #69 / exact-main C
 B3  Reusable Video Skills                   → COMPLETE / PR #70 / merge 62ba5ab13f49f1d920bfce6626c3ea2293128cc3 / exact-main CI #835 PASS
 B4  Self-QA + Repair Proposals              → COMPLETE / PR #71 / merge 695e49446fca7025d442a147737c126231ddf7fe / exact-main CI #840 PASS
 B5a Mission Executor Core                   → COMPLETE / PR #73 / merge b222f210535e96dfa5b0f36cdb04128f271cefd7 / exact-main CI #845 PASS
-B5b Controlled Autonomy + Protected Edits   → COMPLETE CANDIDATE / PR #74 / product head af8d6e6bdf89c3d2801b3546d5136bde9d657ac5 / CI #852 PASS
+B5b Controlled Autonomy + Protected Edits   → COMPLETE CANDIDATE / PR #75 / product head af8d6e6bdf89c3d2801b3546d5136bde9d657ac5 / CI #852 PASS
 B5c Production Workspace / Mission UI       → NEXT
 B6  Autonomous Real Video Acceptance        → NOT STARTED
 B7  Campaign / Batch Production             → NOT STARTED
 ```
+
+Draft PR #74 was closed without merge only because the connected GitHub Ready-for-review GraphQL mutation was incompatible with the current GitHub schema. PR #75 uses the same branch/history as a non-Draft replacement; product code was not changed by the PR-container replacement.
 
 ## Accepted architecture boundaries through B4
 
@@ -97,7 +99,7 @@ B5a deliberately did not expose a public Mission execution API or implement a fu
 
 ## B5b — controlled autonomy completion candidate
 
-Product head: `af8d6e6bdf89c3d2801b3546d5136bde9d657ac5` on PR #74. CI #852 / run `33231076522` passed all four gates:
+Product head: `af8d6e6bdf89c3d2801b3546d5136bde9d657ac5` on PR #75. CI #852 / run `33231076522` passed all four gates:
 
 ```text
 Ubuntu Verify        PASS — format / lint / typecheck / full unit suite / build
