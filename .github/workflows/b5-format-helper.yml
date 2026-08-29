@@ -1,0 +1,29 @@
+name: B5 Format Helper
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  format-b5-harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Format with repository pin
+        run: npm run format
+      - name: Emit formatted harness
+        shell: bash
+        run: |
+          echo B5_FORMATTED_BEGIN
+          base64 -w0 tests/e2e/b5-local-real.spec.ts
+          echo
+          echo B5_FORMATTED_END
