@@ -1,4 +1,5 @@
 import {describe,expect,it,vi} from "vitest";
+import type {AgentRunnerInput} from "@/lib/ai/runner";
 import type {AgentSession} from "@/lib/ai/session/schema";
 import {ApplicationProductionAgentStepPort} from "@/lib/production/execution/agent-step-port";
 import type {ProductionStepRunnerInput} from "@/lib/production/execution/executor";
@@ -81,7 +82,7 @@ describe("ApplicationProductionAgentStepPort",()=>{
   it("uses the stable Mission operation id for the durable Agent session and ignores free-form Plan command text",async()=>{
     const sessions=repository();
     const completed=completedSession("plan-visuals");
-    const runner={runTurn:vi.fn(async()=>completed)};
+    const runner={runTurn:vi.fn(async(_input:AgentRunnerInput)=>completed)};
     const port=new ApplicationProductionAgentStepPort(runner,sessions as never,{providerId:"deterministic-b6",now:()=>NOW});
 
     const result=await port.execute(inputFor("plan-visuals"));
