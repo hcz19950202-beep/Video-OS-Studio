@@ -20,10 +20,9 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Format with repository pin
         run: npm run format
-      - name: Emit formatted harness
+      - name: Emit formatter diff
         shell: bash
         run: |
-          echo B5_FORMATTED_BEGIN
-          base64 -w0 tests/e2e/b5-local-real.spec.ts
-          echo
-          echo B5_FORMATTED_END
+          echo B5_FORMAT_DIFF_BEGIN
+          git --no-pager diff -- tests/e2e/b5-local-real.spec.ts
+          echo B5_FORMAT_DIFF_END
