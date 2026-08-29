@@ -205,7 +205,11 @@ jobs:
           ffmpeg -y -f lavfi -i "smptebars=size=640x360:rate=30" -f lavfi -i "sine=frequency=660:sample_rate=48000" -t 4.2 -c:v libx264 -pix_fmt yuv420p -c:a aac $sourceB
           if (!(Test-Path $sourceA) -or !(Test-Path $sourceB)) { throw "B7 encoded source fixtures were not created." }
 
-          $frameTimes = @(ffprobe -v error -select_streams v:0 -show_entries frame=best_effort_timestamp_time -of csv=p=0 $sourceA | ForEach-Object { [double]::Parse($_.Trim(), [Globalization.CultureInfo]::InvariantCulture) })
+          $frameTimes = @(
+            ffprobe -v error -select_streams v:0 -show_entries frame=best_effort_timestamp_time -of default=noprint_wrappers=1:nokey=1 $sourceA |
+              Where-Object { $_.Trim() } |
+              ForEach-Object { [double]::Parse($_.Trim(), [Globalization.CultureInfo]::InvariantCulture) }
+          )
           $gapFrames = @($frameTimes | Where-Object { $_ -gt 1.05 -and $_ -lt 3.95 })
           $beforeGap = @($frameTimes | Where-Object { $_ -ge 0.9 -and $_ -le 1.05 })
           $afterGap = @($frameTimes | Where-Object { $_ -ge 3.95 -and $_ -le 4.2 })
