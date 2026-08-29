@@ -7,6 +7,7 @@ import {
 } from "@/lib/production/execution/executor";
 import {ProductionExecutionMissionCancelledError,ProductionExecutionPlanMismatchError} from "@/lib/production/execution/errors";
 import {ProductionExecutionRepository} from "@/lib/production/execution/repository";
+import {ProductionExecutionSchema} from "@/lib/production/execution/schema";
 import {ProductionMissionRepository} from "@/lib/production/mission/repository";
 import {ProductionMissionSchema,type ProductionMission} from "@/lib/production/mission/schema";
 import {ProductionPlanRepository} from "@/lib/production/plan/repository";
@@ -86,6 +87,36 @@ const setup=async(
   return{fs,missions,plans,executions,executor,projects};
 };
 
+const seedInterruptedMutation=async(
+  executions:ProductionExecutionRepository,
+  missions:ProductionMissionRepository,
+)=>{
+  const execution=ProductionExecutionSchema.parse({
+    id:EXECUTION_ID,
+    projectId:PROJECT_ID,
+    missionId:MISSION_ID,
+    planId:PLAN_ID,
+    planBaseProjectRevision:5,
+    expectedProjectRevision:5,
+    status:"running",
+    activeStepId:"edit-project",
+    steps:[{
+      stepId:"edit-project",
+      status:"running",
+      operationId:OPERATION_IDS[0],
+      attempts:1,
+      evidence:[],
+      startedAt:"2026-08-29T00:00:04.000Z",
+    }],
+    budget:{},
+    counters:{totalAttempts:1},
+    createdAt:"2026-08-29T00:00:03.000Z",
+    updatedAt:"2026-08-29T00:00:04.000Z",
+  });
+  await executions.create(execution);
+  await missions.mutate(PROJECT_ID,MISSION_ID,current=>({...current,executionId:EXECUTION_ID,status:"running",activeStepId:"edit-project",updatedAt:"2026-08-29T00:00:04.000Z"}));
+};
+
 describe("ProductionMissionExecutor",()=>{
   it("advances one low-risk step only after durable completion evidence",async()=>{
     const calls:string[]=[];
@@ -116,6 +147,42 @@ describe("ProductionMissionExecutor",()=>{
     const execution=await executor.advance(PROJECT_ID,MISSION_ID);
     expect(execution.status).toBe("blocked");
     expect(execution.steps[0].lastFailure?.code).toBe("PRODUCTION_EXECUTION_STALE_PROJECT");
+    expect(calls).toBe(0);
+  });
+
+  it("recovers an interrupted mutation only at exactly expected revision plus one and reuses the stable operation id",async()=>{
+    const calls:{operationId:string;expectedProjectRevision:number}[]=[];
+    const runner:ProductionStepRunner={execute:async input=>{
+      calls.push({operationId:input.operationId,expectedProjectRevision:input.expectedProjectRevision});
+      return{
+        status:"completed",
+        evidence:[{kind:"project",id:PROJECT_ID},{kind:"apply-operation",id:input.operationId}],
+        projectRevisionAfter:6,
+      };
+    }};
+    const{executor,executions,missions}=await setup(runner,{},planFixture([editStep()]),{load:async()=>projectAtRevision(6)});
+    await seedInterruptedMutation(executions,missions);
+
+    const recovered=await executor.advance(PROJECT_ID,MISSION_ID);
+
+    expect(recovered).toMatchObject({id:EXECUTION_ID,status:"completed",expectedProjectRevision:6});
+    expect(recovered.steps[0]).toMatchObject({status:"completed",operationId:OPERATION_IDS[0],attempts:1});
+    expect(calls).toEqual([{operationId:OPERATION_IDS[0],expectedProjectRevision:5}]);
+  });
+
+  it("fails closed instead of replaying an interrupted mutation when Project revision advanced beyond one",async()=>{
+    let calls=0;
+    const runner:ProductionStepRunner={execute:async()=>{
+      calls+=1;
+      return{status:"completed",evidence:[{kind:"project",id:PROJECT_ID}],projectRevisionAfter:7};
+    }};
+    const{executor,executions,missions}=await setup(runner,{},planFixture([editStep()]),{load:async()=>projectAtRevision(7)});
+    await seedInterruptedMutation(executions,missions);
+
+    const blocked=await executor.advance(PROJECT_ID,MISSION_ID);
+
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.steps[0].lastFailure?.code).toBe("PRODUCTION_EXECUTION_STALE_PROJECT");
     expect(calls).toBe(0);
   });
 
