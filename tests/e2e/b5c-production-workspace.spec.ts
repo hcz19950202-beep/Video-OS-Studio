@@ -85,4 +85,20 @@ test("B5c Mission workspace reloads durable Mission truth and exposes no fake ex
   await expect(
     page.getByText(/Derived from durable render, QA, and revision evidence/),
   ).toBeVisible();
+
+  const cancelResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "DELETE" &&
+      response.url().includes(`/api/projects/${encodeURIComponent(projectId)}/missions/`),
+  );
+  await page.getByRole("button", { name: "Cancel mission", exact: true }).click();
+  expect((await cancelResponse).ok()).toBeTruthy();
+  await expect(page.locator(".b5c-mission-hero").getByText("CANCELLED", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Autonomy mode")).toBeDisabled();
+
+  await page.reload();
+  await openRecentProject(page, projectId);
+  await openMissionWorkspace(page);
+  await expect(page.locator(".b5c-mission-hero").getByText("CANCELLED", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Autonomy mode")).toBeDisabled();
 });
