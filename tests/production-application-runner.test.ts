@@ -25,6 +25,7 @@ const visualPlan={
   projectId:PROJECT_ID,
   generatedAt:GENERATED_AT,
   source:"rules" as const,
+  context:{intent:""},
   suggestions:[{
     id:"suggestion-1",
     sceneId:"scene-1",
