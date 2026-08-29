@@ -17,10 +17,12 @@ export const ProductionPlanStepKindSchema=z.enum([
   "render-preview",
   "human-review",
   "render-final",
+  "qa",
+  "repair",
 ]);
 export const ProductionPlanRiskSchema=z.enum(["low","medium","high"]);
-export const ProductionPlanOwnerSchema=z.enum(["agent","workflow","job","human-review"]);
-export const ProductionPlanEvidenceKindSchema=z.enum(["mission","project","script","scene","asset","visual-plan","workflow","skill"]);
+export const ProductionPlanOwnerSchema=z.enum(["agent","workflow","job","human-review","application"]);
+export const ProductionPlanEvidenceKindSchema=z.enum(["mission","project","script","scene","asset","visual-plan","workflow","skill","qa-report"]);
 
 const UnsafeExecutablePattern=/(?:[A-Za-z]:[\\/]|\/home\/|\/tmp\/|\\Users\\|\.\.\/|\.\.\\|powershell\s+(?:-|\/)|cmd\.exe\s+(?:-|\/)|bash\s+-c|rm\s+-rf|taskkill\s+(?:-|\/)|child_process|spawn\s*\(|exec\s*\()/i;
 export const ProductionPlanTextSchema=z.string().trim().min(1).max(1000).superRefine((value,ctx)=>{
@@ -36,6 +38,8 @@ const ownersByKind:Record<z.infer<typeof ProductionPlanStepKindSchema>,ReadonlyS
   "render-preview":new Set(["job"]),
   "human-review":new Set(["human-review"]),
   "render-final":new Set(["job"]),
+  "qa":new Set(["application"]),
+  "repair":new Set(["application"]),
 };
 
 export const ProductionPlanEvidenceRefSchema=z.object({
@@ -63,7 +67,7 @@ export const ProductionPlanStepSchema=z.object({
   if(step.risk==="high"&&!step.reviewRequired)ctx.addIssue({code:"custom",path:["reviewRequired"],message:"High-risk plan steps require an explicit review checkpoint."});
   if(!ownersByKind[step.kind].has(step.owner))ctx.addIssue({code:"custom",path:["owner"],message:`Plan step kind ${step.kind} cannot be owned by ${step.owner}.`});
   if(step.kind==="human-review"&&!step.reviewRequired)ctx.addIssue({code:"custom",path:["reviewRequired"],message:"Human-review steps require review."});
-  if(step.targets&&step.kind!=="edit-project")ctx.addIssue({code:"custom",path:["targets"],message:"Logical Project mutation targets are only valid on edit-project steps."});
+  if(step.targets&&step.kind!=="edit-project"&&step.kind!=="repair")ctx.addIssue({code:"custom",path:["targets"],message:"Logical Project mutation targets are only valid on edit-project or repair steps."});
   if(step.targets&&new Set(step.targets.map(target=>`${target.kind}:${target.id??""}:${target.action}`)).size!==step.targets.length)ctx.addIssue({code:"custom",path:["targets"],message:"Plan step mutation targets must be unique."});
 });
 export type ProductionPlanStep=z.infer<typeof ProductionPlanStepSchema>;

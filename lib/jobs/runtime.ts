@@ -1,4 +1,5 @@
 import {randomUUID} from "node:crypto";
+import {isDeepStrictEqual} from "node:util";
 import {ZodError} from "zod";
 import {CreateJobSchema,JobRecordSchema,isTerminalJobStatus,type CreateJobInput,type JobArtifact,type JobError,type JobRecord,type JobType} from "@/lib/jobs/schema";
 import {probeExecutorLiveness} from "@/lib/jobs/process-probes";
@@ -13,6 +14,7 @@ export type JobExecutor=(job:JobRecord,context:JobExecutionContext)=>Promise<Job
 
 export class JobNotFoundError extends Error{readonly code="JOB_NOT_FOUND";constructor(readonly jobId:string){super(`Job ${jobId} was not found.`);this.name="JobNotFoundError";}}
 export class JobStateError extends Error{readonly code="JOB_INVALID_STATE";constructor(message:string,readonly status:string){super(message);this.name="JobStateError";}}
+export class JobIdempotencyConflictError extends Error{readonly code="JOB_IDEMPOTENCY_CONFLICT";constructor(readonly jobId:string){super(`Job ${jobId} already exists with different immutable create input.`);this.name="JobIdempotencyConflictError";}}
 
 const DEFAULT_LIMITS:Record<JobConcurrencyGroup,number>={render:1,hyperframes:1,normalize:2,transcribe:1};
 export const jobConcurrencyGroup=(type:JobType):JobConcurrencyGroup=>type.startsWith("render-")?"render":type==="hyperframes-render"?"hyperframes":type==="media-normalize"?"normalize":"transcribe";
@@ -84,13 +86,24 @@ export class DurableJobRuntime{
   async create(input:CreateJobInput){
     await this.ready;
     const parsed=CreateJobSchema.parse(input);
-    if(!this.executors.has(parsed.type))throw new Error(`No executor is registered for job type ${parsed.type}.`);
-    const at=nowIso();
-    const job=JobRecordSchema.parse({id:randomUUID(),type:parsed.type,projectId:parsed.projectId,status:"queued",stage:"queued",progress:0,attempt:1,input:parsed.input,createdAt:at,updatedAt:at});
-    await this.store.create(job);
-    this.enqueue(job);
-    this.pump(jobConcurrencyGroup(job.type));
-    return job;
+    const createNew=async(jobId:string)=>{
+      if(!this.executors.has(parsed.type))throw new Error(`No executor is registered for job type ${parsed.type}.`);
+      const at=nowIso();
+      const job=JobRecordSchema.parse({id:jobId,type:parsed.type,projectId:parsed.projectId,status:"queued",stage:"queued",progress:0,attempt:1,input:parsed.input,createdAt:at,updatedAt:at});
+      await this.store.create(job);
+      this.enqueue(job);
+      this.pump(jobConcurrencyGroup(job.type));
+      return job;
+    };
+    if(!parsed.jobId)return createNew(randomUUID());
+    return this.withJobLock(parsed.jobId,async()=>{
+      const existing=await this.store.get(parsed.jobId!);
+      if(existing){
+        if(existing.type!==parsed.type||existing.projectId!==parsed.projectId||!isDeepStrictEqual(existing.input,parsed.input))throw new JobIdempotencyConflictError(parsed.jobId!);
+        return existing;
+      }
+      return createNew(parsed.jobId!);
+    });
   }
 
   async get(jobId:string){await this.ready;return this.store.get(jobId);}
