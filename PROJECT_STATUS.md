@@ -1,6 +1,6 @@
 # Video OS Studio — Current Project Status
 
-> Current-state source of truth for GPT Web, Local Codex, and other development agents. Historical PRs, commits, CI runs, and acceptance reports remain immutable evidence. Status-sync commits are governance truth, not substitutes for the exact product heads cited below.
+> Current-state source of truth for GPT Web, Local Codex, and other development agents. Historical PRs, commits, CI runs, and acceptance reports remain immutable evidence. GitHub is the code/status source of truth.
 
 ## Current checkpoint
 
@@ -15,11 +15,14 @@ package_json_version: 2.3.1
 package_lock_version: 2.3.1
 
 active_development_workstream: V2.4 AUTONOMOUS PRODUCTION AGENT
-active_stage: B5B CONTROLLED AUTONOMY COMPLETE CANDIDATE / B5C NEXT
-active_branch: feature/v2.4-b5b-controlled-autonomy / PR #75
-local_action_required: NONE
-next_action: FINAL EXACT-HEAD CI → EXPECTED-HEAD MERGE PR #75 → EXACT-MAIN CI → START B5C PRODUCTION WORKSPACE
-v2_4_status: DEVELOPMENT ACTIVE
+active_stage: B7 CAMPAIGN / BATCH PRODUCTION — CLOUD ACCEPTANCE PASS / LOCAL WINDOWS FINAL GATE NEXT
+active_branch: feature/v2.4-b7-campaign-production / PR #79
+accepted_b6_main: 37602f0fd3cb9558fb51259b23936521d216098b
+b7_last_product_head: f7799cdfa1459f6d1aea613d69faab53059f3c1e
+b7_cloud_ci: CI #955 / run 33259603403 / PASS
+local_action_required: PENDING — only after the final post-status exact HEAD is green and frozen
+next_action: FINAL EXACT-HEAD CI → FREEZE SHA → LOCAL CODEX VERIFY ONLY REAL 2-VIDEO BATCH → UPDATE PR #79 → MERGE → EXACT-MAIN CI
+v2_4_status: B7 ACCEPTANCE ACTIVE
 ```
 
 ## V2.4 authoritative docs and sequence
@@ -44,7 +47,7 @@ B7  Campaign / Batch Production + Dashboard
 Release
 ```
 
-B6 must not begin until B5 is accepted. B7 must not begin until B6 proves one real autonomous video Mission end-to-end.
+B7 began only after B6 merged to `main` and its exact-main CI passed.
 
 ## V2.4 milestone evidence
 
@@ -53,121 +56,146 @@ R0  Repository / PRD / Runtime Truth Sync    → COMPLETE / PR #66 / exact-main 
 B0  Production Mission Contracts + Store    → COMPLETE / PR #67 / exact-main CI #781 PASS
 B1  Production Planner + Mission Step Graph → COMPLETE / PR #68 / exact-main CI #792 PASS
 B2  Asset Intelligence + Semantic Retrieval → COMPLETE / PR #69 / exact-main CI #825 PASS
-B3  Reusable Video Skills                   → COMPLETE / PR #70 / merge 62ba5ab13f49f1d920bfce6626c3ea2293128cc3 / exact-main CI #835 PASS
-B4  Self-QA + Repair Proposals              → COMPLETE / PR #71 / merge 695e49446fca7025d442a147737c126231ddf7fe / exact-main CI #840 PASS
-B5a Mission Executor Core                   → COMPLETE / PR #73 / merge b222f210535e96dfa5b0f36cdb04128f271cefd7 / exact-main CI #845 PASS
-B5b Controlled Autonomy + Protected Edits   → COMPLETE CANDIDATE / PR #75 / product head af8d6e6bdf89c3d2801b3546d5136bde9d657ac5 / CI #852 PASS
-B5c Production Workspace / Mission UI       → NEXT
-B6  Autonomous Real Video Acceptance        → NOT STARTED
-B7  Campaign / Batch Production             → NOT STARTED
+B3  Reusable Video Skills                   → COMPLETE / PR #70 / main 62ba5ab13f49f1d920bfce6626c3ea2293128cc3 / CI #835 PASS
+B4  Self-QA + Repair Proposals              → COMPLETE / PR #71 / main 695e49446fca7025d442a147737c126231ddf7fe / CI #840 PASS
+B5a Mission Executor Core                   → COMPLETE / PR #73 / main b222f210535e96dfa5b0f36cdb04128f271cefd7 / CI #845 PASS
+B5b Controlled Autonomy + Protected Edits   → COMPLETE / PR #75 / main 078f06992f9e474f806ac5869e7a5d9951ec17d0 / CI #856 PASS
+B5c Production Workspace / Mission UI       → COMPLETE / PR #77 / main 3edf0ef14a92b8307e36b8c21dcd9fc6d634181b / CI #894 PASS
+B6  Autonomous Real Video Acceptance        → COMPLETE / PR #78 / main 37602f0fd3cb9558fb51259b23936521d216098b / CI #929 PASS
+B7  Campaign / Batch Production             → CLOUD ACCEPTANCE PASS / PR #79 / LOCAL REAL-BATCH GATE PENDING
 ```
 
-Draft PR #74 was closed without merge only because the connected GitHub Ready-for-review GraphQL mutation was incompatible with the current GitHub schema. PR #75 uses the same branch/history as a non-Draft replacement; product code was not changed by the PR-container replacement.
+PR #76 was the B5c Draft container; PR #77 replaced it without changing the accepted B5c product head and was merged. PR #78 B6 passed both exact-SHA cloud acceptance and isolated Local Windows VERIFY ONLY acceptance before merge.
 
-## Accepted architecture boundaries through B4
+## B6 accepted core
 
-- `project.json` remains durable editing truth; Mission, Plan, Workflow, Job, Agent Session, QA Report, Asset Intelligence, Video Skill, and Production Execution remain separate domain truths.
-- Production Mission is a durable production objective/state machine outside `project.json`.
-- Production Plan is immutable inspectable intent/dependency truth, not an executor or mutation log.
-- Asset Intelligence is derived metadata keyed to Project Asset identity, not a second media store.
-- Video Skills are typed/versioned declarative production knowledge, not executable code.
-- QA Reports are immutable structured production evidence; technical render QA uses actual Job/artifact + bounded FFmpeg/ffprobe evidence.
-- Semantic QA checks based on Project/Timeline truth do not claim rendered-frame visual understanding beyond demonstrated evidence.
-- B4 repair output remains bounded proposal/request truth and does not itself auto-mutate the Project.
+Accepted main: `37602f0fd3cb9558fb51259b23936521d216098b` via PR #78. Exact-main CI #929 / run `33252826396` passed after the frozen B6 product SHA had already passed mandatory Local Windows VERIFY ONLY acceptance with a real user MP4.
 
-## B5a — accepted Mission Executor core
-
-Accepted main: `b222f210535e96dfa5b0f36cdb04128f271cefd7` via PR #73. Exact-main CI #845 / run `33229524858` passed Ubuntu, Windows, Browser, and Windows exact-SHA media gates.
-
-B5a establishes:
-
-- durable `ProductionExecution` state outside `project.json`;
-- exact Mission + Plan + Project-revision binding;
-- dependency-aware one-step advancement;
-- application-owned minimum-risk and checkpoint policy;
-- Assist / Guided / Auto / full-production policy inputs without generic authority grants;
-- stable per-step operation IDs reused across retries;
-- durable attempt/provider/agent/repair/render/workflow budgets;
-- stale Project fail-closed behavior;
-- revision-evidence verification for mutation-sensitive completion;
-- cancellation that prevents later progression while preserving verifiable in-flight completion evidence;
-- re-plan invalidation of old executions/checkpoints;
-- restart-safe resume without rerunning completed steps;
-- a default blocking runner when no bounded handler exists.
-
-B5a deliberately did not expose a public Mission execution API or implement a full real-production handler graph.
-
-## B5b — controlled autonomy completion candidate
-
-Product head: `af8d6e6bdf89c3d2801b3546d5136bde9d657ac5` on PR #75. CI #852 / run `33231076522` passed all four gates:
+B6 proves the bounded autonomous single-video chain:
 
 ```text
-Ubuntu Verify        PASS — format / lint / typecheck / full unit suite / build
-Windows Verify       PASS — format / lint / typecheck / full unit suite
-Browser Smoke        PASS
-Windows Media Smoke  PASS — exact SHA / pinned FFmpeg / existing real-media + B4 QA regression
+real Project/media
+→ durable Mission + Plan
+→ Agent proposal
+→ protected Project mutation
+→ Workflow
+→ Durable Job
+→ real Remotion render
+→ QA
+→ one typed bounded repair
+→ rerender
+→ final QA pass
 ```
 
-B5b adds the application-owned manual/protected-edit boundary without changing Project Schema:
+B6 preserves stable operation/Job identities, revision-safe recovery, stale fail-closed behavior, bounded repair loops, protected/manual edit semantics, and no generic shell/filesystem/network/computer authority.
 
-- logical mutation targets distinguish `create`, `append`, `modify`, and `remove`;
-- Plan `targets` are optional, bounded, path-safe, and only valid for `edit-project` steps;
-- Plan/provider intent cannot self-assert AI ownership or remove protection;
-- durable protection truth lives outside `project.json` as `ai-owned`, `human-modified`, or explicit `protected` state;
-- native `Track.locked` is explicit non-overridable protection;
-- application-side command resolution derives actual Project mutation targets before delegate side effects;
-- actual mutation scope must be contained by the Plan-declared scope or execution fails closed;
-- safe creation and append to an unlocked collection may proceed when policy allows;
-- unknown existing `modify` / `remove` requires review;
-- recorded human-modified work requires review before overwrite;
-- explicit `protected` state and native Track locks remain blocked even after a checkpoint was approved;
-- missing application-owned target resolver fails closed;
-- stale Project revision fails closed before protected execution;
-- `ProductionEditProtectionRepository` / `ProductionEditProtectionService` are registered as server runtime singleton truth;
-- `createProtectedProductionExecutionService()` is the canonical composition path for a future concrete bounded runner + application target resolver;
-- integration tests exercise `ProductionExecutionService → ProductionMissionExecutor → ProtectedProductionStepRunner` and prove human-modified work blocks before delegate side effects.
+## B7 current product boundary
 
-### B5b runtime truth
+B7 is a Campaign control plane above accepted isolated Production Missions; it is not a second editor or second Project truth.
 
-B5a/B5b are still controlled execution **core** layers. There is not yet a public Mission execution API or a concrete full-production step-handler graph in server runtime. B5c/B6 must not fake or bypass that gap: any future real mutation-capable runner must be composed through the protected application boundary and existing typed Agent/Workflow/Job/Apply services.
+Implemented on PR #79:
 
-B5b does not add generic shell, arbitrary filesystem, unrestricted network, arbitrary process execution, raw computer-use authority, or a direct `project.json` write path.
+- durable Campaign aggregate outside individual `project.json` files;
+- one mutable Project per Campaign Mission entry;
+- logical shared Brand / Asset / Policy / Skill / Export Template references only;
+- bounded Campaign Mission concurrency (`1..8`, default `2`);
+- resource limiting for heavy render work;
+- per-Mission cancel and failure isolation;
+- explicit retry-failed semantics that do not rerun successful siblings;
+- duplicate enqueue and skipped-success paths are durable no-ops;
+- waiting-review / blocked resume is explicit and never auto-approves underlying review truth;
+- Campaign archive does not implicitly delete Projects or Missions;
+- Campaign Dashboard joins durable Campaign state with current Mission/Project Workspace truth;
+- dashboard reload/restart reconstructs from durable state rather than browser memory;
+- Campaign execution bridges into the accepted protected `ProductionExecutionService` path;
+- read-only Campaign/Dashboard runtime does not require AI provider initialization; execution provider setup is lazy;
+- no shared mutable Project truth between outputs.
 
-## B5c next-work boundary
+## B7 deterministic/cloud acceptance
 
-B5c extends the existing Studio / AI Workspace surfaces to expose durable Mission truth without hidden chain-of-thought.
+Last product head before this governance sync:
 
-Target surfaces:
+`f7799cdfa1459f6d1aea613d69faab53059f3c1e`
+
+CI #955 / run `33259603403` passed all six jobs:
 
 ```text
-Mission goal/header
-Plan step list
-current activity + durable progress
-Autonomy mode
-review checkpoints
-Agent conversation
-Assets/evidence
-Skills used
-QA findings
-Workflow/Job links
-final-render readiness
+ubuntu-verify                    PASS — format / lint / typecheck / unit / build
+windows-verify                   PASS — format / lint / typecheck / unit
+browser-smoke                    PASS — durable Campaign Dashboard browser coverage
+windows-media-smoke              PASS — accepted real-media/B4 regression
+windows-b6-core-acceptance       PASS — B6 single-video real-engine regression remains intact
+windows-b7-campaign-acceptance   PASS — exact-SHA Windows two-video real-render batch gate
 ```
 
-Required visible states include planning, ready, running, waiting review, blocked, retrying, repairing, QA pass/fail, cancelled, and completed.
+B7 cloud/deterministic coverage proves:
 
-B5c must reuse current Studio/Agent/Workflow UI architecture and must not introduce a second editor, second execution truth, or browser-only fake Mission state.
+- N Mission/Project isolation;
+- one Mission failure does not corrupt successful siblings;
+- one Mission cancel does not kill another;
+- configured concurrency is honored;
+- duplicate enqueue/idempotency;
+- retry-failed reruns only failed Missions;
+- repository/runtime reconstruction preserves Campaign truth;
+- Dashboard reload uses durable state;
+- archive preserves Project/Mission truth;
+- API action allow-listing;
+- B6 regression remains green.
 
-## V2.3.1 immutable release truth
+Windows B7 CI evidence at `f7799cdfa1459f6d1aea613d69faab53059f3c1e`:
 
 ```text
-Release tag:                 v2.3.1
-Annotated tag object:        b91d0c3adbaef09cd5c323481ec6bb04c516dd6e
-Dereferenced release commit: 6e07d1dbdd0ec4d64d022f7c821e133ddf207637
-Final release CI:            #765 / run 33158996259 / four gates PASS
-Post-release truth PR:       #65
+Campaign status: completed
+Campaign concurrency configured: 2
+max Mission concurrency observed: 2
+heavy render resource limit observed: 1
+source fixtures: two distinct H.264/AAC 640x360 videos, 4.2 s each
+render outputs: two distinct real Remotion MP4 Jobs
+output dimensions: 640x360
+output fps: 30
+output duration: 4.245333 s each
+output audio: present
+Durable reload status: completed
+Project revisions: isolated at revision 2 per output
+.props.json residue: none
+.hf-work residue: none
 ```
 
-`v2.3.0` and `v2.3.1` are immutable and must never be moved or recreated.
+The CI sources are encoded fixtures, so this evidence does **not** replace the Development Plan's Local Codex real-video batch acceptance when B7 claims actual local resource/process isolation.
+
+## B7 remaining mandatory gate
+
+After this status-sync commit receives a completely green exact-head CI, freeze that exact SHA and run Local Codex in VERIFY ONLY mode using a separate clean detached Git worktree.
+
+Required local case:
+
+```text
+Windows
+Node 24.x
+FFmpeg / ffprobe
+Chrome
+exact frozen SHA
+2 distinct real user MOV/MP4 videos, each >= 3 seconds
+npm ci
+npm run test:windows-b7
+```
+
+The local run must prove:
+
+- both real user videos import independently;
+- two isolated Projects/Missions exist;
+- Campaign Mission concurrency reaches the configured bound where allowed;
+- render resource limiting remains bounded;
+- two distinct real Remotion outputs are produced;
+- outputs are valid H.264/AAC MP4s with expected dimensions/fps/duration;
+- durable Campaign/Dashboard state survives repository reconstruction;
+- no cross-Project mutation/state leakage;
+- no duplicate Jobs/mutation identities;
+- no `.props.json`, `.hf-work`, stale lock, temporary acceptance residue or new orphan engine/process;
+- acceptance worktree stays clean;
+- user's primary worktree and existing local changes are untouched.
+
+Local Codex must not edit source, format source, fix failures, stash/reset/restore user work, commit, push, merge, move the SHA, or weaken acceptance. Any genuine code/runtime defect returns to GPT Web + GitHub for repair and a new frozen SHA.
 
 ## Package and dependency truth
 
@@ -185,7 +213,7 @@ hyperframes:                          0.8.10
 prettier:                             3.8.1
 ```
 
-Any later change to these values requires an explicitly scoped workstream and acceptance gate.
+No B7 change alters these pins or Project Schema.
 
 ## Permanent accepted invariants
 
@@ -204,11 +232,15 @@ Production Execution != Project
 Production Execution != Workflow
 Production Execution != Job
 Edit Protection != Project
+Campaign != Project
+Campaign != Mission
 REUSE > MODIFY > CREATE
 ```
 
+- `project.json` remains the editing truth for each output;
 - stale Project/Workflow/Mission-dependent mutation state fails closed;
 - default server security remains loopback-first;
 - Project mutation must pass accepted application-owned mutation services and revision guards;
 - protected/manual edits must not be silently overwritten;
-- V2.4 autonomy must use application-owned policies and bounded typed services, never generic shell/filesystem/network/process/computer authority.
+- Campaign scheduling never grants generic shell/filesystem/network/process/computer authority;
+- Campaign retry/cancel/archive operations must not silently destroy sibling output truth.
