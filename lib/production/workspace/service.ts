@@ -1,10 +1,10 @@
 import type {Project} from "@/schemas/project";
-import type {ProductionExecution,ProductionExecutionStepState} from "@/lib/production/execution/schema";
+import type {ProductionExecution} from "@/lib/production/execution/schema";
 import {ProductionExecutionRepository} from "@/lib/production/execution/repository";
 import {ProductionMissionRepository} from "@/lib/production/mission/repository";
 import type {ProductionMission} from "@/lib/production/mission/schema";
 import {ProductionPlanRepository} from "@/lib/production/plan/repository";
-import type {ProductionPlan,ProductionPlanStep} from "@/lib/production/plan/schema";
+import type {ProductionPlan} from "@/lib/production/plan/schema";
 import {QAReportRepository} from "@/lib/production/qa/repository";
 import type {QAReport} from "@/lib/production/qa/schema";
 import {ProductionWorkspaceSnapshotSchema,type ProductionWorkspaceActivityState,type ProductionWorkspaceEvidenceRef,type ProductionWorkspaceFinalReadiness,type ProductionWorkspaceQAState,type ProductionWorkspaceSnapshot} from "@/lib/production/workspace/schema";
@@ -37,11 +37,15 @@ const deriveActivityState=(mission:ProductionMission,execution:ProductionExecuti
 };
 
 const deriveQAState=(report:QAReport|null):ProductionWorkspaceQAState=>report?.status??"not-run";
+const planIsStale=(plan:ProductionPlan|null,execution:ProductionExecution|null,currentRevision:number)=>Boolean(plan&&!execution&&plan.baseProjectRevision!==currentRevision);
+const executionIsStale=(plan:ProductionPlan|null,execution:ProductionExecution|null,currentRevision:number)=>Boolean(execution&&(
+  execution.expectedProjectRevision!==currentRevision||
+  !plan||execution.planId!==plan.id||execution.planBaseProjectRevision!==plan.baseProjectRevision
+));
 
 const finalReadiness=(input:{plan:ProductionPlan|null;execution:ProductionExecution|null;latestQA:QAReport|null;currentRevision:number}):ProductionWorkspaceFinalReadiness=>{
   const{plan,execution,latestQA,currentRevision}=input;
-  if(plan&&plan.baseProjectRevision!==currentRevision)return"stale";
-  if(execution&&execution.expectedProjectRevision!==currentRevision)return"stale";
+  if(planIsStale(plan,execution,currentRevision)||executionIsStale(plan,execution,currentRevision))return"stale";
   if(latestQA&&latestQA.projectRevision!==currentRevision)return"stale";
   const renderStep=plan?.steps.find(step=>step.kind==="render-final");
   if(!renderStep)return"not-planned";
@@ -143,8 +147,8 @@ export class ProductionWorkspaceService{
       skillsUsed,
       links:linkIds(mission,evidence),
       stale:{
-        plan:Boolean(plan&&plan.baseProjectRevision!==currentRevision),
-        execution:Boolean(execution&&execution.expectedProjectRevision!==currentRevision),
+        plan:planIsStale(plan,execution,currentRevision),
+        execution:executionIsStale(plan,execution,currentRevision),
         qa:Boolean(latestQA&&latestQA.projectRevision!==currentRevision),
       },
       finalRenderReadiness:finalReadiness({plan,execution,latestQA,currentRevision}),
