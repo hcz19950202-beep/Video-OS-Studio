@@ -20,10 +20,13 @@ import { EFFECTS_BY_ID } from "../shared/effects/registry";
 import { CaptionOverlay } from "../components/captions/CaptionOverlay";
 import { resolveMotionStyle } from "../lib/styles/resolve";
 
+export type OrdinaryVideoBackend = "offthread-video" | "html5-video";
+
 export type MasterCompositionProps = {
   project: Project;
   assetUrls?: Record<string, string>;
   renderMode?: "preview" | "final" | "overlay";
+  ordinaryVideoBackend?: OrdinaryVideoBackend;
 };
 
 type VideoClip = Extract<Clip, { type: "video" }>;
@@ -33,16 +36,11 @@ type BrollClip = Extract<Clip, { type: "broll" }>;
 type AudioClip = Extract<Clip, { type: "audio" }>;
 type VisualClip = VideoClip | MotionClip | CaptionClip | BrollClip;
 
-type RenderVideoBackend = "html5-video" | "offthread-video";
-
-/**
- * Ordinary user media must avoid OffthreadVideo's server-side frame cache.
- * Real-world MP4s can contain sparse/gapped presentation timestamps, which can
- * make OffthreadVideo fail with "No frame found at position". Transparent
- * HyperFrames outputs still need OffthreadVideo's alpha-video support.
- */
-export const videoRenderBackend = (transparent: boolean): RenderVideoBackend =>
-  transparent ? "offthread-video" : "html5-video";
+export const videoRenderBackend = (
+  transparent: boolean,
+  ordinaryVideoBackend: OrdinaryVideoBackend = "offthread-video",
+): OrdinaryVideoBackend =>
+  transparent ? "offthread-video" : ordinaryVideoBackend;
 
 const anchorOrigins: Record<MotionTransform["anchor"], string> = {
   "top-left": "0% 0%",
@@ -119,49 +117,51 @@ const NativeImage = ({
 }) => React.createElement("img", { src, alt: "", style });
 
 const StandardVideo = ({
+  backend,
   src,
   trimBefore,
   volume,
   style,
 }: {
+  backend: OrdinaryVideoBackend;
   src: string;
   trimBefore?: number;
   volume: number;
   style: CSSProperties;
-}) => {
-  if (videoRenderBackend(false) !== "html5-video") {
-    throw new Error("Ordinary Project video must use the HTML5 render backend.");
-  }
-  return (
+}) =>
+  backend === "html5-video" ? (
     <Html5Video
       src={src}
       trimBefore={trimBefore}
       volume={volume}
       style={style}
     />
-  );
-};
-
-const TransparentVideo = ({ src }: { src: string }) => {
-  if (videoRenderBackend(true) !== "offthread-video") {
-    throw new Error("Transparent motion video requires the offthread backend.");
-  }
-  return (
+  ) : (
     <OffthreadVideo
       src={src}
-      transparent
-      volume={0}
-      style={{ width: "100%", height: "100%", objectFit: "contain" }}
+      trimBefore={trimBefore}
+      volume={volume}
+      style={style}
     />
   );
-};
+
+const TransparentVideo = ({ src }: { src: string }) => (
+  <OffthreadVideo
+    src={src}
+    transparent
+    volume={0}
+    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+  />
+);
 
 const BrollLayer = ({
   assetKind,
+  backend,
   clip,
   src,
 }: {
   assetKind: Asset["kind"] | undefined;
+  backend: OrdinaryVideoBackend;
   clip: BrollClip;
   src: string;
 }) => {
@@ -182,6 +182,7 @@ const BrollLayer = ({
   }
   return (
     <StandardVideo
+      backend={backend}
       src={src}
       trimBefore={clip.sourceStartFrame ?? 0}
       volume={clip.muted ? 0 : (clip.volume ?? 1)}
@@ -246,6 +247,7 @@ export const MasterComposition: React.FC<MasterCompositionProps> = ({
   project,
   assetUrls = {},
   renderMode = "preview",
+  ordinaryVideoBackend = "offthread-video",
 }) => {
   const frame = useCurrentFrame();
   const overlay = renderMode === "overlay";
@@ -283,6 +285,7 @@ export const MasterComposition: React.FC<MasterCompositionProps> = ({
           durationInFrames={clip.durationInFrames}
         >
           <StandardVideo
+            backend={videoRenderBackend(false, ordinaryVideoBackend)}
             src={src}
             trimBefore={clip.sourceStartFrame}
             volume={clip.muted ? 0 : clip.volume}
@@ -300,7 +303,12 @@ export const MasterComposition: React.FC<MasterCompositionProps> = ({
           from={clip.startFrame}
           durationInFrames={clip.durationInFrames}
         >
-          <BrollLayer assetKind={asset?.kind} clip={clip} src={src} />
+          <BrollLayer
+            assetKind={asset?.kind}
+            backend={videoRenderBackend(false, ordinaryVideoBackend)}
+            clip={clip}
+            src={src}
+          />
         </Sequence>
       ) : null;
     }
