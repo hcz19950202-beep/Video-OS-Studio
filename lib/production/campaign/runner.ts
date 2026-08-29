@@ -99,7 +99,7 @@ export class ProductionCampaignRunner{
       for(;;){
         const index=nextIndex++;
         if(index>=refs.length)return;
-        const ref=refs[index];
+        const ref=refs[index]!;
         await this.beginMission(campaignId,ref);
         let result:ProductionCampaignMissionRunResult;
         if(signal?.aborted){
