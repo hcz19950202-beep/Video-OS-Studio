@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useState} from "react";
+import styles from "@/components/studio/ProductionMissionPanel.module.css";
 import {cancelProductionMission,createProductionMission,getProductionWorkspace,listProductionMissions,updateProductionMission} from "@/lib/client/production-workspace";
 import {toClientErrorState} from "@/lib/client/api";
 import type {ProductionMission} from "@/lib/production/mission/schema";
@@ -104,7 +105,7 @@ export const ProductionMissionPanel=({project}:{project:Project})=>{
   const executionByStep=new Map(workspace?.execution?.steps.map(step=>[step.stepId,step])??[]);
   const terminal=workspace?.mission.status==="completed"||workspace?.mission.status==="cancelled";
 
-  return <div className="b5c-mission-workspace">
+  return <div className={`${styles.root} b5c-mission-workspace`}>
     <section className="b5c-mission-toolbar">
       <div><small>AUTONOMOUS PRODUCTION · MISSION</small><strong>{zh?"生产任务工作区":"Production Mission Workspace"}</strong></div>
       <div className="b5c-mission-toolbar-actions">
