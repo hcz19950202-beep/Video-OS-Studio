@@ -14,6 +14,8 @@ const applicationMinimumRiskByKind:Record<ProductionPlanStep["kind"],ProductionE
   "render-preview":"low",
   "human-review":"high",
   "render-final":"medium",
+  "qa":"low",
+  "repair":"medium",
 };
 const effectByKind:Record<ProductionPlanStep["kind"],"analysis"|"durable">={
   "analyze-script":"analysis",
@@ -24,6 +26,8 @@ const effectByKind:Record<ProductionPlanStep["kind"],"analysis"|"durable">={
   "render-preview":"durable",
   "human-review":"durable",
   "render-final":"durable",
+  "qa":"analysis",
+  "repair":"durable",
 };
 
 export const effectiveProductionStepRisk=(step:ProductionPlanStep):ProductionExecutionRisk=>{
