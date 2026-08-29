@@ -127,7 +127,9 @@ export class ProductionCampaignRepository{
     const campaignId=ProductionCampaignIdSchema.parse(campaignIdInput);
     return this.withCampaignLock(campaignId,()=>this.withAtomicWriteLock(campaignId,async()=>{
       const current=await this.loadForMutationUnderAtomicLock(campaignId);
-      const next=ProductionCampaignSchema.parse(await mutation(current));
+      const candidate=await mutation(current);
+      if(candidate===current)return current;
+      const next=ProductionCampaignSchema.parse(candidate);
       if(next.id!==campaignId)throw new Error("Production Campaign mutation cannot change repository identity.");
       await this.fs.writeTextAtomic(this.campaignPath(campaignId),serialize(next),this.backupPath(campaignId));
       return next;

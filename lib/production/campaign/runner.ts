@@ -47,14 +47,15 @@ export class ProductionCampaignRunner{
   private async beginMission(campaignId:string,ref:ProductionCampaignMissionRef):Promise<boolean>{
     const now=this.now().toISOString();
     let claimed=false;
-    await this.repository.mutate(campaignId,current=>({
-      ...current,
-      revision:current.revision+(current.missions.some(mission=>mission.projectId===ref.projectId&&mission.missionId===ref.missionId&&mission.status==="pending"&&mission.cancellationRequestedAt===undefined)?1:0),
-      updatedAt:now,
-      missions:current.missions.map(mission=>{
-        if(mission.projectId!==ref.projectId||mission.missionId!==ref.missionId||mission.status!=="pending"||mission.cancellationRequestedAt!==undefined)return mission;
-        claimed=true;
-        return{
+    await this.repository.mutate(campaignId,current=>{
+      const target=current.missions.find(mission=>mission.projectId===ref.projectId&&mission.missionId===ref.missionId);
+      if(!target||target.status!=="pending"||target.cancellationRequestedAt!==undefined)return current;
+      claimed=true;
+      return{
+        ...current,
+        revision:current.revision+1,
+        updatedAt:now,
+        missions:current.missions.map(mission=>mission!==target?mission:{
           ...mission,
           status:"running" as const,
           attempt:mission.attempt+1,
@@ -64,9 +65,9 @@ export class ProductionCampaignRunner{
           finalArtifactIds:[],
           startedAt:now,
           finishedAt:undefined,
-        };
-      }),
-    }));
+        }),
+      };
+    });
     return claimed;
   }
 
