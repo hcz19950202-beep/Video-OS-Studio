@@ -2,11 +2,13 @@ import {describe,expect,it} from "vitest";
 import {InMemoryFileSystemAdapter} from "@/adapters/filesystem";
 import {ProductionExecutionRepository} from "@/lib/production/execution/repository";
 import {ProductionExecutionSchema} from "@/lib/production/execution/schema";
+import {ProductionMissionProjectUnavailableError} from "@/lib/production/mission/errors";
 import {ProductionMissionRepository} from "@/lib/production/mission/repository";
 import {ProductionMissionSchema} from "@/lib/production/mission/schema";
 import {ProductionPlanRepository} from "@/lib/production/plan/repository";
 import {QAReportRepository} from "@/lib/production/qa/repository";
 import {QAReportSchema} from "@/lib/production/qa/schema";
+import {ProductionWorkspaceTruthInconsistentError} from "@/lib/production/workspace/errors";
 import {ProductionWorkspaceService} from "@/lib/production/workspace/service";
 import {ProjectRepository} from "@/lib/project/repository";
 
@@ -20,6 +22,8 @@ const renderJobId="00000000-0000-4000-8000-000000000106";
 const operation1="00000000-0000-4000-8000-000000000107";
 const operation2="00000000-0000-4000-8000-000000000108";
 const operation3="00000000-0000-4000-8000-000000000109";
+const otherMissionId="00000000-0000-4000-8000-000000000110";
+const otherRenderJobId="00000000-0000-4000-8000-000000000111";
 
 const setup=async()=>{
   const fs=new InMemoryFileSystemAdapter();
@@ -30,7 +34,7 @@ const setup=async()=>{
   const executions=new ProductionExecutionRepository(fs,"/data");
   const qa=new QAReportRepository(fs,"/data");
   const service=new ProductionWorkspaceService(projects,missions,plans,executions,qa);
-  return{missions,plans,executions,qa,service};
+  return{fs,projects,missions,plans,executions,qa,service};
 };
 
 const createMission=async(missions:ProductionMissionRepository,overrides:Record<string,unknown>={})=>missions.create(ProductionMissionSchema.parse({
@@ -53,6 +57,13 @@ const planSteps=[
   {id:"render",kind:"render-final" as const,title:"Render final",objective:"Create the final encoded output.",dependsOn:["edit"],risk:"high" as const,owner:"job" as const,reviewRequired:true,requiresProjectRevision:true,evidence:[]},
 ];
 const renderOnlyStep={...planSteps[2],dependsOn:[]};
+
+const completedRenderExecution=(jobId=renderJobId)=>ProductionExecutionSchema.parse({
+  id:executionId,projectId:"workspace-demo",missionId,planId,planBaseProjectRevision:0,expectedProjectRevision:0,status:"completed",budget:{},counters:{},createdAt:at,updatedAt:at,
+  steps:[{stepId:"render",status:"completed",operationId:operation3,attempts:1,evidence:[{kind:"render",id:"render-output"},{kind:"job",id:jobId}],startedAt:at,completedAt:at}],
+});
+
+const passingQA=(jobId=renderJobId)=>QAReportSchema.parse({id:reportId,projectId:"workspace-demo",missionId,renderJobId:jobId,projectRevision:0,renderSourceProjectRevision:0,status:"pass",expectations:{},technicalEvidence:{renderArtifactId:"render-output",durationSeconds:10,width:1920,height:1080,fps:30,hasAudio:true},findings:[{id:"technical-render",category:"technical",status:"pass",severity:"info",message:"Final render evidence is valid.",evidence:[]}],createdAt:at});
 
 describe("V2.4 B5c Production Workspace read model",()=>{
   it("keeps a draft Mission as durable truth without inventing execution state",async()=>{
@@ -90,20 +101,59 @@ describe("V2.4 B5c Production Workspace read model",()=>{
     expect(workspace.finalRenderReadiness).toBe("review-required");
   });
 
-  it("reports final QA readiness only when render and QA evidence match the current Project revision",async()=>{
+  it("reports final QA readiness only when the linked QA belongs to the exact final render Job",async()=>{
     const{missions,plans,executions,qa,service}=await setup();
     await createMission(missions,{status:"completed",planId,executionId,qaReportIds:[reportId]});
     await plans.create({id:planId,projectId:"workspace-demo",missionId,version:1,baseProjectRevision:0,summary:"Render the accepted final.",steps:[renderOnlyStep],generatedAt:at});
-    await executions.create(ProductionExecutionSchema.parse({
-      id:executionId,projectId:"workspace-demo",missionId,planId,planBaseProjectRevision:0,expectedProjectRevision:0,status:"completed",budget:{},counters:{},createdAt:at,updatedAt:at,
-      steps:[{stepId:"render",status:"completed",operationId:operation3,attempts:1,evidence:[{kind:"render",id:"render-output"},{kind:"job",id:renderJobId}],startedAt:at,completedAt:at}],
-    }));
-    await qa.create(QAReportSchema.parse({id:reportId,projectId:"workspace-demo",missionId,renderJobId,projectRevision:0,renderSourceProjectRevision:0,status:"pass",expectations:{},technicalEvidence:{renderArtifactId:"render-output",durationSeconds:10,width:1920,height:1080,fps:30,hasAudio:true},findings:[{id:"technical-render",category:"technical",status:"pass",severity:"info",message:"Final render evidence is valid.",evidence:[]}],createdAt:at}));
+    await executions.create(completedRenderExecution());
+    await qa.create(passingQA());
     const workspace=await service.snapshot("workspace-demo",missionId);
     expect(workspace.activity.state).toBe("completed");
     expect(workspace.progress.percent).toBe(100);
     expect(workspace.qa).toMatchObject({state:"pass",status:"pass",pass:1,fail:0});
     expect(workspace.finalRenderReadiness).toBe("qa-passed");
+  });
+
+  it("ignores orphan QA reports that are not linked from durable Mission truth",async()=>{
+    const{missions,plans,executions,qa,service}=await setup();
+    await createMission(missions,{status:"completed",planId,executionId});
+    await plans.create({id:planId,projectId:"workspace-demo",missionId,version:1,baseProjectRevision:0,summary:"Render the accepted final.",steps:[renderOnlyStep],generatedAt:at});
+    await executions.create(completedRenderExecution());
+    await qa.create(passingQA());
+    const workspace=await service.snapshot("workspace-demo",missionId);
+    expect(workspace.latestQA).toBeNull();
+    expect(workspace.qa.state).toBe("not-run");
+    expect(workspace.finalRenderReadiness).toBe("rendered-awaiting-qa");
+  });
+
+  it("does not treat a passing QA report for another render Job as current final readiness",async()=>{
+    const{missions,plans,executions,qa,service}=await setup();
+    await createMission(missions,{status:"completed",planId,executionId,qaReportIds:[reportId]});
+    await plans.create({id:planId,projectId:"workspace-demo",missionId,version:1,baseProjectRevision:0,summary:"Render the accepted final.",steps:[renderOnlyStep],generatedAt:at});
+    await executions.create(completedRenderExecution());
+    await qa.create(passingQA(otherRenderJobId));
+    const workspace=await service.snapshot("workspace-demo",missionId);
+    expect(workspace.qa.state).toBe("pass");
+    expect(workspace.finalRenderReadiness).toBe("rendered-awaiting-qa");
+  });
+
+  it("fails closed when a Mission points at a Production Plan owned by another Mission",async()=>{
+    const{missions,plans,service}=await setup();
+    await createMission(missions,{status:"ready",planId});
+    await plans.create({id:planId,projectId:"workspace-demo",missionId:otherMissionId,version:1,baseProjectRevision:0,summary:"Cross-Mission plan fixture.",steps:[renderOnlyStep],generatedAt:at});
+    await expect(service.snapshot("workspace-demo",missionId)).rejects.toBeInstanceOf(ProductionWorkspaceTruthInconsistentError);
+  });
+
+  it("keeps durable Mission cancellation authoritative over stale running Execution state",async()=>{
+    const{missions,plans,executions,service}=await setup();
+    await createMission(missions,{status:"cancelled",planId,executionId});
+    await plans.create({id:planId,projectId:"workspace-demo",missionId,version:1,baseProjectRevision:0,summary:"Cancellation fixture.",steps:[renderOnlyStep],generatedAt:at});
+    await executions.create(ProductionExecutionSchema.parse({
+      id:executionId,projectId:"workspace-demo",missionId,planId,planBaseProjectRevision:0,expectedProjectRevision:0,status:"running",activeStepId:"render",budget:{},counters:{},createdAt:at,updatedAt:at,
+      steps:[{stepId:"render",status:"running",operationId:operation3,attempts:1,evidence:[],startedAt:at}],
+    }));
+    const workspace=await service.snapshot("workspace-demo",missionId);
+    expect(workspace.activity.state).toBe("cancelled");
   });
 
   it("fails final readiness closed when an unstarted immutable Plan targets another Project revision",async()=>{
@@ -113,5 +163,12 @@ describe("V2.4 B5c Production Workspace read model",()=>{
     const workspace=await service.snapshot("workspace-demo",missionId);
     expect(workspace.stale.plan).toBe(true);
     expect(workspace.finalRenderReadiness).toBe("stale");
+  });
+
+  it("normalizes a missing Project before reading Mission workspace truth",async()=>{
+    const fs=new InMemoryFileSystemAdapter();
+    const projects=new ProjectRepository(fs,"/data");
+    const service=new ProductionWorkspaceService(projects,new ProductionMissionRepository(fs,"/data"),new ProductionPlanRepository(fs,"/data"),new ProductionExecutionRepository(fs,"/data"),new QAReportRepository(fs,"/data"));
+    await expect(service.listMissions("missing-project")).rejects.toBeInstanceOf(ProductionMissionProjectUnavailableError);
   });
 });
