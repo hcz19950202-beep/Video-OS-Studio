@@ -66,7 +66,7 @@ const visualPlan={
     endFrame:30,
     spokenText:"15 day factory build",
     semanticType:"proof" as const,
-    recommendation:{engine:"remotion" as const,effectId:"stat-card",props:{}},
+    recommendation:{engine:"remotion" as const,effectId:"big-number",props:{}},
     reason:"Show numeric proof",
     confidence:.95,
     alternatives:[],
