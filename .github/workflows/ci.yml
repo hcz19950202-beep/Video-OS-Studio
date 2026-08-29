@@ -199,11 +199,18 @@ jobs:
       - name: Create encoded B7 source fixtures
         shell: pwsh
         run: |
-          $sourceA = "$env:RUNNER_TEMP\b7-source-a.mp4"
+          $sourceA = "$env:RUNNER_TEMP\b7-source-a-gapped.mp4"
           $sourceB = "$env:RUNNER_TEMP\b7-source-b.mp4"
-          ffmpeg -y -f lavfi -i "testsrc2=size=640x360:rate=30" -f lavfi -i "sine=frequency=440:sample_rate=48000" -t 4.2 -c:v libx264 -pix_fmt yuv420p -c:a aac $sourceA
+          ffmpeg -y -f lavfi -i "testsrc2=size=640x360:rate=30:duration=6" -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=6" -vf "select='not(between(t,1,4))'" -fps_mode vfr -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest $sourceA
           ffmpeg -y -f lavfi -i "smptebars=size=640x360:rate=30" -f lavfi -i "sine=frequency=660:sample_rate=48000" -t 4.2 -c:v libx264 -pix_fmt yuv420p -c:a aac $sourceB
           if (!(Test-Path $sourceA) -or !(Test-Path $sourceB)) { throw "B7 encoded source fixtures were not created." }
+
+          $frameTimes = @(ffprobe -v error -select_streams v:0 -show_entries frame=best_effort_timestamp_time -of csv=p=0 $sourceA | ForEach-Object { [double]::Parse($_.Trim(), [Globalization.CultureInfo]::InvariantCulture) })
+          $gapFrames = @($frameTimes | Where-Object { $_ -gt 1.05 -and $_ -lt 3.95 })
+          $beforeGap = @($frameTimes | Where-Object { $_ -ge 0.9 -and $_ -le 1.05 })
+          $afterGap = @($frameTimes | Where-Object { $_ -ge 3.95 -and $_ -le 4.2 })
+          if ($gapFrames.Count -ne 0 -or $beforeGap.Count -eq 0 -or $afterGap.Count -eq 0) { throw "B7 source A did not preserve the required 1s-4s video timestamp gap." }
+
           "B7_WINDOWS_CAMPAIGN_ACCEPTANCE=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "B7_SOURCE_VIDEOS=$sourceA;$sourceB" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "B7_DATA_ROOT=$env:RUNNER_TEMP\video-os-b7-campaign" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
