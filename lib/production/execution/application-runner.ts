@@ -9,7 +9,7 @@ import type {
   ProductionStepRunner,
   ProductionStepRunnerInput,
 } from "@/lib/production/execution/executor";
-import type {StepExecutionResult} from "@/lib/production/execution/schema";
+import type {ProductionExecutionEvidenceRef,StepExecutionResult} from "@/lib/production/execution/schema";
 import {visualClipIdForSuggestion} from "@/lib/visual-planner/diff";
 import type {VisualPlanService} from "@/lib/visual-planner/service";
 import {VisualPlanSchema,type VisualPlan} from "@/lib/visual-planner/schema";
@@ -24,6 +24,13 @@ const blocked=(code:string,message:string):StepExecutionResult=>({status:"blocke
 const retryable=(code:string,message:string):StepExecutionResult=>({status:"retryable-failure",code,message});
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 const unique=<T>(values:T[])=>[...new Set(values)];
+
+const completedDependencyEvidence=(input:ProductionStepRunnerInput):ProductionExecutionEvidenceRef[]=>{
+  const dependencyIds=new Set(input.step.dependsOn);
+  return input.execution.steps
+    .filter(step=>dependencyIds.has(step.stepId)&&step.status==="completed")
+    .flatMap(step=>step.evidence);
+};
 
 export interface ProductionAgentStepPort{
   execute(input:ProductionStepRunnerInput):Promise<StepExecutionResult>;
@@ -49,8 +56,12 @@ export class ProductionVisualPlanProposalResolver{
   constructor(private readonly sessions:AgentSessionRepository){}
 
   async resolve(input:ProductionStepRunnerInput):Promise<ResolvedVisualPlanProposal>{
-    const evidenceIds=unique(input.step.evidence.filter(item=>item.kind==="visual-plan").map(item=>item.id));
-    if(evidenceIds.length!==1)throw new Error("Autonomous visual edit requires exactly one visual-plan evidence reference.");
+    const dependencyEvidence=completedDependencyEvidence(input);
+    const evidenceIds=unique([
+      ...input.step.evidence.filter(item=>item.kind==="visual-plan").map(item=>item.id),
+      ...dependencyEvidence.filter(item=>item.kind==="proposal"||item.kind==="visual-plan").map(item=>item.id),
+    ]);
+    if(evidenceIds.length!==1)throw new Error("Autonomous visual edit requires exactly one persisted visual proposal reference from explicit or completed dependency evidence.");
     const proposalId=evidenceIds[0]!;
     const matches:ResolvedVisualPlanProposal[]=[];
     for(const session of await this.sessions.list(input.mission.projectId)){
