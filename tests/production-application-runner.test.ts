@@ -66,7 +66,7 @@ const agentSession={
 };
 
 const inputFor=(kind:ProductionStepRunnerInput["step"]["kind"],overrides:Partial<ProductionStepRunnerInput["step"]>={}):ProductionStepRunnerInput=>({
-  mission:{id:MISSION_ID,projectId:PROJECT_ID,autonomyPolicy:"assist"} as ProductionStepRunnerInput["mission"],
+  mission:{id:MISSION_ID,projectId:PROJECT_ID,autonomyPolicy:"assist"} as unknown as ProductionStepRunnerInput["mission"],
   plan:{id:PLAN_ID,projectId:PROJECT_ID,missionId:MISSION_ID,baseProjectRevision:1} as ProductionStepRunnerInput["plan"],
   step:{
     id:`step-${kind}`,
@@ -81,7 +81,7 @@ const inputFor=(kind:ProductionStepRunnerInput["step"]["kind"],overrides:Partial
     evidence:[],
     ...overrides,
   },
-  execution:{id:EXECUTION_ID,projectId:PROJECT_ID,missionId:MISSION_ID,planId:PLAN_ID,expectedProjectRevision:1,steps:[]} as ProductionStepRunnerInput["execution"],
+  execution:{id:EXECUTION_ID,projectId:PROJECT_ID,missionId:MISSION_ID,planId:PLAN_ID,expectedProjectRevision:1,steps:[]} as unknown as ProductionStepRunnerInput["execution"],
   operationId:OPERATION_ID,
   expectedProjectRevision:1,
   remainingUsageBudget:{agentTurns:4,providerCalls:4,repairLoops:2},
@@ -94,7 +94,7 @@ const sessionsWithProposal=(revision=1)=>({
 const makeRunner=(options:{sessions?:AgentSessionRepository;visualApply?:ReturnType<typeof vi.fn>;workflow?:Partial<WorkflowService>;jobs?:Partial<DurableJobRuntime>}={})=>{
   const sessions=options.sessions??sessionsWithProposal();
   const proposals=new ProductionVisualPlanProposalResolver(sessions);
-  const agent:ProductionAgentStepPort={execute:vi.fn(async()=>({status:"completed",evidence:[{kind:"agent-session",id:SESSION_ID}]}))};
+  const agent:ProductionAgentStepPort={execute:vi.fn(async()=>({status:"completed" as const,evidence:[{kind:"agent-session" as const,id:SESSION_ID}]}))};
   const visualApply=options.visualApply??vi.fn(async()=>({project:{project:{revision:2}}}));
   const workflow=options.workflow??{
     create:vi.fn(),
