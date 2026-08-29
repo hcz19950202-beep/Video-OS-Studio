@@ -1,5 +1,6 @@
 import {z} from "zod";
 import {
+  ProductionCampaignExecutionUnavailableError,
   ProductionCampaignMissionNotFoundError,
   ProductionCampaignMissionUnavailableError,
   ProductionCampaignNotFoundError,
@@ -8,11 +9,11 @@ import {
 import {ProductionCampaignIdSchema} from "@/lib/production/campaign/schema";
 import {ProductionMissionIdSchema} from "@/lib/production/mission/schema";
 import {ProjectIdSchema} from "@/schemas/project";
-import {ServerCampaignExecutionUnavailableError} from "@/lib/server/campaign-execution-runtime";
 
 export const ProductionCampaignActionRequestSchema=z.discriminatedUnion("action",[
   z.object({action:z.literal("enqueue")}).strict(),
   z.object({action:z.literal("run")}).strict(),
+  z.object({action:z.literal("resume")}).strict(),
   z.object({action:z.literal("retry-failed")}).strict(),
   z.object({action:z.literal("archive")}).strict(),
   z.object({
@@ -46,7 +47,7 @@ export const productionCampaignErrorResponse=(error:unknown)=>{
     message:error.message,
     retryable:false,
   },{status:409});
-  if(error instanceof ServerCampaignExecutionUnavailableError)return Response.json({
+  if(error instanceof ProductionCampaignExecutionUnavailableError)return Response.json({
     error:"campaign_execution_unavailable",
     message:"Campaign execution is unavailable until the bounded Production runtime is configured.",
     retryable:true,

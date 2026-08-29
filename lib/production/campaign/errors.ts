@@ -37,3 +37,11 @@ export class ProductionCampaignStateError extends Error{
     this.name="ProductionCampaignStateError";
   }
 }
+
+export class ProductionCampaignExecutionUnavailableError extends Error{
+  readonly code="PRODUCTION_CAMPAIGN_EXECUTION_UNAVAILABLE";
+  constructor(){
+    super("Campaign execution runtime is unavailable.");
+    this.name="ProductionCampaignExecutionUnavailableError";
+  }
+}

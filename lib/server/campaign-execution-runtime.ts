@@ -14,6 +14,7 @@ import {
 import {ProductionMissionExecutor} from "@/lib/production/execution/executor";
 import {ProductionExecutionService} from "@/lib/production/execution/service";
 import {ProductionExecutionCampaignMissionPort} from "@/lib/production/campaign/execution-port";
+import {ProductionCampaignExecutionUnavailableError} from "@/lib/production/campaign/errors";
 import {ProductionCampaignRunner} from "@/lib/production/campaign/runner";
 import {getGlobalRuntime} from "@/lib/server/global-runtime";
 import {
@@ -36,14 +37,6 @@ import {
   workflowService,
 } from "@/lib/server/runtime";
 import {resolveTrustedAssetBaseUrl} from "@/lib/server/trusted-asset-origin";
-
-export class ServerCampaignExecutionUnavailableError extends Error{
-  readonly code="SERVER_CAMPAIGN_EXECUTION_UNAVAILABLE";
-  constructor(){
-    super("Campaign execution runtime is unavailable.");
-    this.name="ServerCampaignExecutionUnavailableError";
-  }
-}
 
 const createProductionExecutionService=()=>{
   const provider=getAgentProviderRuntimeStatus();
@@ -86,7 +79,7 @@ export const getServerProductionExecutionService=()=>{
   try{
     return getGlobalRuntime(`${dataRoot}:production-execution-service`,createProductionExecutionService);
   }catch{
-    throw new ServerCampaignExecutionUnavailableError();
+    throw new ProductionCampaignExecutionUnavailableError();
   }
 };
 
@@ -100,8 +93,8 @@ export const getServerCampaignRunner=()=>{
       ),
     );
   }catch(error){
-    if(error instanceof ServerCampaignExecutionUnavailableError)throw error;
-    throw new ServerCampaignExecutionUnavailableError();
+    if(error instanceof ProductionCampaignExecutionUnavailableError)throw error;
+    throw new ProductionCampaignExecutionUnavailableError();
   }
 };
 

@@ -5,11 +5,11 @@ import {
   productionCampaignErrorResponse,
 } from "@/lib/production/campaign/http";
 import {
+  ProductionCampaignExecutionUnavailableError,
   ProductionCampaignMissionNotFoundError,
   ProductionCampaignNotFoundError,
   ProductionCampaignStateError,
 } from "@/lib/production/campaign/errors";
-import {ServerCampaignExecutionUnavailableError} from "@/lib/server/campaign-execution-runtime";
 
 const CAMPAIGN_ID="11111111-1111-4111-8111-111111111111";
 const MISSION_ID="22222222-2222-4222-8222-222222222222";
@@ -18,6 +18,7 @@ describe("B7 Campaign HTTP contract",()=>{
   it("accepts only bounded Campaign actions",()=>{
     expect(ProductionCampaignActionRequestSchema.parse({action:"enqueue"})).toEqual({action:"enqueue"});
     expect(ProductionCampaignActionRequestSchema.parse({action:"run"})).toEqual({action:"run"});
+    expect(ProductionCampaignActionRequestSchema.parse({action:"resume"})).toEqual({action:"resume"});
     expect(ProductionCampaignActionRequestSchema.parse({action:"retry-failed"})).toEqual({action:"retry-failed"});
     expect(ProductionCampaignActionRequestSchema.parse({action:"archive"})).toEqual({action:"archive"});
     expect(ProductionCampaignActionRequestSchema.parse({
@@ -45,7 +46,7 @@ describe("B7 Campaign HTTP contract",()=>{
     const conflict=productionCampaignErrorResponse(new ProductionCampaignStateError(CAMPAIGN_ID,"running"));
     expect(conflict.status).toBe(409);
 
-    const unavailable=productionCampaignErrorResponse(new ServerCampaignExecutionUnavailableError());
+    const unavailable=productionCampaignErrorResponse(new ProductionCampaignExecutionUnavailableError());
     expect(unavailable.status).toBe(503);
     expect(await unavailable.json()).toEqual({
       error:"campaign_execution_unavailable",

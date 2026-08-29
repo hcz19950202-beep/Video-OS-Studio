@@ -68,6 +68,33 @@ export class ProductionCampaignService{
     });
   }
 
+  async resume(campaignId:string):Promise<ProductionCampaign>{
+    const now=this.now().toISOString();
+    return this.repository.mutate(campaignId,current=>{
+      if(current.status==="running"||current.status==="queued"||current.status==="archived"||current.status==="draft")throw new ProductionCampaignStateError(current.id,current.status,"Campaign resume requires a settled waiting-review or blocked Campaign.");
+      const resumable=current.missions.some(mission=>mission.status==="waiting-review"||mission.status==="blocked");
+      if(!resumable)throw new ProductionCampaignStateError(current.id,current.status,"Campaign has no waiting-review or blocked Missions to resume.");
+      return{
+        ...current,
+        status:"queued",
+        revision:current.revision+1,
+        updatedAt:now,
+        finishedAt:undefined,
+        missions:current.missions.map(mission=>mission.status!=="waiting-review"&&mission.status!=="blocked"?mission:{
+          ...mission,
+          status:"pending" as const,
+          currentStep:undefined,
+          blocker:undefined,
+          error:undefined,
+          cancellationRequestedAt:undefined,
+          startedAt:undefined,
+          finishedAt:undefined,
+          finalArtifactIds:[],
+        }),
+      };
+    });
+  }
+
   async retryFailed(campaignId:string):Promise<ProductionCampaign>{
     const now=this.now().toISOString();
     return this.repository.mutate(campaignId,current=>{

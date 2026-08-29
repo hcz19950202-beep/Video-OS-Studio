@@ -27,6 +27,7 @@ export async function POST(request:Request,{params}:Context){
     const campaignId=await id(params);
     const action=ProductionCampaignActionRequestSchema.parse(await request.json());
     if(action.action==="enqueue")await productionCampaignService.enqueue(campaignId);
+    else if(action.action==="resume")await productionCampaignService.resume(campaignId);
     else if(action.action==="retry-failed")await productionCampaignService.retryFailed(campaignId);
     else if(action.action==="archive")await productionCampaignService.archive(campaignId);
     else if(action.action==="cancel-mission")await serverCampaignCancellationRunner.cancelMission(campaignId,{
