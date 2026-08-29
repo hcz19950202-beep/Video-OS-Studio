@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useState} from "react";
 import {cancelProductionMission,createProductionMission,getProductionWorkspace,listProductionMissions,updateProductionMission} from "@/lib/client/production-workspace";
 import {toClientErrorState} from "@/lib/client/api";
 import type {ProductionMission} from "@/lib/production/mission/schema";
@@ -27,7 +27,8 @@ export const ProductionMissionPanel=({project}:{project:Project})=>{
   const[newFinalReview,setNewFinalReview]=useState(true);
 
   const projectId=project.project.id;
-  const selected=useMemo(()=>missions.find(item=>item.id===selectedMissionId)??null,[missions,selectedMissionId]);
+  const pollingMissionId=workspace?.mission.id;
+  const pollingState=workspace?.activity.state;
 
   const refreshList=async(preferredId?:string)=>{
     const next=await listProductionMissions(projectId);
@@ -61,10 +62,10 @@ export const ProductionMissionPanel=({project}:{project:Project})=>{
   },[projectId,selectedMissionId]);
 
   useEffect(()=>{
-    if(!workspace||!dynamicStates.has(workspace.activity.state))return;
-    const timer=window.setInterval(()=>{void getProductionWorkspace(projectId,workspace.mission.id).then(setWorkspace).catch(()=>undefined);},3000);
+    if(!pollingMissionId||!pollingState||!dynamicStates.has(pollingState))return;
+    const timer=window.setInterval(()=>{void getProductionWorkspace(projectId,pollingMissionId).then(setWorkspace).catch(()=>undefined);},3000);
     return()=>window.clearInterval(timer);
-  },[projectId,workspace?.mission.id,workspace?.activity.state]);
+  },[projectId,pollingMissionId,pollingState]);
 
   const createMission=async()=>{
     if(!title.trim()||!brief.trim()||busy)return;
