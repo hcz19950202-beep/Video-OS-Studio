@@ -34,7 +34,7 @@ export async function POST(request:Request,{params}:Context){
       projectId:action.projectId,
       missionId:action.missionId,
     });
-    else await getServerCampaignRunner().run(campaignId,request.signal);
+    else await getServerCampaignRunner().run(campaignId);
     return Response.json({dashboard:await productionCampaignDashboardService.snapshot(campaignId)});
   }catch(error){return productionCampaignErrorResponse(error);}
 }
