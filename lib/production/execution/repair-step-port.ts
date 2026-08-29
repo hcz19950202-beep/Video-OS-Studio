@@ -2,6 +2,7 @@ import type {ProductionMutationTarget} from "@/lib/production/autonomy/schema";
 import type {ProductionRepairStepPort} from "@/lib/production/execution/application-runner";
 import type {ProductionStepRunnerInput} from "@/lib/production/execution/executor";
 import type {StepExecutionResult} from "@/lib/production/execution/schema";
+import type {ProjectCommand} from "@/lib/project/commands";
 import type {ProjectMutationCoordinator} from "@/lib/project/mutation-coordinator";
 import {prepareQARepairApplication} from "@/lib/production/qa/repair";
 import type {ProductionQAService} from "@/lib/production/qa/service";
@@ -11,7 +12,7 @@ import type {Project} from "@/schemas/project";
 const unique=<T>(values:T[])=>[...new Set(values)];
 
 type ProductionQAReportReader=Pick<ProductionQAService,"load">;
-type ProductionRepairMutationWriter=Pick<ProjectMutationCoordinator,"applyCommand">;
+type ProductionRepairMutationWriter=Pick<ProjectMutationCoordinator,"applyTransaction">;
 export interface ProductionRepairProjectReader{load(projectId:string):Promise<Project>;}
 
 type ResolvedQARepair={report:QAReport};
@@ -51,6 +52,32 @@ export class ProductionQARepairTargetResolver{
 }
 
 const approvedCheckpoint=(input:ProductionStepRunnerInput)=>input.execution.steps.find(step=>step.stepId===input.step.id)?.checkpoint?.status==="approved";
+
+const buildDurationRepairCommands=(project:Project,durationInFrames:number):ProjectCommand[]=>{
+  const commands:ProjectCommand[]=[];
+  if(durationInFrames<project.canvas.durationInFrames){
+    for(const track of project.tracks){
+      for(const clip of track.clips){
+        if(clip.startFrame>=durationInFrames){
+          commands.push({type:"remove-clip",clipId:clip.id});
+          continue;
+        }
+        const endFrame=clip.startFrame+clip.durationInFrames;
+        if(endFrame>durationInFrames)commands.push({type:"update-clip-timing",clipId:clip.id,durationInFrames:durationInFrames-clip.startFrame});
+      }
+    }
+    for(const scene of project.scenes){
+      if(scene.startFrame>=durationInFrames){
+        commands.push({type:"remove-scene",sceneId:scene.id});
+        continue;
+      }
+      if(scene.endFrame>durationInFrames)commands.push({type:"update-scene",sceneId:scene.id,patch:{endFrame:durationInFrames}});
+    }
+    for(const marker of project.markers)if(marker.frame>=durationInFrames)commands.push({type:"remove-marker",markerId:marker.id});
+  }
+  commands.push({type:"set-duration",durationInFrames});
+  return commands;
+};
 
 export class ApplicationProductionRepairStepPort implements ProductionRepairStepPort{
   constructor(
@@ -120,11 +147,15 @@ export class ApplicationProductionRepairStepPort implements ProductionRepairStep
     }
     try{
       const project=await this.projects.load(input.mission.projectId);
+      if(project.project.revision!==input.expectedProjectRevision)throw new Error("Project revision changed before timing repair application.");
       const durationInFrames=Math.max(1,Math.round(targetDurationSeconds*project.canvas.fps));
-      const result=await this.mutations.applyCommand(input.mission.projectId,{
+      const result=await this.mutations.applyTransaction(input.mission.projectId,{
         expectedRevision:input.expectedProjectRevision,
-        commandId:input.operationId,
-        command:{type:"set-duration",durationInFrames},
+        transactionId:input.operationId,
+        transaction:{
+          label:"Production QA · bounded timing repair",
+          commands:buildDurationRepairCommands(project,durationInFrames),
+        },
       });
       return{
         status:"completed",
