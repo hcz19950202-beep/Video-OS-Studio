@@ -67,12 +67,13 @@ export function CampaignDashboardClient({initialDashboard}:{initialDashboard:Pro
   },[campaign.missions]);
 
   const shared=[
+    ...campaign.sharedReferences.brandIds.map(id=>`brand:${id}`),
     ...campaign.sharedReferences.assetIds.map(id=>`asset:${id}`),
     ...campaign.sharedReferences.policyIds.map(id=>`policy:${id}`),
     ...campaign.sharedReferences.skillIds.map(id=>`skill:${id}`),
     ...campaign.sharedReferences.exportTemplateIds.map(id=>`export:${id}`),
   ];
-  const canArchive=!(["running","queued","archived"] as const).includes(campaign.status as "running"|"queued"|"archived");
+  const canArchive=campaign.status!=="running"&&campaign.status!=="queued"&&campaign.status!=="archived";
 
   return <main className={styles.page}><div className={styles.shell}>
     <nav className={styles.nav}><Link href="/">← Video OS Studio</Link><Link href="/campaigns">All Campaigns</Link></nav>
