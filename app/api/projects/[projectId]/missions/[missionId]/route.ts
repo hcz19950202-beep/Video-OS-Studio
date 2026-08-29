@@ -3,6 +3,8 @@ import {ProductionExecutionNotFoundError} from "@/lib/production/execution/error
 import {ProductionMissionNotFoundError,ProductionMissionProjectUnavailableError,ProductionMissionTerminalStateError} from "@/lib/production/mission/errors";
 import {ProductionMissionIdSchema,UpdateProductionMissionDetailsInputSchema} from "@/lib/production/mission/schema";
 import {ProductionPlanNotFoundError} from "@/lib/production/plan/errors";
+import {QAReportNotFoundError} from "@/lib/production/qa/errors";
+import {ProductionWorkspaceTruthInconsistentError} from "@/lib/production/workspace/errors";
 import {productionMissionService,productionWorkspaceService} from "@/lib/server/runtime";
 
 export const runtime="nodejs";
@@ -13,7 +15,7 @@ const safeError=(error:unknown)=>{
   if(error instanceof ProductionMissionNotFoundError)return{status:404,body:{error:"mission_not_found",message:"The Production Mission was not found.",retryable:false}};
   if(error instanceof ProductionMissionProjectUnavailableError)return{status:404,body:{error:"project_unavailable",message:"The Project is unavailable for this Production Mission.",retryable:false}};
   if(error instanceof ProductionMissionTerminalStateError)return{status:409,body:{error:"mission_terminal",message:error.message,retryable:false}};
-  if(error instanceof ProductionPlanNotFoundError||error instanceof ProductionExecutionNotFoundError)return{status:409,body:{error:"mission_truth_inconsistent",message:"The Production Mission references durable planning or execution truth that is unavailable.",retryable:false}};
+  if(error instanceof ProductionPlanNotFoundError||error instanceof ProductionExecutionNotFoundError||error instanceof QAReportNotFoundError||error instanceof ProductionWorkspaceTruthInconsistentError)return{status:409,body:{error:"mission_truth_inconsistent",message:"The Production Mission references durable production truth that is unavailable or inconsistent.",retryable:false}};
   return{status:500,body:{error:"mission_workspace_failed",message:"The Production Workspace request failed without exposing internal runtime details.",retryable:true}};
 };
 
