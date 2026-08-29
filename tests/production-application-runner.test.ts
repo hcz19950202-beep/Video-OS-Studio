@@ -18,6 +18,7 @@ const EXECUTION_ID="33333333-3333-4333-8333-333333333333";
 const OPERATION_ID="44444444-4444-4444-8444-444444444444";
 const SESSION_ID="55555555-5555-4555-8555-555555555555";
 const PROPOSAL_ID="66666666-6666-4666-8666-666666666666";
+const DEPENDENCY_OPERATION_ID="77777777-7777-4777-8777-777777777777";
 const GENERATED_AT="2026-08-29T00:00:00.000Z";
 
 const visualPlan={
@@ -88,6 +89,19 @@ const inputFor=(kind:ProductionStepRunnerInput["step"]["kind"],overrides:Partial
   remainingUsageBudget:{agentTurns:4,providerCalls:4,repairLoops:2},
 });
 
+const withCompletedProposalDependency=(input:ProductionStepRunnerInput,proposalIds=[PROPOSAL_ID])=>{
+  input.step.dependsOn=["step-plan-visuals"];
+  input.execution.steps=[{
+    stepId:"step-plan-visuals",
+    status:"completed",
+    operationId:DEPENDENCY_OPERATION_ID,
+    attempts:1,
+    evidence:[{kind:"agent-session",id:SESSION_ID},...proposalIds.map(id=>({kind:"proposal" as const,id}))],
+    completedAt:GENERATED_AT,
+  }];
+  return input;
+};
+
 const sessionsWithProposal=(revision=1)=>({
   list:vi.fn(async()=>[{...agentSession,proposals:agentSession.proposals.map(proposal=>({...proposal,baseProjectRevision:revision}))}]),
 }) as unknown as AgentSessionRepository;
@@ -118,9 +132,9 @@ const makeRunner=(options:{sessions?:AgentSessionRepository;visualApply?:ReturnT
 };
 
 describe("ApplicationProductionStepRunner",()=>{
-  it("resolves one persisted visual proposal and applies it with the stable step operation id",async()=>{
+  it("resolves a persisted proposal from completed Agent dependency evidence and applies it with the stable edit operation id",async()=>{
     const{runner,visualApply}=makeRunner();
-    const input=inputFor("edit-project",{evidence:[{kind:"visual-plan",id:PROPOSAL_ID}],targets:[{kind:"track",id:"motion-main",action:"append"},{kind:"clip",id:"visual-suggestion-1",action:"create"}]});
+    const input=withCompletedProposalDependency(inputFor("edit-project",{targets:[{kind:"track",id:"motion-main",action:"append"},{kind:"clip",id:"visual-suggestion-1",action:"create"}]}));
 
     const result=await runner.execute(input);
 
@@ -133,17 +147,25 @@ describe("ApplicationProductionStepRunner",()=>{
     ]));
   });
 
-  it("fails closed when visual proposal evidence is stale",async()=>{
+  it("fails closed when dependency proposal evidence is stale",async()=>{
     const{runner,visualApply}=makeRunner({sessions:sessionsWithProposal(0)});
-    const result=await runner.execute(inputFor("edit-project",{evidence:[{kind:"visual-plan",id:PROPOSAL_ID}]}));
+    const result=await runner.execute(withCompletedProposalDependency(inputFor("edit-project")));
 
     expect(result).toMatchObject({status:"blocked",code:"VISUAL_PLAN_EVIDENCE_INVALID"});
     expect(visualApply).not.toHaveBeenCalled();
   });
 
-  it("derives actual remotion mutation targets from proposal contents instead of trusting declared targets",async()=>{
+  it("fails closed when completed dependencies expose ambiguous proposal evidence",async()=>{
+    const{runner,visualApply}=makeRunner();
+    const result=await runner.execute(withCompletedProposalDependency(inputFor("edit-project"),[PROPOSAL_ID,"88888888-8888-4888-8888-888888888888"]));
+
+    expect(result).toMatchObject({status:"blocked",code:"VISUAL_PLAN_EVIDENCE_INVALID"});
+    expect(visualApply).not.toHaveBeenCalled();
+  });
+
+  it("derives actual remotion mutation targets from dependency proposal contents instead of trusting declared targets",async()=>{
     const resolver=new ProductionVisualPlanTargetResolver(new ProductionVisualPlanProposalResolver(sessionsWithProposal()));
-    const targets=await resolver.resolve(inputFor("edit-project",{evidence:[{kind:"visual-plan",id:PROPOSAL_ID}]}));
+    const targets=await resolver.resolve(withCompletedProposalDependency(inputFor("edit-project")));
 
     expect(targets).toEqual([
       {kind:"track",id:"motion-main",action:"append"},
@@ -155,7 +177,7 @@ describe("ApplicationProductionStepRunner",()=>{
     const workflow={
       create:vi.fn(async()=>({id:OPERATION_ID,status:"pending",stageExecutions:[]})),
       start:vi.fn(async()=>({id:OPERATION_ID,status:"running"})),
-      get:vi.fn(async()=>({id:OPERATION_ID,status:"completed",stageExecutions:[{jobIds:["77777777-7777-4777-8777-777777777777"]}]})),
+      get:vi.fn(async()=>({id:OPERATION_ID,status:"completed",stageExecutions:[{jobIds:[DEPENDENCY_OPERATION_ID]}]})),
       runner:{waitForIdle:vi.fn(async()=>undefined)},
       projects:{load:vi.fn(async()=>({project:{revision:3}}))},
     };
@@ -165,7 +187,7 @@ describe("ApplicationProductionStepRunner",()=>{
     expect(workflow.create).toHaveBeenCalledWith(expect.objectContaining({workflowId:OPERATION_ID,projectId:PROJECT_ID,definitionId:"w2-capability-talking-head",definitionVersion:"1",sourceAssetIds:["media-1"],expectedProjectRevision:1}));
     expect(workflow.start).toHaveBeenCalledWith(OPERATION_ID);
     expect(result).toMatchObject({status:"completed",projectRevisionAfter:3});
-    expect(result.status==="completed"?result.evidence:[]).toEqual([{kind:"workflow",id:OPERATION_ID},{kind:"job",id:"77777777-7777-4777-8777-777777777777"}]);
+    expect(result.status==="completed"?result.evidence:[]).toEqual([{kind:"workflow",id:OPERATION_ID},{kind:"job",id:DEPENDENCY_OPERATION_ID}]);
   });
 
   it("never auto-approves a Workflow-owned checkpoint",async()=>{
