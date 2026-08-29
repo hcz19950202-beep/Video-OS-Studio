@@ -47,16 +47,18 @@ export const ProductionMissionPanel=({project}:{project:Project})=>{
   };
 
   useEffect(()=>{
-    let active=true;setLoading(true);setError(null);setWorkspace(null);setSelectedMissionId("");
+    let active=true;
     void listProductionMissions(projectId).then(next=>{
-      if(!active)return;setMissions(next);setSelectedMissionId(next[0]?.id??"");
-    }).catch(caught=>{if(active)setError(toClientErrorState(caught).message);}).finally(()=>{if(active)setLoading(false);});
+      if(!active)return;
+      setMissions(next);setSelectedMissionId(next[0]?.id??"");
+      if(next.length===0)setLoading(false);
+    }).catch(caught=>{if(active){setError(toClientErrorState(caught).message);setLoading(false);}});
     return()=>{active=false;};
   },[projectId]);
 
   useEffect(()=>{
-    if(!selectedMissionId){setWorkspace(null);return;}
-    let active=true;setLoading(true);setError(null);
+    if(!selectedMissionId)return;
+    let active=true;
     void getProductionWorkspace(projectId,selectedMissionId).then(next=>{if(active)setWorkspace(next);}).catch(caught=>{if(active)setError(toClientErrorState(caught).message);}).finally(()=>{if(active)setLoading(false);});
     return()=>{active=false;};
   },[projectId,selectedMissionId]);
@@ -72,8 +74,9 @@ export const ProductionMissionPanel=({project}:{project:Project})=>{
     setBusy(true);setError(null);
     try{
       const mission=await createProductionMission(projectId,{title:title.trim(),brief:brief.trim(),autonomyPolicy:{mode:newMode,finalReviewRequired:newFinalReview}});
+      setLoading(true);setWorkspace(null);
       await refreshList(mission.id);setTitle("");setBrief("");setCreating(false);
-    }catch(caught){setError(toClientErrorState(caught).message);}finally{setBusy(false);}
+    }catch(caught){setError(toClientErrorState(caught).message);setLoading(false);}finally{setBusy(false);}
   };
 
   const updateAutonomy=async(mode:ProductionMission["autonomyPolicy"]["mode"],finalReviewRequired=workspace?.mission.autonomyPolicy.finalReviewRequired??true)=>{
@@ -94,6 +97,10 @@ export const ProductionMissionPanel=({project}:{project:Project})=>{
     try{await refreshList(selectedMissionId);await refreshWorkspace(selectedMissionId);}catch(caught){setError(toClientErrorState(caught).message);}finally{setLoading(false);}
   };
 
+  const selectMission=(missionId:string)=>{
+    setError(null);setLoading(true);setWorkspace(null);setSelectedMissionId(missionId);
+  };
+
   const executionByStep=new Map(workspace?.execution?.steps.map(step=>[step.stepId,step])??[]);
   const terminal=workspace?.mission.status==="completed"||workspace?.mission.status==="cancelled";
 
@@ -101,7 +108,7 @@ export const ProductionMissionPanel=({project}:{project:Project})=>{
     <section className="b5c-mission-toolbar">
       <div><small>AUTONOMOUS PRODUCTION · MISSION</small><strong>{zh?"生产任务工作区":"Production Mission Workspace"}</strong></div>
       <div className="b5c-mission-toolbar-actions">
-        <select aria-label={zh?"生产任务":"Production mission"} value={selectedMissionId} disabled={busy||loading||missions.length===0} onChange={event=>setSelectedMissionId(event.target.value)}>
+        <select aria-label={zh?"生产任务":"Production mission"} value={selectedMissionId} disabled={busy||loading||missions.length===0} onChange={event=>selectMission(event.target.value)}>
           {missions.length===0?<option value="">{zh?"暂无生产任务":"No missions"}</option>:missions.map(item=><option key={item.id} value={item.id}>{item.title} · {item.status}</option>)}
         </select>
         <button type="button" className="button small" disabled={busy} onClick={()=>void manualRefresh()}>{zh?"刷新":"Refresh"}</button>
