@@ -5,16 +5,20 @@ import {
   type ProductionCampaignMissionRunResult,
   type ProductionCampaignStatus,
 } from "@/lib/production/campaign/schema";
-import {ProductionCampaignStateError} from "@/lib/production/campaign/errors";
+import {
+  ProductionCampaignMissionNotFoundError,
+  ProductionCampaignStateError,
+} from "@/lib/production/campaign/errors";
 import {ProductionCampaignRepository} from "@/lib/production/campaign/repository";
 
 export type ProductionCampaignMissionExecutionPort={
   runMission:(mission:ProductionCampaignMissionRef,signal?:AbortSignal)=>Promise<ProductionCampaignMissionRunResult>;
+  cancelMission?:(mission:ProductionCampaignMissionRef)=>Promise<void>;
 };
 
 export type ProductionCampaignRunnerOptions={now?:()=>Date};
 
-const terminalCampaignStatus=(missions:ProductionCampaign["missions"]):ProductionCampaignStatus=>{
+const aggregateCampaignStatus=(missions:ProductionCampaign["missions"]):ProductionCampaignStatus=>{
   if(missions.some(mission=>mission.status==="failed"))return"failed";
   if(missions.some(mission=>mission.status==="blocked"))return"blocked";
   if(missions.some(mission=>mission.status==="waiting-review"))return"waiting-review";
@@ -40,24 +44,30 @@ export class ProductionCampaignRunner{
     this.now=options.now??(()=>new Date());
   }
 
-  private async beginMission(campaignId:string,ref:ProductionCampaignMissionRef){
+  private async beginMission(campaignId:string,ref:ProductionCampaignMissionRef):Promise<boolean>{
     const now=this.now().toISOString();
-    return this.repository.mutate(campaignId,current=>({
+    let claimed=false;
+    await this.repository.mutate(campaignId,current=>({
       ...current,
-      revision:current.revision+1,
+      revision:current.revision+(current.missions.some(mission=>mission.projectId===ref.projectId&&mission.missionId===ref.missionId&&mission.status==="pending"&&mission.cancellationRequestedAt===undefined)?1:0),
       updatedAt:now,
-      missions:current.missions.map(mission=>mission.projectId===ref.projectId&&mission.missionId===ref.missionId?{
-        ...mission,
-        status:"running" as const,
-        attempt:mission.attempt+1,
-        currentStep:undefined,
-        blocker:undefined,
-        error:undefined,
-        finalArtifactIds:[],
-        startedAt:now,
-        finishedAt:undefined,
-      }:mission),
+      missions:current.missions.map(mission=>{
+        if(mission.projectId!==ref.projectId||mission.missionId!==ref.missionId||mission.status!=="pending"||mission.cancellationRequestedAt!==undefined)return mission;
+        claimed=true;
+        return{
+          ...mission,
+          status:"running" as const,
+          attempt:mission.attempt+1,
+          currentStep:undefined,
+          blocker:undefined,
+          error:undefined,
+          finalArtifactIds:[],
+          startedAt:now,
+          finishedAt:undefined,
+        };
+      }),
     }));
+    return claimed;
   }
 
   private async finishMission(campaignId:string,ref:ProductionCampaignMissionRef,resultInput:ProductionCampaignMissionRunResult){
@@ -67,16 +77,59 @@ export class ProductionCampaignRunner{
       ...current,
       revision:current.revision+1,
       updatedAt:now,
-      missions:current.missions.map(mission=>mission.projectId===ref.projectId&&mission.missionId===ref.missionId?{
-        ...mission,
-        status:result.status,
-        currentStep:result.currentStep,
-        blocker:result.blocker,
-        error:result.error,
-        finalArtifactIds:result.finalArtifactIds,
-        finishedAt:result.status==="completed"||result.status==="cancelled"||result.status==="failed"?now:undefined,
-      }:mission),
+      missions:current.missions.map(mission=>{
+        if(mission.projectId!==ref.projectId||mission.missionId!==ref.missionId)return mission;
+        if(mission.cancellationRequestedAt!==undefined)return{
+          ...mission,
+          status:"cancelled" as const,
+          currentStep:undefined,
+          blocker:undefined,
+          error:undefined,
+          finalArtifactIds:[],
+          finishedAt:now,
+        };
+        return{
+          ...mission,
+          status:result.status,
+          currentStep:result.currentStep,
+          blocker:result.blocker,
+          error:result.error,
+          finalArtifactIds:result.finalArtifactIds,
+          finishedAt:result.status==="completed"||result.status==="cancelled"||result.status==="failed"?now:undefined,
+          ...(result.status==="cancelled"?{cancellationRequestedAt:now}:{}),
+        };
+      }),
     }));
+  }
+
+  async cancelMission(campaignId:string,ref:ProductionCampaignMissionRef):Promise<ProductionCampaign>{
+    const requestedAt=this.now().toISOString();
+    let notifyExecution=false;
+    const requested=await this.repository.mutate(campaignId,current=>{
+      const target=current.missions.find(mission=>mission.projectId===ref.projectId&&mission.missionId===ref.missionId);
+      if(!target)throw new ProductionCampaignMissionNotFoundError(campaignId,ref.projectId,ref.missionId);
+      if(target.status==="cancelled")return current;
+      if(target.status==="completed"||target.status==="failed")throw new ProductionCampaignStateError(current.id,current.status,"A terminal Campaign Mission cannot be cancelled.");
+      notifyExecution=target.status==="running";
+      const immediate=target.status!=="running";
+      return{
+        ...current,
+        revision:current.revision+1,
+        updatedAt:requestedAt,
+        missions:current.missions.map(mission=>mission!==target?mission:{
+          ...mission,
+          status:immediate?"cancelled" as const:mission.status,
+          cancellationRequestedAt:requestedAt,
+          currentStep:immediate?undefined:mission.currentStep,
+          blocker:immediate?undefined:mission.blocker,
+          error:immediate?undefined:mission.error,
+          finalArtifactIds:immediate?[]:mission.finalArtifactIds,
+          finishedAt:immediate?requestedAt:mission.finishedAt,
+        }),
+      };
+    });
+    if(notifyExecution)await this.execution.cancelMission?.(ref);
+    return requested;
   }
 
   async run(campaignId:string,signal?:AbortSignal):Promise<ProductionCampaign>{
@@ -100,7 +153,7 @@ export class ProductionCampaignRunner{
         const index=nextIndex++;
         if(index>=refs.length)return;
         const ref=refs[index]!;
-        await this.beginMission(campaignId,ref);
+        if(!(await this.beginMission(campaignId,ref)))continue;
         let result:ProductionCampaignMissionRunResult;
         if(signal?.aborted){
           result={status:"cancelled",finalArtifactIds:[]};
@@ -117,7 +170,7 @@ export class ProductionCampaignRunner{
 
     const completedAt=this.now().toISOString();
     return this.repository.mutate(campaignId,current=>{
-      const status=terminalCampaignStatus(current.missions);
+      const status=aggregateCampaignStatus(current.missions);
       const terminal=status==="completed"||status==="cancelled"||status==="failed";
       return{
         ...current,

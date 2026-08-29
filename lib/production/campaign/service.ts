@@ -7,7 +7,10 @@ import {
   type ProductionCampaign,
   type ProductionCampaignMissionRef,
 } from "@/lib/production/campaign/schema";
-import {ProductionCampaignMissionUnavailableError} from "@/lib/production/campaign/errors";
+import {
+  ProductionCampaignMissionUnavailableError,
+  ProductionCampaignStateError,
+} from "@/lib/production/campaign/errors";
 import {ProductionCampaignRepository} from "@/lib/production/campaign/repository";
 
 export type ProductionCampaignMissionResolver={
@@ -54,6 +57,50 @@ export class ProductionCampaignService{
       createdAt:now,
       updatedAt:now,
     }));
+  }
+
+  async enqueue(campaignId:string):Promise<ProductionCampaign>{
+    const now=this.now().toISOString();
+    return this.repository.mutate(campaignId,current=>{
+      if(current.status==="queued"||current.status==="running")return current;
+      if(current.status!=="draft")throw new ProductionCampaignStateError(current.id,current.status,"Only a draft Campaign can be enqueued.");
+      return{...current,status:"queued",revision:current.revision+1,updatedAt:now};
+    });
+  }
+
+  async retryFailed(campaignId:string):Promise<ProductionCampaign>{
+    const now=this.now().toISOString();
+    return this.repository.mutate(campaignId,current=>{
+      if(current.status==="running"||current.status==="queued"||current.status==="archived")throw new ProductionCampaignStateError(current.id,current.status,"Campaign retry requires a settled non-archived Campaign.");
+      if(!current.missions.some(mission=>mission.status==="failed"))throw new ProductionCampaignStateError(current.id,current.status,"Campaign has no failed Missions to retry.");
+      return{
+        ...current,
+        status:"queued",
+        revision:current.revision+1,
+        updatedAt:now,
+        finishedAt:undefined,
+        missions:current.missions.map(mission=>mission.status!=="failed"?mission:{
+          ...mission,
+          status:"pending" as const,
+          currentStep:undefined,
+          blocker:undefined,
+          error:undefined,
+          cancellationRequestedAt:undefined,
+          startedAt:undefined,
+          finishedAt:undefined,
+          finalArtifactIds:[],
+        }),
+      };
+    });
+  }
+
+  async archive(campaignId:string):Promise<ProductionCampaign>{
+    const now=this.now().toISOString();
+    return this.repository.mutate(campaignId,current=>{
+      if(current.status==="archived")return current;
+      if(current.status==="running"||current.status==="queued")throw new ProductionCampaignStateError(current.id,current.status,"An active Campaign cannot be archived.");
+      return{...current,status:"archived",revision:current.revision+1,updatedAt:now,finishedAt:current.finishedAt??now};
+    });
   }
 
   async get(campaignId:string){return this.repository.require(campaignId);}

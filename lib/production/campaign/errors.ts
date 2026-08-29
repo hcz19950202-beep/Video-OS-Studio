@@ -22,6 +22,14 @@ export class ProductionCampaignMissionUnavailableError extends Error{
   }
 }
 
+export class ProductionCampaignMissionNotFoundError extends Error{
+  readonly code="PRODUCTION_CAMPAIGN_MISSION_NOT_FOUND";
+  constructor(readonly campaignId:string,readonly projectId:string,readonly missionId:string){
+    super("Production Campaign does not contain the requested Mission reference.");
+    this.name="ProductionCampaignMissionNotFoundError";
+  }
+}
+
 export class ProductionCampaignStateError extends Error{
   readonly code="PRODUCTION_CAMPAIGN_INVALID_STATE";
   constructor(readonly campaignId:string,readonly status:string,message="Production Campaign cannot perform this operation from its current state."){

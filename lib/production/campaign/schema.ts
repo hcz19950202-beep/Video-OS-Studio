@@ -79,6 +79,7 @@ export const ProductionCampaignMissionRunSchema=z.object({
   blocker:z.string().trim().min(1).max(2_000).optional(),
   finalArtifactIds:UniqueReferenceArray("final artifact reference"),
   error:ProductionCampaignMissionErrorSchema.optional(),
+  cancellationRequestedAt:z.string().datetime().optional(),
   startedAt:z.string().datetime().optional(),
   finishedAt:z.string().datetime().optional(),
 }).strict().superRefine((run,ctx)=>{
@@ -87,18 +88,19 @@ export const ProductionCampaignMissionRunSchema=z.object({
   if((run.status==="completed"||run.status==="cancelled"||run.status==="failed")&&run.finishedAt===undefined)ctx.addIssue({code:"custom",path:["finishedAt"],message:"Terminal Campaign Missions require finishedAt."});
   if(run.status==="blocked"&&run.blocker===undefined)ctx.addIssue({code:"custom",path:["blocker"],message:"Blocked Campaign Missions require a blocker."});
   if(run.status==="failed"&&run.error===undefined)ctx.addIssue({code:"custom",path:["error"],message:"Failed Campaign Missions require error evidence."});
+  if(run.status==="cancelled"&&run.cancellationRequestedAt===undefined)ctx.addIssue({code:"custom",path:["cancellationRequestedAt"],message:"Cancelled Campaign Missions require a cancellation request timestamp."});
 });
 export type ProductionCampaignMissionRun=z.infer<typeof ProductionCampaignMissionRunSchema>;
 
 const MissionSetInvariant=<T extends{projectId:string;missionId:string}>(missions:T[],ctx:z.RefinementCtx)=>{
-  const projects=new Map<string,number>();
-  const refs=new Map<string,number>();
+  const projects=new Set<string>();
+  const refs=new Set<string>();
   for(const[index,mission]of missions.entries()){
     const key=`${mission.projectId}:${mission.missionId}`;
     if(refs.has(key))ctx.addIssue({code:"custom",path:[index,"missionId"],message:"Campaign Mission references must be unique."});
     if(projects.has(mission.projectId))ctx.addIssue({code:"custom",path:[index,"projectId"],message:"A Campaign cannot schedule multiple Missions against the same mutable Project."});
-    refs.set(key,index);
-    projects.set(mission.projectId,index);
+    refs.add(key);
+    projects.add(mission.projectId);
   }
 };
 
