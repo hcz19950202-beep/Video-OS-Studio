@@ -1,4 +1,6 @@
 import {beforeEach,describe,expect,it,vi} from "vitest";
+import {ProductionMissionProjectUnavailableError} from "@/lib/production/mission/errors";
+import {ProductionWorkspaceTruthInconsistentError} from "@/lib/production/workspace/errors";
 
 const fakes=vi.hoisted(()=>({
   productionMissionService:{create:vi.fn(),updateDetails:vi.fn(),cancel:vi.fn()},
@@ -49,6 +51,20 @@ describe("V2.4 B5c Production Workspace route contracts",()=>{
     expect(cancelled.status).toBe(200);
     expect(fakes.productionMissionService.cancel).toHaveBeenCalledWith("demo",missionId);
     expect(fakes.productionWorkspaceService.snapshot).toHaveBeenCalledTimes(3);
+  });
+
+  it("normalizes unavailable Project reads without leaking repository details",async()=>{
+    fakes.productionWorkspaceService.listMissions.mockRejectedValue(new ProductionMissionProjectUnavailableError("demo"));
+    const response=await missionsRoute.GET(new Request("http://localhost/api/projects/demo/missions"),{params:Promise.resolve({projectId:"demo"})});
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({error:"project_unavailable",retryable:false});
+  });
+
+  it("returns a bounded conflict when Mission-linked durable truth is inconsistent",async()=>{
+    fakes.productionWorkspaceService.snapshot.mockRejectedValue(new ProductionWorkspaceTruthInconsistentError());
+    const response=await missionRoute.GET(new Request(`http://localhost/api/projects/demo/missions/${missionId}`),{params:Promise.resolve({projectId:"demo",missionId})});
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({error:"mission_truth_inconsistent",retryable:false});
   });
 
   it("sanitizes unexpected runtime failures",async()=>{
