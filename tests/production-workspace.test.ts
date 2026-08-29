@@ -49,6 +49,7 @@ const planSteps=[
   {id:"edit",kind:"edit-project" as const,title:"Apply bounded edit",objective:"Apply the approved bounded Project changes.",dependsOn:["analyze"],risk:"medium" as const,owner:"agent" as const,reviewRequired:false,requiresProjectRevision:true,evidence:[{kind:"skill" as const,id:"caption-emphasis@1.0.0"}]},
   {id:"render",kind:"render-final" as const,title:"Render final",objective:"Create the final encoded output.",dependsOn:["edit"],risk:"high" as const,owner:"job" as const,reviewRequired:true,requiresProjectRevision:true,evidence:[]},
 ];
+const renderOnlyStep={...planSteps[2],dependsOn:[]};
 
 describe("V2.4 B5c Production Workspace read model",()=>{
   it("keeps a draft Mission as durable truth without inventing execution state",async()=>{
@@ -89,7 +90,7 @@ describe("V2.4 B5c Production Workspace read model",()=>{
   it("reports final QA readiness only when render and QA evidence match the current Project revision",async()=>{
     const{missions,plans,executions,qa,service}=await setup();
     await createMission(missions,{status:"completed",planId,executionId,qaReportIds:[reportId]});
-    await plans.create({id:planId,projectId:"workspace-demo",missionId,version:1,baseProjectRevision:0,summary:"Render the accepted final.",steps:[planSteps[2]],generatedAt:at});
+    await plans.create({id:planId,projectId:"workspace-demo",missionId,version:1,baseProjectRevision:0,summary:"Render the accepted final.",steps:[renderOnlyStep],generatedAt:at});
     await executions.create({
       id:executionId,projectId:"workspace-demo",missionId,planId,planBaseProjectRevision:0,expectedProjectRevision:0,status:"completed",budget:{},counters:{},createdAt:at,updatedAt:at,
       steps:[{stepId:"render",status:"completed",operationId:operation3,attempts:1,evidence:[{kind:"render",id:"render-output"},{kind:"job",id:renderJobId}],startedAt:at,completedAt:at}],
@@ -102,10 +103,10 @@ describe("V2.4 B5c Production Workspace read model",()=>{
     expect(workspace.finalRenderReadiness).toBe("qa-passed");
   });
 
-  it("fails final readiness closed when the immutable Plan targets another Project revision",async()=>{
+  it("fails final readiness closed when an unstarted immutable Plan targets another Project revision",async()=>{
     const{missions,plans,service}=await setup();
     await createMission(missions,{status:"ready",planId});
-    await plans.create({id:planId,projectId:"workspace-demo",missionId,version:1,baseProjectRevision:1,summary:"Stale plan fixture.",steps:[planSteps[2]],generatedAt:at});
+    await plans.create({id:planId,projectId:"workspace-demo",missionId,version:1,baseProjectRevision:1,summary:"Stale plan fixture.",steps:[renderOnlyStep],generatedAt:at});
     const workspace=await service.snapshot("workspace-demo",missionId);
     expect(workspace.stale.plan).toBe(true);
     expect(workspace.finalRenderReadiness).toBe("stale");
