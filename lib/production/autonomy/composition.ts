@@ -4,7 +4,7 @@ import type {ProductionExecutionRepository} from "@/lib/production/execution/rep
 import {ProductionExecutionService} from "@/lib/production/execution/service";
 import type {ProductionMissionRepository} from "@/lib/production/mission/repository";
 import type {ProductionPlanRepository} from "@/lib/production/plan/repository";
-import {ProtectedProductionStepRunner,type ProductionStepMutationTargetResolver} from "@/lib/production/autonomy/runner";
+import {ProtectedProductionStepRunner,type ProductionStepTargetResolver} from "@/lib/production/autonomy/runner";
 import type {ProductionEditProtectionService} from "@/lib/production/autonomy/service";
 
 export interface ProtectedProductionExecutionDependencies{
@@ -13,7 +13,7 @@ export interface ProtectedProductionExecutionDependencies{
   executions:ProductionExecutionRepository;
   projects:ProductionExecutionProjectReader;
   runner:ProductionStepRunner;
-  targets:ProductionStepMutationTargetResolver;
+  targets:ProductionStepTargetResolver;
   protection:ProductionEditProtectionService;
 }
 
