@@ -288,7 +288,10 @@ test("B5 real Windows Mission checkpoint restart retry cancellation and workspac
   expect(runnerCalls.filter((call) => call.stepId === "bounded-project-edit")).toHaveLength(0);
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.locator(".b5c-mission-hero")).toContainText("WAITING-REVIEW");
-  await expect(page.getByText("pending", { exact: true })).toBeVisible();
+  const checkpointCard = page
+    .locator(".b5c-review")
+    .filter({ hasText: "Apply bounded Project edit" });
+  await expect(checkpointCard.locator("em")).toHaveText("pending");
 
   // Reconstruct every execution repository/service object to prove restart durability.
   const restartedFs = new NodeFileSystemAdapter();
