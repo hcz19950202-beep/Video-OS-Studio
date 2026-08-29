@@ -20,7 +20,7 @@ const missionIds=[
   "22222222-2222-4222-8222-222222222224",
 ];
 const projectIds=["campaign-a","campaign-b","campaign-c","campaign-d"];
-const refs:ProductionCampaignMissionRef[]=missionIds.map((missionId,index)=>({projectId:projectIds[index],missionId}));
+const refs:ProductionCampaignMissionRef[]=missionIds.map((missionId,index)=>({projectId:projectIds[index]!,missionId}));
 
 const mission=(ref:ProductionCampaignMissionRef):ProductionMission=>({
   id:ref.missionId,
@@ -51,12 +51,12 @@ describe("B7 Production Campaign core",()=>{
   it("rejects duplicate mutable Projects and path-like shared references",()=>{
     expect(()=>CreateProductionCampaignInputSchema.parse({
       title:"Duplicate Project",
-      missions:[refs[0],{projectId:refs[0].projectId,missionId:refs[1].missionId}],
+      missions:[refs[0]!,{projectId:refs[0]!.projectId,missionId:refs[1]!.missionId}],
     })).toThrow(/same mutable Project/);
     expect(()=>CreateProductionCampaignInputSchema.parse({
       title:"Path reference",
       sharedReferences:{assetIds:["C:\\secret\\asset.mp4"],policyIds:[],skillIds:[],exportTemplateIds:[]},
-      missions:[refs[0]],
+      missions:[refs[0]!],
     })).toThrow(/logical IDs/);
   });
 
@@ -73,13 +73,13 @@ describe("B7 Production Campaign core",()=>{
 
   it("fails closed when a referenced Mission is unavailable",async()=>{
     const{known,service}=setup();
-    known.delete(`${refs[0].projectId}:${refs[0].missionId}`);
-    await expect(service.create({title:"Missing Mission",missions:[refs[0]]})).rejects.toBeInstanceOf(ProductionCampaignMissionUnavailableError);
+    known.delete(`${refs[0]!.projectId}:${refs[0]!.missionId}`);
+    await expect(service.create({title:"Missing Mission",missions:[refs[0]!]})).rejects.toBeInstanceOf(ProductionCampaignMissionUnavailableError);
   });
 
   it("serializes repository mutations and preserves every Campaign revision",async()=>{
     const{repository,service}=setup();
-    await service.create({title:"Revision test",missions:[refs[0]]});
+    await service.create({title:"Revision test",missions:[refs[0]!]});
     await Promise.all(Array.from({length:8},(_,index)=>repository.mutate(CAMPAIGN_ID,current=>ProductionCampaignSchema.parse({...current,title:`Revision ${index}`,revision:current.revision+1,updatedAt:NOW}))));
     expect((await repository.require(CAMPAIGN_ID)).revision).toBe(9);
   });
@@ -92,19 +92,19 @@ describe("B7 Production Campaign core",()=>{
       active++;maxActive=Math.max(maxActive,active);
       await new Promise(resolve=>setTimeout(resolve,5));
       active--;
-      return ref.projectId===refs[2].projectId?{status:"waiting-review",currentStep:"final-review",finalArtifactIds:[]}:{status:"completed",finalArtifactIds:[`artifact:${ref.projectId}`]};
+      return ref.projectId===refs[2]!.projectId?{status:"waiting-review",currentStep:"final-review",finalArtifactIds:[]}:{status:"completed",finalArtifactIds:[`artifact:${ref.projectId}`]};
     }},{now:()=>new Date(NOW)});
     const result=await runner.run(CAMPAIGN_ID);
     expect(maxActive).toBe(2);
     expect(result.status).toBe("waiting-review");
     expect(result.missions.filter(item=>item.status==="completed")).toHaveLength(3);
-    expect(result.missions.find(item=>item.projectId===refs[2].projectId)).toMatchObject({status:"waiting-review",currentStep:"final-review"});
+    expect(result.missions.find(item=>item.projectId===refs[2]!.projectId)).toMatchObject({status:"waiting-review",currentStep:"final-review"});
     expect(result.revision).toBe(11);
   });
 
   it("prevents a second concurrent Campaign run after the first has claimed running state",async()=>{
     const{repository,service}=setup();
-    await service.create({title:"Single owner",maxConcurrency:1,missions:[refs[0]]});
+    await service.create({title:"Single owner",maxConcurrency:1,missions:[refs[0]!]});
     let release!:()=>void;
     const gate=new Promise<void>(resolve=>{release=resolve;});
     const runner=new ProductionCampaignRunner(repository,{runMission:async()=>{await gate;return{status:"completed",finalArtifactIds:[]};}},{now:()=>new Date(NOW)});
