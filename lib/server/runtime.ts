@@ -14,6 +14,8 @@ import {FileJobStore} from "@/lib/jobs/store";
 import {MediaDataMaintenanceService} from "@/lib/media/data-maintenance";
 import {MediaImportService} from "@/lib/media/import-service";
 import {WaveformService} from "@/lib/media/waveform-service";
+import {ProductionEditProtectionRepository} from "@/lib/production/autonomy/repository";
+import {ProductionEditProtectionService} from "@/lib/production/autonomy/service";
 import {ProductionMissionRepository} from "@/lib/production/mission/repository";
 import {ProductionMissionService} from "@/lib/production/mission/service";
 import {QAReportRepository} from "@/lib/production/qa/repository";
@@ -65,6 +67,8 @@ export const renderJobs=new RenderJobManager(jobRuntime);
 
 export const productionMissionRepository=getGlobalRuntime(`${dataRoot}:production-mission-repository`,()=>new ProductionMissionRepository(fileSystem,dataRoot));
 export const productionMissionService=getGlobalRuntime(`${dataRoot}:production-mission-service`,()=>new ProductionMissionService(productionMissionRepository,projectRepository));
+export const productionEditProtectionRepository=getGlobalRuntime(`${dataRoot}:production-edit-protection-repository`,()=>new ProductionEditProtectionRepository(fileSystem,dataRoot));
+export const productionEditProtectionService=getGlobalRuntime(`${dataRoot}:production-edit-protection-service`,()=>new ProductionEditProtectionService(productionEditProtectionRepository));
 export const qaReportRepository=getGlobalRuntime(`${dataRoot}:qa-report-repository`,()=>new QAReportRepository(fileSystem,dataRoot));
 export const productionQAService=getGlobalRuntime(`${dataRoot}:production-qa-service`,()=>new ProductionQAService(qaReportRepository,projectRepository,jobStore,productionMissionService,fileSystem,ffmpegAdapter));
 

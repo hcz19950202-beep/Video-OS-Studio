@@ -1,6 +1,6 @@
 # Video OS Studio — Current Project Status
 
-> Current-state source of truth for GPT Web, Local Codex, and other development agents. Historical PRs, commits, CI runs, and acceptance reports remain evidence. This file is intentionally concise and avoids using its own status-sync commit as product evidence.
+> Current-state source of truth for GPT Web, Local Codex, and other development agents. Historical PRs, commits, CI runs, and acceptance reports remain immutable evidence. Status-sync commits are governance truth, not substitutes for the exact product heads cited below.
 
 ## Current checkpoint
 
@@ -15,21 +15,19 @@ package_json_version: 2.3.1
 package_lock_version: 2.3.1
 
 active_development_workstream: V2.4 AUTONOMOUS PRODUCTION AGENT
-active_stage: B5A MISSION EXECUTOR COMPLETE CANDIDATE / B5B NEXT
-active_branch: feature/v2.4-b5a-mission-executor / PR #72 — FINAL STATUS SYNC
+active_stage: B5B CONTROLLED AUTONOMY COMPLETE CANDIDATE / B5C NEXT
+active_branch: feature/v2.4-b5b-controlled-autonomy / PR #75
 local_action_required: NONE
-next_action: FINAL EXACT-HEAD CI → READY PR #72 → EXPECTED-HEAD MERGE → EXACT-MAIN CI → START B5B BOUNDED AUTONOMY HANDLERS
+next_action: FINAL EXACT-HEAD CI → EXPECTED-HEAD MERGE PR #75 → EXACT-MAIN CI → START B5C PRODUCTION WORKSPACE
 v2_4_status: DEVELOPMENT ACTIVE
 ```
 
-## V2.4 authoritative planning docs
+## V2.4 authoritative docs and sequence
 
 ```text
 docs/prd/Video_OS_Studio_V2_4_Autonomous_Production_Agent_Master_PRD.md
 docs/prd/Video_OS_Studio_V2_4_Development_Plan.md
 ```
-
-Authoritative sequence:
 
 ```text
 R0  Repository / PRD / Runtime Truth Sync
@@ -38,150 +36,126 @@ B1  Production Planner + Mission Step Graph
 B2  Asset Intelligence + Semantic Retrieval
 B3  Reusable Video Skills
 B4  Self-QA + Repair Proposals
-B5  Controlled Autonomy + Mission Executor + Production Workspace
+B5a Mission Executor / risk policy
+B5b Controlled autonomy + protected-edit boundary
+B5c Production Workspace UX
 B6  End-to-End Autonomous Real Video Acceptance
-B7  Campaign / Batch Production + Production Dashboard
+B7  Campaign / Batch Production + Dashboard
 Release
 ```
 
-B5 is being delivered in bounded sub-stages:
-
-```text
-B5a Mission Executor + risk/checkpoint/budget contracts
-B5b Bounded real autonomy handlers + safeguards
-B5c Production Workspace / Mission UI
-```
-
-B6 must not start until B5 controlled autonomy is accepted. B7 must not begin until B6 proves one real autonomous video Mission end-to-end.
+B6 must not begin until B5 is accepted. B7 must not begin until B6 proves one real autonomous video Mission end-to-end.
 
 ## V2.4 milestone evidence
 
 ```text
-R0 Repository / PRD / Runtime Truth Sync    → COMPLETE / PR #66 / exact-main CI #769 PASS
-B0 Production Mission Contracts + Store    → COMPLETE / PR #67 / exact-main CI #781 PASS
-B1 Production Planner + Mission Step Graph → COMPLETE / PR #68 / exact-main CI #792 PASS
-B2 Asset Intelligence + Semantic Retrieval → COMPLETE / PR #69 / exact-main CI #825 PASS
-B3 Reusable Video Skills                   → COMPLETE / PR #70 / merge 62ba5ab13f49f1d920bfce6626c3ea2293128cc3 / exact-main CI #835 PASS
-B4 Self-QA + Repair Proposals              → COMPLETE / PR #71 / merge 695e49446fca7025d442a147737c126231ddf7fe / exact-main CI #840 PASS
-B5a Mission Executor Core                  → COMPLETE CANDIDATE / PR #72 / product head 775be240450245bef54cf1c1cfc450a5415b4802 / CI #842 attempt 2 PASS
-B5b Bounded Autonomy Handlers              → NEXT
-B5c Production Workspace / Mission UI      → NOT STARTED
-B6 Autonomous Real Video Acceptance        → NOT STARTED
-B7 Campaign / Batch Production             → NOT STARTED
+R0  Repository / PRD / Runtime Truth Sync    → COMPLETE / PR #66 / exact-main CI #769 PASS
+B0  Production Mission Contracts + Store    → COMPLETE / PR #67 / exact-main CI #781 PASS
+B1  Production Planner + Mission Step Graph → COMPLETE / PR #68 / exact-main CI #792 PASS
+B2  Asset Intelligence + Semantic Retrieval → COMPLETE / PR #69 / exact-main CI #825 PASS
+B3  Reusable Video Skills                   → COMPLETE / PR #70 / merge 62ba5ab13f49f1d920bfce6626c3ea2293128cc3 / exact-main CI #835 PASS
+B4  Self-QA + Repair Proposals              → COMPLETE / PR #71 / merge 695e49446fca7025d442a147737c126231ddf7fe / exact-main CI #840 PASS
+B5a Mission Executor Core                   → COMPLETE / PR #73 / merge b222f210535e96dfa5b0f36cdb04128f271cefd7 / exact-main CI #845 PASS
+B5b Controlled Autonomy + Protected Edits   → COMPLETE CANDIDATE / PR #75 / product head af8d6e6bdf89c3d2801b3546d5136bde9d657ac5 / CI #852 PASS
+B5c Production Workspace / Mission UI       → NEXT
+B6  Autonomous Real Video Acceptance        → NOT STARTED
+B7  Campaign / Batch Production             → NOT STARTED
 ```
+
+Draft PR #74 was closed without merge only because the connected GitHub Ready-for-review GraphQL mutation was incompatible with the current GitHub schema. PR #75 uses the same branch/history as a non-Draft replacement; product code was not changed by the PR-container replacement.
 
 ## Accepted architecture boundaries through B4
 
-### B0 — Production Mission
-
-- Production Mission is durable production-objective/state-machine truth outside `project.json`.
-- Mission persistence uses atomic/backup writes and repository mutation guards.
-- Mission references Agent Session, WorkflowRun, Job, Plan and QA evidence instead of duplicating those truths.
-- Mission creation captures Project revision without mutating Project truth.
-
-### B1 — Production Plan
-
-- Production Plan is immutable, inspectable production intent and dependency-graph truth, not an executor or mutation log.
-- Step kinds, owners, risks, evidence IDs and review requirements are allow-listed and validated.
-- Plan generation captures Project revision and fails closed on revision drift or concurrent Mission changes.
-- Re-planning preserves prior immutable Plans and records lineage.
-
-### B2 — Asset Intelligence
-
+- `project.json` remains durable editing truth; Mission, Plan, Workflow, Job, Agent Session, QA Report, Asset Intelligence, Video Skill, and Production Execution remain separate domain truths.
+- Production Mission is a durable production objective/state machine outside `project.json`.
+- Production Plan is immutable inspectable intent/dependency truth, not an executor or mutation log.
 - Asset Intelligence is derived metadata keyed to Project Asset identity, not a second media store.
-- Search is deterministic and stale derived records are excluded until current Asset descriptors match.
-- Agent retrieval scope is forced from active Project context.
-- No accepted claim of real visual face/object/topic understanding was introduced by B2.
+- Video Skills are typed/versioned declarative production knowledge, not executable code.
+- QA Reports are immutable structured production evidence; technical render QA uses actual Job/artifact + bounded FFmpeg/ffprobe evidence.
+- Semantic QA checks based on Project/Timeline truth do not claim rendered-frame visual understanding beyond demonstrated evidence.
+- B4 repair output remains bounded proposal/request truth and does not itself auto-mutate the Project.
 
-### B3 — Reusable Video Skills
+## B5a — accepted Mission Executor core
 
-- Video Skills are typed/versioned declarative production knowledge, not executable code or Project truth.
-- Recipe references are constrained to allow-listed services/components and exact registry membership is re-resolved before application requests.
-- `search_video_skills` is read-only; `select_video_skill` is proposal-only.
-- Project ID/revision are context-owned and cannot be injected by the Agent caller.
-- Trusted mode ordering remains `REUSE > MODIFY > CREATE`; absent trusted reuse history, the current Agent path does not fabricate reuse evidence.
-- Final B3 frozen head `320b5f94038d4839c19a73d621f117df0e714119` passed CI #834; merge `62ba5ab13f49f1d920bfce6626c3ea2293128cc3` passed exact-main CI #835 / run `33187867867`.
+Accepted main: `b222f210535e96dfa5b0f36cdb04128f271cefd7` via PR #73. Exact-main CI #845 / run `33229524858` passed Ubuntu, Windows, Browser, and Windows exact-SHA media gates.
 
-### B4 — Self-QA + Repair Proposals
+B5a establishes:
 
-- QA reports are immutable structured production evidence outside Project truth.
-- Real technical render QA resolves only Project-owned render Job/artifact evidence and uses bounded FFmpeg/ffprobe inspection.
-- Missing artifacts, probe failures, invalid technical metadata and stale render revisions become structured findings.
-- Semantic hook/CTA/evidence/caption/Scene checks are Project/Timeline evidence and do not claim rendered-frame visual recognition.
-- Repair output is a bounded allow-listed proposal/request only; B4 does not execute repair loops or mutate Project automatically.
-- Frozen B4 head `1c23103d049ddeb428939faf364ed4286be09da8` passed CI #839 including exact-SHA Windows real-media QA smoke.
-- Accepted merge `695e49446fca7025d442a147737c126231ddf7fe` passed exact-main CI #840 / run `33191880356`.
+- durable `ProductionExecution` state outside `project.json`;
+- exact Mission + Plan + Project-revision binding;
+- dependency-aware one-step advancement;
+- application-owned minimum-risk and checkpoint policy;
+- Assist / Guided / Auto / full-production policy inputs without generic authority grants;
+- stable per-step operation IDs reused across retries;
+- durable attempt/provider/agent/repair/render/workflow budgets;
+- stale Project fail-closed behavior;
+- revision-evidence verification for mutation-sensitive completion;
+- cancellation that prevents later progression while preserving verifiable in-flight completion evidence;
+- re-plan invalidation of old executions/checkpoints;
+- restart-safe resume without rerunning completed steps;
+- a default blocking runner when no bounded handler exists.
 
-## B5a completion-candidate boundary
+B5a deliberately did not expose a public Mission execution API or implement a full real-production handler graph.
 
-B5a adds the controlled Mission Executor core without yet wiring real autonomous production handlers:
+## B5b — controlled autonomy completion candidate
 
-- durable `ProductionExecution` truth lives beneath the production runtime area and remains outside editable `project.json`;
-- execution is bound to exact Mission + Plan + expected Project revision;
-- `advance()` progresses at most one runnable step and only records completion after durable evidence;
-- stable per-step `operationId` is generated once and reused across retries, preventing retry identity drift;
-- completed/skipped steps are never rerun during normal resume or repository restart;
-- application-owned minimum risk policy prevents a Plan from lowering required safeguards;
-- explicit review, human-review, high-risk, final-review and autonomy-mode checkpoints are enforced by the application layer;
-- assist/guided/auto/full-production modes are policy inputs, not arbitrary authority grants;
-- stale Project revision fails closed before a bounded step runner is invoked;
-- revision-guarded completion requires `projectRevisionAfter` and verifies it against the currently loaded Project before accepting success;
-- attempt/total/render/workflow/provider-call/agent-turn/repair-loop budgets are durable and enforced;
-- runner-reported provider/agent/repair usage is persisted before over-budget execution is blocked;
-- cancellation writes Mission cancel intent first, stops later progression and preserves verifiable durable completion evidence returned by an already in-flight bounded step;
-- an already-cancelled Mission cannot create a new execution;
-- re-plan supersedes/blocks the old Plan execution and an old checkpoint cannot be approved against a new Plan;
-- Mission writes from the executor do not overwrite a concurrent cancel or Plan replacement;
-- review never creates an execution; inspection never creates an execution;
-- default `BlockingProductionStepRunner` fails closed when no bounded handler exists;
-- B5a does not directly invoke generic shell/filesystem/network/process execution and does not add a direct Project mutation authority path.
+Product head: `af8d6e6bdf89c3d2801b3546d5136bde9d657ac5` on PR #75. CI #852 / run `33231076522` passed all four gates:
 
-### B5a cloud evidence
+```text
+Ubuntu Verify        PASS — format / lint / typecheck / full unit suite / build
+Windows Verify       PASS — format / lint / typecheck / full unit suite
+Browser Smoke        PASS
+Windows Media Smoke  PASS — exact SHA / pinned FFmpeg / existing real-media + B4 QA regression
+```
 
-- Initial product commit: `bbbcb711ea1d66c56bdc2c50b53422caa838207c`, parent exactly accepted B4 main `695e49446fca7025d442a147737c126231ddf7fe`.
-- Initial diff: 14 expected files only; execution core plus minimal Mission/planner integration and dedicated schema/executor tests.
-- CI #841 passed format/lint/typecheck and exposed one new-test assertion-shape defect only: a Zod optional property was correctly omitted while `toMatchObject` expected an explicit `undefined`. Product cancellation behavior and durable evidence preservation were already correct.
-- Test-only correction commit `775be240450245bef54cf1c1cfc450a5415b4802` changed the assertion to semantic `toBeUndefined()` checks; no product code changed.
-- CI #842 / run `33196358223` on exact product head `775be240450245bef54cf1c1cfc450a5415b4802`:
-  - Ubuntu Verify PASS: format, lint, typecheck, full unit suite, build;
-  - Windows Verify PASS: format, lint, typecheck, full unit suite;
-  - Windows Media Smoke PASS on exact tested SHA, including pinned FFmpeg/runtime and existing real-media+B4 QA smoke;
-  - Browser Smoke first attempt hit one existing A4 stale-guard timing failure while H6/A7/W4 and other browser tests passed;
-  - same-SHA Browser job re-run passed without product-code changes, confirming the first A4 result as non-deterministic E2E timing rather than a B5a code regression;
-  - attempt 2 also re-confirmed Ubuntu, Windows and Windows Media gates as PASS.
-- B5a tests cover evidence-gated progression, guided checkpoints, stale Project revision, stable retry operation IDs, attempt and provider/agent/repair usage budgets, revision-evidence fail-closed behavior, cancelled-Mission start refusal, in-flight cancellation evidence preservation, re-plan checkpoint invalidation, and restart-safe resume without rerunning completed steps.
-- No Local Codex action is required for B5a itself: it introduces no new Remotion/HyperFrames/FFmpeg engine behavior. Existing CI still verifies no browser/media regression.
+B5b adds the application-owned manual/protected-edit boundary without changing Project Schema:
 
-B5a is not B5 complete. It deliberately does **not** implement real Agent/Workflow/Render step handlers, automatic QA-repair execution, full Mission autonomy, Production Workspace UI, or B6 autonomous real-video acceptance.
+- logical mutation targets distinguish `create`, `append`, `modify`, and `remove`;
+- Plan `targets` are optional, bounded, path-safe, and only valid for `edit-project` steps;
+- Plan/provider intent cannot self-assert AI ownership or remove protection;
+- durable protection truth lives outside `project.json` as `ai-owned`, `human-modified`, or explicit `protected` state;
+- native `Track.locked` is explicit non-overridable protection;
+- application-side command resolution derives actual Project mutation targets before delegate side effects;
+- actual mutation scope must be contained by the Plan-declared scope or execution fails closed;
+- safe creation and append to an unlocked collection may proceed when policy allows;
+- unknown existing `modify` / `remove` requires review;
+- recorded human-modified work requires review before overwrite;
+- explicit `protected` state and native Track locks remain blocked even after a checkpoint was approved;
+- missing application-owned target resolver fails closed;
+- stale Project revision fails closed before protected execution;
+- `ProductionEditProtectionRepository` / `ProductionEditProtectionService` are registered as server runtime singleton truth;
+- `createProtectedProductionExecutionService()` is the canonical composition path for a future concrete bounded runner + application target resolver;
+- integration tests exercise `ProductionExecutionService → ProductionMissionExecutor → ProtectedProductionStepRunner` and prove human-modified work blocks before delegate side effects.
 
-## B5b next-work boundary
+### B5b runtime truth
 
-Start B5b only after PR #72 merges and its merge commit passes exact-main CI.
+B5a/B5b are still controlled execution **core** layers. There is not yet a public Mission execution API or a concrete full-production step-handler graph in server runtime. B5c/B6 must not fake or bypass that gap: any future real mutation-capable runner must be composed through the protected application boundary and existing typed Agent/Workflow/Job/Apply services.
 
-B5b should connect the accepted Mission Executor to explicitly bounded application-owned handlers and existing domain services. It may:
+B5b does not add generic shell, arbitrary filesystem, unrestricted network, arbitrary process execution, raw computer-use authority, or a direct `project.json` write path.
 
-- implement a handler registry keyed to accepted Production Plan step kinds/owners;
-- connect low-risk Agent analysis/planning through existing Agent/tool boundaries without granting generic execution authority;
-- connect Project mutation only through the accepted Proposal → Review/Apply path or another equally bounded application-owned service accepted by tests;
-- connect Workflow and durable Job operations through existing typed services, preserving their own state truth and cancellation semantics;
-- connect preview/final render only through accepted durable Job/render services and evidence IDs;
-- feed accepted QA reports and bounded repair proposals back into the Mission loop with the already-defined repair-loop budget;
-- use the stable executor `operationId` as idempotency identity wherever a downstream side-effect service supports/needs it;
-- preserve stale-revision checks before and after mutation-sensitive operations;
-- retain application-owned risk/checkpoint policy and require human review where policy says so;
-- add integration tests proving that retries/cancel/restart/replan do not duplicate accepted side effects.
+## B5c next-work boundary
 
-B5b must not:
+B5c extends the existing Studio / AI Workspace surfaces to expose durable Mission truth without hidden chain-of-thought.
 
-- expose generic shell, arbitrary filesystem, unrestricted network or arbitrary process execution to the Agent/provider;
-- let model-generated Plan risk values bypass application-owned minimum risk;
-- mutate Project truth by directly writing `project.json`;
-- treat Workflow, Job, Agent Session, QA Report or Execution state as interchangeable truth;
-- silently retry a completed side effect under a new idempotency identity;
-- bypass a required checkpoint or final review;
-- claim B6 real autonomous video acceptance before the explicit B6 gate.
+Target surfaces:
 
-B5c Production Workspace/UI remains a later B5 sub-stage after the bounded executor/handler path is accepted.
+```text
+Mission goal/header
+Plan step list
+current activity + durable progress
+Autonomy mode
+review checkpoints
+Agent conversation
+Assets/evidence
+Skills used
+QA findings
+Workflow/Job links
+final-render readiness
+```
+
+Required visible states include planning, ready, running, waiting review, blocked, retrying, repairing, QA pass/fail, cancelled, and completed.
+
+B5c must reuse current Studio/Agent/Workflow UI architecture and must not introduce a second editor, second execution truth, or browser-only fake Mission state.
 
 ## V2.3.1 immutable release truth
 
@@ -229,19 +203,12 @@ Skill != Project
 Production Execution != Project
 Production Execution != Workflow
 Production Execution != Job
+Edit Protection != Project
 REUSE > MODIFY > CREATE
 ```
 
-- `project.json` remains durable editing truth.
-- Workflow state remains separate orchestration truth.
-- Durable Job state remains concrete execution truth.
-- Agent Session remains conversation/tool orchestration truth.
-- Production Mission is a production objective/state machine, not Project truth.
-- Production Plan is inspectable production intent and a step graph, not an executor or mutation log.
-- Asset Intelligence is derived metadata, not Project/media truth.
-- Video Skills are declarative reusable production knowledge, not arbitrary executable code.
-- QA Report is structured evidence, not Project truth.
-- Production Execution is controlled orchestration/audit truth, not Project, Workflow or Job truth.
-- stale Project/Workflow/Mission-dependent mutation state fails closed.
-- default server security remains loopback-first.
-- V2.4 autonomy must use application-owned policies and bounded services, never generic shell/filesystem/network/process authority.
+- stale Project/Workflow/Mission-dependent mutation state fails closed;
+- default server security remains loopback-first;
+- Project mutation must pass accepted application-owned mutation services and revision guards;
+- protected/manual edits must not be silently overwritten;
+- V2.4 autonomy must use application-owned policies and bounded typed services, never generic shell/filesystem/network/process/computer authority.

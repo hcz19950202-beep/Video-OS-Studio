@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {ProductionMutationTargetSchema} from "@/lib/production/autonomy/schema";
 import {ProductionMissionIdSchema} from "@/lib/production/mission/schema";
 import {VideoSkillEvidenceIdSchema} from "@/lib/production/skills/schema";
 import {ProjectIdSchema} from "@/schemas/project";
@@ -55,12 +56,15 @@ export const ProductionPlanStepSchema=z.object({
   reviewRequired:z.boolean(),
   requiresProjectRevision:z.boolean(),
   evidence:z.array(ProductionPlanEvidenceRefSchema).default([]),
+  targets:z.array(ProductionMutationTargetSchema).max(64).optional(),
 }).strict().superRefine((step,ctx)=>{
   if(new Set(step.dependsOn).size!==step.dependsOn.length)ctx.addIssue({code:"custom",path:["dependsOn"],message:"Plan step dependencies must be unique."});
   if(step.dependsOn.includes(step.id))ctx.addIssue({code:"custom",path:["dependsOn"],message:"Plan step cannot depend on itself."});
   if(step.risk==="high"&&!step.reviewRequired)ctx.addIssue({code:"custom",path:["reviewRequired"],message:"High-risk plan steps require an explicit review checkpoint."});
   if(!ownersByKind[step.kind].has(step.owner))ctx.addIssue({code:"custom",path:["owner"],message:`Plan step kind ${step.kind} cannot be owned by ${step.owner}.`});
   if(step.kind==="human-review"&&!step.reviewRequired)ctx.addIssue({code:"custom",path:["reviewRequired"],message:"Human-review steps require review."});
+  if(step.targets&&step.kind!=="edit-project")ctx.addIssue({code:"custom",path:["targets"],message:"Logical Project mutation targets are only valid on edit-project steps."});
+  if(step.targets&&new Set(step.targets.map(target=>`${target.kind}:${target.id??""}:${target.action}`)).size!==step.targets.length)ctx.addIssue({code:"custom",path:["targets"],message:"Plan step mutation targets must be unique."});
 });
 export type ProductionPlanStep=z.infer<typeof ProductionPlanStepSchema>;
 
