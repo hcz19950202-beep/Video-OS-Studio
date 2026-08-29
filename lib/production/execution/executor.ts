@@ -310,11 +310,6 @@ export class ProductionMissionExecutor{
       let execution=initial;
       if(terminalExecution(execution.status)||execution.status==="blocked"||execution.status==="waiting-review")return execution;
 
-      const currentProject=await this.projects.load(projectId);
-      if(currentProject.project.revision!==execution.expectedProjectRevision){
-        return this.blockForStaleProject(projectId,missionId,execution,plan,currentProject.project.revision);
-      }
-
       const step=nextRunnableStep(plan,execution);
       if(!step){
         const unfinished=firstUnfinishedStep(plan,execution);
@@ -328,6 +323,34 @@ export class ProductionMissionExecutor{
 
       const state=execution.steps.find(item=>item.stepId===step.id);
       if(!state)throw new Error("Execution step state is missing.");
+      const currentProject=await this.projects.load(projectId);
+      const revisionMatches=currentProject.project.revision===execution.expectedProjectRevision;
+      const interruptedMutationRecovery=
+        state.status==="running"&&
+        (step.kind==="edit-project"||step.kind==="repair")&&
+        currentProject.project.revision===execution.expectedProjectRevision+1;
+      if(!revisionMatches&&!interruptedMutationRecovery){
+        return this.blockForStaleProject(projectId,missionId,execution,plan,currentProject.project.revision);
+      }
+
+      if(interruptedMutationRecovery){
+        let recoveredResult:StepExecutionResult;
+        try{
+          recoveredResult=await this.runner.execute({
+            mission,
+            plan,
+            step,
+            execution,
+            operationId:state.operationId,
+            expectedProjectRevision:execution.expectedProjectRevision,
+            remainingUsageBudget:productionExecutionRemainingUsageBudget(execution),
+          });
+        }catch{
+          recoveredResult={status:"blocked",code:"STEP_RUNNER_ERROR",message:"The bounded production step runner failed before producing a valid durable result."};
+        }
+        return this.handleRunnerResult(projectId,missionId,plan,step,execution,recoveredResult);
+      }
+
       const risk=evaluateProductionStepRisk(step,mission.autonomyPolicy);
       if(risk.decision==="checkpoint"&&state.checkpoint?.status!=="approved"){
         const checkpoint=state.checkpoint?.status==="pending"?state.checkpoint:createProductionExecutionCheckpoint(step,risk.reason,{now:this.now,createId:this.createCheckpointId});
