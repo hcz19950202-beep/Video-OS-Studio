@@ -5,7 +5,7 @@ import {ProductionCampaignDashboardService} from "@/lib/production/campaign/dash
 import {ProductionCampaignRepository} from "@/lib/production/campaign/repository";
 import {ProductionCampaignRunner} from "@/lib/production/campaign/runner";
 import {ProductionCampaignService} from "@/lib/production/campaign/service";
-import type {ProductionCampaignMissionRef,ProductionCampaignMissionRunResult} from "@/lib/production/campaign/schema";
+import type {ProductionCampaignMissionRef} from "@/lib/production/campaign/schema";
 import {ProductionExecutionRepository} from "@/lib/production/execution/repository";
 import {ProductionMissionRepository} from "@/lib/production/mission/repository";
 import {ProductionMissionSchema} from "@/lib/production/mission/schema";
