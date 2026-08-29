@@ -144,7 +144,9 @@ const startAssetServer = async (repository: ProjectRepository) => {
 
 afterEach(async () => {
   await Promise.all(
-    servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))),
+    servers
+      .splice(0)
+      .map((server) => new Promise<void>((resolve) => server.close(() => resolve()))),
   );
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
@@ -155,7 +157,8 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
     async () => {
       expect(process.platform).toBe("win32");
       const source = process.env.B6_SOURCE_VIDEO;
-      if (!source) throw new Error("Set B6_SOURCE_VIDEO to a real MOV/MP4 before running B6 acceptance.");
+      if (!source)
+        throw new Error("Set B6_SOURCE_VIDEO to a real MOV/MP4 before running B6 acceptance.");
       const sourceInfo = await stat(source);
       if (sourceInfo.size <= 0) throw new Error("B6_SOURCE_VIDEO is empty.");
 
@@ -195,7 +198,9 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
         expectedRevision: 0,
         operationId: "b6-real-media-import",
       });
-      const sourceAsset = imported.project.assets.find((asset) => asset.id === imported.import.assetId);
+      const sourceAsset = imported.project.assets.find(
+        (asset) => asset.id === imported.import.assetId,
+      );
       expect(sourceAsset?.kind).toBe("video");
 
       const fixtureSetup = await mutations.applyTransaction(projectId, {
@@ -222,15 +227,33 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
             },
             {
               type: "add-scene",
-              scene: { id: "scene-hook", name: "Hook", semanticType: "hook", startFrame: 0, endFrame: 40 },
+              scene: {
+                id: "scene-hook",
+                name: "Hook",
+                semanticType: "hook",
+                startFrame: 0,
+                endFrame: 40,
+              },
             },
             {
               type: "add-scene",
-              scene: { id: "scene-proof", name: "Proof", semanticType: "proof", startFrame: 40, endFrame: 80 },
+              scene: {
+                id: "scene-proof",
+                name: "Proof",
+                semanticType: "proof",
+                startFrame: 40,
+                endFrame: 80,
+              },
             },
             {
               type: "add-scene",
-              scene: { id: "scene-cta", name: "CTA", semanticType: "cta", startFrame: 80, endFrame: SOURCE_DURATION_FRAMES },
+              scene: {
+                id: "scene-cta",
+                name: "CTA",
+                semanticType: "cta",
+                startFrame: 80,
+                endFrame: SOURCE_DURATION_FRAMES,
+              },
             },
           ],
         },
@@ -286,7 +309,8 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
           const motion = current.tracks
             .find((track) => track.id === "motion-main")
             ?.clips.find((clip) => clip.type === "motion" && clip.effectId === "big-number");
-          if (!video || !motion) throw new Error("B6 Workflow requires the imported source and Agent-applied visual.");
+          if (!video || !motion)
+            throw new Error("B6 Workflow requires the imported source and Agent-applied visual.");
           return {
             kind: "completed",
             projectRevision: current.project.revision,
@@ -302,22 +326,24 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
         jobs,
         { jobPollIntervalMs: 100 },
       );
-      const workflows = new WorkflowService(projects, workflowStore, workflowDefinitions, workflowRunner);
+      const workflows = new WorkflowService(
+        projects,
+        workflowStore,
+        workflowDefinitions,
+        workflowRunner,
+      );
 
       const missionRepository = new ProductionMissionRepository(fs, root);
       const planRepository = new ProductionPlanRepository(fs, root);
       const executionRepository = new ProductionExecutionRepository(fs, root);
-      const missionService = new ProductionMissionService(missionRepository, projects, { now: () => NOW });
+      const missionService = new ProductionMissionService(missionRepository, projects, {
+        now: () => NOW,
+      });
       const qaRepository = new QAReportRepository(fs, root);
-      const qa = new ProductionQAService(
-        qaRepository,
-        projects,
-        jobs,
-        missionService,
-        fs,
-        ffmpeg,
-        { now: () => NOW, createRepairId: () => QA_REPAIR_ID },
-      );
+      const qa = new ProductionQAService(qaRepository, projects, jobs, missionService, fs, ffmpeg, {
+        now: () => NOW,
+        createRepairId: () => QA_REPAIR_ID,
+      });
 
       const protectionRepository = new ProductionEditProtectionRepository(fs, root, () => NOW);
       const protection = new ProductionEditProtectionService(protectionRepository, () => NOW);
@@ -414,7 +440,11 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
       const visualPlans = new VisualPlanService(fs, projects, {} as never, hyperFrames, mutations);
       const qaPort = new ApplicationProductionQAStepPort(qa);
       const repairResolver = new ProductionQARepairResolver(qa);
-      const repairPort = new ApplicationProductionRepairStepPort(repairResolver, projects, mutations);
+      const repairPort = new ApplicationProductionRepairStepPort(
+        repairResolver,
+        projects,
+        mutations,
+      );
       const repairTargets = new ProductionQARepairTargetResolver(repairResolver);
       const applicationRunner = new ApplicationProductionStepRunner(
         agent,
@@ -430,7 +460,8 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
         id: MISSION_ID,
         projectId,
         title: "B6 Windows autonomous core acceptance",
-        brief: "Apply a bounded visual, run a real Workflow, render, repair duration once, rerender and pass QA.",
+        brief:
+          "Apply a bounded visual, run a real Workflow, render, repair duration once, rerender and pass QA.",
         target: {
           platform: "facebook",
           format: "product-ad",
@@ -561,7 +592,9 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
 
       const targets = {
         resolve: (input: ProductionStepRunnerInput) =>
-          input.step.kind === "repair" ? repairTargets.resolve(input) : visualTargets.resolve(input),
+          input.step.kind === "repair"
+            ? repairTargets.resolve(input)
+            : visualTargets.resolve(input),
       };
       const operationIds = [...OPERATION_IDS];
       const service = createProtectedProductionExecutionService(
@@ -602,7 +635,9 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
       expect(finalProject.project.revision).toBe(baseRevision + 2);
       expect(finalProject.canvas.durationInFrames).toBe(TARGET_DURATION_FRAMES);
       expect(
-        finalProject.tracks.find((track) => track.id === "video-main")?.clips.some((clip) => clip.id === "b6-source-video"),
+        finalProject.tracks
+          .find((track) => track.id === "video-main")
+          ?.clips.some((clip) => clip.id === "b6-source-video"),
       ).toBe(true);
       expect(
         finalProject.tracks
@@ -627,11 +662,22 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
       const firstQA = await qa.load(projectId, OPERATION_IDS[4]);
       const finalQA = await qa.load(projectId, OPERATION_IDS[7]);
       expect(firstQA?.status).toBe("repair-recommended");
-      expect(firstQA?.repairProposal?.actions.map((item) => item.kind)).toEqual(["adjust-scene-timing"]);
-      expect(firstQA?.findings.find((item) => item.id === "goal-duration-target")?.status).toBe("fail");
+      expect(firstQA?.repairProposal?.actions.map((item) => item.kind)).toEqual([
+        "adjust-scene-timing",
+      ]);
+      expect(firstQA?.findings.find((item) => item.id === "goal-duration-target")?.status).toBe(
+        "fail",
+      );
       expect(finalQA?.status).toBe("pass");
-      expect(finalQA?.findings.find((item) => item.id === "goal-duration-target")?.status).toBe("pass");
-      for (const findingId of ["content-hook", "content-cta", "content-evidence", "visual-scene-coverage"]) {
+      expect(finalQA?.findings.find((item) => item.id === "goal-duration-target")?.status).toBe(
+        "pass",
+      );
+      for (const findingId of [
+        "content-hook",
+        "content-cta",
+        "content-evidence",
+        "visual-scene-coverage",
+      ]) {
         expect(finalQA?.findings.find((item) => item.id === findingId)?.status).toBe("pass");
       }
 
@@ -642,12 +688,16 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
       expect(finalProbe.width).toBe(640);
       expect(finalProbe.height).toBe(360);
       expect(finalProbe.durationSeconds).toBeGreaterThan(0);
-      expect(Math.abs(finalProbe.durationSeconds - TARGET_DURATION_SECONDS)).toBeLessThanOrEqual(0.25);
+      expect(Math.abs(finalProbe.durationSeconds - TARGET_DURATION_SECONDS)).toBeLessThanOrEqual(
+        0.25,
+      );
       await expect(access(`${finalPath}.props.json`)).rejects.toThrow();
 
       const finalArtifacts = await jobs.getArtifacts(OPERATION_IDS[6]);
       expect(finalArtifacts).toEqual(
-        expect.arrayContaining([expect.objectContaining({ id: "render-output", kind: "render", mimeType: "video/mp4" })]),
+        expect.arrayContaining([
+          expect.objectContaining({ id: "render-output", kind: "render", mimeType: "video/mp4" }),
+        ]),
       );
       const agentSession = await sessions.require(projectId, OPERATION_IDS[0]);
       expect(agentSession.turns).toHaveLength(1);
@@ -684,7 +734,10 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
               })),
             },
             renders: [
-              { id: firstRender?.id, sourceProjectRevision: firstRender?.output?.sourceProjectRevision },
+              {
+                id: firstRender?.id,
+                sourceProjectRevision: firstRender?.output?.sourceProjectRevision,
+              },
               {
                 id: secondRender?.id,
                 sourceProjectRevision: secondRender?.output?.sourceProjectRevision,
@@ -701,7 +754,11 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
                 projectRevision: firstQA?.projectRevision,
                 repairActions: firstQA?.repairProposal?.actions.map((item) => item.kind),
               },
-              { id: finalQA?.id, status: finalQA?.status, projectRevision: finalQA?.projectRevision },
+              {
+                id: finalQA?.id,
+                status: finalQA?.status,
+                projectRevision: finalQA?.projectRevision,
+              },
             ],
             repair: { proposalId: firstQA?.repairProposal?.id, operationId: OPERATION_IDS[5] },
             finalArtifactIds: finalArtifacts.map((artifact) => artifact.id),
