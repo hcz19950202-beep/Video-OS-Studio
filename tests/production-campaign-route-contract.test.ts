@@ -90,11 +90,25 @@ describe("B7 Campaign route handlers",()=>{
 
     const runResponse=await actOnCampaign(request({action:"run"}),{params});
     expect(runResponse.status).toBe(200);
-    expect(mocks.run).toHaveBeenCalledWith(CAMPAIGN_ID,expect.any(AbortSignal));
+    expect(mocks.run).toHaveBeenCalledWith(CAMPAIGN_ID);
 
     const cancelResponse=await actOnCampaign(request({action:"cancel-mission",projectId:PROJECT_ID,missionId:MISSION_ID}),{params});
     expect(cancelResponse.status).toBe(200);
     expect(mocks.cancelMission).toHaveBeenCalledWith(CAMPAIGN_ID,{projectId:PROJECT_ID,missionId:MISSION_ID});
+  });
+
+  it("does not bind durable Campaign execution to the HTTP abort signal",async()=>{
+    const controller=new AbortController();
+    const runRequest=new Request("http://127.0.0.1:3000/api/campaigns",{
+      method:"POST",
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify({action:"run"}),
+      signal:controller.signal,
+    });
+    controller.abort();
+    const response=await actOnCampaign(runRequest,{params});
+    expect(response.status).toBe(200);
+    expect(mocks.run).toHaveBeenCalledWith(CAMPAIGN_ID);
   });
 
   it("fails closed on unknown or over-privileged actions",async()=>{
