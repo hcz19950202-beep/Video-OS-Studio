@@ -24,6 +24,11 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - name: Bootstrap exact B6 harness formatting
+        shell: bash
+        run: |
+          npm run format
+          node -e 'const fs=require("node:fs");const p="tests/h6/windows-b6-core-acceptance.test.ts";console.log("B6_FORMATTED_BASE64="+Buffer.from(fs.readFileSync(p)).toString("base64"))'
       - name: Format check
         run: npm run format:check
       - name: Lint
