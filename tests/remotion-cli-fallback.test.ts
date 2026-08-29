@@ -3,13 +3,20 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { NodeRemotionCliAdapter } from "@/adapters/remotion-cli";
-import { ToolRunError, type ToolRunInput, type ToolRunResult, type ToolRunner } from "@/lib/process/tool-runner";
+import {
+  ToolRunError,
+  type ToolRunInput,
+  type ToolRunResult,
+  type ToolRunner,
+} from "@/lib/process/tool-runner";
 import { ProjectSchema } from "@/schemas/project";
 
 const roots: string[] = [];
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+  );
 });
 
 const project = () =>
@@ -66,7 +73,6 @@ const makePaths = async () => {
   const root = await mkdtemp(join(tmpdir(), "video-os-remotion-fallback-"));
   roots.push(root);
   return {
-    root,
     outputPath: join(root, "render", "final.mp4"),
     entryPoint: join(root, "entry.ts"),
   };
@@ -119,7 +125,10 @@ describe("NodeRemotionCliAdapter compatibility fallback", () => {
     const runner: ToolRunner = {
       run: async (input) => {
         calls += 1;
-        throw failedRender(input, "Chrome renderer crashed while evaluating the composition.");
+        throw failedRender(
+          input,
+          "Chrome renderer crashed while evaluating the composition.",
+        );
       },
     };
 
