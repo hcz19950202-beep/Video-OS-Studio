@@ -1,4 +1,5 @@
 import {randomUUID} from "node:crypto";
+import {isDeepStrictEqual} from "node:util";
 import {z} from "zod";
 import type {FileSystemAdapter,FfmpegAdapter,MediaProbeResult} from "@/adapters/contracts";
 import type {JobArtifact,JobRecord} from "@/lib/jobs/schema";
@@ -13,6 +14,7 @@ import {
   QAReportIdSchema,
   QAReportSchema,
   RunProductionQAInputSchema,
+  type QAExpectations,
   type QAFinding,
   type QAReport,
   type RunProductionQAInput,
@@ -43,6 +45,16 @@ export interface ProductionQAServiceOptions{
   createReportId?:()=>string;
   createRepairId?:()=>string;
 }
+export interface ProductionQARunOptions{
+  reportId?:string;
+}
+
+const reportMatchesStableRun=(report:QAReport,input:{projectId:string;missionId:string;renderJobId:string;projectRevision:number;expectations:QAExpectations})=>
+  report.projectId===input.projectId&&
+  report.missionId===input.missionId&&
+  report.renderJobId===input.renderJobId&&
+  report.projectRevision===input.projectRevision&&
+  isDeepStrictEqual(report.expectations,input.expectations);
 
 export class ProductionQAService{
   private readonly now:()=>string;
@@ -74,11 +86,21 @@ export class ProductionQAService{
 
   private notEvaluatedTechnical(id:string,message:string){return this.technicalFinding(id,"not-evaluated","info",message);}
 
-  async run(projectIdInput:string,input:RunProductionQAInput):Promise<QAReport>{
+  async run(projectIdInput:string,input:RunProductionQAInput,runOptions:ProductionQARunOptions={}):Promise<QAReport>{
     const projectId=ProjectIdSchema.parse(projectIdInput);
     const parsed=RunProductionQAInputSchema.parse(input);
     const expectations=QAExpectationsSchema.parse(parsed.expectations??{});
-    await this.requireProject(projectId);
+    const initialProject=await this.requireProject(projectId);
+    const stableReportId=runOptions.reportId===undefined?undefined:QAReportIdSchema.parse(runOptions.reportId);
+    if(stableReportId){
+      const existing=await this.repository.load(projectId,stableReportId);
+      if(existing){
+        if(!reportMatchesStableRun(existing,{projectId,missionId:parsed.missionId,renderJobId:parsed.renderJobId,projectRevision:initialProject.project.revision,expectations}))throw new Error("Stable QA report ID conflicts with different immutable QA input.");
+        await this.missions.linkQAReport(projectId,parsed.missionId,existing.id);
+        return existing;
+      }
+    }
+
     let mission=await this.missions.require(projectId,parsed.missionId);
     if(mission.projectId!==projectId)throw new QAInvalidRenderJobError("The QA Mission does not belong to this Project.");
     const job=await this.jobs.get(parsed.renderJobId);
@@ -178,7 +200,7 @@ export class ProductionQAService{
     }
     findings.push(...semantic);
 
-    const reportId=QAReportIdSchema.parse(this.createReportId());
+    const reportId=QAReportIdSchema.parse(stableReportId??this.createReportId());
     const repairProposal=createQARepairProposal({reportId,projectId,baseProjectRevision:project.project.revision,findings},{now:this.now,createId:this.createRepairId});
     const technicalEvidence={
       ...(renderArtifact?{renderArtifactId:renderArtifact.id}:{}),
@@ -198,9 +220,16 @@ export class ProductionQAService{
       ...(repairProposal?{repairProposal}:{}),
       createdAt:this.now(),
     });
-    await this.repository.create(report);
-    await this.missions.linkQAReport(projectId,mission.id,report.id);
-    return report;
+    let persisted=report;
+    try{persisted=await this.repository.create(report);}
+    catch(error){
+      if(!stableReportId)throw error;
+      const raced=await this.repository.load(projectId,stableReportId);
+      if(!raced||!reportMatchesStableRun(raced,{projectId,missionId:mission.id,renderJobId:job.id,projectRevision:project.project.revision,expectations}))throw error;
+      persisted=raced;
+    }
+    await this.missions.linkQAReport(projectId,mission.id,persisted.id);
+    return persisted;
   }
 
   async load(projectId:string,reportId:string){await this.requireProject(projectId);return this.repository.load(projectId,reportId);}
