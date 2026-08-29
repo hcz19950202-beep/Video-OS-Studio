@@ -5,6 +5,7 @@ import type {Project} from "@/schemas/project";
 import {VisualPlannerPanel} from "@/components/planner/VisualPlannerPanel";
 import {AgentWorkspacePanel} from "@/components/studio/AgentWorkspacePanel";
 import {ProductionMissionPanel} from "@/components/studio/ProductionMissionPanel";
+import missionStyles from "@/components/studio/ProductionMissionPanel.module.css";
 import {WorkflowPanel} from "@/components/studio/WorkflowPanel";
 import {useSelectionStore} from "@/store/selection-store";
 import {getStudioMetrics} from "@/lib/studio/metrics";
@@ -30,7 +31,7 @@ export const AIWorkspacePanel=({project,onProjectChange}:{project:Project;onProj
       <button type="button" role="tab" aria-selected={mode==="composer"} className={mode==="composer"?"active":""} onClick={()=>setMode("composer")}>{workflowText.composer}</button>
       <button type="button" role="tab" aria-selected={mode==="workflow"} className={mode==="workflow"?"active":""} onClick={()=>setMode("workflow")}>{workflowText.workflow}</button>
     </div>
-    {mode==="mission"?<ProductionMissionPanel key={`mission-${project.project.id}`} project={project}/>:mode==="agent"?<AgentWorkspacePanel key={`agent-${project.project.id}`} project={project} onProjectChange={onProjectChange}/>:mode==="workflow"?<WorkflowPanel key={`workflow-${project.project.id}`} project={project} onProjectChange={onProjectChange}/>:<>
+    {mode==="mission"?<div className={missionStyles.root}><ProductionMissionPanel key={`mission-${project.project.id}`} project={project}/></div>:mode==="agent"?<AgentWorkspacePanel key={`agent-${project.project.id}`} project={project} onProjectChange={onProjectChange}/>:mode==="workflow"?<WorkflowPanel key={`workflow-${project.project.id}`} project={project} onProjectChange={onProjectChange}/>:<>
       <section className="v21-ai-context">
         <header><small>AI COMPOSER · CONTEXT</small><strong>{zh?"导演上下文":"Director Context"}</strong></header>
         <div className="v21-ai-context-project"><strong>{project.project.name}</strong><span>{project.canvas.width}×{project.canvas.height} · {canvas.aspectLabel} · {project.canvas.fps} fps</span></div>
