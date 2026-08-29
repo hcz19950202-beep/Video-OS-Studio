@@ -26,10 +26,8 @@ import { ProductionExecutionCampaignMissionPort } from "@/lib/production/campaig
 import { ProductionCampaignRepository } from "@/lib/production/campaign/repository";
 import { ProductionCampaignRunner } from "@/lib/production/campaign/runner";
 import { ProductionCampaignService } from "@/lib/production/campaign/service";
-import type {
-  ProductionCampaignMissionExecutionPort,
-  ProductionCampaignMissionRunResult,
-} from "@/lib/production/campaign/runner";
+import type { ProductionCampaignMissionExecutionPort } from "@/lib/production/campaign/runner";
+import type { ProductionCampaignMissionRunResult } from "@/lib/production/campaign/schema";
 import {
   ApplicationProductionStepRunner,
   ProductionVisualPlanProposalResolver,
@@ -500,9 +498,11 @@ export const runB7WindowsCampaignAcceptance = async () => {
     expect(reloaded.campaign.status).toBe("completed");
     expect(reloaded.missions).toHaveLength(2);
     expect(reloaded.missions.every((mission) => mission.live?.activity === "completed")).toBe(true);
-    expect(reloaded.missions.every((mission) => mission.live?.finalRenderReadiness === "ready")).toBe(
-      true,
-    );
+    expect(
+      reloaded.missions.every(
+        (mission) => mission.live?.finalRenderReadiness === "rendered-awaiting-qa",
+      ),
+    ).toBe(true);
 
     const residue = (await readdir(root, { recursive: true })).map((item) => String(item));
     expect(residue.some((item) => item.endsWith(".props.json"))).toBe(false);
