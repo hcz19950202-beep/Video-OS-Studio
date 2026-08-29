@@ -17,12 +17,15 @@ const input=():ProductionStepRunnerInput=>({
     id:PLAN_ID,
     projectId:PROJECT_ID,
     missionId:MISSION_ID,
+    version:1,
     baseProjectRevision:3,
+    summary:"Render then run bounded QA.",
     steps:[
       {id:"render",kind:"render-final",title:"Render",objective:"Render",dependsOn:[],risk:"medium",owner:"job",reviewRequired:false,requiresProjectRevision:true,evidence:[]},
       {id:"qa",kind:"qa",title:"QA",objective:"QA",dependsOn:["render"],risk:"low",owner:"application",reviewRequired:false,requiresProjectRevision:true,evidence:[]},
     ],
-  } as ProductionStepRunnerInput["plan"],
+    generatedAt:NOW,
+  },
   step:{id:"qa",kind:"qa",title:"QA",objective:"QA",dependsOn:["render"],risk:"low",owner:"application",reviewRequired:false,requiresProjectRevision:true,evidence:[]},
   execution:{
     id:EXECUTION_ID,
