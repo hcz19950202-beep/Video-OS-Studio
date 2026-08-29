@@ -130,7 +130,7 @@ export const CreateProductionCampaignInputSchema=z.object({
   sharedReferences:ProductionCampaignSharedReferencesSchema.optional(),
   missions:z.array(ProductionCampaignMissionRefSchema).min(1).max(128),
 }).strict().superRefine((input,ctx)=>MissionSetInvariant(input.missions,ctx));
-export type CreateProductionCampaignInput=z.infer<typeof CreateProductionCampaignInputSchema>;
+export type CreateProductionCampaignInput=z.input<typeof CreateProductionCampaignInputSchema>;
 
 export const ProductionCampaignMissionRunResultSchema=z.object({
   status:ProductionCampaignMissionOutcomeStatusSchema,
