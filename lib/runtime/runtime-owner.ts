@@ -1,12 +1,11 @@
 import {randomUUID} from "node:crypto";
 import {execFile} from "node:child_process";
-import {mkdir,open,readdir,readFile,rm,writeFile} from "node:fs/promises";
+import {mkdir,readdir,readFile,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {promisify} from "node:util";
 import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
+import {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";
 
-const lockSleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
-const lockContention=(code:string|undefined)=>code==="EEXIST"||code==="EPERM"||code==="EACCES";
 const ownerTempFile=(name:string)=>name.startsWith(".runtime-owner.json.")&&name.endsWith(".tmp");
 const execFileAsync=promisify(execFile);
 
@@ -77,28 +76,7 @@ export class RuntimeOwnerStore{
 
   private async withLock<T>(fn:()=>Promise<T>):Promise<T>{
     await this.ensure();
-    let handle:Awaited<ReturnType<typeof open>>|undefined;
-    for(;;){
-      try{handle=await open(this.runtimeLockPath,"wx");break;}
-      catch(error){
-        const code=(error as NodeJS.ErrnoException).code;
-        if(!lockContention(code))throw error;
-        try{
-          const existing=await open(this.runtimeLockPath,"r");
-          try{if(Date.now()-(await existing.stat()).mtimeMs>30_000)await rm(this.runtimeLockPath,{force:true});}
-          finally{await existing.close();}
-        }catch(lockError){
-          const lockCode=(lockError as NodeJS.ErrnoException).code;
-          if(lockCode!=="ENOENT"&&!lockContention(lockCode))throw lockError;
-        }
-        await lockSleep(5);
-      }
-    }
-    try{return await fn();}
-    finally{
-      await handle.close();
-      await rm(this.runtimeLockPath,{force:true});
-    }
+    return withExclusiveFileLock(this.runtimeLockPath,fn);
   }
 
   private async atomicWrite(owner:RuntimeOwner){
