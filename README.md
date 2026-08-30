@@ -199,6 +199,7 @@ tag message:         Video OS Studio v2.4.2
 ```
 
 `v2.4.0` and `v2.4.1` were independently reverified and remain unchanged.
+
 ## V2.4.1 release verification
 
 The accepted hardening exact SHA was:

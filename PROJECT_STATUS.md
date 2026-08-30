@@ -60,6 +60,7 @@ Authoritative release evidence:
 ## V2.4.2 accepted patch truth
 
 V2.4.2 is a bounded correctness/liveness patch over V2.4.1. It adds no Project Schema migration and keeps Node, Remotion, HyperFrames, Playwright and Prettier pins frozen. The accepted engineering candidate is `c3825fe42e77c4369ec6e03d89204161764667e9`; mandatory Local Windows acceptance passed on that exact SHA, including targeted real HyperFrames recertification. PR #88 merged the exact accepted head to engineering main `8e8f63cd570af460a53199f45a139ee78c3a4dcb`, and PR #89 finalized release metadata before immutable tagging.
+
 ## Immutable V2.4.1 release truth
 
 Video OS Studio V2.4.1 is released at the independently verified annotated tag `v2.4.1`.

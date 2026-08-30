@@ -223,6 +223,7 @@ v2.4.1 target:       4c105bad936479690711c03f3e349db36fbadaf5
 v2.4.0 tag object:   96ebdd67e2412ed4d25be36cc6120f1bba8a8734
 v2.4.0 target:       da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
 ```
+
 ## Release contract
 
 ```text
