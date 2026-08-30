@@ -4,60 +4,55 @@ Video OS Studio is a local-first AI-native video production workspace.
 
 ## Current immutable release
 
-**Video OS Studio v2.3.1 is the current immutable release.**
+**Video OS Studio v2.4.0 is released.**
 
 ```text
-Product version: 2.3.1
+Product version: 2.4.0
 Project Schema: 2.0.0
-Release commit: 6e07d1dbdd0ec4d64d022f7c821e133ddf207637
-Release tag: v2.3.1 (annotated, verified)
-Tag object: b91d0c3adbaef09cd5c323481ec6bb04c516dd6e
+Release commit: da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
+Release tag: v2.4.0 (annotated, verified)
+Tag object: 96ebdd67e2412ed4d25be36cc6120f1bba8a8734
 ```
 
-The `v2.3.0` and `v2.3.1` tags are immutable release evidence and must never be moved or recreated.
+The annotated `v2.4.0` tag is the immutable current release boundary. Previous `v2.3.0` and `v2.3.1` release tags remain immutable evidence and must never be moved or recreated.
 
-## V2.4.0 release candidate
+Release evidence is recorded in:
 
-V2.4 product development is complete through B7 and is now in release finalization.
-
-Accepted V2.4 product main before release metadata:
-
-`fe883ca5581d721e996e833d43d7b7f88faebc41`
-
-Resulting exact-main CI #969 / run `33291257927` passed all current gates:
-
-- Ubuntu Verify;
-- Windows Verify;
-- Browser Smoke;
-- Windows Media Smoke;
-- Windows B6 Core Acceptance;
-- Windows B7 Campaign Acceptance.
-
-The mandatory B7 Local Windows real-user-media gate also passed using two distinct real MP4 files, including the same 583.354921-second H.264/AAC source that exposed the previous Remotion frame-extraction defect.
-
-Release branch:
-
-`release/v2.4.0-finalization`
-
-Candidate metadata:
-
-```text
-package.json version:                 2.4.0
-package-lock.json version:            2.4.0
-package-lock packages[""].version:    2.4.0
-Project Schema:                       2.0.0
-candidate tag:                        v2.4.0
-```
-
-**`v2.4.0` is not an immutable release until the release PR merges, resulting exact-main CI passes, an annotated tag is created on that exact release commit, and the tag object/dereferenced commit are independently verified.**
+[`docs/acceptance/V2_4_RELEASE_FINALIZATION.md`](docs/acceptance/V2_4_RELEASE_FINALIZATION.md)
 
 The live repository source of truth is:
 
 [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 
-Release evidence is recorded in:
+## What V2.4 adds
 
-[`docs/acceptance/V2_4_RELEASE_FINALIZATION.md`](docs/acceptance/V2_4_RELEASE_FINALIZATION.md)
+V2.4 moves Video OS Studio from an AI Editing Agent toward a bounded autonomous video-production operating system:
+
+```text
+Production Goal
+→ Production Mission
+→ Production Plan / Step Graph
+→ Asset Intelligence + reusable Skills
+→ bounded Agent execution
+→ protected Project mutation
+→ existing Workflow / Durable Jobs
+→ Remotion render
+→ Self-QA
+→ bounded repair
+→ final review/evidence
+```
+
+Campaign/batch production sits above isolated Mission/Project truth:
+
+```text
+Campaign
+  shared logical references / policy
+  ├─ Mission A → Project A → Workflow / Jobs
+  ├─ Mission B → Project B → Workflow / Jobs
+  └─ Mission C → Project C → Workflow / Jobs
+```
+
+V2.4 does not replace the accepted editing/runtime foundations. `project.json` remains editing truth, Workflow remains orchestration truth, Durable Jobs remain concrete execution truth, and Remotion remains the master renderer.
 
 ## Product roadmap
 
@@ -84,8 +79,7 @@ Engineering Hardening / Patch Acceptance
 
 V2.4.0
 Autonomous Production Agent + Campaign Production
-        ✅ PRODUCT ACCEPTED
-        ⏳ RELEASE FINALIZATION
+        ✅ RELEASED
 ```
 
 ## V2.4 delivery sequence
@@ -102,110 +96,46 @@ B5b Controlled Autonomy + Protected Edits       ✅
 B5c Production Workspace / Mission UI           ✅
 B6  End-to-End Autonomous Real Video Acceptance ✅
 B7  Campaign / Batch Production + Dashboard     ✅
-V2.4.0 Release Finalization                     ⏳
-```
-
-## Accepted product model
-
-```text
-Words
-→ Meaning
-→ Scenes
-→ Visual Decisions
-→ Clips
-→ Render
-```
-
-V2.2 orchestration:
-
-```text
-User Goal
-→ WorkflowRun
-→ registered Stages
-→ existing Durable Jobs / Services / Project Transactions
-→ Human Review
-→ editable Project
-→ Remotion Final Render
-```
-
-V2.3 conversational control:
-
-```text
-User Goal
-→ Agent Session
-→ bounded Project / Script / Scene / Selection / Workflow context
-→ production provider / allow-listed tools
-→ validated Proposal
-→ Review / Diff
-→ explicit Apply
-→ existing Project / Workflow / Job services
-→ latest Project revision
-```
-
-V2.4 production orchestration:
-
-```text
-Production Goal
-→ Production Mission
-→ Production Plan / Step Graph
-→ Asset Intelligence + reusable Skills
-→ bounded Agent execution
-→ protected Project mutation
-→ existing Workflow / Durable Jobs
-→ Remotion render
-→ Self-QA
-→ bounded repair
-→ final review/evidence
-```
-
-V2.4 Campaign control plane:
-
-```text
-Campaign
-  shared logical references / policy
-  ├─ Mission A → Project A → Workflow / Jobs
-  ├─ Mission B → Project B → Workflow / Jobs
-  └─ Mission C → Project C → Workflow / Jobs
-```
-
-Permanent distinctions:
-
-```text
-Source Media != Project Canvas != Export Profile
-Project != Workflow != Job
-Agent Session != Project
-Mission != Project
-Mission != Workflow
-Production Plan != Project
-QA Report != Project
-Campaign != Project
-Campaign != Mission
+V2.4.0 Release                                  ✅ VERIFIED
 ```
 
 ## V2.4 accepted capabilities
 
-### Project / durability
-
-- Project Schema `2.0.0` remains the editing truth;
-- validated Project Commands / Transactions;
-- revision/idempotency protection;
-- bounded Undo / Redo;
-- atomic save/reopen and migrations;
-- project-relative asset paths;
-- `VIDEO_OS_DATA_ROOT` runtime-data separation.
-
-### Autonomous production
+### Production Mission / planning
 
 - durable Production Missions outside `project.json`;
 - validated Production Plans and bounded step graphs;
+- stale Project revision handling;
+- explicit evidence references and deterministic application-level progression.
+
+### Asset Intelligence / Skills
+
 - semantic Asset Intelligence with invalidation and logical asset IDs;
+- bounded semantic retrieval;
 - typed/versioned reusable Video Skills;
+- `REUSE > MODIFY > CREATE` as a permanent product principle.
+
+### Controlled autonomy
+
 - application-owned autonomy/risk policy;
-- protected/manual edit boundaries and revision guards;
-- restart-safe Production Execution with idempotent operation/Job identities;
-- real encoded-output Self-QA and bounded repair;
-- Production Workspace showing durable Mission truth after reload;
-- end-to-end real-video acceptance through Agent → Project → Workflow/Jobs → render → QA → repair.
+- revision/idempotency guards;
+- protected/manual edit boundaries;
+- restart-safe Mission execution;
+- no raw model-to-Project mutation;
+- no generic Agent shell/filesystem/Git/network/process/computer tools.
+
+### Self-QA / repair
+
+- actual rendered-output technical/content/goal evidence;
+- durable QA reports;
+- bounded targeted repair;
+- no infinite autonomous repair loop.
+
+### Production Workspace
+
+- durable Mission state after reload/restart;
+- Plan/current activity/progress/checkpoints/QA/render readiness surfaced from durable truth;
+- no hidden chain-of-thought exposure.
 
 ### Campaign / batch production
 
@@ -217,8 +147,8 @@ Campaign != Mission
 - per-Mission cancel/failure isolation;
 - retry-failed without rerunning successful siblings;
 - explicit resume for waiting-review/blocked without hidden approval;
-- archive does not delete Project/Mission truth;
-- Dashboard reconstructs from durable Campaign + current Mission/Project state.
+- Campaign archive does not delete Project/Mission truth;
+- Dashboard reconstructs from durable Campaign + Mission/Project state.
 
 ### Media / renderer compatibility
 
@@ -239,60 +169,97 @@ Campaign != Mission
 - **FFmpeg / ffprobe** behind adapters/services;
 - **Playwright 1.62.1** for browser acceptance.
 
-## Agent safety model
+## Release verification
 
-Durable mutation remains application-owned:
+The V2.4 release-finalization PR #80 froze exact head:
+
+`c4a395f9d3059dab7d2b6794df57fce292e8ea6d`
+
+Exact-head CI #970 / run `33291797863` passed all six current gates. PR #80 then merged with expected-head protection as:
+
+`da22a5415cbf8ad2a9ce93b912b41b787b29a9b1`
+
+Resulting main CI #971 / run `33292090068` completed `SUCCESS`. Attempt 1 had one legacy H1 Browser Smoke 10-second Undo-state timing timeout while all other gates passed. The release PR head and resulting merge commit had the identical Git tree, and a Browser-only rerun on the unchanged exact main SHA passed the full Playwright suite. No product code changed for that rerun.
+
+The annotated `v2.4.0` tag was then created by run `33292747452` only after confirming `origin/main` still exactly equaled the release commit and the tag did not already exist. Independent GitHub Git Data inspection verified:
 
 ```text
-Agent decision
-→ validated tool/service request
-→ risk / revision / idempotency checks
-→ accepted Project / Workflow / Job service
-→ durable evidence
+tag ref:             refs/tags/v2.4.0
+tag object type:     tag
+tag object SHA:      96ebdd67e2412ed4d25be36cc6120f1bba8a8734
+tag target type:     commit
+dereferenced commit: da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
+tag message:         Video OS Studio v2.4.0
+```
+
+## Real-media acceptance
+
+V2.4 B6 and B7 used exact-SHA Windows acceptance for behavior cloud-only tests cannot fully prove. The final B7 gate used two distinct real user videos and successfully rendered the exact 583.354921-second H.264/AAC source that had exposed the prior Remotion frame-extraction defect.
+
+Final B7 proof included:
+
+- configured Mission concurrency `2` and observed concurrency `2`;
+- heavy-render resource limit `1`;
+- distinct Projects, Jobs and output paths;
+- durable Campaign reload to `completed`;
+- no cross-Project mutable truth leakage;
+- no `.props.json`, `.hf-work`, stale lock/tmp residue, or attributable orphan process;
+- primary local worktree preserved exactly.
+
+## Permanent architecture boundaries
+
+```text
+Source Media != Project Canvas != Export Profile
+Project != Workflow != Job
+Agent Session != Project
+Mission != Project
+Mission != Workflow
+Production Plan != Project
+QA Report != Project
+Skill != Project
+Campaign != Project
+Campaign != Mission
 ```
 
 Rules:
 
-- no direct model-to-`project.json` mutation;
-- no raw shell/filesystem/Git/network/process/computer Agent tools;
-- provider outputs and tool calls are schema validated;
-- provider secrets remain server-side in `.env.local`;
-- Agent Session, Mission, Plan, QA and Campaign truth remain outside Project JSON;
+- Project Schema remains `2.0.0`;
+- `project.json` remains durable editing truth;
+- Workflow and Durable Job stores remain separate truths;
+- Agent/provider/tool output never directly mutates persistence;
 - stale mutation-dependent work fails closed;
+- retry/restart must not duplicate successful mutations or Jobs;
 - protected/manual edits cannot be silently overwritten;
-- retry/restart cannot duplicate accepted mutations or Durable Jobs;
-- Campaign sibling Projects remain isolated;
-- `REUSE > MODIFY > CREATE` remains a permanent product principle.
+- Campaign operations cannot silently destroy sibling output truth;
+- no generic Agent shell/filesystem/network/process/computer authority.
 
 ## Development model
 
-Video OS Studio uses two coordinated execution environments with GitHub as the single code source of truth.
+Video OS Studio uses GitHub as the single code/release source of truth.
 
 ### GPT Web + GitHub
 
-Owns:
+Owns mainline product development:
 
 - architecture / PRDs;
 - cloud-safe implementation;
 - schemas/services/runtime composition;
 - branches / PRs / CI;
-- unit/API/contract/integration tests;
-- cloud-safe browser automation;
+- unit/API/contract/integration/browser tests;
 - review/merge/release truth.
 
 ### Local Codex on Windows
 
-Acts as an independent exact-SHA verifier when correctness genuinely depends on:
+Acts as an independent exact-SHA verifier when correctness genuinely depends on local/live behavior:
 
-- live provider credentials/network behavior;
-- real browser interaction;
-- real media/codecs;
+- real source media/codecs;
 - FFmpeg / ffprobe;
 - Remotion / Chrome;
 - HyperFrames;
 - video-use / Python;
-- process interruption/restart recovery;
-- final encoded-video proof.
+- live provider/network when explicitly in scope;
+- process interruption/restart behavior;
+- final encoded-video evidence.
 
 Local Codex does not own mainline development, merge decisions, or release tags.
 
@@ -304,7 +271,7 @@ Baseline:
 - npm;
 - FFmpeg / ffprobe;
 - Chromium/Chrome when browser/render validation is required;
-- runtime requirements in `.env.example`.
+- runtime requirements documented in `.env.example`.
 
 Example local data root:
 
@@ -321,16 +288,14 @@ npm run dev
 npm run start
 ```
 
-Both commands bind `127.0.0.1`. Network exposure is explicit:
+Explicit trusted-network entrypoints:
 
 ```bash
 npm run dev:remote
 npm run start:remote
 ```
 
-The remote entrypoints bind `0.0.0.0` and should only be used on a trusted network. Remotion and Workflow asset fetches use `VIDEO_OS_ASSET_BASE_URL`; non-loopback asset origins additionally require the explicit `VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN=1` opt-in.
-
-## Cloud verification baseline
+## Verification baseline
 
 ```bash
 npm ci
@@ -341,16 +306,14 @@ npm run test
 npm run build
 ```
 
-Browser-impacting changes also run Playwright acceptance. Windows/media-impacting changes use exact-SHA media gates. Current V2.4 CI also carries exact-SHA B6 and B7 Windows acceptance jobs.
+Browser-impacting work also runs Playwright acceptance. Windows/media-impacting work uses exact-SHA media gates. The current CI additionally carries Windows B6 Core Acceptance and Windows B7 Campaign Acceptance.
 
-Cloud CI does not replace mandatory real-user-media/local acceptance when the claimed behavior genuinely depends on local Windows/runtime/media conditions.
-
-## Read order before work
+## Read order before future work
 
 1. `PROJECT_STATUS.md`
 2. `AGENTS.md`
 3. `SYSTEM.md`
-4. active approved PRD / development plan
-5. active acceptance/release document when applicable
+4. the approved PRD / development plan for the next workstream
+5. relevant acceptance/release evidence
 
-Until the annotated `v2.4.0` tag is independently verified, `v2.3.1` remains the immutable released baseline and V2.4.0 remains a release candidate.
+No new V2.4.x or V2.5 product workstream is active until separately planned and approved from the immutable `v2.4.0` baseline.
