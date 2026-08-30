@@ -2,34 +2,62 @@
 
 Video OS Studio is a local-first AI-native video production workspace.
 
-## Current release
+## Current immutable release
 
-**Video OS Studio v2.3.0 is released.**
+**Video OS Studio v2.3.1 is the current immutable release.**
 
 ```text
-Product version: 2.3.0
+Product version: 2.3.1
 Project Schema: 2.0.0
-Accepted A7 main: 84e2826164ce6557cd99c4b42006ee703773c882
-Release commit: 562ffb26d5a04bd2898513893258f857187a00b4
-Release tag: v2.3.0 (annotated, verified)
-Tag object: 24069497b1986348510ef0d904382f5c3f99855d
+Release commit: 6e07d1dbdd0ec4d64d022f7c821e133ddf207637
+Release tag: v2.3.1 (annotated, verified)
+Tag object: b91d0c3adbaef09cd5c323481ec6bb04c516dd6e
 ```
 
-V2.3 adds the production Real AI Director / AI Editing Agent above the accepted V2.2 Workflow Runtime. The Agent reads bounded Project / Script / Scene / Selection / Workflow context, calls allow-listed typed tools, creates validated Proposals, requires Review / Diff and explicit user confirmation, and then applies through existing Project / Workflow / Job services rather than bypassing them.
+The `v2.3.0` and `v2.3.1` tags are immutable release evidence and must never be moved or recreated.
 
-A7 acceptance passed on Windows / Node 24 with real `volcengine-agent-plan / ark-code-latest`, including:
+## V2.4.0 release candidate
 
-- Talking Head compound Scene + Caption selection → real Agent → scoped Proposal → Review → Apply exactly once → reload/reopen;
-- Product Ad real proof/number/CTA → real Agent visual → existing Workflow → final encoded H.264 MP4 at 1920×1080 / 30 fps with ffprobe and extracted-frame proof;
-- manual edit → stale Proposal blocked → Re-plan latest → preserve manual edit → Apply exactly once;
-- real server restart → Project/Session/history/Proposal state restored → fresh read-only Agent turn sees latest revision with no mutation;
-- secret safety, idempotency, duplicate guards, process cleanup and repository integrity.
+V2.4 product development is complete through B7 and is now in release finalization.
 
-The final release candidate passed GitHub Actions Run #706 / `33098478140` across Ubuntu Verify, Windows Verify, Browser Smoke and Windows Media Smoke before PR #51 merged. The annotated `v2.3.0` tag dereferences exactly to the release commit above.
+Accepted V2.4 product main before release metadata:
+
+`fe883ca5581d721e996e833d43d7b7f88faebc41`
+
+Resulting exact-main CI #969 / run `33291257927` passed all current gates:
+
+- Ubuntu Verify;
+- Windows Verify;
+- Browser Smoke;
+- Windows Media Smoke;
+- Windows B6 Core Acceptance;
+- Windows B7 Campaign Acceptance.
+
+The mandatory B7 Local Windows real-user-media gate also passed using two distinct real MP4 files, including the same 583.354921-second H.264/AAC source that exposed the previous Remotion frame-extraction defect.
+
+Release branch:
+
+`release/v2.4.0-finalization`
+
+Candidate metadata:
+
+```text
+package.json version:                 2.4.0
+package-lock.json version:            2.4.0
+package-lock packages[""].version:    2.4.0
+Project Schema:                       2.0.0
+candidate tag:                        v2.4.0
+```
+
+**`v2.4.0` is not an immutable release until the release PR merges, resulting exact-main CI passes, an annotated tag is created on that exact release commit, and the tag object/dereferenced commit are independently verified.**
 
 The live repository source of truth is:
 
 [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
+
+Release evidence is recorded in:
+
+[`docs/acceptance/V2_4_RELEASE_FINALIZATION.md`](docs/acceptance/V2_4_RELEASE_FINALIZATION.md)
 
 ## Product roadmap
 
@@ -49,22 +77,32 @@ Workflow Runtime / Generate First Draft
 V2.3.0
 Real AI Director / AI Editing Agent
         ✅ RELEASED
+
+V2.3.1
+Engineering Hardening / Patch Acceptance
+        ✅ RELEASED
+
+V2.4.0
+Autonomous Production Agent + Campaign Production
+        ✅ PRODUCT ACCEPTED
+        ⏳ RELEASE FINALIZATION
 ```
 
-## V2.3 delivery sequence
+## V2.4 delivery sequence
 
 ```text
-R0 Repository / PRD / Runtime Truth Sync        ✅
-A0 Agent Contracts + Provider Abstraction       ✅
-A1 Context Builder + Allow-listed Tool Registry ✅
-A2 Agent Session Store + Multi-turn Runner      ✅
-A3 Production Real Provider Adapter             ✅
-A4 AI Workspace Agent UX + Review / Apply       ✅
-A5 Agent ↔ Workflow Integration                 ✅
-A6 Failure / Revision / Retry / Restart Hardening ✅
-A7 End-to-End Real Provider Product Acceptance  ✅
-V2.3.0 Release Finalization                     ✅
-Release tag v2.3.0                              ✅ VERIFIED
+R0  Repository / PRD / Runtime Truth Sync        ✅
+B0  Production Mission Contracts + Store        ✅
+B1  Production Planner + Mission Step Graph     ✅
+B2  Asset Intelligence + Semantic Retrieval     ✅
+B3  Reusable Video Skills                       ✅
+B4  Self-QA + Repair Proposals                  ✅
+B5a Mission Executor Core                       ✅
+B5b Controlled Autonomy + Protected Edits       ✅
+B5c Production Workspace / Mission UI           ✅
+B6  End-to-End Autonomous Real Video Acceptance ✅
+B7  Campaign / Batch Production + Dashboard     ✅
+V2.4.0 Release Finalization                     ⏳
 ```
 
 ## Accepted product model
@@ -104,19 +142,51 @@ User Goal
 → latest Project revision
 ```
 
-Important distinctions:
+V2.4 production orchestration:
+
+```text
+Production Goal
+→ Production Mission
+→ Production Plan / Step Graph
+→ Asset Intelligence + reusable Skills
+→ bounded Agent execution
+→ protected Project mutation
+→ existing Workflow / Durable Jobs
+→ Remotion render
+→ Self-QA
+→ bounded repair
+→ final review/evidence
+```
+
+V2.4 Campaign control plane:
+
+```text
+Campaign
+  shared logical references / policy
+  ├─ Mission A → Project A → Workflow / Jobs
+  ├─ Mission B → Project B → Workflow / Jobs
+  └─ Mission C → Project C → Workflow / Jobs
+```
+
+Permanent distinctions:
 
 ```text
 Source Media != Project Canvas != Export Profile
 Project != Workflow != Job
 Agent Session != Project
+Mission != Project
+Mission != Workflow
+Production Plan != Project
+QA Report != Project
+Campaign != Project
+Campaign != Mission
 ```
 
-## V2.3 accepted capabilities
+## V2.4 accepted capabilities
 
 ### Project / durability
 
-- Project Schema `2.0.0`;
+- Project Schema `2.0.0` remains the editing truth;
 - validated Project Commands / Transactions;
 - revision/idempotency protection;
 - bounded Undo / Redo;
@@ -124,32 +194,40 @@ Agent Session != Project
 - project-relative asset paths;
 - `VIDEO_OS_DATA_ROOT` runtime-data separation.
 
-### Real AI Director / Agent
+### Autonomous production
 
-- provider-neutral Agent Runner with production Volcengine Agent Plan support;
-- real provider model `ark-code-latest`;
-- bounded Project / Script / Scene / Clip / Selection / Workflow context;
-- compound Scene + Clip Studio selection;
-- server-side selection propagation into deterministic Rules Director planning;
-- allow-listed typed tools with schema validation;
-- durable multi-turn Agent Sessions and restart recovery;
-- validated visual and Workflow-action Proposals;
-- Review / Diff before mutation;
-- stale revision blocking and Re-plan latest;
-- explicit Apply through existing command/service boundaries;
-- cancel/retry and backup self-heal hardening;
-- duplicate confirmation / Apply idempotency.
+- durable Production Missions outside `project.json`;
+- validated Production Plans and bounded step graphs;
+- semantic Asset Intelligence with invalidation and logical asset IDs;
+- typed/versioned reusable Video Skills;
+- application-owned autonomy/risk policy;
+- protected/manual edit boundaries and revision guards;
+- restart-safe Production Execution with idempotent operation/Job identities;
+- real encoded-output Self-QA and bounded repair;
+- Production Workspace showing durable Mission truth after reload;
+- end-to-end real-video acceptance through Agent → Project → Workflow/Jobs → render → QA → repair.
 
-### Semantic editor
+### Campaign / batch production
 
-- word-level Script;
-- Script ↔ Player synchronization;
-- semantic Scenes;
-- Captions / Markers;
-- Generated Video Brand / Linked Styles;
-- Canvas / Timeline V2;
-- deterministic Rules Director / Visual Planner;
-- Change Preview and one logical Apply transaction.
+- durable Campaign aggregate outside Project truth;
+- one isolated mutable Project per Campaign Mission;
+- shared logical Brand/Asset/Policy/Skill/Export Template references;
+- bounded Mission concurrency;
+- heavy-render resource limiting;
+- per-Mission cancel/failure isolation;
+- retry-failed without rerunning successful siblings;
+- explicit resume for waiting-review/blocked without hidden approval;
+- archive does not delete Project/Mission truth;
+- Dashboard reconstructs from durable Campaign + current Mission/Project state.
+
+### Media / renderer compatibility
+
+- **Remotion 4.0.513** remains the master renderer;
+- ordinary Project video/B-roll defaults to frame-perfect `OffthreadVideo`;
+- only the exact known Offthread `No frame found at position` extraction failure may trigger one bounded HTML5 compatibility rerun inside the same Durable Render Job;
+- timeout/cancel/unrelated render errors are not reclassified;
+- transparent HyperFrames video remains on `OffthreadVideo`;
+- `.props.json` and `.hf-work` cleanup remain enforced.
 
 ### Workflow / engines
 
@@ -163,28 +241,28 @@ Agent Session != Project
 
 ## Agent safety model
 
-Required mutation path:
+Durable mutation remains application-owned:
 
 ```text
-Analyze / read context
-→ Suggest / Explain
-→ validated Proposal
-→ Change Preview / Diff
-→ User Confirm
-→ validated Command Transaction / bounded Service
+Agent decision
+→ validated tool/service request
+→ risk / revision / idempotency checks
+→ accepted Project / Workflow / Job service
+→ durable evidence
 ```
 
 Rules:
 
-- no direct model-to-Project mutation;
-- no raw shell/filesystem/Git/network Agent tools;
-- tool calls and outputs are schema validated;
+- no direct model-to-`project.json` mutation;
+- no raw shell/filesystem/Git/network/process/computer Agent tools;
+- provider outputs and tool calls are schema validated;
 - provider secrets remain server-side in `.env.local`;
-- Agent sessions live outside Project JSON;
-- stale proposals cannot silently apply after a Project revision change;
-- retry uses idempotency and must not duplicate edits;
-- Workflow actions execute only after explicit confirmation through existing Workflow Runtime;
-- Project Schema remains `2.0.0`.
+- Agent Session, Mission, Plan, QA and Campaign truth remain outside Project JSON;
+- stale mutation-dependent work fails closed;
+- protected/manual edits cannot be silently overwritten;
+- retry/restart cannot duplicate accepted mutations or Durable Jobs;
+- Campaign sibling Projects remain isolated;
+- `REUSE > MODIFY > CREATE` remains a permanent product principle.
 
 ## Development model
 
@@ -196,15 +274,15 @@ Owns:
 
 - architecture / PRDs;
 - cloud-safe implementation;
-- Agent schemas/provider abstraction/context/tools/session runner;
+- schemas/services/runtime composition;
 - branches / PRs / CI;
 - unit/API/contract/integration tests;
 - cloud-safe browser automation;
-- review/merge/current-state truth.
+- review/merge/release truth.
 
 ### Local Codex on Windows
 
-Owns exact-SHA validation for behavior cloud CI cannot prove:
+Acts as an independent exact-SHA verifier when correctness genuinely depends on:
 
 - live provider credentials/network behavior;
 - real browser interaction;
@@ -216,7 +294,7 @@ Owns exact-SHA validation for behavior cloud CI cannot prove:
 - process interruption/restart recovery;
 - final encoded-video proof.
 
-Codex pushes only explicitly scoped branch changes and never merges or tags release work unless the release procedure explicitly assigns that action.
+Local Codex does not own mainline development, merge decisions, or release tags.
 
 ## Local requirements
 
@@ -263,22 +341,16 @@ npm run test
 npm run build
 ```
 
-Add:
+Browser-impacting changes also run Playwright acceptance. Windows/media-impacting changes use exact-SHA media gates. Current V2.4 CI also carries exact-SHA B6 and B7 Windows acceptance jobs.
 
-```bash
-npm run test:e2e
-```
-
-when browser flows change.
-
-Cloud CI does not prove live-provider, Windows process, real media, FFmpeg, video-use, HyperFrames, Remotion/Chrome, restart or final encoded-video behavior; those are covered by exact-SHA local acceptance gates.
+Cloud CI does not replace mandatory real-user-media/local acceptance when the claimed behavior genuinely depends on local Windows/runtime/media conditions.
 
 ## Read order before work
 
 1. `PROJECT_STATUS.md`
 2. `AGENTS.md`
 3. `SYSTEM.md`
-4. active approved PRD / development plan for the next workstream
-5. active local validation contract when required
+4. active approved PRD / development plan
+5. active acceptance/release document when applicable
 
-The `v2.3.0` annotated tag is the immutable current release boundary. The `v2.2.0` tag remains immutable previous-release evidence. No V2.4 workstream is active until a new approved PRD/workstream is opened from the released V2.3.0 baseline.
+Until the annotated `v2.4.0` tag is independently verified, `v2.3.1` remains the immutable released baseline and V2.4.0 remains a release candidate.
