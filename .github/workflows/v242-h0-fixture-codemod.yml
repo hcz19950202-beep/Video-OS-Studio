@@ -1,0 +1,51 @@
+name: V2.4.2 H0 Fixture Codemod
+
+on:
+  push:
+    branches:
+      - fix/v2.4.2-correctness-liveness
+    paths:
+      - .github/workflows/v242-h0-fixture-codemod.yml
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v2.4.2-correctness-liveness
+          fetch-depth: 0
+      - name: Apply exact constructor replacements
+        shell: python
+        run: |
+          from pathlib import Path
+
+          files = [
+              Path("tests/production-b6-core-acceptance.test.ts"),
+              Path("tests/h6/windows-b6-core-acceptance.test.ts"),
+          ]
+          old = "new ProductionQARepairTargetResolver(repairResolver)"
+          new = "new ProductionQARepairTargetResolver(repairResolver,projects)"
+          count = 0
+          for path in files:
+              text = path.read_text(encoding="utf-8")
+              hits = text.count(old)
+              if hits != 1:
+                  raise SystemExit(f"{path}: expected exactly 1 target, found {hits}")
+              path.write_text(text.replace(old, new), encoding="utf-8")
+              count += hits
+          if count != 2:
+              raise SystemExit(f"expected exactly 2 replacements, got {count}")
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/v242-h0-fixture-codemod.yml
+      - name: Commit exact fixture update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/production-b6-core-acceptance.test.ts tests/h6/windows-b6-core-acceptance.test.ts .github/workflows/v242-h0-fixture-codemod.yml
+          git diff --cached --check
+          git commit -m "test(v2.4.2): wire repair target project readers"
+          git push origin HEAD:fix/v2.4.2-correctness-liveness
