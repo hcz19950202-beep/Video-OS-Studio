@@ -303,7 +303,12 @@ export class WorkflowRunner{
       const jobId=JobIdSchema.parse(result.jobId);const attached=await this.attachJob(run.id,stage.id,jobId);
       if(!attached){await this.cancelUnattachedJob(jobId);return;}
       const latest=await this.requireRun(run.id);if(latest.status==="running")await this.reconcileJobStage(latest,definition,getExecution(latest,stage.id));
-    }catch(error){await this.failStage(run.id,stage,error);}
+    }catch(error){await this.failStagePreservingError(run.id,stage,error);}
+  }
+
+  private async failStagePreservingError(workflowId:string,stage:WorkflowStageDefinition,error:unknown){
+    try{await this.failStage(workflowId,stage,error);}
+    catch(recordingError){throw new AggregateError([error,recordingError],`Workflow stage ${stage.id} failed and failure recording also failed.`);}
   }
 
   private async cancelUnattachedJob(jobId:string){if(!this.jobs)return;try{await this.jobs.cancel(jobId);}catch{return;}}
@@ -347,7 +352,7 @@ export class WorkflowRunner{
           return;
         }
         await this.completeStage(run.id,stage.id,reconciliation as WorkflowStageCompletion);
-      }catch(error){await this.failStage(run.id,stage,error);}
+      }catch(error){await this.failStagePreservingError(run.id,stage,error);}
       return;
     }
     if(job.status==="interrupted"){
