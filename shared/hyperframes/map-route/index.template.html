@@ -13,8 +13,8 @@
       .line { position: absolute; left: 5%; right: 5%; top: 50%; height: 1vmin; border-radius: 999px; background: rgba(245,247,250,.16); }
       .line-fill { height: 100%; width: 100%; border-radius: 999px; background: var(--accent); transform-origin: left center; animation: hf-line-in 1.3s ease-in-out .48s both paused; }
       .point { z-index: 4; display: flex; align-items: center; justify-content: center; width: 9vmin; height: 9vmin; border-radius: 50%; background: #111820; border: .7vmin solid var(--accent); font-size: 2.2vmin; font-weight: 900; animation: hf-point-in .4s cubic-bezier(.34,1.56,.64,1) both paused; }
-      .point:last-child { animation-delay: .46s; }
-      .point:first-of-type { animation-delay: .30s; }
+      .point:nth-of-type(3) { animation-delay: .30s; }
+      .point:nth-of-type(4) { animation-delay: .46s; }
       .marker { position: absolute; z-index: 3; top: 50%; left: 5%; width: 4vmin; height: 4vmin; margin-top: -2vmin; margin-left: -2vmin; border-radius: 50%; background: #F5F7FA; box-shadow: 0 0 3vmin var(--accent); animation: hf-marker-travel 1.3s ease-in-out .48s both paused; }
       .labels { display: flex; justify-content: space-between; font-size: 4.2vmin; font-weight: 900; }
       .labels span { animation: hf-labels-in .38s ease-out both paused; }
@@ -29,7 +29,7 @@
     </style>
   </head>
   <body>
-    <div id="composition" data-composition-id="map-route" data-start="0" data-duration="__DURATION__" data-track-index="0" data-width="__WIDTH__" data-height="__HEIGHT__">
+    <div id="composition" data-composition-id="map-route" data-no-timeline data-start="0" data-duration="__DURATION__" data-track-index="0" data-width="__WIDTH__" data-height="__HEIGHT__">
       <div class="scene-content">
         <div class="kicker" id="label"></div>
         <div class="metric" id="days"></div>
