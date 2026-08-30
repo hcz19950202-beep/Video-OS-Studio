@@ -22,6 +22,7 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           def exact(path: str, old: str, new: str, expected: int = 1):
               p = Path(path)
@@ -30,6 +31,14 @@ jobs:
               if hits != expected:
                   raise SystemExit(f"{path}: expected {expected} matches, found {hits}")
               p.write_text(text.replace(old, new), encoding="utf-8")
+
+          def regex(path: str, pattern: str, repl, expected: int):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              text, hits = re.subn(pattern, repl, text, flags=re.MULTILINE)
+              if hits != expected:
+                  raise SystemExit(f"{path}: expected {expected} regex matches, found {hits}")
+              p.write_text(text, encoding="utf-8")
 
           exact("lib/ai/application.ts", "      await sleep(25);", "      await sleep(100);")
 
@@ -47,11 +56,11 @@ jobs:
           ])
           exact("lib/ai/application.ts", old_mark, new_mark)
 
-          exact(
+          regex(
               "lib/ai/application.ts",
-              "      session=await this.markApplied(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);",
-              "      session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);",
-              expected=2,
+              r'^(\s*)session=await this\.markApplied\(input\.projectId,sessionId,proposal\.id,applyOperationId,claimToken\);$',
+              lambda m: f'{m.group(1)}session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);',
+              2,
           )
 
           old_harness = "const harness=async(revision=3)=>{\n  const fs=new InMemoryFileSystemAdapter();\n  const sessions=new AgentSessionRepository(fs,\"/agent-application\");\n  await sessions.create(sessionInput());"
