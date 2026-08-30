@@ -1,0 +1,90 @@
+name: V2.4.1 Release Version Sync
+
+on:
+  push:
+    branches:
+      - release/v2.4.1-finalization
+    paths:
+      - .github/workflows/v2-4-1-release-version-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v2.4.1-finalization
+          fetch-depth: 0
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Snapshot package metadata
+        run: |
+          cp package.json "$RUNNER_TEMP/package.before.json"
+          cp package-lock.json "$RUNNER_TEMP/package-lock.before.json"
+
+      - name: Sync package version only
+        run: npm version 2.4.1 --no-git-tag-version --ignore-scripts
+
+      - name: Structural release guard
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const assert = require('node:assert/strict');
+
+          const beforePackage = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/package.before.json', 'utf8'));
+          const afterPackage = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const beforeLock = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/package-lock.before.json', 'utf8'));
+          const afterLock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+
+          assert.equal(beforePackage.version, '2.4.0');
+          assert.equal(afterPackage.version, '2.4.1');
+          assert.equal(beforeLock.version, '2.4.0');
+          assert.equal(beforeLock.packages[''].version, '2.4.0');
+          assert.equal(afterLock.version, '2.4.1');
+          assert.equal(afterLock.packages[''].version, '2.4.1');
+
+          const normalizePackage = (value) => {
+            const copy = structuredClone(value);
+            copy.version = '__VERSION__';
+            return copy;
+          };
+          const normalizeLock = (value) => {
+            const copy = structuredClone(value);
+            copy.version = '__VERSION__';
+            copy.packages[''].version = '__VERSION__';
+            return copy;
+          };
+
+          assert.deepEqual(normalizePackage(afterPackage), normalizePackage(beforePackage));
+          assert.deepEqual(normalizeLock(afterLock), normalizeLock(beforeLock));
+
+          assert.equal(afterPackage.engines.node, '24.x');
+          assert.equal(afterPackage.dependencies.remotion, '4.0.513');
+          assert.equal(afterPackage.dependencies['@remotion/cli'], '4.0.513');
+          assert.equal(afterPackage.dependencies['@remotion/player'], '4.0.513');
+          assert.equal(afterPackage.dependencies.hyperframes, '0.8.10');
+          assert.equal(afterPackage.devDependencies['@playwright/test'], '1.62.1');
+          assert.equal(afterPackage.devDependencies.prettier, '3.8.1');
+          NODE
+
+      - name: Verify exact metadata diff
+        run: |
+          git diff -- package.json package-lock.json
+          test "$(git diff --numstat -- package.json package-lock.json | awk '{a+=$1; d+=$2} END {print a+0":"d+0}')" = "3:3"
+
+      - name: Remove one-shot workflow and commit release metadata
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/v2-4-1-release-version-sync.yml
+          git add package.json package-lock.json
+          git commit -m "release(v2.4.1): sync package metadata"
+          git push origin HEAD:release/v2.4.1-finalization
