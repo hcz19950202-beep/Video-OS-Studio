@@ -182,9 +182,10 @@ export class DurableJobRuntime{
       await logTail;
       await this.withJobLock(jobId,async()=>{
         const latest=await this.store.get(jobId);if(!latest)return;
-        const cancelled=latest.cancellationRequestedAt!==undefined||controller.signal.aborted;
+        if(isTerminalJobStatus(latest.status))return;
         const finishedAt=nowIso();
-        await this.store.save(JobRecordSchema.parse({...latest,status:cancelled?"cancelled":"failed",stage:cancelled?"cancelled":"failed",progress:latest.progress,error:cancelled?{code:"JOB_CANCELLED",message:"The job was cancelled.",retryable:true}:normalizedError(error),finishedAt,updatedAt:finishedAt}));
+        const cancelled=controller.signal.aborted||latest.cancellationRequestedAt!==undefined||error instanceof ToolAbortedError;
+        await this.store.save(JobRecordSchema.parse({...latest,status:cancelled?"cancelled":"failed",stage:cancelled?"cancelled":"failed",error:normalizedError(error),progress:cancelled?latest.progress:Math.min(latest.progress,.99),finishedAt,updatedAt:finishedAt}));
       });
     }finally{
       this.activeControllers.delete(jobId);
@@ -195,15 +196,18 @@ export class DurableJobRuntime{
 
   async retry(jobId:string){
     await this.ready;
-    const next=await this.withJobLock(jobId,async()=>{
-      const existing=await this.store.get(jobId);if(!existing)throw new JobNotFoundError(jobId);
-      if(existing.status!=="failed"&&existing.status!=="cancelled"&&existing.status!=="interrupted")throw new JobStateError(`Job ${jobId} cannot retry from status ${existing.status}.`,existing.status);
+    const retried=await this.withJobLock(jobId,async()=>{
+      const job=await this.store.get(jobId);if(!job)throw new JobNotFoundError(jobId);
+      if(!["failed","cancelled","interrupted"].includes(job.status))throw new JobStateError(`Job ${jobId} cannot be retried from status ${job.status}.`,job.status);
+      if(job.error?.retryable===false)throw new JobStateError(`Job ${jobId} failed with a non-retryable error (${job.error.code}). Create a new job with corrected input/state.`,job.status);
       const at=nowIso();
-      const retry=JobRecordSchema.parse({...existing,status:"queued",stage:"queued",progress:0,attempt:existing.attempt+1,output:undefined,error:undefined,cancellationRequestedAt:undefined,startedAt:undefined,finishedAt:undefined,executorPid:undefined,updatedAt:at});
-      await this.store.save(retry);this.enqueue(retry);return retry;
+      await this.store.saveArtifacts(jobId,[]);
+      return this.store.save(JobRecordSchema.parse({...job,status:"queued",stage:"queued",progress:0,attempt:job.attempt+1,error:undefined,output:undefined,executorPid:undefined,finishedAt:undefined,startedAt:undefined,cancellationRequestedAt:undefined,updatedAt:at}));
     });
-    this.pump(jobConcurrencyGroup(next.type));
-    return next;
+    await this.store.appendLog(jobId,"stdout",`\n[video-os] retry attempt ${retried.attempt}\n`);
+    this.enqueue(retried);
+    this.pump(jobConcurrencyGroup(retried.type));
+    return retried;
   }
 
   async cancel(jobId:string){
