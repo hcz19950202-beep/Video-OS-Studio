@@ -23,6 +23,7 @@ export class ProtectedProductionStepRunner implements ProductionStepRunner{
   async execute(input:ProductionStepRunnerInput):Promise<StepExecutionResult>{
     if(!isProtectedMutationStep(input))return this.delegate.execute(input);
     if(!this.targets)return blocked("EDIT_TARGET_RESOLVER_UNAVAILABLE","Autonomous Project mutations are blocked until an application-owned target resolver is configured.");
+    if(input.step.kind==="repair"&&input.step.owner!=="application")return blocked("EDIT_REPAIR_TARGET_OWNER_INVALID","Autonomous repair targets must be resolved by the bounded application-owned repair surface.");
 
     let actualTargets:ProductionMutationTarget[];
     try{
@@ -31,7 +32,12 @@ export class ProtectedProductionStepRunner implements ProductionStepRunner{
         if(input.step.kind==="repair")return this.delegate.execute(input);
         return blocked("EDIT_TARGETS_UNRESOLVED","Autonomous Project edits are blocked when the bounded application cannot resolve affected logical targets.");
       }
-      assertProductionMutationTargetsDeclared(actualTargets,input.step.targets??[]);
+      // Agent-authored edit-project steps remain strictly bounded by their persisted Plan declaration.
+      // Repair targets are different: they are derived by an application-owned resolver from the
+      // persisted QA proposal and the exact Project commands that will execute. Legacy V2.4.1
+      // repair Plans may still contain canvas-only targets, so protection must trust the exact
+      // application-derived target set rather than that underspecified historical declaration.
+      if(input.step.kind==="edit-project")assertProductionMutationTargetsDeclared(actualTargets,input.step.targets??[]);
     }catch(error){
       if(error instanceof ProductionMutationScopeError)return blocked(error.code,error.message);
       return blocked("EDIT_TARGET_RESOLUTION_FAILED","The bounded application could not resolve a valid logical mutation target scope.");
