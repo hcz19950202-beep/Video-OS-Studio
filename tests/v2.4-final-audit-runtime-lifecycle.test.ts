@@ -1,3 +1,4 @@
+// Final V2.4 audit regressions for durable ownership and background error lifecycles.
 import {mkdtemp,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
@@ -126,11 +127,9 @@ describe("V2.4 final audit durable Job ownership",()=>{
     });
     const runtime=new DurableJobRuntime(store,{"render-final":async()=>{throw operationalError;}});
     const job=await runtime.create({type:"render-final",projectId:"demo",input:{}});
-    const waitForIdle=(runtime as unknown as {waitForIdle?:(jobId:string)=>Promise<void>}).waitForIdle;
-    expect(waitForIdle).toBeTypeOf("function");
 
     let thrown:unknown;
-    try{await waitForIdle!.call(runtime,job.id);}catch(error){thrown=error;}
+    try{await runtime.waitForIdle(job.id);}catch(error){thrown=error;}
     expect(thrown).toBeInstanceOf(AggregateError);
     expect((thrown as AggregateError).errors).toEqual([operationalError,persistenceError]);
     expect((thrown as AggregateError).message).not.toContain(persistenceError.message);
