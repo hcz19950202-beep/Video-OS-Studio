@@ -2,7 +2,7 @@ import {z} from "zod";
 import {AIProviderRequestSchema,AgentToolCallSchema,AgentToolResultSchema,type AgentProviderError,type AgentProviderEvent,type AgentUsage,type AIProviderRequest} from "@/lib/ai/schema";
 import type {AIProvider} from "@/lib/ai/provider";
 import {DeepSeekA3ModelSchema,DeepSeekChatProviderConfigSchema,loadDeepSeekChatProviderConfigFromProcessEnv,type DeepSeekProviderEnvironment,type DeepSeekChatProviderConfig,loadDeepSeekChatProviderConfig} from "@/lib/ai/providers/deepseek-config";
-import {cancelProviderResponseBody} from "@/lib/ai/providers/response-body";
+import {cancelProviderResponseBody,cancelProviderStreamReader} from "@/lib/ai/providers/response-body";
 
 export type DeepSeekChatFetch=typeof fetch;
 
@@ -181,6 +181,7 @@ async function* readSseData(body:ReadableStream<Uint8Array>):AsyncGenerator<unkn
       if(event!==undefined)yield event;
     }
   }finally{
+    await cancelProviderStreamReader(reader);
     reader.releaseLock();
   }
 }

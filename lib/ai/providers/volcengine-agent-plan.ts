@@ -2,7 +2,7 @@ import {z} from "zod";
 import {AIProviderRequestSchema,AgentToolCallSchema,AgentToolResultSchema,type AgentProviderError,type AgentProviderEvent,type AgentUsage,type AIProviderRequest} from "@/lib/ai/schema";
 import type {AIProvider} from "@/lib/ai/provider";
 import {VolcengineAgentPlanModelSchema,VolcengineAgentPlanProviderConfigSchema,loadVolcengineAgentPlanProviderConfigFromProcessEnv,type VolcengineAgentPlanEnvironment,type VolcengineAgentPlanProviderConfig,loadVolcengineAgentPlanProviderConfig} from "@/lib/ai/providers/volcengine-agent-plan-config";
-import {ProviderResponseTooLargeError,cancelProviderResponseBody,readProviderResponseTextBounded} from "@/lib/ai/providers/response-body";
+import {ProviderResponseTooLargeError,cancelProviderResponseBody,cancelProviderStreamReader,readProviderResponseTextBounded} from "@/lib/ai/providers/response-body";
 
 export type VolcengineAgentPlanFetch=typeof fetch;
 
@@ -182,6 +182,7 @@ async function* readSseData(body:ReadableStream<Uint8Array>):AsyncGenerator<unkn
       if(event!==undefined)yield event;
     }
   }finally{
+    await cancelProviderStreamReader(reader);
     reader.releaseLock();
   }
 }
