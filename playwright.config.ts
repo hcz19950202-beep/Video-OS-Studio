@@ -31,6 +31,10 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { VIDEO_OS_AGENT_PROVIDER: "mock" },
+    env: {
+      PORT: String(playwrightPort),
+      VIDEO_OS_ASSET_BASE_URL: baseURL,
+      VIDEO_OS_AGENT_PROVIDER: "mock",
+    },
   },
 });
