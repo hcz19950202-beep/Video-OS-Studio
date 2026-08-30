@@ -14,6 +14,7 @@ type Props={
   clipId:string;
   effectId:string;
   engine:"remotion"|"hyperframes";
+  onCommand:(command:ProjectCommand,message:string)=>Promise<void>;
   onTransaction:(transaction:ProjectCommandTransaction,message:string)=>Promise<void>;
 };
 
