@@ -353,6 +353,18 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
         baseRevision,
         "B6 acceptance allows the bounded QA timing repair.",
       );
+      await protection.markAiOwned(
+        projectId,
+        { kind: "clip", id: "b6-source-video" },
+        baseRevision,
+        "B6 acceptance source video is explicitly AI-owned for bounded QA timing repair.",
+      );
+      await protection.markAiOwned(
+        projectId,
+        { kind: "scene", id: "scene-cta" },
+        baseRevision,
+        "B6 acceptance CTA scene is explicitly AI-owned for bounded QA timing repair.",
+      );
 
       const sessions = new AgentSessionRepository(fs, root);
       const visualPlan = VisualPlanSchema.parse({
