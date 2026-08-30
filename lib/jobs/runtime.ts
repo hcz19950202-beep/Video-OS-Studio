@@ -38,6 +38,7 @@ export class DurableJobRuntime{
   private readonly queuedIds=new Set<string>();
   private readonly activeByGroup=new Map<JobConcurrencyGroup,number>([["render",0],["hyperframes",0],["normalize",0],["transcribe",0]]);
   private readonly activeControllers=new Map<string,AbortController>();
+  private readonly activeExecutions=new Map<string,Promise<void>>();
   private readonly stateLocks=new Map<string,Promise<void>>();
   private readonly limits:Record<JobConcurrencyGroup,number>;
   private runtimeExecutorPid=process.pid;
@@ -58,7 +59,7 @@ export class DurableJobRuntime{
     const tail=previous.then(()=>gate);
     this.stateLocks.set(jobId,tail);
     await previous;
-    try{return await fn();}
+    try{return await this.store.withJobExclusiveLock(jobId,fn);}
     finally{release();if(this.stateLocks.get(jobId)===tail)this.stateLocks.delete(jobId);}
   }
 
@@ -84,6 +85,7 @@ export class DurableJobRuntime{
   }
 
   async waitUntilReady(){await this.ready;}
+  async waitForIdle(jobId:string){for(;;){const execution=this.activeExecutions.get(jobId);if(!execution)return;await execution;}}
 
   async create(input:CreateJobInput){
     await this.ready;
@@ -121,7 +123,10 @@ export class DurableJobRuntime{
       const jobId=queue.shift();if(!jobId)break;
       this.queuedIds.delete(jobId);
       this.activeByGroup.set(group,(this.activeByGroup.get(group)??0)+1);
-      void this.execute(jobId,group);
+      const execution=this.execute(jobId,group);
+      this.activeExecutions.set(jobId,execution);
+      const cleanup=()=>{if(this.activeExecutions.get(jobId)===execution)this.activeExecutions.delete(jobId);};
+      void execution.then(cleanup,cleanup);
     }
   }
 
@@ -180,13 +185,17 @@ export class DurableJobRuntime{
       });
     }catch(error){
       await logTail;
-      await this.withJobLock(jobId,async()=>{
-        const latest=await this.store.get(jobId);if(!latest)return;
-        if(isTerminalJobStatus(latest.status))return;
-        const finishedAt=nowIso();
-        const cancelled=controller.signal.aborted||latest.cancellationRequestedAt!==undefined||error instanceof ToolAbortedError;
-        await this.store.save(JobRecordSchema.parse({...latest,status:cancelled?"cancelled":"failed",stage:cancelled?"cancelled":"failed",error:normalizedError(error),progress:cancelled?latest.progress:Math.min(latest.progress,.99),finishedAt,updatedAt:finishedAt}));
-      });
+      try{
+        await this.withJobLock(jobId,async()=>{
+          const latest=await this.store.get(jobId);if(!latest)return;
+          if(isTerminalJobStatus(latest.status))return;
+          const finishedAt=nowIso();
+          const cancelled=controller.signal.aborted||latest.cancellationRequestedAt!==undefined||error instanceof ToolAbortedError;
+          await this.store.save(JobRecordSchema.parse({...latest,status:cancelled?"cancelled":"failed",stage:cancelled?"cancelled":"failed",error:normalizedError(error),progress:cancelled?latest.progress:Math.min(latest.progress,.99),finishedAt,updatedAt:finishedAt}));
+        });
+      }catch(recordingError){
+        throw new AggregateError([error,recordingError],`Job ${jobId} failed and its terminal state could not be persisted.`);
+      }
     }finally{
       this.activeControllers.delete(jobId);
       this.activeByGroup.set(group,Math.max(0,(this.activeByGroup.get(group)??1)-1));

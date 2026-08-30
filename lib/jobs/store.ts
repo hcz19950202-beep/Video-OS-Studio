@@ -3,6 +3,7 @@ import {access,appendFile,copyFile,mkdir,open,readFile,readdir,rm,writeFile} fro
 import {dirname,join} from "node:path";
 import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
 import {withWindowsTransientRetry} from "@/lib/fs/atomic-replace";
+import {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";
 import {JobArtifactsSchema,JobIdSchema,JobRecordSchema,type JobArtifact,type JobRecord} from "@/lib/jobs/schema";
 import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 
@@ -22,6 +23,7 @@ export class FileJobStore{
   private dir(jobId:string){return join(this.jobsRoot,JobIdSchema.parse(jobId));}
   private path(jobId:string,name:"job.json"|"stdout.log"|"stderr.log"|"artifacts.json"){return join(this.dir(jobId),name);}
   private backupPath(jobId:string,name:"job.json"|"artifacts.json"){return join(this.dir(jobId),name.replace(".json",".backup.json"));}
+  private durableLockPath(jobId:string){return join(this.jobsRoot,`${JobIdSchema.parse(jobId)}.lock`);}
 
   private async withPathLock<T>(path:string,fn:()=>Promise<T>):Promise<T>{
     const previous=this.pathChains.get(path)??Promise.resolve();
@@ -111,6 +113,7 @@ export class FileJobStore{
   }
 
   async ensure(){await mkdir(this.jobsRoot,{recursive:true});}
+  async withJobExclusiveLock<T>(jobId:string,work:()=>Promise<T>):Promise<T>{await this.ensure();return withExclusiveFileLock(this.durableLockPath(jobId),work);}
 
   async create(record:JobRecord){
     const parsed=JobRecordSchema.parse(record);

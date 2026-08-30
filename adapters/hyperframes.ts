@@ -1,6 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { HyperFramesAdapter, ToolExecutionOptions } from "@/adapters/contracts";
+import { withErrorPreservingCleanup } from "@/lib/fs/error-preserving-cleanup";
 import { nodeToolRunner, parseToolTimeout, type ToolRunner } from "@/lib/process/tool-runner";
 import { resolveProjectNodeBin } from "@/lib/process/project-bin";
 
@@ -40,7 +41,7 @@ export class NodeHyperFramesAdapter implements HyperFramesAdapter {
     const workDir = `${input.outputPath}.hf-work`;
     await rm(workDir, { recursive: true, force: true });
 
-    try {
+    return withErrorPreservingCleanup(async () => {
       await mkdir(workDir, { recursive: true });
       await mkdir(dirname(input.outputPath), { recursive: true });
       const [template, design] = await Promise.all([
@@ -83,8 +84,6 @@ export class NodeHyperFramesAdapter implements HyperFramesAdapter {
       await run("hyperframes-check", buildHyperFramesCheckArgs());
       await run("hyperframes-render", buildHyperFramesRenderArgs(input.outputPath, input.fps));
       return { outputPath: input.outputPath };
-    } finally {
-      await rm(workDir, { recursive: true, force: true });
-    }
+    }, () => rm(workDir, { recursive: true, force: true }), "HyperFrames render failed and temporary work-directory cleanup did not complete.");
   }
 }

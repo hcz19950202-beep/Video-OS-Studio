@@ -111,15 +111,25 @@ export const withExclusiveFileLock=async<T>(
     }
   }
 
-  try{return await work();}
-  finally{
-    let closeError:unknown;
-    try{await handle.close();}
-    catch(error){closeError=error;}
-    let cleanupError:unknown;
-    try{await removeOwnedLock(record);}
-    catch(error){cleanupError=error;}
-    if(cleanupError)throw cleanupError;
-    if(closeError)throw closeError;
+  let result:T|undefined;
+  let workError:unknown;
+  let workFailed=false;
+  try{result=await work();}
+  catch(error){workFailed=true;workError=error;}
+  let closeError:unknown;
+  try{await handle.close();}
+  catch(error){closeError=error;}
+  let cleanupError:unknown;
+  try{await removeOwnedLock(record);}
+  catch(error){cleanupError=error;}
+  if(workFailed){
+    const cleanupErrors:unknown[]=[];
+    if(closeError!==undefined)cleanupErrors.push(closeError);
+    if(cleanupError!==undefined)cleanupErrors.push(cleanupError);
+    if(cleanupErrors.length)throw new AggregateError([workError,...cleanupErrors],"Exclusive file lock work failed and cleanup did not complete.");
+    throw workError;
   }
+  if(cleanupError!==undefined)throw cleanupError;
+  if(closeError!==undefined)throw closeError;
+  return result as T;
 };

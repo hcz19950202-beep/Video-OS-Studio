@@ -159,16 +159,32 @@ export class ProjectMutationCoordinator{
     }
   }
 
+  private async reconciledOperationRecord(projectId:string,operationId:string):Promise<ProjectOperationRecord|null>{
+    const current=await this.repository.load(projectId);
+    let records=await this.readRecords(projectId);
+    await this.reconcilePending(projectId,current,records);
+    records=await this.readRecords(projectId);
+    return this.latestRecords(records).get(operationId)??null;
+  }
+
+  private operationState(record:ProjectOperationRecord):ProjectOperationState{
+    const{fingerprint:_,...state}=record;
+    return state;
+  }
+
   async getOperation(projectId:string,operationId:string):Promise<ProjectOperationState|null>{
     return this.withProjectLock(projectId,async()=>{
-      const current=await this.repository.load(projectId);
-      let records=await this.readRecords(projectId);
-      await this.reconcilePending(projectId,current,records);
-      records=await this.readRecords(projectId);
-      const record=this.latestRecords(records).get(operationId);
+      const record=await this.reconciledOperationRecord(projectId,operationId);
+      return record?this.operationState(record):null;
+    });
+  }
+
+  async getOperationForMutation(projectId:string,operationId:string,kind:OperationKind,payload:unknown):Promise<ProjectOperationState|null>{
+    return this.withProjectLock(projectId,async()=>{
+      const record=await this.reconciledOperationRecord(projectId,operationId);
       if(!record)return null;
-      const{fingerprint:_,...state}=record;
-      return state;
+      if(record.kind!==kind||record.fingerprint!==fingerprint(payload))throw new ProjectOperationIdReuseError(operationId);
+      return this.operationState(record);
     });
   }
 
