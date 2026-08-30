@@ -22,79 +22,95 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
-          def replace_exact(path: str, old: str, new: str, expected: int = 1):
+          def exact(path: str, old: str, new: str, expected: int = 1):
               p = Path(path)
               text = p.read_text(encoding="utf-8")
               hits = text.count(old)
               if hits != expected:
-                  raise SystemExit(f"{path}: expected {expected} matches, found {hits}")
+                  raise SystemExit(f"{path}: expected {expected} literal matches, found {hits}")
               p.write_text(text.replace(old, new), encoding="utf-8")
 
-          replace_exact(
+          def regex(path: str, pattern: str, repl, expected: int):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              text, hits = re.subn(pattern, repl, text, flags=re.MULTILINE)
+              if hits != expected:
+                  raise SystemExit(f"{path}: expected {expected} regex matches for {pattern!r}, found {hits}")
+              p.write_text(text, encoding="utf-8")
+
+          exact(
               "lib/production/execution/schema.ts",
               '  runnerOwnerPid:z.number().int().positive().optional(),\n  runnerOwnerToken:z.string().uuid().optional(),',
               '  runnerOwnerPid:z.number().int().positive().optional(),\n  runnerOwnerStartedAt:z.number().int().positive().optional(),\n  runnerOwnerToken:z.string().uuid().optional(),',
           )
-          replace_exact(
+          exact(
               "lib/production/execution/schema.ts",
               '  const runnerOwnerFields=[step.runnerOwnerPid,step.runnerOwnerToken,step.runnerClaimedAt];\n  const runnerOwnerFieldCount=runnerOwnerFields.filter(value=>value!==undefined).length;\n  if(runnerOwnerFieldCount!==0&&runnerOwnerFieldCount!==runnerOwnerFields.length)ctx.addIssue({code:"custom",path:["runnerOwnerToken"],message:"Runner ownership metadata must be complete when present."});\n  const cancelledRunner=step.status==="blocked"&&step.lastFailure?.code==="MISSION_CANCELLED";\n  if(step.status!=="running"&&!cancelledRunner&&runnerOwnerFieldCount!==0)ctx.addIssue({code:"custom",path:["runnerOwnerToken"],message:"Runner ownership metadata may only remain on an active runner or cancelled in-flight reconciliation."});',
               '  const runnerOwnerFields=[step.runnerOwnerPid,step.runnerOwnerToken,step.runnerClaimedAt];\n  const runnerOwnerFieldCount=runnerOwnerFields.filter(value=>value!==undefined).length;\n  if(runnerOwnerFieldCount!==0&&runnerOwnerFieldCount!==runnerOwnerFields.length)ctx.addIssue({code:"custom",path:["runnerOwnerToken"],message:"Runner ownership metadata must be complete when present."});\n  if(step.runnerOwnerStartedAt!==undefined&&runnerOwnerFieldCount===0)ctx.addIssue({code:"custom",path:["runnerOwnerStartedAt"],message:"Runner process start identity requires active ownership metadata."});\n  const cancelledRunner=step.status==="blocked"&&step.lastFailure?.code==="MISSION_CANCELLED";\n  if(step.status!=="running"&&!cancelledRunner&&runnerOwnerFieldCount!==0)ctx.addIssue({code:"custom",path:["runnerOwnerToken"],message:"Runner ownership metadata may only remain on an active runner or cancelled in-flight reconciliation."});',
           )
 
-          replace_exact(
+          exact(
               "lib/production/execution/executor.ts",
               'import {isExclusiveLockProcessAlive} from "@/lib/fs/exclusive-lock";',
               'import {currentProcessIdentity,isProcessIdentityAlive} from "@/lib/process/process-identity";',
           )
-          replace_exact(
+          exact(
               "lib/production/execution/executor.ts",
               '  runnerOwnerPid:undefined,\n  runnerOwnerToken:undefined,',
               '  runnerOwnerPid:undefined,\n  runnerOwnerStartedAt:undefined,\n  runnerOwnerToken:undefined,',
           )
-          replace_exact(
+          exact(
               "lib/production/execution/executor.ts",
               '        if(activeState.runnerOwnerPid!==undefined&&await isExclusiveLockProcessAlive(activeState.runnerOwnerPid))return{execution};',
               '        if(activeState.runnerOwnerPid!==undefined&&await isProcessIdentityAlive({pid:activeState.runnerOwnerPid,startedAt:activeState.runnerOwnerStartedAt}))return{execution};',
           )
-          replace_exact(
+          regex(
               "lib/production/execution/executor.ts",
-              '        const runnerOwnerToken=randomUUID();',
-              '        const runnerOwnerToken=randomUUID();\n        const runnerOwnerIdentity=currentProcessIdentity();',
-              expected=2,
+              r'^(\s*)const runnerOwnerToken=randomUUID\(\);$',
+              lambda m: f'{m.group(1)}const runnerOwnerToken=randomUUID();\n{m.group(1)}const runnerOwnerIdentity=currentProcessIdentity();',
+              2,
           )
-          replace_exact(
+          regex(
               "lib/production/execution/executor.ts",
-              '            runnerOwnerPid:process.pid,\n            runnerOwnerToken,',
-              '            runnerOwnerPid:runnerOwnerIdentity.pid,\n            runnerOwnerStartedAt:runnerOwnerIdentity.startedAt,\n            runnerOwnerToken,',
-              expected=2,
+              r'^(\s*)runnerOwnerPid:process\.pid,$',
+              lambda m: f'{m.group(1)}runnerOwnerPid:runnerOwnerIdentity.pid,\n{m.group(1)}runnerOwnerStartedAt:runnerOwnerIdentity.startedAt,',
+              2,
           )
 
-          replace_exact(
+          exact(
               "lib/ai/session/schema.ts",
               '  ownerPid:z.number().int().positive(),\n  claimedAt:z.string().datetime(),',
               '  ownerPid:z.number().int().positive(),\n  ownerStartedAt:z.number().int().positive().optional(),\n  claimedAt:z.string().datetime(),',
           )
-          replace_exact(
+          exact(
               "lib/ai/application.ts",
               'import {isExclusiveLockProcessAlive} from "@/lib/fs/exclusive-lock";',
               'import {currentProcessIdentity,isProcessIdentityAlive} from "@/lib/process/process-identity";',
           )
-          replace_exact(
+          exact(
               "lib/ai/application.ts",
               '      if(existing&&await isExclusiveLockProcessAlive(existing.ownerPid))return current;',
               '      if(existing&&await isProcessIdentityAlive({pid:existing.ownerPid,startedAt:existing.ownerStartedAt}))return current;',
           )
-          replace_exact(
+          exact(
               "lib/ai/application.ts",
               '      return AgentSessionSchema.parse({\n        ...current,\n        operationClaims:[...current.operationClaims.filter(item=>item.operationId!==operationId),{operationId,proposalId,claimToken,ownerPid:process.pid,claimedAt:this.now()}],',
               '      const ownerIdentity=currentProcessIdentity();\n      return AgentSessionSchema.parse({\n        ...current,\n        operationClaims:[...current.operationClaims.filter(item=>item.operationId!==operationId),{operationId,proposalId,claimToken,ownerPid:ownerIdentity.pid,ownerStartedAt:ownerIdentity.startedAt,claimedAt:this.now()}],',
           )
-          replace_exact(
+          exact(
               "lib/ai/application.ts",
               '      if(!(await isExclusiveLockProcessAlive(claim.ownerPid))){',
               '      if(!(await isProcessIdentityAlive({pid:claim.ownerPid,startedAt:claim.ownerStartedAt}))){',
           )
+
+          executor = Path("lib/production/execution/executor.ts").read_text(encoding="utf-8")
+          application = Path("lib/ai/application.ts").read_text(encoding="utf-8")
+          if "runnerOwnerPid:process.pid" in executor:
+              raise SystemExit("executor still contains legacy PID-only claim writes")
+          if "ownerPid:process.pid" in application:
+              raise SystemExit("agent application still contains legacy PID-only claim writes")
       - name: Remove one-shot workflow
         run: rm .github/workflows/v242-h1-claim-identity-codemod.yml
       - name: Commit durable claim identity update
