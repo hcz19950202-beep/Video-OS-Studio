@@ -117,7 +117,7 @@ describe("V2.4.2 Production Campaign liveness",()=>{
   });
 
   it("retries durable Campaign Mission finalization after the external Mission already succeeded",async()=>{
-    const{repository}=await setup(fs=>new FailOnceCampaignRepository(fs,"/data"));
+    const{fs,repository}=await setup(fs=>new FailOnceCampaignRepository(fs,"/data"));
     const failing=repository as FailOnceCampaignRepository;
     failing.failMissionFinalization=true;
     let executions=0;
@@ -131,7 +131,7 @@ describe("V2.4.2 Production Campaign liveness",()=>{
     const stranded=await repository.require(CAMPAIGN_ID);
     expect(stranded).toMatchObject({status:"running"});
     expect(stranded.missions[0]).toMatchObject({status:"running",attempt:1});
-    expect(readClaim((repository as unknown as {fs?:InMemoryFileSystemAdapter}).fs??new InMemoryFileSystemAdapter())).toBeNull();
+    expect(readClaim(fs)).toBeNull();
 
     const recovered=await runner.run(CAMPAIGN_ID);
     expect(executions).toBe(2);
