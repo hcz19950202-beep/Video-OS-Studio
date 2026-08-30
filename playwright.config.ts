@@ -7,7 +7,9 @@ if (!Number.isInteger(playwrightPort) || playwrightPort < 1024 || playwrightPort
   throw new Error("VIDEO_OS_PLAYWRIGHT_PORT must be an integer between 1024 and 65535.");
 }
 const baseURL = `http://127.0.0.1:${playwrightPort}`;
-const playwrightOutputDir = process.env.VIDEO_OS_PLAYWRIGHT_OUTPUT_DIR ?? join(process.env.VIDEO_OS_DATA_ROOT ?? ".video-os-data", "playwright-results");
+const playwrightOutputDir =
+  process.env.VIDEO_OS_PLAYWRIGHT_OUTPUT_DIR ??
+  join(process.env.VIDEO_OS_DATA_ROOT ?? ".video-os-data", "playwright-results");
 
 export default defineConfig({
   testDir: "./tests/e2e",
