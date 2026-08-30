@@ -1,5 +1,6 @@
 import {WorkflowActionRequestSchema,workflowErrorResponse} from "@/lib/workflows/http";
 import {workflowService} from "@/lib/server/runtime";
+import {resolveTrustedAssetBaseUrl} from "@/lib/server/trusted-asset-origin";
 import {WorkflowNotFoundError} from "@/lib/workflows/store";
 
 export const runtime="nodejs";
@@ -18,7 +19,7 @@ export async function POST(request:Request,{params}:Context){
   try{
     const{workflowId}=await params;
     const body=WorkflowActionRequestSchema.parse(await request.json());
-    await workflowService.bindAssetBaseUrl(workflowId,new URL(request.url).origin);
+    await workflowService.bindAssetBaseUrl(workflowId,resolveTrustedAssetBaseUrl());
     let workflow;
     if(body.action==="start")workflow=await workflowService.start(workflowId);
     else if(body.action==="pause")workflow=await workflowService.pause(workflowId);
