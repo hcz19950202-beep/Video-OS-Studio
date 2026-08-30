@@ -109,7 +109,12 @@ describe("NodeRemotionCliAdapter compatibility fallback", () => {
         },
         { onLog: (event) => logs.push(event.chunk) },
       ),
-    ).resolves.toEqual({ outputPath });
+    ).resolves.toEqual({
+      outputPath,
+      backend: "html5-video",
+      fallbackUsed: true,
+      fallbackReason: "offthread-frame-extraction",
+    });
 
     expect(calls).toBe(2);
     expect(backends).toEqual(["offthread-video", "html5-video"]);
