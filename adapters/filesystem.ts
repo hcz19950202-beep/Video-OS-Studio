@@ -3,8 +3,7 @@ import {randomUUID} from "node:crypto";
 import {dirname,posix as posixPath} from "node:path";
 import type {FileSystemAdapter} from "@/adapters/contracts";
 import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
-
-const lockSleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
+import {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";
 
 export class NodeFileSystemAdapter implements FileSystemAdapter{
   private readonly writeChains=new Map<string,Promise<void>>();
@@ -92,27 +91,7 @@ export class NodeFileSystemAdapter implements FileSystemAdapter{
     });
   }
 
-  async withExclusiveLock<T>(lockPath:string,work:()=>Promise<T>):Promise<T>{
-    let handle:Awaited<ReturnType<typeof open>>|undefined;
-    for(;;){
-      try{await this.ensureDir(dirname(lockPath));handle=await open(lockPath,"wx");break;}
-      catch(error){
-        const code=(error as NodeJS.ErrnoException).code;
-        if(code!=="EEXIST"&&code!=="EPERM"&&code!=="EACCES")throw error;
-        try{
-          const existing=await open(lockPath,"r");
-          try{if(Date.now()-(await existing.stat()).mtimeMs>30_000)await rm(lockPath,{force:true});}
-          finally{await existing.close();}
-        }catch(lockError){
-          const lockCode=(lockError as NodeJS.ErrnoException).code;
-          if(lockCode!=="ENOENT"&&lockCode!=="EPERM"&&lockCode!=="EACCES")throw lockError;
-        }
-        await lockSleep(5);
-      }
-    }
-    try{return await work();}
-    finally{await handle.close();await rm(lockPath,{force:true});}
-  }
+  async withExclusiveLock<T>(lockPath:string,work:()=>Promise<T>):Promise<T>{return withExclusiveFileLock(lockPath,work);}
 }
 
 export class InMemoryFileSystemAdapter implements FileSystemAdapter{
