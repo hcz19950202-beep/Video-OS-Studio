@@ -32,8 +32,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
-          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          git merge-base --is-ancestor "$BASE_SHA" HEAD
+          mapfile -t changed < <(git diff --name-only "$BASE_SHA" HEAD)
           test "${#changed[@]}" -eq 1
           test "${changed[0]}" = ".github/workflows/v242-release-version-sync.yml"
           test "$(node -p "require('./package.json').version")" = "2.4.1"
@@ -44,8 +44,9 @@ jobs:
         shell: node {0}
         run: |
           const fs = require('node:fs');
-          const pkg = require('./package.json');
-          const lock = require('./package-lock.json');
+          const readJson = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
+          const pkg = readJson(process.cwd() + '/package.json');
+          const lock = readJson(process.cwd() + '/package-lock.json');
           const stripped = (value) => JSON.parse(JSON.stringify(value));
           const pkgShape = stripped(pkg);
           delete pkgShape.version;
@@ -63,8 +64,9 @@ jobs:
         shell: node {0}
         run: |
           const fs = require('node:fs');
-          const pkg = require('./package.json');
-          const lock = require('./package-lock.json');
+          const readJson = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
+          const pkg = readJson(process.cwd() + '/package.json');
+          const lock = readJson(process.cwd() + '/package-lock.json');
           if (pkg.version !== '2.4.2') throw new Error('package.json version mismatch');
           if (lock.version !== '2.4.2') throw new Error('package-lock root version mismatch');
           if (lock.packages[''].version !== '2.4.2') throw new Error('package-lock package root version mismatch');
