@@ -1,29 +1,34 @@
 # Video OS Studio — Current Project Status
 
-> Current-state source of truth for GPT Web, Local Codex, and other development agents. Historical PRs, commits, CI runs, and acceptance reports remain immutable evidence. GitHub is the code/status source of truth.
+> Current-state source of truth for GPT Web, Local Codex, and other development agents. Historical PRs, commits, CI runs, local acceptance reports, released tags, and tag objects remain immutable evidence. GitHub is the code/status source of truth.
 
 ## Current checkpoint
 
 ```yaml
 released_product_version: 2.3.1
-project_schema: 2.0.0
 released_tag: v2.3.1
 released_commit: 6e07d1dbdd0ec4d64d022f7c821e133ddf207637
 released_tag_object_sha: b91d0c3adbaef09cd5c323481ec6bb04c516dd6e
 
-package_json_version: 2.3.1
-package_lock_version: 2.3.1
+project_schema: 2.0.0
+
+release_candidate_version: 2.4.0
+package_json_version: 2.4.0
+package_lock_version: 2.4.0
+release_candidate_tag: v2.4.0
 
 active_development_workstream: V2.4 AUTONOMOUS PRODUCTION AGENT
-active_stage: B7 CAMPAIGN / BATCH PRODUCTION — LOCAL REAL-MEDIA DEFECT REPAIR
-active_branch: feature/v2.4-b7-campaign-production / PR #79
-accepted_b6_main: 37602f0fd3cb9558fb51259b23936521d216098b
-b7_last_cloud_candidate: 8bd1dab21206c745531cfb53b65b1e8c529f7393
-b7_last_cloud_ci: CI #956 / run 33263067354 / PASS
-b7_local_gate: FAIL — real user media exposed Remotion frame extraction failure
-local_action_required: NONE — GPT Web development reopened; do not rerun Codex yet
-next_action: FIX REAL-MEDIA RENDER PATH → REGRESSION TEST → FULL CLOUD CI → FREEZE NEW SHA → LOCAL CODEX VERIFY ONLY
-v2_4_status: B7 DEVELOPMENT REOPENED
+active_stage: RELEASE FINALIZATION
+active_branch: release/v2.4.0-finalization
+accepted_b7_main: fe883ca5581d721e996e833d43d7b7f88faebc41
+accepted_b7_pr: PR #79
+accepted_b7_main_ci: CI #969 / run 33291257927 / PASS
+accepted_b7_local_gate: PASS — two distinct real user videos including the previously failing 583.354921 s source
+release_version_sync: run 33291616642 / PASS
+release_tag_status: PENDING — do not claim v2.4.0 released until annotated tag and independent dereference verification complete
+local_action_required: NONE — release-finalization changes are metadata/docs only
+next_action: RELEASE PR EXACT-HEAD CI → DIFF AUDIT → MERGE → EXACT-MAIN CI → CREATE ANNOTATED v2.4.0 TAG → VERIFY TAG OBJECT + DEREFERENCE → POST-RELEASE TRUTH SYNC
+v2_4_status: RELEASE FINALIZATION IN PROGRESS
 ```
 
 ## V2.4 authoritative docs and sequence
@@ -31,6 +36,7 @@ v2_4_status: B7 DEVELOPMENT REOPENED
 ```text
 docs/prd/Video_OS_Studio_V2_4_Autonomous_Production_Agent_Master_PRD.md
 docs/prd/Video_OS_Studio_V2_4_Development_Plan.md
+docs/acceptance/V2_4_RELEASE_FINALIZATION.md
 ```
 
 ```text
@@ -45,10 +51,8 @@ B5b Controlled autonomy + protected-edit boundary
 B5c Production Workspace UX
 B6  End-to-End Autonomous Real Video Acceptance
 B7  Campaign / Batch Production + Dashboard
-Release
+Release Finalization
 ```
-
-B7 began only after B6 merged to `main` and its exact-main CI passed.
 
 ## V2.4 milestone evidence
 
@@ -63,121 +67,115 @@ B5a Mission Executor Core                   → COMPLETE / PR #73 / main b222f21
 B5b Controlled Autonomy + Protected Edits   → COMPLETE / PR #75 / main 078f06992f9e474f806ac5869e7a5d9951ec17d0 / CI #856 PASS
 B5c Production Workspace / Mission UI       → COMPLETE / PR #77 / main 3edf0ef14a92b8307e36b8c21dcd9fc6d634181b / CI #894 PASS
 B6  Autonomous Real Video Acceptance        → COMPLETE / PR #78 / main 37602f0fd3cb9558fb51259b23936521d216098b / CI #929 PASS
-B7  Campaign / Batch Production             → DEVELOPMENT REOPENED / PR #79 / LOCAL REAL-MEDIA GATE FAILED
+B7  Campaign / Batch Production             → COMPLETE / PR #79 / main fe883ca5581d721e996e833d43d7b7f88faebc41 / CI #969 PASS / Local Windows real-user-media PASS
+Release Finalization                        → IN PROGRESS / release/v2.4.0-finalization
 ```
 
-## B6 accepted core
+## B7 accepted final product boundary
 
-Accepted main: `37602f0fd3cb9558fb51259b23936521d216098b` via PR #78. Exact-main CI #929 / run `33252826396` passed after the frozen B6 product SHA had already passed mandatory Local Windows VERIFY ONLY acceptance with a real user MP4.
+Accepted product main:
 
-B6 proves the bounded autonomous single-video chain:
+`fe883ca5581d721e996e833d43d7b7f88faebc41`
+
+PR #79 merged only after:
+
+- frozen product SHA `e053cbd953d58c61b4df98bec9e35d60faf1bbaf` passed CI #968 / run `33265665932` across Ubuntu, Windows, Browser, Windows Media, B6 real-engine and B7 real-batch gates;
+- mandatory Local Windows VERIFY ONLY passed on the same exact product SHA with two distinct real user MP4s;
+- the exact 583.354921-second H.264/AAC source that failed the previous candidate rendered successfully to a valid 583.424-second H.264/AAC 640x360 30 fps output;
+- the second 65.921451-second source rendered successfully to a valid 65.984-second H.264/AAC 640x360 30 fps output;
+- configured Mission concurrency `2`, observed Mission concurrency `2`, heavy render resource limit `1`;
+- distinct Projects, Jobs and output paths;
+- durable Campaign reload `completed`;
+- no cross-Project mutable truth leakage;
+- no `.props.json`, `.hf-work`, stale lock/tmp/temp residue or attributable orphan runtime process;
+- primary local worktree HEAD/status preserved exactly.
+
+Resulting exact-main CI #969 / run `33291257927` passed all six jobs on `fe883ca...` at attempt 1.
+
+## Accepted V2.4 product capabilities
+
+V2.4 adds a bounded production-orchestration layer above the immutable Project / Workflow / Durable Job / Agent foundations:
 
 ```text
-real Project/media
-→ durable Mission + Plan
-→ Agent proposal
+Production Goal
+→ Production Mission
+→ Production Plan / Step Graph
+→ Asset Intelligence + reusable Skills
+→ controlled Agent execution
 → protected Project mutation
-→ Workflow
-→ Durable Job
+→ existing Workflow / Durable Jobs
 → real Remotion render
-→ QA
-→ one typed bounded repair
-→ rerender
-→ final QA pass
+→ Self-QA
+→ bounded repair
+→ final review/evidence
 ```
 
-## B7 product boundary
-
-B7 is a Campaign control plane above accepted isolated Production Missions; it is not a second editor or second Project truth.
-
-Implemented on PR #79:
-
-- durable Campaign aggregate outside individual `project.json` files;
-- one mutable Project per Campaign Mission entry;
-- logical shared Brand / Asset / Policy / Skill / Export Template references only;
-- bounded Campaign Mission concurrency (`1..8`, default `2`);
-- resource limiting for heavy render work;
-- per-Mission cancel and failure isolation;
-- retry-failed semantics that do not rerun successful siblings;
-- duplicate enqueue and skipped-success paths are durable no-ops;
-- waiting-review / blocked resume is explicit and never auto-approves underlying review truth;
-- archive does not implicitly delete Projects or Missions;
-- Campaign Dashboard reconstructs from durable Campaign + Mission/Project truth;
-- Campaign execution bridges into the accepted protected `ProductionExecutionService` path;
-- no shared mutable Project truth between outputs.
-
-## B7 cloud candidate history
-
-Exact SHA `8bd1dab21206c745531cfb53b65b1e8c529f7393` passed CI #956 / run `33263067354` across six jobs:
+B7 adds the batch control plane:
 
 ```text
-ubuntu-verify                    PASS
-windows-verify                   PASS
-browser-smoke                    PASS
-windows-media-smoke              PASS
-windows-b6-core-acceptance       PASS
-windows-b7-campaign-acceptance   PASS
+Campaign
+  shared logical references / policy
+  ├─ Mission A → Project A → Workflow / Jobs
+  ├─ Mission B → Project B → Workflow / Jobs
+  └─ Mission C → Project C → Workflow / Jobs
 ```
 
-Cloud B7 used two generated 4.2-second H.264/AAC fixtures and proved configured Mission concurrency `2`, observed Mission concurrency `2`, heavy render resource limit `1`, two distinct Projects/Jobs/MP4s, durable reload, and no `.props.json` / `.hf-work` residue.
+Accepted boundaries:
 
-That SHA is no longer an acceptance candidate because the mandatory Local Windows real-user-media gate failed.
+- Mission, Plan, QA, Skill/Asset intelligence and Campaign truth remain outside `project.json`;
+- one mutable Project truth per output;
+- no second Workflow, Durable Job, Agent Session or master renderer;
+- application-owned revision/risk/idempotency/edit-protection boundaries remain authoritative;
+- Campaign failure/cancel/retry/archive cannot silently destroy sibling Project truth;
+- no generic Agent shell/filesystem/network/process/computer authority;
+- Remotion remains master renderer;
+- ordinary video uses frame-perfect OffthreadVideo by default, with one narrow in-Job HTML5 compatibility retry only for the exact known Offthread `No frame found at position` extraction failure;
+- transparent HyperFrames video remains on OffthreadVideo.
 
-## B7 Local Windows real-user-media failure
+## Release metadata synchronization
 
-Local Codex ran VERIFY ONLY on exact SHA `8bd1dab21206c745531cfb53b65b1e8c529f7393` in a detached clean worktree with two distinct real user MP4s:
+Release branch:
+
+`release/v2.4.0-finalization`
+
+Base accepted product main:
+
+`fe883ca5581d721e996e833d43d7b7f88faebc41`
+
+One-shot GitHub Actions version synchronization:
 
 ```text
-Source A: H.264/AAC, 720x1280, 30 fps, 583.354921 s, 89,591,973 bytes
-Source B: H.264/AAC, 1024x576, 30 fps, 65.921451 s, 4,274,293 bytes
+workflow run: 33291616642 / PASS
+package.json.version:                    2.3.1 → 2.4.0
+package-lock.json.version:               2.3.1 → 2.4.0
+package-lock.json.packages[""].version:  2.3.1 → 2.4.0
 ```
 
-Mission 2 rendered successfully to a real H.264/AAC 640x360 MP4. Mission 1 failed twice inside the Remotion compositor and the Mission then blocked after exhausting the declared render budget.
+The workflow structurally compared package/lock JSON before and after the npm version command and failed closed unless those three version fields were the only semantic changes. The temporary workflow removed itself and is absent from the final release diff.
 
-Underlying render error:
+Frozen pins remain:
 
 ```text
-Could not extract frame from compositor:
-No frame found at position 3635200 for source
-The proxy returned HTTP 500 at time=2.3666666666666667.
-remotion-render exited with code 1.
+Project Schema:       2.0.0
+Node:                 24.x
+remotion:             4.0.513
+@remotion/player:     4.0.513
+@remotion/cli:        4.0.513
+hyperframes:          0.8.10
+@playwright/test:     1.62.1
+prettier:             3.8.1
 ```
 
-The final `PRODUCTION_EXECUTION_BUDGET_EXCEEDED` error is the bounded executor's consequence of two render failures; it is not the decoder root cause.
+## Release boundary
 
-The acceptance worktree remained source-clean and no new persistent Node/FFmpeg orphan was confirmed. The user's primary repository HEAD and existing `next-env.d.ts` content stayed unchanged, but a new untracked `.video_agent/plugin_root` appeared during the verification session. Its source was not proven to be Video OS product code; the next local acceptance must prevent verifier/plugin state from touching the primary repository and must require an exact before/after status match.
+Until the annotated `v2.4.0` tag is independently verified:
 
-## B7 repair boundary
-
-GPT Web + GitHub own the repair. Local Codex remains VERIFY ONLY.
-
-The repair must:
-
-- address the real-media Remotion frame extraction path rather than increasing Mission retry/render budgets;
-- keep Project Schema `2.0.0` unchanged;
-- preserve B6 accepted single-video behavior;
-- add a deterministic regression capable of exercising problematic timestamp/frame-gap media characteristics;
-- rerun the complete cloud CI, including B6 and B7 Windows real-engine gates;
-- freeze a new exact SHA only after all cloud gates pass;
-- rerun Local Windows B7 with two real user videos before PR #79 can leave Draft or merge.
-
-## Package and dependency truth before repair
-
-```text
-package.json version:                 2.3.1
-package-lock.json top-level version:  2.3.1
-packages[""].version:                 2.3.1
-Project Schema:                       2.0.0
-Node:                                 24.x
-remotion:                             4.0.513
-@remotion/player:                     4.0.513
-@remotion/cli:                        4.0.513
-hyperframes:                          0.8.10
-@playwright/test:                     1.62.1
-prettier:                             3.8.1
-```
-
-Any new Remotion-family package used by the repair must be pinned to the existing `4.0.513` family and accepted by a fresh lockfile/CI cycle.
+- immutable released product remains `v2.3.1`;
+- V2.4.0 is a release candidate only;
+- do not describe the release candidate branch or merge commit as an immutable release;
+- never move/recreate `v2.3.0` or `v2.3.1`;
+- do not create/move `v2.4.0` before the release PR exact-head CI and resulting exact-main CI are green;
+- after tag creation, independently verify Git object type `tag`, tag target type `commit`, and exact dereferenced release commit before marking V2.4 RELEASED.
 
 ## Permanent accepted invariants
 
@@ -205,5 +203,4 @@ REUSE > MODIFY > CREATE
 - stale mutation-dependent state fails closed;
 - Project mutation must pass accepted application-owned mutation services and revision guards;
 - protected/manual edits must not be silently overwritten;
-- Campaign retry/cancel/archive operations must not silently destroy sibling output truth;
-- no generic shell/filesystem/network/process/computer authority is introduced by B7 or its repair.
+- no generic shell/filesystem/network/process/computer authority is introduced by V2.4.
