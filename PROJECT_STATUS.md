@@ -5,18 +5,18 @@
 ## Current checkpoint
 
 ```yaml
-released_product_version: 2.4.0
-released_tag: v2.4.0
-released_commit: da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
-released_tag_object_sha: 96ebdd67e2412ed4d25be36cc6120f1bba8a8734
+released_product_version: 2.4.1
+released_tag: v2.4.1
+released_commit: 4c105bad936479690711c03f3e349db36fbadaf5
+released_tag_object_sha: 9f3d06d8eabb114d6f1bcd907e98b4de3756a4a7
 project_schema: 2.0.0
 
 package_json_version: 2.4.1
 package_lock_version: 2.4.1
 
-active_development_workstream: V2.4.1 Release Finalization
-active_stage: RELEASE METADATA CANDIDATE — TAG NOT YET CREATED
-active_branch: release/v2.4.1-finalization
+active_development_workstream: NONE
+active_stage: V2.4.1 RELEASE COMPLETE
+active_branch: NONE
 hardening_audit_pr: PR #82
 hardening_merge_pr: PR #84
 accepted_hardening_head: 0560280cfe0701444198e38b34f82f132762d246
@@ -24,22 +24,47 @@ accepted_hardening_main: d868f7dd02c71577bab16029fa9cec2ae28bdf4e
 accepted_hardening_main_ci: CI #1014 / run 33309131066 / PASS
 local_windows_gate: 0560280cfe0701444198e38b34f82f132762d246 / PASS
 release_metadata_sync: run 33309439413 / PASS
-release_finalization_pr: PENDING
+release_finalization_pr: PR #85
+release_pr_frozen_head: 31e8b27f547880a660f2ea306013a93cb063793b
+release_pr_ci: CI #1015 / run 33309688111 / PASS
+release_main_ci: CI #1016 / run 33310596562 / PASS
+release_tag_creation: run 33310884372 / PASS
 local_action_required: NO
-next_action: create and freeze the metadata/docs-only release PR; require all six exact-head CI gates; merge with expected-head protection; require all six exact-main CI gates; create and verify immutable annotated v2.4.1; then perform docs-only immutable truth sync
+next_action: NONE — V2.4.1 is released; future product work requires a separately approved V2.4.x or V2.5 workstream
 v2_4_status: RELEASED
-v2_4_1_status: RELEASE_CANDIDATE_NOT_YET_TAGGED
+v2_4_1_status: RELEASED
 ```
+
+## Immutable V2.4.1 release truth
+
+Video OS Studio V2.4.1 is released at the independently verified annotated tag `v2.4.1`.
+
+```text
+release commit:      4c105bad936479690711c03f3e349db36fbadaf5
+annotated tag:       v2.4.1
+tag object SHA:      9f3d06d8eabb114d6f1bcd907e98b4de3756a4a7
+tag target type:     commit
+dereferenced target: 4c105bad936479690711c03f3e349db36fbadaf5
+tag message:         Video OS Studio v2.4.1
+```
+
+Independent GitHub Git Data verification proved `refs/tags/v2.4.1` points to an object of type `tag`, not directly to a commit, and that the tag object targets the exact release commit above.
+
+Released tags `v2.3.0`, `v2.3.1`, `v2.4.0`, and `v2.4.1` are immutable and must never be moved or recreated.
+
+Authoritative release evidence:
+
+`docs/acceptance/V2_4_1_RELEASE_FINALIZATION.md`
 
 ## V2.4.1 accepted hardening truth
 
-V2.4.1 is a correctness, security, durability, concurrency and release-hygiene patch over the immutable V2.4.0 product. It adds no new product capability, does not change Project Schema, and keeps the accepted Node / Remotion / HyperFrames versions frozen.
+V2.4.1 is a correctness, security, durability, concurrency and release-hygiene patch over V2.4.0. It adds no new product capability, does not change Project Schema, and keeps the accepted Node / Remotion / HyperFrames versions frozen.
 
 Authoritative PRD:
 
 `docs/prd/Video_OS_Studio_V2_4_1_Engineering_Hardening_Master_PRD.md`
 
-Accepted boundary:
+Accepted hardening boundary:
 
 ```text
 engineering/audit PR:       #82
@@ -118,15 +143,32 @@ attributable process/listener:  0
 primary worktree:               preserved exactly
 ```
 
-No additional Local Codex product gate is required for the metadata/docs-only release finalization. The release CI continues to rerun the Windows media, B6 and B7 gates after the package version bump.
+## V2.4.1 release finalization evidence
 
-## Exact-main hardening CI
+Package metadata synchronization:
 
-After PR #84 merged, exact main was:
+```text
+release branch:                            release/v2.4.1-finalization
+accepted hardening main baseline:          d868f7dd02c71577bab16029fa9cec2ae28bdf4e
+package.json.version:                      2.4.0 -> 2.4.1
+package-lock.json.version:                 2.4.0 -> 2.4.1
+package-lock.json.packages[""].version:    2.4.0 -> 2.4.1
+sync run:                                  33309439413 / PASS
+```
 
-`d868f7dd02c71577bab16029fa9cec2ae28bdf4e`
+The one-shot version-sync guard proved no dependency, devDependency, engine, package-tree or lock-integrity drift.
 
-CI #1014 / run `33309131066` passed all six gates:
+Release PR #85 exact head:
+
+`31e8b27f547880a660f2ea306013a93cb063793b`
+
+CI #1015 / run `33309688111` passed all six release gates on that exact head.
+
+PR #85 merged with expected-head protection as release commit:
+
+`4c105bad936479690711c03f3e349db36fbadaf5`
+
+Exact-main CI #1016 / run `33310596562` passed all six gates at attempt 1:
 
 ```text
 ubuntu-verify                    PASS
@@ -137,29 +179,19 @@ windows-b6-core-acceptance       PASS
 windows-b7-campaign-acceptance   PASS
 ```
 
-## V2.4.1 release metadata synchronization
+Isolated tag creation run `33310884372` then created `v2.4.1` only after proving `origin/main` still exactly equaled the release commit and the tag did not already exist. The run verified the annotated object and dereferenced commit before succeeding, and removed its temporary workflow from the isolated tagging branch.
 
-Release branch:
-
-`release/v2.4.1-finalization`
-
-Accepted hardening main baseline:
-
-`d868f7dd02c71577bab16029fa9cec2ae28bdf4e`
-
-One-shot version synchronization changed only:
+Independent GitHub Git Data verification then confirmed:
 
 ```text
-package.json.version:                    2.4.0 -> 2.4.1
-package-lock.json.version:               2.4.0 -> 2.4.1
-package-lock.json.packages[""].version:  2.4.0 -> 2.4.1
+ref:                 refs/tags/v2.4.1
+ref object type:     tag
+tag object SHA:      9f3d06d8eabb114d6f1bcd907e98b4de3756a4a7
+tag target type:     commit
+tag target commit:   4c105bad936479690711c03f3e349db36fbadaf5
 ```
 
-Run `33309439413` passed structural guards proving no dependency, devDependency, engine, package-tree or lock-integrity drift. The temporary workflow removed itself and is absent from the intended final release diff.
-
-Until the release metadata/docs PR is merged, its exact-main CI passes, and an annotated `v2.4.1` tag is independently verified, `v2.4.0` remains the immutable current release.
-
-## Immutable V2.4.0 release truth
+## Previous immutable V2.4.0 release truth
 
 ```text
 release commit:      da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
@@ -170,7 +202,7 @@ dereferenced target: da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
 tag message:         Video OS Studio v2.4.0
 ```
 
-Previous release tags `v2.3.0` and `v2.3.1` remain immutable. `v2.4.0` must never be moved or recreated.
+Independent re-verification during V2.4.1 release finalization confirmed the V2.4.0 object still targets the same commit.
 
 ## V2.4 delivery history
 
@@ -188,6 +220,7 @@ B6   COMPLETE / PR #78
 B7   COMPLETE / PR #79 / Local Windows real-user-media PASS
 V2.4.0 RELEASE / PR #80 / release commit da22a5415cbf8ad2a9ce93b912b41b787b29a9b1 / annotated tag verified
 V2.4.1 HARDENING / PR #82 audit + PR #84 accepted merge / Local Windows PASS
+V2.4.1 RELEASE / PR #85 / release commit 4c105bad936479690711c03f3e349db36fbadaf5 / CI #1016 PASS / annotated tag verified
 ```
 
 ## Frozen technical invariants
@@ -236,7 +269,7 @@ REUSE > MODIFY > CREATE
 
 ## Deferred post-V2.4.1 follow-up
 
-Issue #83 tracks non-blocking P3 follow-up work that is deliberately outside this patch release unless a reproducible correctness/security failure upgrades severity:
+Issue #83 tracks non-blocking P3 follow-up work that remains outside the completed V2.4.1 release unless a reproducible correctness/security failure upgrades severity:
 
 - successful provider-stream unread-body cleanup;
 - Workflow secondary-persistence-error/original-error preservation.
