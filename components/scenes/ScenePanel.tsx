@@ -1,7 +1,7 @@
 "use client";
 
 import {useState} from "react";
-import {ProjectRequestError,postProjectTransaction,reloadProject} from "@/lib/client/project-mutations";
+import {ProjectRequestError,postProjectTransaction,publishProjectIfActive,reloadProject} from "@/lib/client/project-mutations";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
 import {textEditingMessage} from "@/lib/i18n/text-editing";
 import type {ProjectCommand} from "@/lib/project/commands";
@@ -11,6 +11,7 @@ import {segmentText} from "@/lib/script/model";
 import {SceneSemanticTypeSchema,type SceneSemanticType} from "@/schemas/scene";
 import type {Project} from "@/schemas/project";
 import {usePlayerStore} from "@/store/player-store";
+import {useProjectStore} from "@/store/project-store";
 import {useSelectionStore} from "@/store/selection-store";
 
 type Props={project:Project;onProjectChange:(project:Project)=>void;onCommand:(command:ProjectCommand,message:string)=>Promise<void>};
@@ -22,7 +23,8 @@ export const ScenePanel=({project,onProjectChange,onCommand}:Props)=>{
   const{locale}=useStudioPreferences();const zh=locale==="zh-CN";const msg=(key:Parameters<typeof textEditingMessage>[1])=>textEditingMessage(locale,key);
   const requestSeek=usePlayerStore(state=>state.requestSeek);const selectedSceneId=useSelectionStore(state=>state.selectedSceneId);const selectScene=useSelectionStore(state=>state.selectScene);
   const[busy,setBusy]=useState(false);const[error,setError]=useState<string|null>(null);
-  const applyTransaction=async(transaction:ProjectCommandTransaction)=>{setBusy(true);setError(null);try{const data=await postProjectTransaction(project,{label:transaction.label,commands:transaction.commands},transaction.id);onProjectChange(data.project);}catch(caught){if(caught instanceof ProjectRequestError&&caught.code==="PROJECT_REVISION_CONFLICT"){try{const latest=await reloadProject(project.project.id);onProjectChange(latest.project);}catch{}}setError(caught instanceof Error?caught.message:String(caught));}finally{setBusy(false);}};
+  const publishProjectChange=(candidate:Project)=>publishProjectIfActive(project.project.id,candidate,()=>useProjectStore.getState().project,onProjectChange);
+  const applyTransaction=async(transaction:ProjectCommandTransaction)=>{setBusy(true);setError(null);try{const data=await postProjectTransaction(project,{label:transaction.label,commands:transaction.commands},transaction.id);publishProjectChange(data.project);}catch(caught){if(caught instanceof ProjectRequestError&&caught.code==="PROJECT_REVISION_CONFLICT"){try{const latest=await reloadProject(project.project.id);publishProjectChange(latest.project);}catch{}}setError(caught instanceof Error?caught.message:String(caught));}finally{setBusy(false);}};
   const clearScenes=()=>{const script=structuredClone(project.script);for(const segment of script.segments)delete segment.sceneId;return applyTransaction({id:`clear-scenes-${Date.now()}`,label:"Clear Scenes",commands:[...project.scenes.map(scene=>({type:"remove-scene" as const,sceneId:scene.id})),{type:"set-script-document",script}]});};
   if(!project.script.segments.length)return <section className="scene-panel scene-empty"><div className="scene-panel-head"><small>SCENE</small><strong>{msg("scenes")}</strong></div><p>{msg("sceneEmpty")}</p></section>;
   const ordered=[...project.scenes].sort((a,b)=>a.startFrame-b.startFrame);
