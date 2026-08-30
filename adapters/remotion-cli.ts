@@ -1,6 +1,7 @@
 import {mkdir,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import type {RemotionRenderAdapter,RemotionVideoBackend,ToolExecutionOptions} from "@/adapters/contracts";
+import {withErrorPreservingCleanup} from "@/lib/fs/error-preserving-cleanup";
 import {exportQualityCrf} from "@/lib/render/profile";
 import {nodeToolRunner,parseToolTimeout,ToolRunError,type ToolRunner} from "@/lib/process/tool-runner";
 import {resolveProjectNodeBin} from "@/lib/process/project-bin";
@@ -26,7 +27,7 @@ export class NodeRemotionCliAdapter implements RemotionRenderAdapter{
     let backend:RemotionVideoBackend="offthread-video";
     let fallbackUsed=false;
     let fallbackReason:string|undefined;
-    try{
+    return withErrorPreservingCleanup(async()=>{
       const cli=await resolveProjectNodeBin("@remotion/cli","remotion",REMOTION_RUNTIME_VERSION);const renderArgs=buildRemotionRenderArgs(input,this.entryPoint,propsPath);const run=()=>this.runner.run({tool:"remotion-render",command:cli.command,args:[...cli.argsPrefix,...renderArgs],timeoutMs:options.timeoutMs??parseToolTimeout(process.env.REMOTION_RENDER_TIMEOUT_MS,DEFAULT_REMOTION_TIMEOUT_MS),signal:options.signal,onLog:options.onLog});
       await writeProps(backend);
       try{await run();}
@@ -41,8 +42,6 @@ export class NodeRemotionCliAdapter implements RemotionRenderAdapter{
         await run();
       }
       return{outputPath,backend,fallbackUsed,...(fallbackReason?{fallbackReason}:{})};
-    }finally{
-      await rm(propsPath,{force:true});
-    }
+    },()=>rm(propsPath,{force:true}),"Remotion render failed and temporary props cleanup did not complete.");
   }
 }
