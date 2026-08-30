@@ -4,21 +4,21 @@ Video OS Studio is a local-first AI-native video production workspace.
 
 ## Current immutable release
 
-**Video OS Studio v2.4.1 is released.**
+**Video OS Studio v2.4.2 is released.**
 
 ```text
-Product version: 2.4.1
+Product version: 2.4.2
 Project Schema: 2.0.0
-Release commit: 4c105bad936479690711c03f3e349db36fbadaf5
-Release tag: v2.4.1 (annotated, verified)
-Tag object: 9f3d06d8eabb114d6f1bcd907e98b4de3756a4a7
+Release commit: 79e48b068f701bba3f1c826710337a82f0a64760
+Release tag: v2.4.2 (annotated, verified)
+Tag object: 2c9b0ca2401f547066c6a51ff0ec60a641cfce35
 ```
 
-The annotated `v2.4.1` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, and `v2.4.0` release tags remain immutable evidence and must never be moved or recreated.
+The annotated `v2.4.2` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, and `v2.4.1` release tags remain immutable evidence and must never be moved or recreated.
 
 Release evidence is recorded in:
 
-[`docs/acceptance/V2_4_1_RELEASE_FINALIZATION.md`](docs/acceptance/V2_4_1_RELEASE_FINALIZATION.md)
+[`docs/acceptance/V2_4_2_RELEASE_FINALIZATION.md`](docs/acceptance/V2_4_2_RELEASE_FINALIZATION.md)
 
 The live repository source of truth is:
 
@@ -84,6 +84,10 @@ Autonomous Production Agent + Campaign Production
 V2.4.1
 Engineering Hardening / Durability + Security Patch
         ✅ RELEASED
+
+V2.4.2
+Correctness / Liveness / HyperFrames Patch
+        ✅ RELEASED
 ```
 
 ## V2.4 delivery sequence
@@ -102,6 +106,7 @@ B6  End-to-End Autonomous Real Video Acceptance ✅
 B7  Campaign / Batch Production + Dashboard     ✅
 V2.4.0 Release                                  ✅ VERIFIED
 V2.4.1 Engineering Hardening                    ✅ VERIFIED
+V2.4.2 Correctness / Liveness Patch             ✅ VERIFIED
 ```
 
 ## V2.4 accepted capabilities
@@ -174,6 +179,27 @@ V2.4.1 Engineering Hardening                    ✅ VERIFIED
 - **FFmpeg / ffprobe** behind adapters/services;
 - **Playwright 1.62.1** for browser acceptance.
 
+## V2.4.2 release verification
+
+The accepted engineering exact SHA was `c3825fe42e77c4369ec6e03d89204161764667e9`. Mandatory Local Windows acceptance passed on that exact SHA, including targeted HyperFrames real-render recertification. Cloud CI #1089 / run `33329513152` and replacement merge CI #1090 / run `33332846468` both passed all seven gates.
+
+PR #88 merged the exact accepted engineering head with expected-head protection as `8e8f63cd570af460a53199f45a139ee78c3a4dcb`; exact-main engineering CI #1091 / run `33333104052` passed all seven gates.
+
+Release PR #89 froze exact head `6d72d70930f3571c84b9d3f250c140515dbbded3`. CI #1092 / run `33333581692` passed all seven gates, and PR #89 merged with expected-head protection as release commit `79e48b068f701bba3f1c826710337a82f0a64760`. Exact-main CI #1093 / run `33333816771` then passed all seven gates on that exact release commit.
+
+Isolated immutable-tag run `33334882825` created `v2.4.2`. Independent GitHub Git Data verification confirmed:
+
+```text
+tag ref:             refs/tags/v2.4.2
+tag object type:     tag
+tag object SHA:      2c9b0ca2401f547066c6a51ff0ec60a641cfce35
+tag target type:     commit
+dereferenced commit: 79e48b068f701bba3f1c826710337a82f0a64760
+tag message:         Video OS Studio v2.4.2
+```
+
+`v2.4.0` and `v2.4.1` were independently reverified and remain unchanged.
+
 ## V2.4.1 release verification
 
 The accepted hardening exact SHA was:
@@ -210,6 +236,8 @@ tag message:         Video OS Studio v2.4.1
 `v2.4.0` was independently reverified to remain annotated object `96ebdd67e2412ed4d25be36cc6120f1bba8a8734`, targeting `da22a5415cbf8ad2a9ce93b912b41b787b29a9b1`.
 
 ## Real-media acceptance
+
+V2.4.2 final Local Windows acceptance also proved the corrected bounded B6 construction and a real HyperFrames render on Windows with deterministic built-in templates, idempotent browser provisioning, ffprobe verification, and no attributable residue.
 
 V2.4 B6 and B7 use exact-SHA Windows acceptance for behavior cloud-only tests cannot fully prove. V2.4.1 final recertification reused the same byte-identical real sources and proved each Campaign Project was intentionally bounded to 90 frames rather than accidentally rendering the full source duration.
 
