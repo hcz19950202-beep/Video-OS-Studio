@@ -18,6 +18,8 @@ jobs:
         with:
           ref: fix/v2.4.2-correctness-liveness
           fetch-depth: 0
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
       - name: Bound B6 imported source before first render
         shell: python
         run: |
@@ -134,11 +136,14 @@ jobs:
           )
 
           path.write_text(text, encoding="utf-8")
+      - name: Format patched acceptance with pinned Prettier
+        run: |
+          npx prettier --write tests/h6/windows-b6-core-acceptance.test.ts
+          npx prettier --check tests/h6/windows-b6-core-acceptance.test.ts
       - name: Remove one-shot workflow
         run: rm .github/workflows/v242-b6-bounded-source-fix.yml
-      - name: Validate and commit
+      - name: Commit bounded B6 acceptance update
         run: |
-          npx prettier --check tests/h6/windows-b6-core-acceptance.test.ts
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add tests/h6/windows-b6-core-acceptance.test.ts .github/workflows/v242-b6-bounded-source-fix.yml
