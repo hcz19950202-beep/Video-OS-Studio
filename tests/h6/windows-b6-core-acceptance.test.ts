@@ -445,7 +445,7 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
         projects,
         mutations,
       );
-      const repairTargets = new ProductionQARepairTargetResolver(repairResolver);
+      const repairTargets = new ProductionQARepairTargetResolver(repairResolver,projects);
       const applicationRunner = new ApplicationProductionStepRunner(
         agent,
         proposalResolver,
