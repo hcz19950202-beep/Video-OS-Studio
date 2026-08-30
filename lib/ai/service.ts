@@ -64,11 +64,12 @@ export class AgentSessionService{
   }
 
   async open(projectId:string,sessionId:string):Promise<AgentSession>{
-    return this.dependencies.sessions.withSessionLock(projectId,sessionId,async()=>{
-      let session=await this.dependencies.sessions.require(projectId,sessionId);
-      const now=this.now();
+    const snapshot=await this.dependencies.sessions.require(projectId,sessionId);
+    const context=await this.dependencies.context.build(projectId,snapshot.lastContext?.selection);
+    const now=this.now();
+    return this.dependencies.sessions.mutate(projectId,sessionId,current=>{
       let changed=false;
-      const turns=session.turns.map(turn=>{
+      const turns=current.turns.map(turn=>{
         if(turn.status!=="running")return turn;
         changed=true;
         return{
@@ -83,18 +84,14 @@ export class AgentSessionService{
           },
         };
       });
-      if(changed)session=AgentSessionSchema.parse({...session,turns,updatedAt:now});
-
-      const selection=session.lastContext?.selection;
-      const context=await this.dependencies.context.build(projectId,selection);
-      const reconciled=reconcileStaleProposals(session,context.baseProjectRevision);
-      if(reconciled!==session){session=AgentSessionSchema.parse({...reconciled,updatedAt:now});changed=true;}
-      if(session.lastContext?.baseProjectRevision!==context.baseProjectRevision){
-        session=AgentSessionSchema.parse({...session,lastContext:{baseProjectRevision:context.baseProjectRevision,selection:context.selection},updatedAt:now});
+      let next=AgentSessionSchema.parse({...current,turns});
+      const reconciled=reconcileStaleProposals(next,context.baseProjectRevision);
+      if(reconciled!==next){next=AgentSessionSchema.parse(reconciled);changed=true;}
+      if(next.lastContext?.baseProjectRevision!==context.baseProjectRevision||JSON.stringify(next.lastContext?.selection)!==JSON.stringify(context.selection)){
+        next=AgentSessionSchema.parse({...next,lastContext:{baseProjectRevision:context.baseProjectRevision,selection:context.selection}});
         changed=true;
       }
-      if(changed)await this.dependencies.sessions.save(session);
-      return session;
+      return changed?AgentSessionSchema.parse({...next,updatedAt:now}):next;
     });
   }
 
@@ -107,53 +104,27 @@ export class AgentSessionService{
   }
 
   async close(projectId:string,sessionId:string):Promise<AgentSession>{
-    return this.dependencies.sessions.withSessionLock(projectId,sessionId,async()=>{
-      const session=await this.openUnlocked(projectId,sessionId);
-      if(session.status==="closed"){
-        await this.dependencies.sessions.save(session);
-        return session;
-      }
-      const closed=AgentSessionSchema.parse({...session,status:"closed",updatedAt:this.now()});
-      await this.dependencies.sessions.save(closed);
-      return closed;
-    });
+    const session=await this.open(projectId,sessionId);
+    if(session.status==="closed")return session;
+    return this.dependencies.sessions.mutate(projectId,sessionId,current=>AgentSessionSchema.parse({...current,status:"closed",updatedAt:this.now()}));
   }
 
   async recordApprovedOperation(input:{projectId:string;sessionId:string;proposalId:string;operationId:string}):Promise<AgentSession>{
-    return this.dependencies.sessions.withSessionLock(input.projectId,input.sessionId,async()=>{
-      const session=await this.openUnlocked(input.projectId,input.sessionId);
-      const existing=session.approvedOperations.find(item=>item.operationId===input.operationId);
+    return this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>{
+      const existing=current.approvedOperations.find(item=>item.operationId===input.operationId);
       if(existing){
         if(existing.proposalId!==input.proposalId)throw new Error("Approved Agent operation ID is already bound to another proposal.");
-        await this.dependencies.sessions.save(session);
-        return session;
+        return current;
       }
-      const proposal=session.proposals.find(item=>item.id===input.proposalId);
+      const proposal=current.proposals.find(item=>item.id===input.proposalId);
       if(!proposal)throw new Error("Approved Agent operation references an unknown proposal.");
       if(proposal.status!=="draft"&&proposal.status!=="reviewed")throw new Error("Only current reviewable Agent proposals can register approved operations.");
       const now=this.now();
-      const updated=AgentSessionSchema.parse({
-        ...session,
-        approvedOperations:[...session.approvedOperations,{operationId:input.operationId,proposalId:input.proposalId,approvedAt:now}],
+      return AgentSessionSchema.parse({
+        ...current,
+        approvedOperations:[...current.approvedOperations,{operationId:input.operationId,proposalId:input.proposalId,approvedAt:now}],
         updatedAt:now,
       });
-      await this.dependencies.sessions.save(updated);
-      return updated;
     });
-  }
-
-  private async openUnlocked(projectId:string,sessionId:string):Promise<AgentSession>{
-    let session=await this.dependencies.sessions.require(projectId,sessionId);
-    const now=this.now();
-    const context=await this.dependencies.context.build(projectId,session.lastContext?.selection);
-    const turns=session.turns.map(turn=>turn.status==="running"?{
-      ...turn,
-      status:"interrupted" as const,
-      completedAt:now,
-      error:{category:"recovery" as const,code:"incomplete_turn",message:"Agent turn was interrupted before completion and can be retried.",retryable:true},
-    }:turn);
-    session=AgentSessionSchema.parse({...session,turns});
-    session=reconcileStaleProposals(session,context.baseProjectRevision);
-    return AgentSessionSchema.parse({...session,lastContext:{baseProjectRevision:context.baseProjectRevision,selection:context.selection}});
   }
 }

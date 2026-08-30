@@ -14,19 +14,47 @@ project_schema: 2.0.0
 package_json_version: 2.4.0
 package_lock_version: 2.4.0
 
-active_development_workstream: NONE
-active_stage: V2.4 RELEASE COMPLETE
-active_branch: docs/v2.4.0-release-truth
+active_development_workstream: V2.4.1 Engineering Hardening
+active_stage: ONLINE HARDENING COMPLETE; FRESH LOCAL WINDOWS RECERTIFICATION PENDING
+active_branch: fix/v2.4.1-online-hardening
+hardening_pr: PR #82 / DRAFT / DO NOT MERGE
+hardening_baseline_main: 667610d1bfbfdd9db9ba2d036aa3416d3419dd93
+prior_local_gate_sha: bc6c081d17b07fc24ddc31011fe16ac3679b38c7 / PASS BUT SUPERSEDED
+prior_local_gate_reason: GPT Web review found and fixed a crash window after durable Production step claim but before runner execution
 accepted_b7_main: fe883ca5581d721e996e833d43d7b7f88faebc41
 release_pr: PR #80
 release_pr_frozen_head: c4a395f9d3059dab7d2b6794df57fce292e8ea6d
 release_pr_ci: CI #970 / run 33291797863 / PASS
 release_main_ci: CI #971 / run 33292090068 / PASS after one browser-only timing-flake rerun
 release_tag_creation: run 33292747452 / PASS
-local_action_required: NONE
-next_action: POST-RELEASE TRUTH-SYNC PR CI → MERGE; then begin no new product workstream until separately planned/approved
+local_action_required: YES — fresh exact-head V2.4.1 Windows recertification after current PR cloud CI is green
+next_action: freeze the current PR #82 exact HEAD after cloud CI; Local Codex reruns runner-ownership/crash/restart plus B6/B7 real-media acceptance; then GPT Web performs final exact-head review and release finalization
 v2_4_status: RELEASED
+v2_4_1_status: HARDENING_CANDIDATE_NOT_YET_ACCEPTED
 ```
+
+## V2.4.1 hardening truth
+
+V2.4.1 is a post-release correctness/security/durability hardening patch. It adds no new product capability and does not change Project Schema or frozen renderer/runtime versions.
+
+Authoritative PRD:
+
+`docs/prd/Video_OS_Studio_V2_4_1_Engineering_Hardening_Master_PRD.md`
+
+PR #82 currently contains the accepted forward-fix direction for:
+
+- trusted renderer/workflow asset origins that never derive durable truth from request Host;
+- Windows transient retry + primary/backup durable recovery for critical JSON stores;
+- ownership-safe stale lock recovery;
+- Project/Mission stale async publication guards;
+- one-transaction Effect Preset application and lower frame-rate UI churn;
+- bounded process probing and 250ms production polling defaults;
+- Agent Session durable cross-process read/modify/write and apply-operation claims;
+- Production Mission short-lock claim → lock-free execute → short-lock reconcile;
+- durable Production runner ownership so a crash after claim but before execute can reclaim the same operation without consuming another attempt;
+- runner token verification so a late old execution cannot overwrite a newer reclaimed execution.
+
+The Local Windows acceptance previously passed on `bc6c081d17b07fc24ddc31011fe16ac3679b38c7`, including real B6/B7 media. That evidence remains valid historical evidence for that exact SHA, but it is **not** the final V2.4.1 gate because subsequent GPT Web review found the durable-claim/pre-execute crash window and advanced PR #82. A fresh exact-head Local Windows gate is mandatory before merge.
 
 ## Immutable release truth
 
@@ -100,7 +128,7 @@ The one-shot version synchronization changed only:
 ```text
 package.json.version:                    2.3.1 → 2.4.0
 package-lock.json.version:               2.3.1 → 2.4.0
-package-lock.json.packages[""].version:  2.3.1 → 2.4.0
+package-lock.json.packages[""] .version: 2.3.1 → 2.4.0
 ```
 
 Version-sync run `33291616642` passed structural guards proving no dependency, devDependency, engine, package-tree or lock-integrity drift.

@@ -12,18 +12,15 @@ export type AtomicReplaceRetryOptions={
   renameFile?:typeof rename;
 };
 
-export async function replaceFileAtomically(sourcePath:string,targetPath:string,options:AtomicReplaceRetryOptions={}):Promise<void>{
+export async function withWindowsTransientRetry<T>(operation:()=>Promise<T>,options:Omit<AtomicReplaceRetryOptions,"renameFile">={}):Promise<T>{
   const platform=options.platform??process.platform;
   const maxAttempts=Math.max(1,Math.floor(options.maxAttempts??10));
   const initialDelayMs=Math.max(0,options.initialDelayMs??10);
   const maxDelayMs=Math.max(initialDelayMs,options.maxDelayMs??100);
   const wait=options.sleep??sleep;
-  const renameFile=options.renameFile??rename;
-
   for(let attempt=1;attempt<=maxAttempts;attempt+=1){
     try{
-      await renameFile(sourcePath,targetPath);
-      return;
+      return await operation();
     }catch(error){
       const code=(error as NodeJS.ErrnoException).code;
       const retryable=platform==="win32"&&code!==undefined&&WINDOWS_RETRYABLE_RENAME_CODES.has(code);
@@ -32,4 +29,10 @@ export async function replaceFileAtomically(sourcePath:string,targetPath:string,
       await wait(delay);
     }
   }
+  throw new Error("Windows transient operation retry loop terminated unexpectedly.");
+}
+
+export async function replaceFileAtomically(sourcePath:string,targetPath:string,options:AtomicReplaceRetryOptions={}):Promise<void>{
+  const renameFile=options.renameFile??rename;
+  await withWindowsTransientRetry(()=>renameFile(sourcePath,targetPath),options);
 }

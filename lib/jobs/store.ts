@@ -1,7 +1,8 @@
 import {randomUUID} from "node:crypto";
-import {appendFile,mkdir,open,readFile,readdir,rm,writeFile} from "node:fs/promises";
+import {access,appendFile,copyFile,mkdir,open,readFile,readdir,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
+import {withWindowsTransientRetry} from "@/lib/fs/atomic-replace";
 import {JobArtifactsSchema,JobIdSchema,JobRecordSchema,type JobArtifact,type JobRecord} from "@/lib/jobs/schema";
 import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 
@@ -20,6 +21,7 @@ export class FileJobStore{
 
   private dir(jobId:string){return join(this.jobsRoot,JobIdSchema.parse(jobId));}
   private path(jobId:string,name:"job.json"|"stdout.log"|"stderr.log"|"artifacts.json"){return join(this.dir(jobId),name);}
+  private backupPath(jobId:string,name:"job.json"|"artifacts.json"){return join(this.dir(jobId),name.replace(".json",".backup.json"));}
 
   private async withPathLock<T>(path:string,fn:()=>Promise<T>):Promise<T>{
     const previous=this.pathChains.get(path)??Promise.resolve();
@@ -35,15 +37,77 @@ export class FileJobStore{
     }
   }
 
-  private async atomicWrite(path:string,content:string){
-    await this.withPathLock(path,async()=>{
-      const temp=`${path}.${randomUUID()}.tmp`;
+  private async atomicWriteUnlocked(path:string,content:string,backupPath?:string){
+    await mkdir(dirname(path),{recursive:true});
+    if(backupPath){
       try{
-        await mkdir(dirname(path),{recursive:true});
-        await writeFile(temp,content,"utf8");
-        await replaceFileAtomically(temp,path);
-      }finally{await rm(temp,{force:true});}
-    });
+        await access(path);
+        await mkdir(dirname(backupPath),{recursive:true});
+        await withWindowsTransientRetry(()=>copyFile(path,backupPath));
+      }catch(error){
+        if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+      }
+    }
+    const temp=`${path}.${randomUUID()}.tmp`;
+    try{
+      await writeFile(temp,content,"utf8");
+      await replaceFileAtomically(temp,path);
+    }finally{await rm(temp,{force:true});}
+  }
+
+  private async atomicWrite(path:string,content:string,backupPath?:string){
+    await this.withPathLock(path,()=>this.atomicWriteUnlocked(path,content,backupPath));
+  }
+
+  private async loadJobUnderPathLock(jobId:string):Promise<JobRecord|null>{
+    const path=this.path(jobId,"job.json");
+    const backupPath=this.backupPath(jobId,"job.json");
+    try{
+      await access(path);
+      try{return parseJson(await readFile(path,"utf8"),value=>JobRecordSchema.parse(value));}
+      catch(primaryError){
+        if(!(await this.exists(backupPath)))throw primaryError;
+        try{
+          const recovered=parseJson(await readFile(backupPath,"utf8"),value=>JobRecordSchema.parse(value));
+          await this.atomicWriteUnlocked(path,JSON.stringify(recovered,null,2));
+          return recovered;
+        }catch{throw primaryError;}
+      }
+    }catch(error){
+      if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+    }
+    if(!(await this.exists(backupPath)))return null;
+    const recovered=parseJson(await readFile(backupPath,"utf8"),value=>JobRecordSchema.parse(value));
+    await this.atomicWriteUnlocked(path,JSON.stringify(recovered,null,2));
+    return recovered;
+  }
+
+  private async exists(path:string){
+    try{await access(path);return true;}
+    catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return false;throw error;}
+  }
+
+  private async loadArtifactsUnderPathLock(jobId:string):Promise<JobArtifact[]>{
+    const path=this.path(jobId,"artifacts.json");
+    const backupPath=this.backupPath(jobId,"artifacts.json");
+    try{
+      await access(path);
+      try{return parseJson(await readFile(path,"utf8"),value=>JobArtifactsSchema.parse(value));}
+      catch(primaryError){
+        if(!(await this.exists(backupPath)))throw primaryError;
+        try{
+          const recovered=parseJson(await readFile(backupPath,"utf8"),value=>JobArtifactsSchema.parse(value));
+          await this.atomicWriteUnlocked(path,JSON.stringify(recovered,null,2)+"\n");
+          return recovered;
+        }catch{throw primaryError;}
+      }
+    }catch(error){
+      if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+    }
+    if(!(await this.exists(backupPath)))return[];
+    const recovered=parseJson(await readFile(backupPath,"utf8"),value=>JobArtifactsSchema.parse(value));
+    await this.atomicWriteUnlocked(path,JSON.stringify(recovered,null,2)+"\n");
+    return recovered;
   }
 
   async ensure(){await mkdir(this.jobsRoot,{recursive:true});}
@@ -62,15 +126,12 @@ export class FileJobStore{
 
   async get(jobId:string):Promise<JobRecord|null>{
     const path=this.path(jobId,"job.json");
-    return this.withPathLock(path,async()=>{
-      try{return parseJson(await readFile(path,"utf8"),value=>JobRecordSchema.parse(value));}
-      catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return null;throw error;}
-    });
+    return this.withPathLock(path,()=>this.loadJobUnderPathLock(jobId));
   }
 
   async save(record:JobRecord){
     const parsed=JobRecordSchema.parse(record);
-    await this.atomicWrite(this.path(parsed.id,"job.json"),JSON.stringify(parsed,null,2));
+    await this.atomicWrite(this.path(parsed.id,"job.json"),JSON.stringify(parsed,null,2),this.backupPath(parsed.id,"job.json"));
     return parsed;
   }
 
@@ -109,10 +170,7 @@ export class FileJobStore{
   }
   async getArtifacts(jobId:string):Promise<JobArtifact[]>{
     const path=this.path(jobId,"artifacts.json");
-    return this.withPathLock(path,async()=>{
-      try{return parseJson(await readFile(path,"utf8"),value=>JobArtifactsSchema.parse(value));}
-      catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return [];throw error;}
-    });
+    return this.withPathLock(path,()=>this.loadArtifactsUnderPathLock(jobId));
   }
-  async saveArtifacts(jobId:string,artifacts:JobArtifact[]){const parsed=JobArtifactsSchema.parse(artifacts);await this.atomicWrite(this.path(jobId,"artifacts.json"),JSON.stringify(parsed,null,2));return parsed;}
+  async saveArtifacts(jobId:string,artifacts:JobArtifact[]){const parsed=JobArtifactsSchema.parse(artifacts);await this.atomicWrite(this.path(jobId,"artifacts.json"),JSON.stringify(parsed,null,2)+"\n",this.backupPath(jobId,"artifacts.json"));return parsed;}
 }

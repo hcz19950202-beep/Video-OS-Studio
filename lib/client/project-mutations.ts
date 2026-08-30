@@ -10,6 +10,20 @@ export const createOperationId=(prefix="op")=>`${prefix}-${crypto.randomUUID()}`
 
 export const parseProjectResponse=<T,>(response:Response):Promise<T>=>parseJsonResponse<T>(response);
 
+export const canPublishProject=(current:Project|null|undefined,requestProjectId:string,candidate:Project)=>
+  current?.project.id===requestProjectId&&candidate.project.id===requestProjectId&&candidate.project.revision>=current.project.revision;
+
+export const publishProjectIfActive=(
+  requestProjectId:string,
+  candidate:Project,
+  getCurrent:()=>Project|null|undefined,
+  publish:(project:Project)=>void,
+)=>{
+  if(!canPublishProject(getCurrent(),requestProjectId,candidate))return false;
+  publish(candidate);
+  return true;
+};
+
 export const postProjectCommand=async(base:Project,command:ProjectCommand,commandId=createOperationId("cmd"))=>{
   const response=await fetch(`/api/projects/${encodeURIComponent(base.project.id)}/commands`,{
     method:"POST",

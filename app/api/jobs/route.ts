@@ -1,6 +1,7 @@
 import {CreateJobSchema,type JobType} from "@/lib/jobs/schema";
 import {HyperFramesJobInputSchema,MediaNormalizeJobInputSchema,RenderJobInputSchema,VideoUseTranscribeJobInputSchema} from "@/lib/jobs/executors";
 import {jobRuntime} from "@/lib/server/runtime";
+import {resolveTrustedAssetBaseUrl} from "@/lib/server/trusted-asset-origin";
 
 export const runtime="nodejs";
 
@@ -25,8 +26,7 @@ export async function POST(request:Request){
   try{
     const body=CreateJobSchema.parse(await request.json());
     if(!body.projectId)throw new Error(`Job type ${body.type} requires projectId.`);
-    const origin=new URL(request.url).origin;
-    const input=parseInput(body.type,body.input,origin);
+    const input=parseInput(body.type,body.input,resolveTrustedAssetBaseUrl());
     const job=await jobRuntime.create({...body,input});
     return Response.json({job},{status:202});
   }catch(error){

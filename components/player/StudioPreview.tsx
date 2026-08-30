@@ -4,7 +4,7 @@ import {Player,type PlayerRef} from "@remotion/player";
 import {useEffect,useMemo,useRef,useState} from "react";
 import {MasterComposition} from "@/remotion/MasterComposition";
 import type {ProjectCommand} from "@/lib/project/commands";
-import {ProjectRequestError,postProjectCommand,reloadProject} from "@/lib/client/project-mutations";
+import {ProjectRequestError,postProjectCommand,publishProjectIfActive,reloadProject} from "@/lib/client/project-mutations";
 import {DEFAULT_MOTION_TRANSFORM} from "@/schemas/clip";
 import type {Project} from "@/schemas/project";
 import {clampFrame} from "@/lib/timeline/frames";
@@ -31,6 +31,7 @@ export const StudioPreview=({project}:{project:Project})=>{
   const seekFrame=usePlayerStore(state=>state.seekFrame);const seekVersion=usePlayerStore(state=>state.seekVersion);
   const{prefs,safeArea,setSafeAreaProfileId,setCustomSafeArea}=useProjectStudioPrefs(project.project.id);
   const[zoom,setZoom]=useState<"fit"|"100">("fit");const[showSafeZone,setShowSafeZone]=useState(false);const[canvasEdit,setCanvasEdit]=useState(false);const[canvasDraft,setCanvasDraft]=useState<CanvasPreviewDraft|null>(null);const[fitSize,setFitSize]=useState<FitSize|null>(null);const[canvasError,setCanvasError]=useState<string|null>(null);
+  const publish=(projectId:string,candidate:Project)=>publishProjectIfActive(projectId,candidate,()=>useProjectStore.getState().project,setProject);
 
   usePlayerStoreBridge(playerRef,`${project.project.id}-${project.canvas.durationInFrames}-${project.canvas.width}x${project.canvas.height}`);
   useEffect(()=>{if(seekVersion>0)playerRef.current?.seekTo(clampFrame(seekFrame,project.canvas.durationInFrames));},[project.canvas.durationInFrames,seekFrame,seekVersion]);
@@ -42,12 +43,12 @@ export const StudioPreview=({project}:{project:Project})=>{
     const before=useProjectStore.getState().project??project;
     try{
       const payload=await postProjectCommand(before,command);
-      setProject(payload.project);
-      if(before.project.id===payload.project.project.id&&before.project.revision!==payload.project.project.revision)pushHistory({projectId:project.project.id,label:message,before,after:payload.project});
+      publish(before.project.id,payload.project);
+      if(before.project.id===payload.project.project.id&&before.project.revision!==payload.project.project.revision)pushHistory({projectId:before.project.id,label:message,before,after:payload.project});
     }catch(error){
       if(error instanceof ProjectRequestError&&error.code==="PROJECT_REVISION_CONFLICT"){
-        const latest=await reloadProject(project.project.id);
-        setProject(latest.project);
+        const latest=await reloadProject(before.project.id);
+        publish(before.project.id,latest.project);
       }
       throw error;
     }

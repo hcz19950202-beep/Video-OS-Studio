@@ -192,6 +192,7 @@ export const runB7WindowsCampaignAcceptance = async () => {
       hasAudio: boolean;
       projectId: string;
       projectRevision: number;
+      renderDurationFrames: number;
     }> = [];
 
     for (const [index, source] of sources.entries()) {
@@ -232,6 +233,11 @@ export const runB7WindowsCampaignAcceptance = async () => {
       if (!asset || asset.kind !== "video") {
         throw new Error(`B7 source ${index + 1} did not import as video.`);
       }
+      const importedVideoClips =
+        imported.project.tracks.find((track) => track.id === "video-main")?.clips ?? [];
+      if (importedVideoClips.length === 0) {
+        throw new Error(`B7 source ${index + 1} import did not create a source video clip.`);
+      }
 
       const placed = await mutations.applyTransaction(projectId, {
         expectedRevision: imported.project.project.revision,
@@ -239,6 +245,8 @@ export const runB7WindowsCampaignAcceptance = async () => {
         transaction: {
           label: `B7 real batch source ${index + 1}`,
           commands: [
+            ...importedVideoClips.map((clip) => ({ type: "remove-clip" as const, clipId: clip.id })),
+            { type: "set-duration", durationInFrames: TARGET_FRAMES },
             {
               type: "add-clip",
               trackId: "video-main",
@@ -257,6 +265,17 @@ export const runB7WindowsCampaignAcceptance = async () => {
             },
           ],
         },
+      });
+      const boundedVideoClips =
+        placed.project.tracks.find((track) => track.id === "video-main")?.clips ?? [];
+      expect(placed.project.canvas.durationInFrames).toBe(TARGET_FRAMES);
+      expect(boundedVideoClips).toHaveLength(1);
+      expect(boundedVideoClips[0]).toMatchObject({
+        id: `b7-source-video-${index + 1}`,
+        assetId: asset.id,
+        startFrame: 0,
+        sourceStartFrame: 0,
+        durationInFrames: TARGET_FRAMES,
       });
       const baseRevision = placed.project.project.revision;
 
@@ -311,6 +330,7 @@ export const runB7WindowsCampaignAcceptance = async () => {
         hasAudio: probe.hasAudio,
         projectId,
         projectRevision: baseRevision,
+        renderDurationFrames: placed.project.canvas.durationInFrames,
       });
     }
 
@@ -460,7 +480,8 @@ export const runB7WindowsCampaignAcceptance = async () => {
       const outputInfo = await stat(outputPath);
       const probe = await ffmpeg.probe(outputPath);
       expect(outputInfo.size).toBeGreaterThan(0);
-      expect(probe.durationSeconds).toBeGreaterThan(0);
+      expect(probe.durationSeconds).toBeGreaterThanOrEqual(MIN_SOURCE_SECONDS - 0.15);
+      expect(probe.durationSeconds).toBeLessThanOrEqual(MIN_SOURCE_SECONDS + 0.5);
       expect(probe.width).toBe(TARGET_WIDTH);
       expect(probe.height).toBe(TARGET_HEIGHT);
       rendered.push({
@@ -512,6 +533,7 @@ export const runB7WindowsCampaignAcceptance = async () => {
       expectedSha: process.env.B7_EXPECTED_SHA ?? null,
       campaignId: CAMPAIGN_ID,
       campaignStatus: completed.status,
+      targetFrames: TARGET_FRAMES,
       maxConcurrencyConfigured: 2,
       maxMissionConcurrencyObserved: maxActiveMissions,
       renderResourceLimitObserved: 1,

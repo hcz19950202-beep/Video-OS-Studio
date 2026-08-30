@@ -148,7 +148,7 @@ export class ApplicationProductionStepRunner implements ProductionStepRunner{
     private readonly assetBaseUrls:ProductionAssetBaseUrlResolver,
     options:ProductionApplicationRunnerOptions={},
   ){
-    this.pollIntervalMs=Math.max(1,options.pollIntervalMs??25);
+    this.pollIntervalMs=Math.max(1,options.pollIntervalMs??250);
     this.waitTimeoutMs=Math.max(1_000,options.waitTimeoutMs??15*60_000);
     this.qa=options.qa;
     this.repair=options.repair;

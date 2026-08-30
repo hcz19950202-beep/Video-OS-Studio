@@ -18,6 +18,7 @@ export class AgentWorkflowActionError extends Error{
 }
 
 export type AgentWorkflowActionRuntime=Pick<WorkflowService,"get"|"create"|"start"|"resume"|"retryStage"|"approveCheckpoint">;
+export type AgentWorkflowActionExecutorOptions={assetBaseUrl?:string};
 export type AgentWorkflowActionPreview={
   action:WorkflowActionProposalPayload["action"];
   workflowId?:string;
@@ -38,7 +39,7 @@ const stableWorkflowId=(operationId:string)=>{
 };
 
 export class AgentWorkflowActionExecutor{
-  constructor(private readonly workflows:AgentWorkflowActionRuntime){}
+  constructor(private readonly workflows:AgentWorkflowActionRuntime,private readonly options:AgentWorkflowActionExecutorOptions={}){}
 
   private async requireWorkflow(projectId:string,workflowId:string){
     const workflow=await this.workflows.get(workflowId);
@@ -84,6 +85,7 @@ export class AgentWorkflowActionExecutor{
         definitionVersion:"2",
         sourceAssetIds:payload.sourceAssetIds,
         expectedProjectRevision,
+        ...(this.options.assetBaseUrl?{assetBaseUrl:this.options.assetBaseUrl}:{}),
       });
       if(created.status!=="pending")return{workflow:created,alreadyApplied:true};
       try{return{workflow:await this.workflows.start(created.id),alreadyApplied:false};}

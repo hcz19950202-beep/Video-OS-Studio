@@ -18,7 +18,7 @@ export const ContextInspector=({project,onCommand,onTransaction}:{project:Projec
   if(sceneId)return <SceneInspector project={project} sceneId={sceneId} onCommand={onCommand}/>;
   const clip=ids.length===1?project.tracks.flatMap(track=>track.clips).find(item=>item.id===ids[0]):undefined;
   if(!clip)return <ProjectInspector project={project} onCommand={onCommand}/>;
-  if(clip.type==="motion")return <MotionInspector project={project} onCommand={onCommand}/>;
+  if(clip.type==="motion")return <MotionInspector project={project} onCommand={onCommand} onTransaction={onTransaction}/>;
   if(clip.type==="caption")return <CaptionInspector project={project} onCommand={onCommand}/>;
   if(clip.type==="video")return <VideoInspector clip={clip} onCommand={onCommand}/>;
   if(clip.type==="broll")return <BrollInspector clip={clip} onCommand={onCommand}/>;

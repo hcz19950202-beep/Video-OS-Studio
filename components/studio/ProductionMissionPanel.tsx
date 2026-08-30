@@ -66,8 +66,10 @@ export const ProductionMissionPanel=({project}:{project:Project})=>{
 
   useEffect(()=>{
     if(!pollingMissionId||!pollingState||!dynamicStates.has(pollingState))return;
-    const timer=window.setInterval(()=>{void getProductionWorkspace(projectId,pollingMissionId).then(setWorkspace).catch(()=>undefined);},3000);
-    return()=>window.clearInterval(timer);
+    let active=true;
+    const poll=()=>{void getProductionWorkspace(projectId,pollingMissionId).then(next=>{if(active&&next.mission.id===pollingMissionId)setWorkspace(next);}).catch(()=>undefined);};
+    const timer=window.setInterval(poll,3000);
+    return()=>{active=false;window.clearInterval(timer);};
   },[projectId,pollingMissionId,pollingState]);
 
   const createMission=async()=>{

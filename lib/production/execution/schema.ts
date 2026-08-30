@@ -110,6 +110,9 @@ export const ProductionExecutionStepStateSchema=z.object({
   stepId:ProductionPlanStepIdSchema,
   status:ProductionExecutionStepStatusSchema,
   operationId:z.string().uuid(),
+  runnerOwnerPid:z.number().int().positive().optional(),
+  runnerOwnerToken:z.string().uuid().optional(),
+  runnerClaimedAt:z.string().datetime().optional(),
   attempts:z.number().int().nonnegative(),
   evidence:z.array(ProductionExecutionEvidenceRefSchema).max(32).default([]),
   checkpoint:ProductionExecutionCheckpointSchema.optional(),
@@ -121,6 +124,11 @@ export const ProductionExecutionStepStateSchema=z.object({
   if(step.status==="completed"&&step.evidence.length===0)ctx.addIssue({code:"custom",path:["evidence"],message:"Completed execution steps require durable evidence references."});
   if(step.status==="completed"&&step.completedAt===undefined)ctx.addIssue({code:"custom",path:["completedAt"],message:"Completed execution steps require completedAt."});
   if(step.status==="waiting-review"&&step.checkpoint?.status!=="pending")ctx.addIssue({code:"custom",path:["checkpoint"],message:"Waiting-review execution steps require a pending checkpoint."});
+  const runnerOwnerFields=[step.runnerOwnerPid,step.runnerOwnerToken,step.runnerClaimedAt];
+  const runnerOwnerFieldCount=runnerOwnerFields.filter(value=>value!==undefined).length;
+  if(runnerOwnerFieldCount!==0&&runnerOwnerFieldCount!==runnerOwnerFields.length)ctx.addIssue({code:"custom",path:["runnerOwnerToken"],message:"Runner ownership metadata must be complete when present."});
+  const cancelledRunner=step.status==="blocked"&&step.lastFailure?.code==="MISSION_CANCELLED";
+  if(step.status!=="running"&&!cancelledRunner&&runnerOwnerFieldCount!==0)ctx.addIssue({code:"custom",path:["runnerOwnerToken"],message:"Runner ownership metadata may only remain on an active runner or cancelled in-flight reconciliation."});
 });
 export type ProductionExecutionStepState=z.infer<typeof ProductionExecutionStepStateSchema>;
 

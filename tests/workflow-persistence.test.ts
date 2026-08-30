@@ -3,6 +3,7 @@ import {mkdtemp,readFile,readdir,rm,writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {afterEach,describe,expect,it} from "vitest";
+import {WorkflowActivitySchema} from "@/lib/workflows/activity";
 import {WorkflowRunSchema,type WorkflowRun} from "@/lib/workflows/schema";
 import {FileWorkflowStore} from "@/lib/workflows/store";
 
@@ -89,13 +90,16 @@ describe("V2.2 W0 workflow persistence",()=>{
     expect(entries).toEqual([]);
   });
 
-  it("does not silently ignore corrupt workflow JSON",async()=>{
+  it("fails closed for a corrupt run while keeping healthy workflows listable",async()=>{
     const{root,store}=await makeStore();
-    const run=makeRun();
-    await store.create(run);
-    await writeFile(join(root,"workflows",run.id,"workflow.json"),"{broken-json","utf8");
-    await expect(store.get(run.id)).rejects.toThrow();
-    await expect(store.list()).rejects.toThrow();
+    const corrupt=makeRun({createdAt:"2026-08-24T00:00:00.000Z",updatedAt:"2026-08-24T00:00:00.000Z"});
+    const healthy=makeRun({createdAt:"2026-08-24T00:00:01.000Z",updatedAt:"2026-08-24T00:00:01.000Z"});
+    await store.create(corrupt);
+    await store.create(healthy);
+    await writeFile(join(root,"workflows",corrupt.id,"workflow.json"),"{broken-json","utf8");
+
+    await expect(store.get(corrupt.id)).rejects.toThrow();
+    expect((await store.list()).map(run=>run.id)).toEqual([healthy.id]);
   });
 
   it("rejects saving a run that was never created",async()=>{
@@ -114,5 +118,31 @@ describe("V2.2 W0 workflow persistence",()=>{
     expect(()=>WorkflowRunSchema.parse(raw)).not.toThrow();
     expect(raw.lastKnownProjectRevision).toBeGreaterThanOrEqual(1);
     expect(raw.lastKnownProjectRevision).toBeLessThanOrEqual(20);
+  });
+
+  it("compacts activity.jsonl and returns only the bounded durable tail",async()=>{
+    const root=await mkdtemp(join(tmpdir(),"video-os-v2-4-1-activity-"));
+    roots.push(root);
+    const store=new FileWorkflowStore(root,undefined,{activityMaxRecords:3,activityCompactBytes:256});
+    const run=makeRun();
+    await store.create(run);
+
+    for(let index=0;index<8;index+=1){
+      await store.appendActivity(WorkflowActivitySchema.parse({
+        id:randomUUID(),
+        workflowId:run.id,
+        at:new Date(Date.parse("2026-08-30T00:00:00.000Z")+index*1000).toISOString(),
+        event:"stage-ready",
+        stageId:"media-import",
+        details:{index,padding:"x".repeat(128)},
+      }));
+    }
+
+    const activity=await store.readActivity(run.id);
+    expect(activity).toHaveLength(1);
+    expect(activity[0]?.details?.index).toBe(7);
+    const raw=await readFile(join(root,"workflows",run.id,"activity.jsonl"),"utf8");
+    expect(raw).not.toContain('"index":0');
+    expect(raw).toContain('"index":7');
   });
 });

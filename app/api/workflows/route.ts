@@ -1,5 +1,6 @@
 import {CreateWorkflowRequestSchema,workflowErrorResponse} from "@/lib/workflows/http";
 import {workflowService} from "@/lib/server/runtime";
+import {resolveTrustedAssetBaseUrl} from "@/lib/server/trusted-asset-origin";
 
 export const runtime="nodejs";
 
@@ -17,14 +18,13 @@ export async function GET(request:Request){
 export async function POST(request:Request){
   try{
     const body=CreateWorkflowRequestSchema.parse(await request.json());
-    const origin=new URL(request.url).origin;
     const workflow=await workflowService.create({
       projectId:body.projectId,
       definitionId:`video-production-${body.scenario}`,
       definitionVersion:"2",
       sourceAssetIds:body.sourceAssetIds,
       expectedProjectRevision:body.expectedProjectRevision,
-      assetBaseUrl:origin,
+      assetBaseUrl:resolveTrustedAssetBaseUrl(),
     });
     return Response.json({workflow},{status:201});
   }catch(error){return workflowErrorResponse(error);}

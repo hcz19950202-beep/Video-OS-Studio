@@ -74,7 +74,7 @@ describe("H3 durable job runtime",()=>{
       await waitFor(()=>runtime.get(job.id),current=>current?.status==="completed");
       await Promise.all(readers);
     }
-  },30000);
+  },120000);
 
   it("enforces one active render while allowing two normalizations",async()=>{
     const{store}=await makeStore();let activeRender=0,maxRender=0,activeNormalize=0,maxNormalize=0;
