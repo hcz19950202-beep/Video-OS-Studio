@@ -48,6 +48,7 @@ export class ProjectRepository {
     const project = createProject(input);
     await this.fs.ensureDir(this.projectDir(project.project.id));
     return this.withProjectFileLock(project.project.id,async()=>{
+      if(await this.fs.exists(this.projectPath(project.project.id)))throw new Error(`Project ${project.project.id} already exists.`);
       await this.fs.writeTextAtomic(this.projectPath(project.project.id), serializeProject(project));
       await this.writeSummary(project).catch(()=>undefined);
       return project;
