@@ -14,11 +14,10 @@ type Props={
   clipId:string;
   effectId:string;
   engine:"remotion"|"hyperframes";
-  onCommand:(command:ProjectCommand,message:string)=>Promise<void>;
   onTransaction:(transaction:ProjectCommandTransaction,message:string)=>Promise<void>;
 };
 
-export const EffectPresetControls=({project,clipId,effectId,engine,onCommand,onTransaction}:Props)=>{
+export const EffectPresetControls=({project,clipId,effectId,engine,onTransaction}:Props)=>{
   const{t}=useStudioPreferences();
   const[presets,setPresets]=useState<AssetPreset[]>([]);
   const[selectedPresetId,setSelectedPresetId]=useState("");
