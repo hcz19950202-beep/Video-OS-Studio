@@ -1,5 +1,5 @@
 import {z} from "zod";
-import type {Project} from "@/schemas/project";
+import {ProjectSchema,type Project} from "@/schemas/project";
 
 export const ExportQualitySchema=z.enum(["draft","standard","high"]);
 export const ExportProfileSchema=z.object({
@@ -31,6 +31,13 @@ export const resolveExportProfile=(project:Project,input?:Partial<ExportProfile>
 
 const scaleFrame=(value:number,ratio:number)=>Math.max(0,Math.round(value*ratio));
 const scalePositiveFrame=(value:number,ratio:number)=>Math.max(1,Math.round(value*ratio));
+const scaleBoundedStart=(value:number,ratio:number,endExclusive:number)=>Math.min(endExclusive-1,scaleFrame(value,ratio));
+const scaleBoundedInterval=(startFrame:number,durationInFrames:number,ratio:number,endExclusive:number)=>{
+  const start=scaleBoundedStart(startFrame,ratio,endExclusive);
+  const scaledEnd=Math.min(endExclusive,scaleFrame(startFrame+durationInFrames,ratio));
+  const end=Math.max(start+1,scaledEnd);
+  return{startFrame:start,durationInFrames:end-start};
+};
 
 export const projectForExportProfile=(project:Project,input?:Partial<ExportProfile>):{project:Project;profile:ResolvedExportProfile}=>{
   const profile=resolveExportProfile(project,input);
@@ -41,18 +48,32 @@ export const projectForExportProfile=(project:Project,input?:Partial<ExportProfi
   next.canvas.fps=profile.fps;
   if(ratio!==1){
     next.canvas.durationInFrames=scalePositiveFrame(project.canvas.durationInFrames,ratio);
-    next.tracks=next.tracks.map(track=>({...track,clips:track.clips.map(clip=>{
-      const copy={...clip,startFrame:scaleFrame(clip.startFrame,ratio),durationInFrames:scalePositiveFrame(clip.durationInFrames,ratio)} as typeof clip;
-      if(copy.type==="video"||copy.type==="audio")copy.sourceStartFrame=scaleFrame(copy.sourceStartFrame,ratio);
-      if(copy.type==="broll"&&copy.sourceStartFrame!==undefined)copy.sourceStartFrame=scaleFrame(copy.sourceStartFrame,ratio);
-      if((copy.type==="audio"||copy.type==="broll")&&copy.fadeInFrames!==undefined)copy.fadeInFrames=scaleFrame(copy.fadeInFrames,ratio);
-      if((copy.type==="audio"||copy.type==="broll")&&copy.fadeOutFrames!==undefined)copy.fadeOutFrames=scaleFrame(copy.fadeOutFrames,ratio);
+    next.assets=project.assets.map(asset=>asset.durationInFrames===undefined?asset:{...asset,durationInFrames:scalePositiveFrame(asset.durationInFrames,ratio)});
+    const scaledAssetDurationById=new Map(next.assets.map(asset=>[asset.id,asset.durationInFrames]));
+    next.tracks=project.tracks.map(track=>({...track,clips:track.clips.map(clip=>{
+      const timing=scaleBoundedInterval(clip.startFrame,clip.durationInFrames,ratio,next.canvas.durationInFrames);
+      const copy={...clip,...timing} as typeof clip;
+      if(copy.type==="video"||copy.type==="audio"||copy.type==="broll"){
+        const sourceStartFrame=copy.type==="broll"?(clip.sourceStartFrame??0):clip.sourceStartFrame;
+        const scaledAssetDuration=scaledAssetDurationById.get(copy.assetId);
+        if(scaledAssetDuration!==undefined){
+          copy.sourceStartFrame=scaleBoundedStart(sourceStartFrame,ratio,scaledAssetDuration);
+          copy.durationInFrames=Math.min(copy.durationInFrames,scaledAssetDuration-copy.sourceStartFrame);
+        }else if(copy.type!=="broll"||clip.sourceStartFrame!==undefined){
+          copy.sourceStartFrame=scaleFrame(sourceStartFrame,ratio);
+        }
+      }
+      if((copy.type==="audio"||copy.type==="broll")&&copy.fadeInFrames!==undefined)copy.fadeInFrames=Math.min(copy.durationInFrames,scaleFrame(copy.fadeInFrames,ratio));
+      if((copy.type==="audio"||copy.type==="broll")&&copy.fadeOutFrames!==undefined)copy.fadeOutFrames=Math.min(copy.durationInFrames,scaleFrame(copy.fadeOutFrames,ratio));
       return copy;
     })}));
-    next.scenes=next.scenes.map(scene=>({...scene,startFrame:scaleFrame(scene.startFrame,ratio),endFrame:scalePositiveFrame(scene.endFrame,ratio)}));
-    next.markers=next.markers.map(marker=>({...marker,frame:Math.min(next.canvas.durationInFrames-1,scaleFrame(marker.frame,ratio))}));
+    next.scenes=project.scenes.map(scene=>{
+      const timing=scaleBoundedInterval(scene.startFrame,scene.endFrame-scene.startFrame,ratio,next.canvas.durationInFrames);
+      return{...scene,startFrame:timing.startFrame,endFrame:timing.startFrame+timing.durationInFrames};
+    });
+    next.markers=project.markers.map(marker=>({...marker,frame:scaleBoundedStart(marker.frame,ratio,next.canvas.durationInFrames)}));
   }
-  return{project:next,profile};
+  return{project:ProjectSchema.parse(next),profile};
 };
 
 export const exportQualityCrf=(quality:ResolvedExportProfile["quality"])=>quality==="draft"?28:quality==="standard"?23:18;
