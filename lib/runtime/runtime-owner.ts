@@ -1,8 +1,9 @@
 import {randomUUID} from "node:crypto";
 import {execFile} from "node:child_process";
-import {mkdir,open,readdir,readFile,rename,rm,writeFile} from "node:fs/promises";
+import {mkdir,open,readdir,readFile,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {promisify} from "node:util";
+import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
 
 const lockSleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 const lockContention=(code:string|undefined)=>code==="EEXIST"||code==="EPERM"||code==="EACCES";
@@ -105,7 +106,7 @@ export class RuntimeOwnerStore{
     const tempPath=`${this.runtimeOwnerPath}.${randomUUID()}.tmp`;
     try{
       await writeFile(tempPath,JSON.stringify(owner,null,2)+"\n","utf8");
-      await rename(tempPath,this.runtimeOwnerPath);
+      await replaceFileAtomically(tempPath,this.runtimeOwnerPath);
     }finally{await rm(tempPath,{force:true});}
   }
 
