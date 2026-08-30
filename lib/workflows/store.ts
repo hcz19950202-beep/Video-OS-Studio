@@ -1,7 +1,8 @@
 import {randomUUID} from "node:crypto";
-import {appendFile,mkdir,readFile,readdir,rm,writeFile} from "node:fs/promises";
+import {access,appendFile,copyFile,mkdir,readFile,readdir,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
+import {withWindowsTransientRetry} from "@/lib/fs/atomic-replace";
 import {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";
 import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 import {WorkflowActivitySchema,type WorkflowActivity} from "@/lib/workflows/activity";
@@ -29,6 +30,7 @@ export class FileWorkflowStore{
 
   private runDir(workflowRunId:string){return join(this.workflowsRoot,WorkflowRunIdSchema.parse(workflowRunId));}
   private workflowPath(workflowRunId:string){return join(this.runDir(workflowRunId),"workflow.json");}
+  private backupPath(workflowRunId:string){return join(this.runDir(workflowRunId),"workflow.backup.json");}
   private activityPath(workflowRunId:string){return join(this.runDir(workflowRunId),"activity.jsonl");}
   private stageResultsDir(workflowRunId:string){return join(this.runDir(workflowRunId),"stage-results");}
 
@@ -45,15 +47,54 @@ export class FileWorkflowStore{
     }
   }
 
-  private async atomicWrite(path:string,content:string){
-    await this.withPathLock(path,async()=>{
-      const temp=`${path}.${randomUUID()}.tmp`;
+  private async atomicWriteUnlocked(path:string,content:string,backupPath?:string){
+    await mkdir(dirname(path),{recursive:true});
+    if(backupPath){
       try{
-        await mkdir(dirname(path),{recursive:true});
-        await writeFile(temp,content,"utf8");
-        await replaceFileAtomically(temp,path);
-      }finally{await rm(temp,{force:true});}
-    });
+        await access(path);
+        await mkdir(dirname(backupPath),{recursive:true});
+        await withWindowsTransientRetry(()=>copyFile(path,backupPath));
+      }catch(error){
+        if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+      }
+    }
+    const temp=`${path}.${randomUUID()}.tmp`;
+    try{
+      await writeFile(temp,content,"utf8");
+      await replaceFileAtomically(temp,path);
+    }finally{await rm(temp,{force:true});}
+  }
+
+  private async atomicWrite(path:string,content:string,backupPath?:string){
+    await this.withPathLock(path,()=>this.atomicWriteUnlocked(path,content,backupPath));
+  }
+
+  private async exists(path:string){
+    try{await access(path);return true;}
+    catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return false;throw error;}
+  }
+
+  private async loadUnderPathLock(workflowRunId:string):Promise<WorkflowRun|null>{
+    const path=this.workflowPath(workflowRunId);
+    const backupPath=this.backupPath(workflowRunId);
+    try{
+      await access(path);
+      try{return parseWorkflow(await readFile(path,"utf8"));}
+      catch(primaryError){
+        if(!(await this.exists(backupPath)))throw primaryError;
+        try{
+          const recovered=parseWorkflow(await readFile(backupPath,"utf8"));
+          await this.atomicWriteUnlocked(path,JSON.stringify(recovered,null,2)+"\n");
+          return recovered;
+        }catch{throw primaryError;}
+      }
+    }catch(error){
+      if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+    }
+    if(!(await this.exists(backupPath)))return null;
+    const recovered=parseWorkflow(await readFile(backupPath,"utf8"));
+    await this.atomicWriteUnlocked(path,JSON.stringify(recovered,null,2)+"\n");
+    return recovered;
   }
 
   async ensure(){await mkdir(this.workflowsRoot,{recursive:true});}
@@ -78,13 +119,9 @@ export class FileWorkflowStore{
   async get(workflowRunId:string,options:{skipRunLock?:boolean}={}):Promise<WorkflowRun|null>{
     const id=WorkflowRunIdSchema.parse(workflowRunId);
     const path=this.workflowPath(id);
-    const read=()=>this.withPathLock(path,async()=>{
-      try{return parseWorkflow(await readFile(path,"utf8"));}
-      catch(error){
-        if((error as NodeJS.ErrnoException).code==="ENOENT")return null;
-        throw error;
-      }
-    });
+    const backupPath=this.backupPath(id);
+    if(!(await this.exists(path))&&!(await this.exists(backupPath)))return null;
+    const read=()=>this.withPathLock(path,()=>this.loadUnderPathLock(id));
     if(options.skipRunLock)return read();
     try{return await this.withRunLock(id,read);}
     catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return null;throw error;}
@@ -92,9 +129,12 @@ export class FileWorkflowStore{
 
   async save(run:WorkflowRun){
     const parsed=WorkflowRunSchema.parse(run);
-    const existing=await this.get(parsed.id,{skipRunLock:true});
-    if(!existing)throw new WorkflowNotFoundError(parsed.id);
-    await this.atomicWrite(this.workflowPath(parsed.id),JSON.stringify(parsed,null,2)+"\n");
+    const path=this.workflowPath(parsed.id);
+    await this.withPathLock(path,async()=>{
+      const existing=await this.loadUnderPathLock(parsed.id);
+      if(!existing)throw new WorkflowNotFoundError(parsed.id);
+      await this.atomicWriteUnlocked(path,JSON.stringify(parsed,null,2)+"\n",this.backupPath(parsed.id));
+    });
     return parsed;
   }
 

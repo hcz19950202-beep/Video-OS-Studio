@@ -23,6 +23,14 @@ export class AgentSessionAlreadyExistsError extends Error{
   }
 }
 
+export class AgentSessionRevisionConflictError extends Error{
+  readonly code="AGENT_SESSION_REVISION_CONFLICT";
+  constructor(readonly projectId:string,readonly sessionId:string){
+    super("Agent session changed while this update was being prepared.");
+    this.name="AgentSessionRevisionConflictError";
+  }
+}
+
 const serialize=(session:AgentSession)=>JSON.stringify(AgentSessionSchema.parse(session),null,2)+"\n";
 const parse=(text:string)=>AgentSessionSchema.parse(JSON.parse(text));
 
@@ -47,8 +55,7 @@ export class AgentSessionRepository{
     return join(this.sessionsDir(projectId),`${AgentSessionIdSchema.parse(sessionId)}.lock`);
   }
 
-  async withSessionLock<T>(projectId:string,sessionId:string,work:()=>Promise<T>):Promise<T>{
-    const path=this.sessionPath(projectId,sessionId);
+  private async withPathLock<T>(path:string,work:()=>Promise<T>):Promise<T>{
     const previous=this.pathChains.get(path)??Promise.resolve();
     let release!:()=>void;
     const current=new Promise<void>(resolve=>{release=resolve;});
@@ -59,6 +66,14 @@ export class AgentSessionRepository{
       release();
       if(this.pathChains.get(path)===current)this.pathChains.delete(path);
     }
+  }
+
+  async withSessionLock<T>(projectId:string,sessionId:string,work:()=>Promise<T>):Promise<T>{
+    // Kept as a compatibility boundary for older callers. Durable read/modify/write
+    // operations must use mutate(); this wrapper must never span provider/network work.
+    void projectId;
+    void sessionId;
+    return work();
   }
 
   private async withAtomicWriteLock<T>(projectId:string,sessionId:string,work:()=>Promise<T>):Promise<T>{
@@ -72,14 +87,28 @@ export class AgentSessionRepository{
     return session;
   }
 
-  private async recoverBackup(projectId:string,sessionId:string):Promise<AgentSession|null>{
+  private async loadUnderLock(projectId:string,sessionId:string):Promise<AgentSession|null>{
+    const path=this.sessionPath(projectId,sessionId);
     const backupPath=this.backupPath(projectId,sessionId);
+    if(await this.fs.exists(path)){
+      try{return this.parseForPath(await this.fs.readText(path),projectId,sessionId);}
+      catch(primaryError){
+        if(!(await this.fs.exists(backupPath)))throw primaryError;
+        try{
+          const recovered=this.parseForPath(await this.fs.readText(backupPath),projectId,sessionId);
+          await this.fs.ensureDir(this.sessionsDir(projectId));
+          await this.fs.writeTextAtomic(path,serialize(recovered));
+          return recovered;
+        }catch{
+          // Preserve the primary failure: the backup is recovery evidence, never a second source of opaque errors.
+        }
+        throw primaryError;
+      }
+    }
     if(!(await this.fs.exists(backupPath)))return null;
     const recovered=this.parseForPath(await this.fs.readText(backupPath),projectId,sessionId);
-    await this.withAtomicWriteLock(projectId,sessionId,async()=>{
-      await this.fs.ensureDir(this.sessionsDir(projectId));
-      await this.fs.writeTextAtomic(this.sessionPath(projectId,sessionId),serialize(recovered));
-    });
+    await this.fs.ensureDir(this.sessionsDir(projectId));
+    await this.fs.writeTextAtomic(path,serialize(recovered));
     return recovered;
   }
 
@@ -87,7 +116,7 @@ export class AgentSessionRepository{
     const session=AgentSessionSchema.parse(sessionInput);
     const path=this.sessionPath(session.projectId,session.id);
     return this.withSessionLock(session.projectId,session.id,()=>this.withAtomicWriteLock(session.projectId,session.id,async()=>{
-      if(await this.fs.exists(path))throw new AgentSessionAlreadyExistsError(session.projectId,session.id);
+      if(await this.loadUnderLock(session.projectId,session.id))throw new AgentSessionAlreadyExistsError(session.projectId,session.id);
       await this.fs.ensureDir(this.sessionsDir(session.projectId));
       await this.fs.writeTextAtomic(path,serialize(session));
       return session;
@@ -98,17 +127,7 @@ export class AgentSessionRepository{
     const projectId=ProjectIdSchema.parse(projectIdInput);
     const sessionId=AgentSessionIdSchema.parse(sessionIdInput);
     const path=this.sessionPath(projectId,sessionId);
-    if(!(await this.fs.exists(path)))return this.recoverBackup(projectId,sessionId);
-    try{return this.parseForPath(await this.fs.readText(path),projectId,sessionId);}
-    catch(primaryError){
-      try{
-        const recovered=await this.recoverBackup(projectId,sessionId);
-        if(recovered)return recovered;
-      }catch{
-        // Preserve the primary failure: the backup is recovery evidence, never a second source of opaque errors.
-      }
-      throw primaryError;
-    }
+    return this.withPathLock(path,()=>this.withAtomicWriteLock(projectId,sessionId,()=>this.loadUnderLock(projectId,sessionId)));
   }
 
   async require(projectId:string,sessionId:string):Promise<AgentSession>{
@@ -120,11 +139,31 @@ export class AgentSessionRepository{
   async save(sessionInput:AgentSession):Promise<AgentSession>{
     const session=AgentSessionSchema.parse(sessionInput);
     const path=this.sessionPath(session.projectId,session.id);
-    return this.withAtomicWriteLock(session.projectId,session.id,async()=>{
-      if(!(await this.fs.exists(path)))throw new AgentSessionNotFoundError(session.projectId,session.id);
+    return this.withPathLock(path,()=>this.withAtomicWriteLock(session.projectId,session.id,async()=>{
+      const current=await this.loadUnderLock(session.projectId,session.id);
+      if(!current)throw new AgentSessionNotFoundError(session.projectId,session.id);
+      if(Date.parse(session.updatedAt)<Date.parse(current.updatedAt))throw new AgentSessionRevisionConflictError(session.projectId,session.id);
       await this.fs.writeTextAtomic(path,serialize(session),this.backupPath(session.projectId,session.id));
       return session;
-    });
+    }));
+  }
+
+  async mutate(projectIdInput:string,sessionIdInput:string,mutation:(current:AgentSession)=>AgentSession|Promise<AgentSession>):Promise<AgentSession>{
+    const projectId=ProjectIdSchema.parse(projectIdInput);
+    const sessionId=AgentSessionIdSchema.parse(sessionIdInput);
+    const path=this.sessionPath(projectId,sessionId);
+    return this.withPathLock(path,()=>this.withAtomicWriteLock(projectId,sessionId,async()=>{
+      const current=await this.loadUnderLock(projectId,sessionId);
+      if(!current)throw new AgentSessionNotFoundError(projectId,sessionId);
+      const next=AgentSessionSchema.parse(await mutation(current));
+      if(next.projectId!==projectId||next.id!==sessionId)throw new Error("Agent session mutation cannot change repository identity.");
+      await this.fs.writeTextAtomic(path,serialize(next),this.backupPath(projectId,sessionId));
+      return next;
+    }));
+  }
+
+  async mutateSession(projectId:string,sessionId:string,mutation:(current:AgentSession)=>AgentSession|Promise<AgentSession>):Promise<AgentSession>{
+    return this.mutate(projectId,sessionId,mutation);
   }
 
   async list(projectIdInput:string):Promise<AgentSession[]>{

@@ -3,6 +3,7 @@ import {randomUUID} from "node:crypto";
 import {dirname,posix as posixPath} from "node:path";
 import type {FileSystemAdapter} from "@/adapters/contracts";
 import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
+import {withWindowsTransientRetry} from "@/lib/fs/atomic-replace";
 import {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";
 
 export class NodeFileSystemAdapter implements FileSystemAdapter{
@@ -81,7 +82,7 @@ export class NodeFileSystemAdapter implements FileSystemAdapter{
       await this.ensureDir(dirname(path));
       if(backupPath&&await this.exists(path)){
         await this.ensureDir(dirname(backupPath));
-        await copyFile(path,backupPath);
+        await withWindowsTransientRetry(()=>copyFile(path,backupPath));
       }
       const tempPath=`${path}.${randomUUID()}.tmp`;
       try{

@@ -41,6 +41,11 @@ const noVisualPlan:ProductionWorkflowVisualPlan={
 };
 
 describe("V2.2 W5 failure retry and restart hardening",()=>{
+  it("does not pre-create a stable Workflow directory during idempotency lookup",async()=>{
+    const root=await makeRoot();const store=new FileWorkflowStore(root);const definitions=new WorkflowDefinitionRegistry();const flow=definition([stage("analysis")]);definitions.register(flow);const stages=new WorkflowStageRegistry();const runner=new WorkflowRunner(store,definitions,stages);const project=createProject({id:"demo",name:"Demo",now:at,width:1920,height:1080,fps:30,durationInFrames:300});const service=new WorkflowService({load:async()=>project},store,definitions,runner);const workflowId="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const input={workflowId,projectId:"demo",definitionId:flow.id,definitionVersion:flow.version,sourceAssetIds:[],expectedProjectRevision:0};const first=await service.create(input);const second=await service.create(input);expect(first.id).toBe(workflowId);expect(second).toEqual(first);expect((await store.list()).map(run=>run.id)).toEqual([workflowId]);
+  });
+
   it("maps stale Project-revision Job input to a Workflow-retryable failure without mutating Job truth",async()=>{
     const stale=JobRecordSchema.parse({id:"11111111-1111-4111-8111-111111111111",type:"video-use-transcribe",projectId:"demo",status:"failed",stage:"failed",progress:.5,attempt:1,input:{expectedRevision:3,operationId:"old"},error:{code:"PROJECT_REVISION_CONFLICT",message:"stale",retryable:false,details:{expectedRevision:3,currentRevision:4}},createdAt:at,updatedAt:at,finishedAt:at});
     const source:WorkflowJobRuntimePort={get:async()=>stale,cancel:async()=>stale,retry:async()=>stale};

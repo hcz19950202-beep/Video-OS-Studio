@@ -254,6 +254,24 @@ describe("ProductionMissionExecutor",()=>{
     expect(cancelledMission.activeStepId).toBeUndefined();
   });
 
+  it("claims a long-running Mission step once and releases the Mission lock before execution finishes",async()=>{
+    let release!:()=>void;
+    const startedPromise=new Promise<void>(resolve=>{release=resolve;});
+    let started!:()=>void;
+    const executeStarted=new Promise<void>(resolve=>{started=resolve;});
+    let calls=0;
+    const runner:ProductionStepRunner={execute:async()=>{calls+=1;started();await startedPromise;return{status:"completed",evidence:[{kind:"agent-session",id:"long-step"}]};}};
+    const{executor}=await setup(runner);
+    const first=executor.advance(PROJECT_ID,MISSION_ID);
+    await executeStarted;
+    const second=executor.advance(PROJECT_ID,MISSION_ID);
+    const secondResult=await Promise.race([second,new Promise<never>((_,reject)=>setTimeout(()=>reject(new Error("duplicate advance kept the Mission lock")),500))]);
+    expect(secondResult.status).toBe("running");
+    expect(calls).toBe(1);
+    release();
+    expect((await first).status).toBe("completed");
+  });
+
   it("invalidates an old checkpoint after re-plan and starts a fresh execution for the new Plan",async()=>{
     const firstPlan=planFixture([editStep()]);
     const calls:string[]=[];

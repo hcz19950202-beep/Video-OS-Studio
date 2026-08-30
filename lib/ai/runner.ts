@@ -196,147 +196,158 @@ export class AgentRunner{
   }
 
   async runTurn(input:AgentRunnerInput):Promise<AgentSession>{
-    return this.dependencies.sessions.withSessionLock(input.projectId,input.sessionId,async()=>{
-      let session=await this.dependencies.sessions.require(input.projectId,input.sessionId);
-      if(session.status!=="active")throw new Error("Closed Agent sessions cannot accept new turns.");
-      if(session.providerId!==this.dependencies.provider.id)throw new Error("Agent session provider does not match the active provider.");
+    let session=await this.dependencies.sessions.require(input.projectId,input.sessionId);
+    if(session.status!=="active")throw new Error("Closed Agent sessions cannot accept new turns.");
+    if(session.providerId!==this.dependencies.provider.id)throw new Error("Agent session provider does not match the active provider.");
 
-      const context=await this.dependencies.context.build(input.projectId,input.selection);
-      session=reconcileStaleProposals(session,context.baseProjectRevision);
-      const contextPrompt=systemPrompt(context);
-      const budget=new AgentTurnBudgetTracker(input.budget,this.nowMs);
-
-      const turnId=this.makeId();
-      const userMessageId=this.makeId();
-      const startedAt=this.now();
-      const userMessage=AgentMessageSchema.parse({id:userMessageId,role:"user",content:input.userContent,createdAt:startedAt});
-      const turn=AgentTurnSchema.parse({
-        id:turnId,
-        baseProjectRevision:context.baseProjectRevision,
-        userMessageId,
-        startedAt,
-        status:"running",
-        providerRoundTrips:0,
-        toolExecutions:[],
-        proposalIds:[],
-      });
-      session=AgentSessionSchema.parse({
-        ...session,
-        messages:[...session.messages,userMessage],
-        turns:[...session.turns,turn],
+    const context=await this.dependencies.context.build(input.projectId,input.selection);
+    const contextPrompt=systemPrompt(context);
+    const budget=new AgentTurnBudgetTracker(input.budget,this.nowMs);
+    const turnId=this.makeId();
+    const userMessageId=this.makeId();
+    const startedAt=this.now();
+    const userMessage=AgentMessageSchema.parse({id:userMessageId,role:"user",content:input.userContent,createdAt:startedAt});
+    const turn=AgentTurnSchema.parse({
+      id:turnId,
+      baseProjectRevision:context.baseProjectRevision,
+      userMessageId,
+      startedAt,
+      status:"running",
+      providerRoundTrips:0,
+      toolExecutions:[],
+      proposalIds:[],
+    });
+    session=await this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>{
+      if(current.status!=="active")throw new Error("Closed Agent sessions cannot accept new turns.");
+      if(current.providerId!==this.dependencies.provider.id)throw new Error("Agent session provider does not match the active provider.");
+      const reconciled=reconcileStaleProposals(current,context.baseProjectRevision);
+      return AgentSessionSchema.parse({
+        ...reconciled,
+        messages:[...reconciled.messages,userMessage],
+        turns:[...reconciled.turns,turn],
         lastContext:{baseProjectRevision:context.baseProjectRevision,selection:context.selection},
         updatedAt:startedAt,
       });
-      await this.dependencies.sessions.save(session);
+    });
 
-      try{
-        budget.assertContextSize(contextPrompt);
-        for(;;){
-          budget.beginProviderRoundTrip();
-          session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,providerRoundTrips:budget.providerRoundTrips}));
-          session=AgentSessionSchema.parse({...session,updatedAt:this.now()});
-          await this.dependencies.sessions.save(session);
+    let lastAssistantMessageId:string|undefined;
+    try{
+      budget.assertContextSize(contextPrompt);
+      for(;;){
+        budget.beginProviderRoundTrip();
+        session=await this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>AgentSessionSchema.parse({
+          ...updateTurn(current,turnId,active=>AgentTurnSchema.parse({...active,providerRoundTrips:budget.providerRoundTrips})),
+          updatedAt:this.now(),
+        }));
 
-          const request=AIProviderRequestSchema.parse({
-            system:contextPrompt,
-            messages:session.messages.slice(-1_000),
-            tools:this.dependencies.tools.listDefinitions(),
-            ...(session.model?{model:session.model}:{}),
-            maxOutputTokens:budget.budget.maxOutputTokens,
-          });
+        const request=AIProviderRequestSchema.parse({
+          system:contextPrompt,
+          messages:session.messages.slice(-1_000),
+          tools:this.dependencies.tools.listDefinitions(),
+          ...(session.model?{model:session.model}:{}),
+          maxOutputTokens:budget.budget.maxOutputTokens,
+        });
 
-          const controller=new AbortController();
-          const iterator=this.dependencies.provider.run(request,controller.signal)[Symbol.asyncIterator]();
-          let text="";
-          const calls:AgentToolCall[]=[];
-          let roundUsage:AgentUsage|undefined;
-          let completed=false;
-          try{
-            for(;;){
-              const next=await nextProviderEvent(iterator,controller,input.signal,budget.remainingMs());
-              if(next.done)break;
-              budget.assertTime();
-              if(completed)throw new AgentProviderEventError({code:"invalid_output",message:"Provider emitted data after completion.",retryable:false});
-              const event=AgentProviderEventSchema.parse(next.value);
-              if(event.type==="text-delta")text+=event.text;
-              else if(event.type==="tool-call")calls.push(event.call);
-              else if(event.type==="completed"){
-                completed=true;
-                roundUsage=event.usage;
-              }else if(event.type==="error")throw new AgentProviderEventError(event.error);
-            }
-            if(!completed)throw new AgentProviderEventError({code:"invalid_output",message:"AI provider stream ended without a completed event.",retryable:true});
-          }finally{
-            controller.abort();
-            await closeProviderIterator(iterator);
+        const controller=new AbortController();
+        const iterator=this.dependencies.provider.run(request,controller.signal)[Symbol.asyncIterator]();
+        let text="";
+        const calls:AgentToolCall[]=[];
+        let roundUsage:AgentUsage|undefined;
+        let completed=false;
+        try{
+          for(;;){
+            const next=await nextProviderEvent(iterator,controller,input.signal,budget.remainingMs());
+            if(next.done)break;
+            budget.assertTime();
+            if(completed)throw new AgentProviderEventError({code:"invalid_output",message:"Provider emitted data after completion.",retryable:false});
+            const event=AgentProviderEventSchema.parse(next.value);
+            if(event.type==="text-delta")text+=event.text;
+            else if(event.type==="tool-call")calls.push(event.call);
+            else if(event.type==="completed"){
+              completed=true;
+              roundUsage=event.usage;
+            }else if(event.type==="error")throw new AgentProviderEventError(event.error);
           }
+          if(!completed)throw new AgentProviderEventError({code:"invalid_output",message:"AI provider stream ended without a completed event.",retryable:true});
+        }finally{
+          controller.abort();
+          await closeProviderIterator(iterator);
+        }
 
-          if(text.length>0){
-            const assistantMessage=AgentMessageSchema.parse({id:this.makeId(),role:"assistant",content:text,createdAt:this.now()});
-            session=AgentSessionSchema.parse({...session,messages:[...session.messages,assistantMessage],updatedAt:this.now()});
+        let roundAssistantMessageId:string|undefined;
+        if(text.length>0)roundAssistantMessageId=this.makeId();
+        if(roundAssistantMessageId)lastAssistantMessageId=roundAssistantMessageId;
+        session=await this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>{
+          let next=current;
+          if(roundAssistantMessageId){
+            const assistantMessage=AgentMessageSchema.parse({id:roundAssistantMessageId,role:"assistant",content:text,createdAt:this.now()});
+            next=AgentSessionSchema.parse({...next,messages:[...next.messages,assistantMessage]});
           }
-          session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,usage:mergeUsage(current.usage,roundUsage)}));
-          session=AgentSessionSchema.parse({...session,usage:mergeUsage(session.usage,roundUsage),updatedAt:this.now()});
+          next=updateTurn(next,turnId,currentTurn=>AgentTurnSchema.parse({...currentTurn,usage:mergeUsage(currentTurn.usage,roundUsage)}));
+          return AgentSessionSchema.parse({...next,usage:mergeUsage(next.usage,roundUsage),updatedAt:this.now()});
+        });
 
-          if(calls.length===0){
-            const lastMessage=session.messages.at(-1);
-            const assistantMessageId=lastMessage?.role==="assistant"?lastMessage.id:undefined;
-            const completedAt=this.now();
-            session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({
-              ...current,
-              ...(assistantMessageId?{assistantMessageId}:{}),
+        if(calls.length===0){
+          const completedAt=this.now();
+          session=await this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>AgentSessionSchema.parse({
+            ...updateTurn(current,turnId,currentTurn=>AgentTurnSchema.parse({
+              ...currentTurn,
+              ...(lastAssistantMessageId?{assistantMessageId:lastAssistantMessageId}:{}),
               status:"completed",
               completedAt,
-            }));
-            session=AgentSessionSchema.parse({...session,updatedAt:completedAt});
-            await this.dependencies.sessions.save(session);
-            return session;
-          }
+            })),
+            updatedAt:completedAt,
+          }));
+          return session;
+        }
 
-          budget.consumeToolCalls(calls.length);
-          for(const call of calls){
-            const prior=session.turns.flatMap(item=>item.toolExecutions).find(item=>item.call.id===call.id);
-            let result:AgentToolResult;
-            if(prior){
-              if(prior.call.toolId!==call.toolId||JSON.stringify(prior.call.arguments)!==JSON.stringify(call.arguments)){
-                throw new AgentProviderEventError({code:"invalid_output",message:"AI provider reused a tool-call ID with different arguments.",retryable:false});
-              }
-              result=prior.result;
-            }else{
-              result=await this.dependencies.tools.execute(call,{sessionId:session.id,context,now:this.now,makeId:this.makeId});
-              session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,toolExecutions:[...current.toolExecutions,{call,result}]}));
+        budget.consumeToolCalls(calls.length);
+        for(const call of calls){
+          const prior=session.turns.flatMap(item=>item.toolExecutions).find(item=>item.call.id===call.id);
+          let result:AgentToolResult;
+          if(prior){
+            if(prior.call.toolId!==call.toolId||JSON.stringify(prior.call.arguments)!==JSON.stringify(call.arguments)){
+              throw new AgentProviderEventError({code:"invalid_output",message:"AI provider reused a tool-call ID with different arguments.",retryable:false});
+            }
+            result=prior.result;
+          }else{
+            result=await this.dependencies.tools.execute(call,{sessionId:session.id,context,now:this.now,makeId:this.makeId});
+          }
+          const toolMessage=AgentMessageSchema.parse({
+            id:this.makeId(),
+            role:"tool",
+            content:toolMessageContent(call,result),
+            createdAt:this.now(),
+            toolCallId:call.id,
+            toolName:call.toolId,
+          });
+          session=await this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>{
+            let next=current;
+            const activeTurn=next.turns.find(item=>item.id===turnId);
+            if(!activeTurn)throw new Error("Agent turn disappeared while applying a tool result.");
+            if(!activeTurn.toolExecutions.some(item=>item.call.id===call.id)){
+              next=updateTurn(next,turnId,currentTurn=>AgentTurnSchema.parse({...currentTurn,toolExecutions:[...currentTurn.toolExecutions,{call,result}]}));
               if(result.status==="success"){
                 const proposalResult=AgentProposalSchema.safeParse(result.output?.proposal);
-                if(proposalResult.success&&!session.proposals.some(item=>item.id===proposalResult.data.id)){
-                  session=AgentSessionSchema.parse({
-                    ...session,
-                    proposals:[...session.proposals,proposalResult.data],
-                  });
-                  session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,proposalIds:[...current.proposalIds,proposalResult.data.id]}));
+                if(proposalResult.success){
+                  if(!next.proposals.some(item=>item.id===proposalResult.data.id))next=AgentSessionSchema.parse({...next,proposals:[...next.proposals,proposalResult.data]});
+                  next=updateTurn(next,turnId,currentTurn=>currentTurn.proposalIds.includes(proposalResult.data.id)?currentTurn:AgentTurnSchema.parse({...currentTurn,proposalIds:[...currentTurn.proposalIds,proposalResult.data.id]}));
                 }
               }
             }
-            const toolMessage=AgentMessageSchema.parse({
-              id:this.makeId(),
-              role:"tool",
-              content:toolMessageContent(call,result),
-              createdAt:this.now(),
-              toolCallId:call.id,
-              toolName:call.toolId,
-            });
-            session=AgentSessionSchema.parse({...session,messages:[...session.messages,toolMessage],updatedAt:this.now()});
-            await this.dependencies.sessions.save(session);
-          }
+            return AgentSessionSchema.parse({...next,messages:[...next.messages,toolMessage],updatedAt:this.now()});
+          });
         }
-      }catch(error){
-        const details=runtimeError(error,input.signal);
-        const completedAt=this.now();
-        const status=details.category==="cancelled"?"cancelled":details.category==="budget"?"budget-exhausted":"failed";
-        session=updateTurn(session,turnId,current=>AgentTurnSchema.parse({...current,status,completedAt,error:details}));
-        session=AgentSessionSchema.parse({...session,updatedAt:completedAt});
-        await this.dependencies.sessions.save(session);
-        return session;
       }
-    });
+    }catch(error){
+      const details=runtimeError(error,input.signal);
+      const completedAt=this.now();
+      const status=details.category==="cancelled"?"cancelled":details.category==="budget"?"budget-exhausted":"failed";
+      session=await this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>AgentSessionSchema.parse({
+        ...updateTurn(current,turnId,currentTurn=>AgentTurnSchema.parse({...currentTurn,status,completedAt,error:details})),
+        updatedAt:completedAt,
+      }));
+      return session;
+    }
   }
 }

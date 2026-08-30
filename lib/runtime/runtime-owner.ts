@@ -1,9 +1,10 @@
 import {randomUUID} from "node:crypto";
 import {execFile} from "node:child_process";
-import {mkdir,readdir,readFile,rm,writeFile} from "node:fs/promises";
+import {access,copyFile,mkdir,readdir,readFile,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {promisify} from "node:util";
 import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
+import {withWindowsTransientRetry} from "@/lib/fs/atomic-replace";
 import {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";
 
 const ownerTempFile=(name:string)=>name.startsWith(".runtime-owner.json.")&&name.endsWith(".tmp");
@@ -58,6 +59,8 @@ export class RuntimeOwnerStore{
     this.runtimeLockPath=join(dataRoot,".runtime-owner.lock");
   }
 
+  private backupPath(){return join(this.dataRoot,".runtime-owner.backup.json");}
+
   async ensure(){await mkdir(this.dataRoot,{recursive:true});}
 
   private async cleanupTempFiles(){
@@ -69,8 +72,18 @@ export class RuntimeOwnerStore{
     try{return parseRuntimeOwner(JSON.parse(await readFile(this.runtimeOwnerPath,"utf8")));}
     catch(error){
       const code=(error as NodeJS.ErrnoException).code;
-      if(code==="ENOENT"||error instanceof SyntaxError||error instanceof Error&&error.message.startsWith("Runtime owner"))return null;
-      throw error;
+      const invalidOwner=error instanceof SyntaxError||error instanceof Error&&error.message.startsWith("Runtime owner");
+      if(code!=="ENOENT"&&!invalidOwner)throw error;
+      try{
+        const recovered=parseRuntimeOwner(JSON.parse(await readFile(this.backupPath(),"utf8")));
+        await this.atomicWrite(recovered,false);
+        return recovered;
+      }catch(backupError){
+        const backupCode=(backupError as NodeJS.ErrnoException).code;
+        const invalidBackup=backupError instanceof SyntaxError||backupError instanceof Error&&backupError.message.startsWith("Runtime owner");
+        if(backupCode==="ENOENT"||invalidBackup)return null;
+        throw backupError;
+      }
     }
   }
 
@@ -79,8 +92,17 @@ export class RuntimeOwnerStore{
     return withExclusiveFileLock(this.runtimeLockPath,fn);
   }
 
-  private async atomicWrite(owner:RuntimeOwner){
+  private async atomicWrite(owner:RuntimeOwner,preserveBackup=true){
     await mkdir(dirname(this.runtimeOwnerPath),{recursive:true});
+    if(preserveBackup){
+      try{
+        await access(this.runtimeOwnerPath);
+        await mkdir(dirname(this.backupPath()),{recursive:true});
+        await withWindowsTransientRetry(()=>copyFile(this.runtimeOwnerPath,this.backupPath()));
+      }catch(error){
+        if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+      }
+    }
     const tempPath=`${this.runtimeOwnerPath}.${randomUUID()}.tmp`;
     try{
       await writeFile(tempPath,JSON.stringify(owner,null,2)+"\n","utf8");
@@ -138,8 +160,7 @@ export class RuntimeOwnerStore{
   }
 
   async getRuntimeOwner():Promise<RuntimeOwner|null>{
-    try{return parseRuntimeOwner(JSON.parse(await readFile(this.runtimeOwnerPath,"utf8")));}
-    catch(error){if((error as NodeJS.ErrnoException).code==="ENOENT")return null;throw error;}
+    return this.withLock(()=>this.readOwnerForClaim());
   }
 
   async getRuntimeEpoch():Promise<number|null>{return (await this.getRuntimeOwner())?.runtimeEpoch??null;}

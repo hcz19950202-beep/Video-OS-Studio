@@ -84,7 +84,7 @@ const firstUnfinishedStep=(plan:ProductionPlan,execution:ProductionExecution)=>p
 
 const nextRunnableStep=(plan:ProductionPlan,execution:ProductionExecution)=>plan.steps.find(step=>{
   const state=execution.steps.find(item=>item.stepId===step.id);
-  if(!state||state.status==="completed"||state.status==="skipped"||state.status==="blocked"||state.status==="failed"||state.status==="waiting-review")return false;
+  if(!state||state.status==="completed"||state.status==="skipped"||state.status==="blocked"||state.status==="failed"||state.status==="waiting-review"||state.status==="running")return false;
   return dependenciesSatisfied(plan,execution,step);
 });
 
@@ -92,6 +92,15 @@ const terminalizeInFlightSteps=(execution:ProductionExecution,reason:ProductionE
   if(step.status!=="running"&&step.status!=="retrying"&&step.status!=="waiting-review")return step;
   return{...step,status:"blocked",lastFailure:reason};
 });
+
+type ProductionAdvanceClaim={
+  execution:ProductionExecution;
+  mission?:ProductionMission;
+  plan?:ProductionPlan;
+  step?:ProductionPlanStep;
+  operationId?:string;
+  recovery?:boolean;
+};
 
 export class ProductionMissionExecutor{
   private readonly now:()=>string;
@@ -304,11 +313,25 @@ export class ProductionMissionExecutor{
     return persisted;
   }
 
-  async advance(projectId:string,missionId:string):Promise<ProductionExecution>{
+  private async claimAdvance(projectId:string,missionId:string):Promise<ProductionAdvanceClaim>{
     return this.executions.withMissionLock(projectId,missionId,async()=>{
       const{mission,plan,execution:initial}=await this.ensureCurrentExecution(projectId,missionId);
       let execution=initial;
-      if(terminalExecution(execution.status)||execution.status==="blocked"||execution.status==="waiting-review")return execution;
+      if(terminalExecution(execution.status)||execution.status==="blocked"||execution.status==="waiting-review")return{execution};
+
+      const activeState=execution.steps.find(item=>item.status==="running");
+      if(activeState){
+        const activeStep=plan.steps.find(item=>item.id===activeState.stepId);
+        if(activeStep&&(activeStep.kind==="edit-project"||activeStep.kind==="repair")){
+          const currentProject=await this.projects.load(projectId);
+          if(currentProject.project.revision===execution.expectedProjectRevision+1)return{execution,mission,plan,step:activeStep,operationId:activeState.operationId,recovery:true};
+          if(currentProject.project.revision!==execution.expectedProjectRevision)return{execution:await this.blockForStaleProject(projectId,missionId,execution,plan,currentProject.project.revision)};
+        }else if(activeStep){
+          const currentProject=await this.projects.load(projectId);
+          if(currentProject.project.revision!==execution.expectedProjectRevision)return{execution:await this.blockForStaleProject(projectId,missionId,execution,plan,currentProject.project.revision)};
+        }
+        return{execution};
+      }
 
       const step=nextRunnableStep(plan,execution);
       if(!step){
@@ -316,39 +339,16 @@ export class ProductionMissionExecutor{
         if(!unfinished){
           const completed=await this.executions.mutate(projectId,execution.id,current=>ProductionExecutionSchema.parse({...current,status:"completed",activeStepId:undefined,updatedAt:this.now()}));
           await this.markMission(projectId,missionId,completed,"completed");
-          return completed;
+          return{execution:completed};
         }
-        return this.blockExecution(projectId,missionId,execution,plan,failure("PLAN_DEPENDENCY_UNSATISFIED","No executable step has satisfied Production Plan dependencies.",false));
+        return{execution:await this.blockExecution(projectId,missionId,execution,plan,failure("PLAN_DEPENDENCY_UNSATISFIED","No executable step has satisfied Production Plan dependencies.",false))};
       }
 
       const state=execution.steps.find(item=>item.stepId===step.id);
       if(!state)throw new Error("Execution step state is missing.");
       const currentProject=await this.projects.load(projectId);
-      const revisionMatches=currentProject.project.revision===execution.expectedProjectRevision;
-      const interruptedMutationRecovery=
-        state.status==="running"&&
-        (step.kind==="edit-project"||step.kind==="repair")&&
-        currentProject.project.revision===execution.expectedProjectRevision+1;
-      if(!revisionMatches&&!interruptedMutationRecovery){
-        return this.blockForStaleProject(projectId,missionId,execution,plan,currentProject.project.revision);
-      }
-
-      if(interruptedMutationRecovery){
-        let recoveredResult:StepExecutionResult;
-        try{
-          recoveredResult=await this.runner.execute({
-            mission,
-            plan,
-            step,
-            execution,
-            operationId:state.operationId,
-            expectedProjectRevision:execution.expectedProjectRevision,
-            remainingUsageBudget:productionExecutionRemainingUsageBudget(execution),
-          });
-        }catch{
-          recoveredResult={status:"blocked",code:"STEP_RUNNER_ERROR",message:"The bounded production step runner failed before producing a valid durable result."};
-        }
-        return this.handleRunnerResult(projectId,missionId,plan,step,execution,recoveredResult);
+      if(currentProject.project.revision!==execution.expectedProjectRevision){
+        return{execution:await this.blockForStaleProject(projectId,missionId,execution,plan,currentProject.project.revision)};
       }
 
       const risk=evaluateProductionStepRisk(step,mission.autonomyPolicy);
@@ -362,41 +362,66 @@ export class ProductionMissionExecutor{
           updatedAt:this.now(),
         }));
         await this.markMission(projectId,missionId,execution,"waiting-review",step.id);
-        return execution;
+        return{execution};
       }
 
       try{assertProductionExecutionAttemptBudget(execution,step);}
       catch(error){
         if(!(error instanceof ProductionExecutionBudgetExceededError))throw error;
-        return this.blockExecution(projectId,missionId,execution,plan,failure(error.code,error.message,false));
+        return{execution:await this.blockExecution(projectId,missionId,execution,plan,failure(error.code,error.message,false))};
       }
 
-      execution=incrementProductionExecutionAttempt(execution,step);
-      execution=await this.executions.mutate(projectId,execution.id,()=>ProductionExecutionSchema.parse({
-        ...execution,
-        status:"running",
-        activeStepId:step.id,
-        steps:execution.steps.map(item=>item.stepId===step.id?{...item,status:"running",startedAt:item.startedAt??this.now()}:item),
-        updatedAt:this.now(),
-      }));
-      await this.markMission(projectId,missionId,execution,"running",step.id);
-
-      let result:StepExecutionResult;
-      try{
-        result=await this.runner.execute({
-          mission,
-          plan,
-          step,
-          execution,
-          operationId:state.operationId,
-          expectedProjectRevision:execution.expectedProjectRevision,
-          remainingUsageBudget:productionExecutionRemainingUsageBudget(execution),
+      execution=await this.executions.mutate(projectId,execution.id,current=>{
+        const currentState=current.steps.find(item=>item.stepId===step.id);
+        if(!currentState||currentState.status==="running")return current;
+        const claimed=incrementProductionExecutionAttempt(current,step);
+        return ProductionExecutionSchema.parse({
+          ...claimed,
+          status:"running",
+          activeStepId:step.id,
+          steps:claimed.steps.map(item=>item.stepId===step.id?{...item,status:"running",startedAt:item.startedAt??this.now()}:item),
+          updatedAt:this.now(),
         });
-      }catch{
-        result={status:"blocked",code:"STEP_RUNNER_ERROR",message:"The bounded production step runner failed before producing a valid durable result."};
-      }
-      return this.handleRunnerResult(projectId,missionId,plan,step,execution,result);
+      });
+      const claimedState=execution.steps.find(item=>item.stepId===step.id);
+      if(!claimedState||claimedState.status!=="running")return{execution};
+      await this.markMission(projectId,missionId,execution,"running",step.id);
+      return{execution,mission,plan,step,operationId:claimedState.operationId};
     });
+  }
+
+  private async reconcileRunnerResult(projectId:string,missionId:string,claim:ProductionAdvanceClaim,result:StepExecutionResult):Promise<ProductionExecution>{
+    if(!claim.mission||!claim.plan||!claim.step||!claim.operationId)return claim.execution;
+    return this.executions.withMissionLock(projectId,missionId,async()=>{
+      const mission=await this.missions.require(projectId,missionId);
+      const execution=mission.executionId?await this.executions.load(projectId,mission.executionId):await this.executions.latestForMission(projectId,missionId);
+      if(!execution)return claim.execution;
+      const state=execution.steps.find(item=>item.stepId===claim.step!.id);
+      const cancelledActive=execution.status==="cancelled"&&state?.status==="blocked"&&state.lastFailure?.code==="MISSION_CANCELLED";
+      if(execution.id!==claim.execution.id||!state||state.operationId!==claim.operationId||(!cancelledActive&&state.status!=="running"))return execution;
+      if(cancelledActive&&result.status!=="completed")return execution;
+      return this.handleRunnerResult(projectId,missionId,claim.plan!,claim.step!,execution,result);
+    });
+  }
+
+  async advance(projectId:string,missionId:string):Promise<ProductionExecution>{
+    const claim=await this.claimAdvance(projectId,missionId);
+    if(!claim.mission||!claim.plan||!claim.step||!claim.operationId)return claim.execution;
+    let result:StepExecutionResult;
+    try{
+      result=await this.runner.execute({
+        mission:claim.mission,
+        plan:claim.plan,
+        step:claim.step,
+        execution:claim.execution,
+        operationId:claim.operationId,
+        expectedProjectRevision:claim.execution.expectedProjectRevision,
+        remainingUsageBudget:productionExecutionRemainingUsageBudget(claim.execution),
+      });
+    }catch{
+      result={status:"blocked",code:"STEP_RUNNER_ERROR",message:"The bounded production step runner failed before producing a valid durable result."};
+    }
+    return this.reconcileRunnerResult(projectId,missionId,claim,result);
   }
 
   async review(projectId:string,missionId:string,input:ReviewProductionExecutionInput):Promise<ProductionExecution>{
@@ -448,13 +473,12 @@ export class ProductionMissionExecutor{
   }
 
   async cancel(projectId:string,missionId:string):Promise<ProductionExecution|null>{
-    const mission=await this.missions.mutate(projectId,missionId,current=>{
-      if(current.status==="completed")throw new ProductionExecutionPlanUnavailableError();
-      if(current.status==="cancelled")return current;
-      return{...current,status:"cancelled" as const,activeStepId:undefined,updatedAt:this.now()};
-    });
-
     return this.executions.withMissionLock(projectId,missionId,async()=>{
+      const mission=await this.missions.mutate(projectId,missionId,current=>{
+        if(current.status==="completed")throw new ProductionExecutionPlanUnavailableError();
+        if(current.status==="cancelled")return current;
+        return{...current,status:"cancelled" as const,activeStepId:undefined,updatedAt:this.now()};
+      });
       const execution=mission.executionId?await this.executions.load(projectId,mission.executionId):await this.executions.latestForMission(projectId,missionId);
       if(!execution)return null;
       if(execution.status==="cancelled")return execution;

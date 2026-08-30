@@ -77,6 +77,15 @@ export const AgentApprovedOperationSchema=z.object({
 }).strict();
 export type AgentApprovedOperation=z.infer<typeof AgentApprovedOperationSchema>;
 
+export const AgentOperationClaimSchema=z.object({
+  operationId:StableRuntimeIdSchema,
+  proposalId:AgentProposalIdSchema,
+  claimToken:StableRuntimeIdSchema,
+  ownerPid:z.number().int().positive(),
+  claimedAt:z.string().datetime(),
+}).strict();
+export type AgentOperationClaim=z.infer<typeof AgentOperationClaimSchema>;
+
 export const AgentSessionSchema=z.object({
   id:AgentSessionIdSchema,
   projectId:ProjectIdSchema,
@@ -89,6 +98,7 @@ export const AgentSessionSchema=z.object({
   turns:z.array(AgentTurnSchema).max(1_000),
   proposals:z.array(AgentProposalSchema).max(1_000),
   approvedOperations:z.array(AgentApprovedOperationSchema).max(2_000),
+  operationClaims:z.array(AgentOperationClaimSchema).max(2_000).default([]),
   lastContext:AgentContextReferenceSchema.optional(),
   usage:AgentUsageSchema.optional(),
 }).strict().superRefine((session,ctx)=>{
@@ -117,6 +127,12 @@ export const AgentSessionSchema=z.object({
     if(operationIds.has(operation.operationId))ctx.addIssue({code:"custom",message:"Approved Agent operation IDs must be unique."});
     operationIds.add(operation.operationId);
     if(!proposalIds.has(operation.proposalId))ctx.addIssue({code:"custom",message:"Approved Agent operation must reference a proposal in the same session."});
+  }
+  const claimIds=new Set<string>();
+  for(const claim of session.operationClaims){
+    if(claimIds.has(claim.operationId))ctx.addIssue({code:"custom",message:"Agent operation claim IDs must be unique."});
+    claimIds.add(claim.operationId);
+    if(!proposalIds.has(claim.proposalId))ctx.addIssue({code:"custom",message:"Agent operation claim must reference a proposal in the same session."});
   }
 });
 export type AgentSession=z.infer<typeof AgentSessionSchema>;

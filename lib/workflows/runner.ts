@@ -77,7 +77,7 @@ export class WorkflowRunner{
     readonly stages:WorkflowStageRegistry,
     readonly jobs?:WorkflowJobRuntimePort,
     options:WorkflowRunnerOptions={},
-  ){this.jobPollIntervalMs=Math.max(1,options.jobPollIntervalMs??25);}
+  ){this.jobPollIntervalMs=Math.max(1,options.jobPollIntervalMs??250);}
 
   private async withRunLock<T>(workflowId:string,fn:()=>Promise<T>):Promise<T>{
     const previous=this.runLocks.get(workflowId)??Promise.resolve();
