@@ -82,6 +82,7 @@ export const AgentOperationClaimSchema=z.object({
   proposalId:AgentProposalIdSchema,
   claimToken:StableRuntimeIdSchema,
   ownerPid:z.number().int().positive(),
+  ownerStartedAt:z.number().int().positive().optional(),
   claimedAt:z.string().datetime(),
 }).strict();
 export type AgentOperationClaim=z.infer<typeof AgentOperationClaimSchema>;

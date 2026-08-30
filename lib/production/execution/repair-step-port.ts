@@ -1,3 +1,4 @@
+import {productionMutationTargetsForCommands} from "@/lib/production/autonomy/commands";
 import type {ProductionMutationTarget} from "@/lib/production/autonomy/schema";
 import type {ProductionRepairStepPort} from "@/lib/production/execution/application-runner";
 import type {ProductionStepRunnerInput} from "@/lib/production/execution/executor";
@@ -16,6 +17,7 @@ type ProductionRepairMutationWriter=Pick<ProjectMutationCoordinator,"applyTransa
 export interface ProductionRepairProjectReader{load(projectId:string):Promise<Project>;}
 
 type ResolvedQARepair={report:QAReport};
+type BoundedTimingRepairMutation={durationInFrames:number;commands:ProjectCommand[];targets:ProductionMutationTarget[]};
 
 export class ProductionQARepairResolver{
   constructor(private readonly qa:ProductionQAReportReader){}
@@ -35,19 +37,6 @@ export class ProductionQARepairResolver{
     if(report.projectId!==input.mission.projectId||report.missionId!==input.mission.id)throw new Error("QA report belongs to a different Production Mission.");
     if(report.projectRevision!==input.expectedProjectRevision)throw new Error("QA repair evidence is stale for the expected Project revision.");
     return{report};
-  }
-}
-
-export class ProductionQARepairTargetResolver{
-  constructor(private readonly repairs:ProductionQARepairResolver){}
-
-  async resolve(input:ProductionStepRunnerInput):Promise<ProductionMutationTarget[]>{
-    const{report}=await this.repairs.resolve(input);
-    if(report.status==="pass")return[];
-    const proposal=report.repairProposal;
-    if(!proposal||proposal.baseProjectRevision!==input.expectedProjectRevision)throw new Error("QA report does not contain a current structured repair proposal.");
-    if(proposal.actions.length>0&&proposal.actions.every(action=>action.kind==="adjust-scene-timing"))return[{kind:"canvas",action:"modify"}];
-    throw new Error("QA repair proposal contains actions outside the bounded automatic repair surface.");
   }
 }
 
@@ -78,6 +67,37 @@ const buildDurationRepairCommands=(project:Project,durationInFrames:number):Proj
   commands.push({type:"set-duration",durationInFrames});
   return commands;
 };
+
+const boundedTimingRepairMutation=(project:Project,targetDurationSeconds:number):BoundedTimingRepairMutation=>{
+  const durationInFrames=Math.max(1,Math.round(targetDurationSeconds*project.canvas.fps));
+  const commands=buildDurationRepairCommands(project,durationInFrames);
+  return{durationInFrames,commands,targets:productionMutationTargetsForCommands(project,commands)};
+};
+
+const assertBoundedTimingProposal=(report:QAReport,expectedRevision:number)=>{
+  const proposal=report.repairProposal;
+  if(!proposal||proposal.baseProjectRevision!==expectedRevision)throw new Error("QA report does not contain a current structured repair proposal.");
+  if(proposal.actions.length===0||!proposal.actions.every(action=>action.kind==="adjust-scene-timing"))throw new Error("QA repair proposal contains actions outside the bounded automatic repair surface.");
+  return proposal;
+};
+
+export class ProductionQARepairTargetResolver{
+  constructor(
+    private readonly repairs:ProductionQARepairResolver,
+    private readonly projects:ProductionRepairProjectReader,
+  ){}
+
+  async resolve(input:ProductionStepRunnerInput):Promise<ProductionMutationTarget[]>{
+    const{report}=await this.repairs.resolve(input);
+    if(report.status==="pass")return[];
+    assertBoundedTimingProposal(report,input.expectedProjectRevision);
+    const targetDurationSeconds=input.mission.target.targetDurationSeconds;
+    if(targetDurationSeconds===undefined)throw new Error("Automatic timing repair requires an explicit Mission target duration.");
+    const project=await this.projects.load(input.mission.projectId);
+    if(project.project.revision!==input.expectedProjectRevision)throw new Error("Project revision changed before timing repair target resolution.");
+    return boundedTimingRepairMutation(project,targetDurationSeconds).targets;
+  }
+}
 
 export class ApplicationProductionRepairStepPort implements ProductionRepairStepPort{
   constructor(
@@ -111,12 +131,13 @@ export class ApplicationProductionRepairStepPort implements ProductionRepairStep
         message:"Production execution has no remaining bounded repair-loop budget.",
       };
     }
-    const proposal=report.repairProposal;
-    if(!proposal){
+    let proposal;
+    try{proposal=assertBoundedTimingProposal(report,input.expectedProjectRevision);}
+    catch{
       return{
         status:"blocked",
-        code:"PRODUCTION_REPAIR_PROPOSAL_MISSING",
-        message:"QA reported a failure but did not persist a structured repair proposal.",
+        code:report.repairProposal?"PRODUCTION_REPAIR_ACTION_UNSUPPORTED":"PRODUCTION_REPAIR_PROPOSAL_MISSING",
+        message:report.repairProposal?"This QA repair proposal requires an action outside the bounded automatic timing-repair surface.":"QA reported a failure but did not persist a structured repair proposal.",
       };
     }
 
@@ -148,13 +169,13 @@ export class ApplicationProductionRepairStepPort implements ProductionRepairStep
     try{
       const project=await this.projects.load(input.mission.projectId);
       if(project.project.revision!==input.expectedProjectRevision)throw new Error("Project revision changed before timing repair application.");
-      const durationInFrames=Math.max(1,Math.round(targetDurationSeconds*project.canvas.fps));
+      const mutation=boundedTimingRepairMutation(project,targetDurationSeconds);
       const result=await this.mutations.applyTransaction(input.mission.projectId,{
         expectedRevision:input.expectedProjectRevision,
         transactionId:input.operationId,
         transaction:{
           label:"Production QA · bounded timing repair",
-          commands:buildDurationRepairCommands(project,durationInFrames),
+          commands:mutation.commands,
         },
       });
       return{

@@ -51,7 +51,7 @@ const createProductionExecutionService=()=>{
   const qa=new ApplicationProductionQAStepPort(productionQAService);
   const repairs=new ProductionQARepairResolver(productionQAService);
   const repair=new ApplicationProductionRepairStepPort(repairs,projectRepository,projectMutations);
-  const repairTargets=new ProductionQARepairTargetResolver(repairs);
+  const repairTargets=new ProductionQARepairTargetResolver(repairs,projectRepository);
   const assetBaseUrl=resolveTrustedAssetBaseUrl();
   const application=new ApplicationProductionStepRunner(
     agent,

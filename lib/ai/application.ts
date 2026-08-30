@@ -11,7 +11,7 @@ import {VisualPlanSchema,type VisualPlanDiff} from "@/lib/visual-planner/schema"
 import type {VisualPlanService} from "@/lib/visual-planner/service";
 import type {WorkflowRun} from "@/lib/workflows/schema";
 import type {Project} from "@/schemas/project";
-import {isExclusiveLockProcessAlive} from "@/lib/fs/exclusive-lock";
+import {currentProcessIdentity,isProcessIdentityAlive} from "@/lib/process/process-identity";
 
 const VisualPlanOperationPayloadSchema=z.object({
   plan:VisualPlanSchema,
@@ -132,10 +132,11 @@ export class AgentProposalApplicationService{
       if(proposal.status==="applied")throw new AgentProposalApplicationError("Proposal is already applied but its durable Apply record could not be recovered.");
       if(current.approvedOperations.some(item=>item.operationId===operationId))return current;
       const existing=current.operationClaims.find(item=>item.operationId===operationId);
-      if(existing&&await isExclusiveLockProcessAlive(existing.ownerPid))return current;
+      if(existing&&await isProcessIdentityAlive({pid:existing.ownerPid,startedAt:existing.ownerStartedAt}))return current;
+      const ownerIdentity=currentProcessIdentity();
       return AgentSessionSchema.parse({
         ...current,
-        operationClaims:[...current.operationClaims.filter(item=>item.operationId!==operationId),{operationId,proposalId,claimToken,ownerPid:process.pid,claimedAt:this.now()}],
+        operationClaims:[...current.operationClaims.filter(item=>item.operationId!==operationId),{operationId,proposalId,claimToken,ownerPid:ownerIdentity.pid,ownerStartedAt:ownerIdentity.startedAt,claimedAt:this.now()}],
         updatedAt:this.now(),
       });
     });
@@ -151,12 +152,12 @@ export class AgentProposalApplicationService{
       if(session.approvedOperations.some(item=>item.operationId===operationId))return{status:"applied" as const,session};
       const claim=session.operationClaims.find(item=>item.operationId===operationId);
       if(!claim)return{status:"retry" as const,session};
-      if(!(await isExclusiveLockProcessAlive(claim.ownerPid))){
+      if(!(await isProcessIdentityAlive({pid:claim.ownerPid,startedAt:claim.ownerStartedAt}))){
         await this.dependencies.sessions.mutate(projectId,sessionId,current=>AgentSessionSchema.parse({...current,operationClaims:current.operationClaims.filter(item=>item.claimToken!==claim.claimToken),updatedAt:this.now()}));
         continue;
       }
       if(Date.now()>=deadline)throw new AgentProposalApplicationError("Another Agent confirmation is still applying this operation; retry after it finishes.");
-      await sleep(25);
+      await sleep(100);
     }
   }
 
@@ -166,6 +167,14 @@ export class AgentProposalApplicationService{
       if(!claim||claim.claimToken!==claimToken)return current;
       return AgentSessionSchema.parse({...current,operationClaims:current.operationClaims.filter(item=>item.claimToken!==claimToken),updatedAt:this.now()});
     });
+  }
+
+  private async markAppliedAfterExternalCompletion(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{
+    try{return await this.markApplied(projectId,sessionId,proposalId,operationId,claimToken);}
+    catch(error){
+      if(claimToken)await this.releaseApplyOperation(projectId,sessionId,operationId,claimToken).catch(()=>undefined);
+      throw error;
+    }
   }
 
   private async markApplied(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{
@@ -335,7 +344,7 @@ export class AgentProposalApplicationService{
         throw error;
       }
       externalCompleted=true;
-      session=await this.markApplied(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
+      session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
       return{project:current,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:applied.alreadyApplied,workflow:applied.workflow,workflowAction:workflowPayload.action};
     }
 
@@ -348,7 +357,7 @@ export class AgentProposalApplicationService{
       throw error;
     }
 
-    session=await this.markApplied(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
+    session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
     return{project:applied.project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:selectedChangeIds,transactionId:applied.transactionId,alreadyApplied:Boolean(applied.alreadyApplied)};
   }
 }

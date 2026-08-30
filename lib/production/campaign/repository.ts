@@ -1,3 +1,4 @@
+import {randomUUID} from "node:crypto";
 import {join} from "node:path";
 import type {FileSystemAdapter} from "@/adapters/contracts";
 import {
@@ -8,10 +9,42 @@ import {
 import {
   ProductionCampaignAlreadyExistsError,
   ProductionCampaignNotFoundError,
+  ProductionCampaignRunnerBusyError,
 } from "@/lib/production/campaign/errors";
+import {currentProcessIdentity,isProcessIdentityAlive} from "@/lib/process/process-identity";
+
+export type ProductionCampaignRunnerClaim={
+  version:1;
+  campaignId:string;
+  ownerToken:string;
+  pid:number;
+  processStartedAt?:number;
+  claimedAt:string;
+};
 
 const serialize=(campaign:ProductionCampaign)=>JSON.stringify(ProductionCampaignSchema.parse(campaign),null,2)+"\n";
 const parse=(text:string)=>ProductionCampaignSchema.parse(JSON.parse(text));
+const serializeRunnerClaim=(claim:ProductionCampaignRunnerClaim)=>JSON.stringify(claim,null,2)+"\n";
+const parseRunnerClaim=(text:string):ProductionCampaignRunnerClaim=>{
+  const value=JSON.parse(text) as Partial<ProductionCampaignRunnerClaim>;
+  if(
+    value.version!==1||
+    typeof value.campaignId!=="string"||
+    typeof value.ownerToken!=="string"||
+    value.ownerToken.length===0||
+    !Number.isInteger(value.pid)||
+    (value.processStartedAt!==undefined&&(!Number.isFinite(value.processStartedAt)||value.processStartedAt<=0))||
+    typeof value.claimedAt!=="string"
+  )throw new Error("Production Campaign runner claim is invalid.");
+  return{
+    version:1,
+    campaignId:ProductionCampaignIdSchema.parse(value.campaignId),
+    ownerToken:value.ownerToken,
+    pid:value.pid!,
+    ...(value.processStartedAt===undefined?{}:{processStartedAt:value.processStartedAt}),
+    claimedAt:value.claimedAt,
+  };
+};
 
 export class ProductionCampaignRepository{
   private readonly pathChains=new Map<string,Promise<void>>();
@@ -22,6 +55,7 @@ export class ProductionCampaignRepository{
   private campaignPath(campaignId:string){return join(this.campaignsDir(),`${ProductionCampaignIdSchema.parse(campaignId)}.json`);}
   private backupPath(campaignId:string){return join(this.campaignsDir(),`${ProductionCampaignIdSchema.parse(campaignId)}.backup.json`);}
   private lockPath(campaignId:string){return join(this.campaignsDir(),`${ProductionCampaignIdSchema.parse(campaignId)}.lock`);}
+  private runnerClaimPath(campaignId:string){return join(this.campaignsDir(),`${ProductionCampaignIdSchema.parse(campaignId)}.runner-claim.json`);}
 
   private async withCampaignLock<T>(campaignIdInput:string,work:()=>Promise<T>):Promise<T>{
     const campaignId=ProductionCampaignIdSchema.parse(campaignIdInput);
@@ -136,10 +170,49 @@ export class ProductionCampaignRepository{
     }));
   }
 
+  async claimRunner(campaignIdInput:string):Promise<ProductionCampaignRunnerClaim>{
+    const campaignId=ProductionCampaignIdSchema.parse(campaignIdInput);
+    return this.withCampaignLock(campaignId,()=>this.withAtomicWriteLock(campaignId,async()=>{
+      await this.loadForMutationUnderAtomicLock(campaignId);
+      const path=this.runnerClaimPath(campaignId);
+      if(await this.fs.exists(path)){
+        const current=parseRunnerClaim(await this.fs.readText(path));
+        if(current.campaignId!==campaignId)throw new Error("Production Campaign runner claim identity does not match its repository path.");
+        if(await isProcessIdentityAlive({pid:current.pid,startedAt:current.processStartedAt}))throw new ProductionCampaignRunnerBusyError(campaignId);
+      }
+      const identity=currentProcessIdentity();
+      const claim:ProductionCampaignRunnerClaim={
+        version:1,
+        campaignId,
+        ownerToken:randomUUID(),
+        pid:identity.pid,
+        processStartedAt:identity.startedAt,
+        claimedAt:new Date().toISOString(),
+      };
+      await this.fs.ensureDir(this.campaignsDir());
+      await this.fs.writeTextAtomic(path,serializeRunnerClaim(claim));
+      return claim;
+    }));
+  }
+
+  async releaseRunnerClaim(campaignIdInput:string,ownerToken:string):Promise<boolean>{
+    const campaignId=ProductionCampaignIdSchema.parse(campaignIdInput);
+    if(ownerToken.length===0)return false;
+    return this.withCampaignLock(campaignId,()=>this.withAtomicWriteLock(campaignId,async()=>{
+      const path=this.runnerClaimPath(campaignId);
+      if(!(await this.fs.exists(path)))return false;
+      const current=parseRunnerClaim(await this.fs.readText(path));
+      if(current.campaignId!==campaignId||current.ownerToken!==ownerToken)return false;
+      await this.fs.removeFile(path);
+      return true;
+    }));
+  }
+
   async list():Promise<ProductionCampaign[]>{
     const files=await this.fs.listFiles(this.campaignsDir());
     const ids=[...new Set(files.flatMap(name=>{
       if(name.endsWith(".backup.json"))return[name.slice(0,-12)];
+      if(name.endsWith(".runner-claim.json"))return[];
       if(name.endsWith(".json"))return[name.slice(0,-5)];
       return[];
     }))];

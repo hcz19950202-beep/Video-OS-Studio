@@ -6,10 +6,12 @@ import type {JobExecutor} from "@/lib/jobs/runtime";
 import type {JobRecord,JobType} from "@/lib/jobs/schema";
 import {ExpectedProjectRevisionSchema,ProjectOperationIdSchema} from "@/lib/project/mutation-contract";
 import type {ProjectRepository} from "@/lib/project/repository";
+import {RenderReferencedMediaUnavailableError} from "@/lib/render/errors";
 import {ExportProfileSchema,projectForExportProfile,type ExportProfile} from "@/lib/render/profile";
 import type {VideoUseService} from "@/lib/video-use/service";
 import {ProjectRelativePathSchema} from "@/schemas/asset";
 import {MotionTransformSchema} from "@/schemas/clip";
+import type {Project} from "@/schemas/project";
 
 const requireProjectId=(job:JobRecord)=>{if(!job.projectId)throw new Error(`Job type ${job.type} requires a projectId.`);return job.projectId;};
 
@@ -27,6 +29,26 @@ export type JobExecutorDependencies={
   videoUse:VideoUseService;
 };
 
+const referencedRenderMediaAssetIds=(project:Project)=>{
+  const assetIds=new Set<string>();
+  for(const track of project.tracks)for(const clip of track.clips){
+    if(!clip.enabled)continue;
+    if(clip.type==="video"||clip.type==="broll"||clip.type==="audio")assetIds.add(clip.assetId);
+    else if(clip.type==="motion"&&clip.assetId)assetIds.add(clip.assetId);
+  }
+  return[...assetIds].sort();
+};
+
+const assertReferencedRenderMediaAvailable=async(deps:JobExecutorDependencies,projectId:string,project:Project)=>{
+  const assets=new Map(project.assets.map(asset=>[asset.id,asset]));
+  const missing:string[]=[];
+  for(const assetId of referencedRenderMediaAssetIds(project)){
+    const asset=assets.get(assetId);
+    if(!asset||!(await deps.fs.exists(deps.repository.resolveProjectFile(projectId,asset.relativePath))))missing.push(assetId);
+  }
+  if(missing.length)throw new RenderReferencedMediaUnavailableError(missing);
+};
+
 const renderExecutor=(deps:JobExecutorDependencies):JobExecutor=>async(job,context)=>{
   const projectId=requireProjectId(job);
   const input=RenderJobInputSchema.parse(job.input);
@@ -34,6 +56,7 @@ const renderExecutor=(deps:JobExecutorDependencies):JobExecutor=>async(job,conte
   await context.update("load-project",.1);
   const sourceProject=await deps.repository.load(projectId);
   const sourceProjectRevision=sourceProject.project.revision;
+  await assertReferencedRenderMediaAvailable(deps,projectId,sourceProject);
   const prepared=mode==="final"?projectForExportProfile(sourceProject,input.profile as Partial<ExportProfile>|undefined):{project:sourceProject,profile:undefined};
   const profile=prepared.profile;
   const ext=mode==="overlay"?"webm":"mp4";
@@ -42,10 +65,18 @@ const renderExecutor=(deps:JobExecutorDependencies):JobExecutor=>async(job,conte
   const outputPath=deps.repository.resolveProjectFile(projectId,relativePath);
   await deps.fs.ensureDir(dirname(outputPath));
   await context.update("rendering",.2,{outputRelativePath:relativePath,mode,sourceProjectRevision,...(profile?{profile}:{})});
-  await deps.remotion.render({project:prepared.project,outputPath,mode,assetBaseUrl:input.assetBaseUrl,quality:profile?.quality,includeAudio:profile?.audio!=="none"},{signal:context.signal,onLog:context.onToolLog});
+  const renderResult=await deps.remotion.render({project:prepared.project,outputPath,mode,assetBaseUrl:input.assetBaseUrl,quality:profile?.quality,includeAudio:profile?.audio!=="none"},{signal:context.signal,onLog:context.onToolLog});
   await context.addArtifact({id:"render-output",kind:"render",label:`${mode} render`,relativePath,mimeType:mode==="overlay"?"video/webm":"video/mp4"});
   await context.update("finalizing",.95);
-  return{outputRelativePath:relativePath,mode,sourceProjectRevision,...(profile?{profile}:{})};
+  return{
+    outputRelativePath:relativePath,
+    mode,
+    sourceProjectRevision,
+    backend:renderResult.backend??"unspecified",
+    fallbackUsed:renderResult.fallbackUsed??false,
+    ...(renderResult.fallbackReason?{fallbackReason:renderResult.fallbackReason}:{}),
+    ...(profile?{profile}:{}),
+  };
 };
 
 const hyperFramesExecutor=(deps:JobExecutorDependencies):JobExecutor=>async(job,context)=>{

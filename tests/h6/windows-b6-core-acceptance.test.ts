@@ -202,6 +202,9 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
         (asset) => asset.id === imported.import.assetId,
       );
       expect(sourceAsset?.kind).toBe("video");
+      const importedVideoClips =
+        imported.project.tracks.find((track) => track.id === "video-main")?.clips ?? [];
+      expect(importedVideoClips.length).toBeGreaterThan(0);
 
       const fixtureSetup = await mutations.applyTransaction(projectId, {
         expectedRevision: imported.project.project.revision,
@@ -209,6 +212,11 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
         transaction: {
           label: "B6 acceptance fixture · place source and semantic QA scenes",
           commands: [
+            ...importedVideoClips.map((clip) => ({
+              type: "remove-clip" as const,
+              clipId: clip.id,
+            })),
+            { type: "set-duration", durationInFrames: SOURCE_DURATION_FRAMES },
             {
               type: "add-clip",
               trackId: "video-main",
@@ -257,6 +265,17 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
             },
           ],
         },
+      });
+      const boundedVideoClips =
+        fixtureSetup.project.tracks.find((track) => track.id === "video-main")?.clips ?? [];
+      expect(fixtureSetup.project.canvas.durationInFrames).toBe(SOURCE_DURATION_FRAMES);
+      expect(boundedVideoClips).toHaveLength(1);
+      expect(boundedVideoClips[0]).toMatchObject({
+        id: "b6-source-video",
+        assetId: imported.import.assetId,
+        startFrame: 0,
+        sourceStartFrame: 0,
+        durationInFrames: SOURCE_DURATION_FRAMES,
       });
       const baseRevision = fixtureSetup.project.project.revision;
       expect(baseRevision).toBe(2);
@@ -353,6 +372,19 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
         baseRevision,
         "B6 acceptance allows the bounded QA timing repair.",
       );
+      await protection.markAiOwned(
+        projectId,
+        { kind: "clip", id: "b6-source-video" },
+        baseRevision,
+        "B6 acceptance source video is explicitly AI-owned for bounded QA timing repair.",
+      );
+
+      await protection.markAiOwned(
+        projectId,
+        { kind: "scene", id: "scene-cta" },
+        baseRevision,
+        "B6 acceptance CTA scene is explicitly AI-owned for bounded QA timing repair.",
+      );
 
       const sessions = new AgentSessionRepository(fs, root);
       const visualPlan = VisualPlanSchema.parse({
@@ -445,7 +477,7 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
         projects,
         mutations,
       );
-      const repairTargets = new ProductionQARepairTargetResolver(repairResolver);
+      const repairTargets = new ProductionQARepairTargetResolver(repairResolver, projects);
       const applicationRunner = new ApplicationProductionStepRunner(
         agent,
         proposalResolver,
@@ -658,6 +690,17 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
       expect(secondRender?.output?.sourceProjectRevision).toBe(baseRevision + 2);
       expect(allJobs.filter((job) => job.id === OPERATION_IDS[3])).toHaveLength(1);
       expect(allJobs.filter((job) => job.id === OPERATION_IDS[6])).toHaveLength(1);
+
+      const firstRelativePath = String(firstRender?.output?.outputRelativePath ?? "");
+      expect(firstRelativePath).toMatch(/\.mp4$/u);
+      const firstPath = projects.resolveProjectFile(projectId, firstRelativePath);
+      const firstProbe = await ffmpeg.probe(firstPath);
+      expect(firstProbe.width).toBe(640);
+      expect(firstProbe.height).toBe(360);
+      expect(
+        Math.abs(firstProbe.durationSeconds - SOURCE_DURATION_FRAMES / 30),
+      ).toBeLessThanOrEqual(0.25);
+      await expect(access(`${firstPath}.props.json`)).rejects.toThrow();
 
       const firstQA = await qa.load(projectId, OPERATION_IDS[4]);
       const finalQA = await qa.load(projectId, OPERATION_IDS[7]);

@@ -5,6 +5,7 @@ import {CreateJobSchema,JobRecordSchema,isTerminalJobStatus,type CreateJobInput,
 import {probeExecutorLiveness} from "@/lib/jobs/process-probes";
 import {FileJobStore,type JobLogStream} from "@/lib/jobs/store";
 import {ProjectOperationIdReuseError,ProjectRevisionConflictError} from "@/lib/project/mutation-coordinator";
+import {RenderReferencedMediaUnavailableError} from "@/lib/render/errors";
 import {ToolAbortedError,ToolRunError,ToolTimeoutError,type ToolLogEvent} from "@/lib/process/tool-runner";
 
 export type JobConcurrencyGroup="render"|"hyperframes"|"normalize"|"transcribe";
@@ -26,6 +27,7 @@ const normalizedError=(error:unknown):JobError=>{
   if(error instanceof ToolRunError)return{code:error.code,message:error.message,retryable:true,details:{tool:error.tool,exitCode:error.exitCode,exitSignal:error.exitSignal}};
   if(error instanceof ProjectRevisionConflictError)return{code:error.code,message:error.message,retryable:false,details:{expectedRevision:error.expectedRevision,currentRevision:error.currentRevision}};
   if(error instanceof ProjectOperationIdReuseError)return{code:error.code,message:error.message,retryable:false,details:{operationId:error.operationId}};
+  if(error instanceof RenderReferencedMediaUnavailableError)return{code:error.code,message:error.message,retryable:false,details:{assetIds:error.assetIds}};
   if(error instanceof ZodError)return{code:"JOB_INPUT_INVALID",message:"The durable job input is invalid.",retryable:false,details:{issues:error.issues}};
   return{code:"JOB_EXECUTION_FAILED",message:error instanceof Error?error.message:String(error),retryable:true};
 };
@@ -192,22 +194,6 @@ export class DurableJobRuntime{
     }
   }
 
-  async cancel(jobId:string){
-    await this.ready;
-    const result=await this.withJobLock(jobId,async()=>{
-      const job=await this.store.get(jobId);if(!job)throw new JobNotFoundError(jobId);
-      if(isTerminalJobStatus(job.status))return job;
-      const requestedAt=nowIso();
-      if(job.status==="queued"){
-        this.removeQueued(jobId);
-        return this.store.save(JobRecordSchema.parse({...job,status:"cancelled",stage:"cancelled",error:{code:"JOB_CANCELLED",message:"The job was cancelled before execution.",retryable:true},cancellationRequestedAt:requestedAt,finishedAt:requestedAt,updatedAt:requestedAt}));
-      }
-      return this.store.save(JobRecordSchema.parse({...job,cancellationRequestedAt:requestedAt,stage:"cancelling",updatedAt:requestedAt}));
-    });
-    if(!isTerminalJobStatus(result.status))this.activeControllers.get(jobId)?.abort();
-    return result;
-  }
-
   async retry(jobId:string){
     await this.ready;
     const retried=await this.withJobLock(jobId,async()=>{
@@ -222,5 +208,21 @@ export class DurableJobRuntime{
     this.enqueue(retried);
     this.pump(jobConcurrencyGroup(retried.type));
     return retried;
+  }
+
+  async cancel(jobId:string){
+    await this.ready;
+    const requestedAt=nowIso();
+    const next=await this.withJobLock(jobId,async()=>{
+      const existing=await this.store.get(jobId);if(!existing)throw new JobNotFoundError(jobId);
+      if(isTerminalJobStatus(existing.status))return existing;
+      if(existing.status==="queued"){
+        this.removeQueued(jobId);
+        return this.store.save(JobRecordSchema.parse({...existing,status:"cancelled",stage:"cancelled",error:{code:"JOB_CANCELLED",message:"The job was cancelled.",retryable:true},cancellationRequestedAt:requestedAt,finishedAt:requestedAt,updatedAt:requestedAt}));
+      }
+      const updated=JobRecordSchema.parse({...existing,cancellationRequestedAt:existing.cancellationRequestedAt??requestedAt,stage:"cancelling",updatedAt:requestedAt});
+      await this.store.save(updated);this.activeControllers.get(jobId)?.abort();return updated;
+    });
+    return next;
   }
 }

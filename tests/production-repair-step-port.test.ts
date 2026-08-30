@@ -6,6 +6,7 @@ import type {ProductionStepRunnerInput} from "@/lib/production/execution/executo
 import {
   ApplicationProductionRepairStepPort,
   ProductionQARepairResolver,
+  ProductionQARepairTargetResolver,
 } from "@/lib/production/execution/repair-step-port";
 import type {ProductionQAService} from "@/lib/production/qa/service";
 import type {QAReport} from "@/lib/production/qa/schema";
@@ -96,7 +97,7 @@ const input=():ProductionStepRunnerInput=>({
 });
 
 describe("ApplicationProductionRepairStepPort",()=>{
-  it("shrinks duration through one atomic revision while trimming or removing out-of-range timeline entities",async()=>{
+  it("derives exact protection targets from the same bounded timing commands it executes",async()=>{
     const fs=new InMemoryFileSystemAdapter();
     const projects=new ProjectRepository(fs,"/data");
     const mutations=new ProjectMutationCoordinator(fs,projects);
@@ -119,7 +120,17 @@ describe("ApplicationProductionRepairStepPort",()=>{
 
     const qa={load:async()=>report()};
     const resolver=new ProductionQARepairResolver(qa as unknown as Pick<ProductionQAService,"load">);
+    const targets=new ProductionQARepairTargetResolver(resolver,projects);
     const port=new ApplicationProductionRepairStepPort(resolver,projects,mutations);
+
+    expect(await targets.resolve(input())).toEqual([
+      {kind:"canvas",action:"modify"},
+      {kind:"clip",id:"motion-remove",action:"remove"},
+      {kind:"clip",id:"motion-trim",action:"modify"},
+      {kind:"marker",id:"tail-marker",action:"remove"},
+      {kind:"scene",id:"scene-cta",action:"modify"},
+      {kind:"scene",id:"scene-remove",action:"remove"},
+    ]);
 
     const result=await port.execute(input());
     const project=await projects.load(PROJECT_ID);

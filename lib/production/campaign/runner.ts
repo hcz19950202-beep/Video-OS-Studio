@@ -17,6 +17,7 @@ export type ProductionCampaignMissionExecutionPort={
 };
 
 export type ProductionCampaignRunnerOptions={now?:()=>Date};
+type MissionPreparation="start"|"resume"|"cancel"|"skip";
 
 const aggregateCampaignStatus=(missions:ProductionCampaign["missions"]):ProductionCampaignStatus=>{
   if(missions.some(mission=>mission.status==="failed"))return"failed";
@@ -44,13 +45,18 @@ export class ProductionCampaignRunner{
     this.now=options.now??(()=>new Date());
   }
 
-  private async beginMission(campaignId:string,ref:ProductionCampaignMissionRef):Promise<boolean>{
+  private async prepareMission(campaignId:string,ref:ProductionCampaignMissionRef):Promise<MissionPreparation>{
     const now=this.now().toISOString();
-    let claimed=false;
+    let preparation:MissionPreparation="skip";
     await this.repository.mutate(campaignId,current=>{
       const target=current.missions.find(mission=>mission.projectId===ref.projectId&&mission.missionId===ref.missionId);
-      if(!target||target.status!=="pending"||target.cancellationRequestedAt!==undefined)return current;
-      claimed=true;
+      if(!target)throw new ProductionCampaignMissionNotFoundError(campaignId,ref.projectId,ref.missionId);
+      if(target.status==="running"){
+        preparation=target.cancellationRequestedAt===undefined?"resume":"cancel";
+        return current;
+      }
+      if(target.status!=="pending"||target.cancellationRequestedAt!==undefined)return current;
+      preparation="start";
       return{
         ...current,
         revision:current.revision+1,
@@ -68,7 +74,7 @@ export class ProductionCampaignRunner{
         }),
       };
     });
-    return claimed;
+    return preparation;
   }
 
   private async finishMission(campaignId:string,ref:ProductionCampaignMissionRef,resultInput:ProductionCampaignMissionRunResult){
@@ -133,9 +139,10 @@ export class ProductionCampaignRunner{
     return requested;
   }
 
-  async run(campaignId:string,signal?:AbortSignal):Promise<ProductionCampaign>{
+  private async runOwned(campaignId:string,signal?:AbortSignal):Promise<ProductionCampaign>{
     const startedAt=this.now().toISOString();
     const started=await this.repository.mutate(campaignId,current=>{
+      if(current.status==="running")return current;
       if(current.status!=="draft"&&current.status!=="queued")throw new ProductionCampaignStateError(current.id,current.status);
       return{
         ...current,
@@ -154,9 +161,16 @@ export class ProductionCampaignRunner{
         const index=nextIndex++;
         if(index>=refs.length)return;
         const ref=refs[index]!;
-        if(!(await this.beginMission(campaignId,ref)))continue;
+        const preparation=await this.prepareMission(campaignId,ref);
+        if(preparation==="skip")continue;
+        if(preparation==="cancel"){
+          await this.execution.cancelMission?.(ref);
+          await this.finishMission(campaignId,ref,{status:"cancelled",finalArtifactIds:[]});
+          continue;
+        }
         let result:ProductionCampaignMissionRunResult;
         if(signal?.aborted){
+          if(preparation==="resume")await this.execution.cancelMission?.(ref);
           result={status:"cancelled",finalArtifactIds:[]};
         }else{
           try{result=ProductionCampaignMissionRunResultSchema.parse(await this.execution.runMission(ref,signal));}
@@ -181,5 +195,11 @@ export class ProductionCampaignRunner{
         finishedAt:terminal?completedAt:undefined,
       };
     });
+  }
+
+  async run(campaignId:string,signal?:AbortSignal):Promise<ProductionCampaign>{
+    const claim=await this.repository.claimRunner(campaignId);
+    try{return await this.runOwned(campaignId,signal);}
+    finally{await this.repository.releaseRunnerClaim(campaignId,claim.ownerToken);}
   }
 }

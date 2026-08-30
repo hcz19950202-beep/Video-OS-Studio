@@ -27,7 +27,7 @@ describe("V2.3.1 H0 render temporary cleanup",()=>{
     const runner=new ProbeRunner(async()=>{expect(await exists(propsPath)).toBe(true);},fail);
     const adapter=new NodeRemotionCliAdapter(join(process.cwd(),"remotion","index.ts"),runner);
     const operation=adapter.render({project,outputPath,mode:"final",assetBaseUrl:"http://127.0.0.1:3000",quality:"draft",includeAudio:false});
-    if(fail)await expect(operation).rejects.toThrow("probe failure");else await expect(operation).resolves.toEqual({outputPath});
+    if(fail)await expect(operation).rejects.toThrow("probe failure");else await expect(operation).resolves.toEqual({outputPath,backend:"offthread-video",fallbackUsed:false});
     expect(await exists(propsPath)).toBe(false);
   });
 
