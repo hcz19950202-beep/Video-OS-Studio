@@ -5,6 +5,10 @@ dist/
 build/
 coverage/
 
+# Framework/test generated files
+next-env.d.ts
+test-results/
+
 # Local environment and secrets
 .env
 .env.local
