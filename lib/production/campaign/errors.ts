@@ -38,10 +38,9 @@ export class ProductionCampaignStateError extends Error{
   }
 }
 
-export class ProductionCampaignRunnerBusyError extends Error{
-  readonly code="PRODUCTION_CAMPAIGN_RUNNER_BUSY";
-  constructor(readonly campaignId:string){
-    super("Production Campaign already has a live execution owner.");
+export class ProductionCampaignRunnerBusyError extends ProductionCampaignStateError{
+  constructor(campaignId:string){
+    super(campaignId,"running","Production Campaign already has a live execution owner.");
     this.name="ProductionCampaignRunnerBusyError";
   }
 }
