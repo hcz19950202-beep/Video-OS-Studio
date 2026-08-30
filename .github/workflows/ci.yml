@@ -55,7 +55,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: Unit tests
-        run: npm run test
+        run: npm run test -- --maxWorkers=2
 
   browser-smoke:
     needs: ubuntu-verify
