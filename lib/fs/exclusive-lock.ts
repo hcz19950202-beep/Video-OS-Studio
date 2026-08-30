@@ -25,10 +25,16 @@ export const isExclusiveLockProcessAlive=async(pid:number)=>{
     try{
       const{stdout}=await execFileAsync("tasklist.exe",["/FI",`PID eq ${pid}`,"/FO","CSV","/NH"],{windowsHide:true,timeout:1_000,maxBuffer:1024*1024});
       return stdout.split(/\r?\n/u).some(line=>line.includes(`"${pid}"`));
-    }catch{return false;}
+    }catch{
+      // Liveness is a safety boundary. A failed probe is unknown, not proof of death.
+      return true;
+    }
   }
   try{process.kill(pid,0);return true;}
-  catch(error){return(error as NodeJS.ErrnoException).code==="EPERM";}
+  catch(error){
+    const code=(error as NodeJS.ErrnoException).code;
+    return code!=="ESRCH";
+  }
 };
 
 export type ExclusiveFileLockOptions={staleAfterMs?:number;maxBackoffMs?:number};
