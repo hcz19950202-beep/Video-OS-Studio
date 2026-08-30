@@ -127,7 +127,8 @@ export const ProductionExecutionStepStateSchema=z.object({
   const runnerOwnerFields=[step.runnerOwnerPid,step.runnerOwnerToken,step.runnerClaimedAt];
   const runnerOwnerFieldCount=runnerOwnerFields.filter(value=>value!==undefined).length;
   if(runnerOwnerFieldCount!==0&&runnerOwnerFieldCount!==runnerOwnerFields.length)ctx.addIssue({code:"custom",path:["runnerOwnerToken"],message:"Runner ownership metadata must be complete when present."});
-  if(step.status!=="running"&&runnerOwnerFieldCount!==0)ctx.addIssue({code:"custom",path:["runnerOwnerToken"],message:"Only running execution steps may retain runner ownership metadata."});
+  const cancelledRunner=step.status==="blocked"&&step.lastFailure?.code==="MISSION_CANCELLED";
+  if(step.status!=="running"&&!cancelledRunner&&runnerOwnerFieldCount!==0)ctx.addIssue({code:"custom",path:["runnerOwnerToken"],message:"Runner ownership metadata may only remain on an active runner or cancelled in-flight reconciliation."});
 });
 export type ProductionExecutionStepState=z.infer<typeof ProductionExecutionStepStateSchema>;
 
