@@ -89,13 +89,16 @@ describe("V2.2 W0 workflow persistence",()=>{
     expect(entries).toEqual([]);
   });
 
-  it("does not silently ignore corrupt workflow JSON",async()=>{
+  it("fails closed for a corrupt run while keeping healthy workflows listable",async()=>{
     const{root,store}=await makeStore();
-    const run=makeRun();
-    await store.create(run);
-    await writeFile(join(root,"workflows",run.id,"workflow.json"),"{broken-json","utf8");
-    await expect(store.get(run.id)).rejects.toThrow();
-    await expect(store.list()).rejects.toThrow();
+    const corrupt=makeRun({createdAt:"2026-08-24T00:00:00.000Z",updatedAt:"2026-08-24T00:00:00.000Z"});
+    const healthy=makeRun({createdAt:"2026-08-24T00:00:01.000Z",updatedAt:"2026-08-24T00:00:01.000Z"});
+    await store.create(corrupt);
+    await store.create(healthy);
+    await writeFile(join(root,"workflows",corrupt.id,"workflow.json"),"{broken-json","utf8");
+
+    await expect(store.get(corrupt.id)).rejects.toThrow();
+    expect((await store.list()).map(run=>run.id)).toEqual([healthy.id]);
   });
 
   it("rejects saving a run that was never created",async()=>{
