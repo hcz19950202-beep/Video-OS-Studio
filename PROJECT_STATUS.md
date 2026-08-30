@@ -15,8 +15,15 @@ package_json_version: 2.4.2
 package_lock_version: 2.4.2
 
 active_development_workstream: NONE
-active_stage: POST-V2.4.2 P3 HARDENING COMPLETE
+active_stage: FINAL V2.4.x INDEPENDENT AUDIT COMPLETE
 active_branch: NONE
+final_v2_4_audit_issue: Issue #94 / CLOSED
+final_v2_4_audit_pr: PR #96
+final_v2_4_audit_superseded_pr: PR #95 / CLOSED UNMERGED
+final_v2_4_audit_exact_head: 09f06c63968e888411bd0b94d495374f396ad95d
+final_v2_4_audit_pr_ci: CI #1116 / run 33340016483 / PASS / 7 of 7
+final_v2_4_audit_main: 3b8c6c61894d4b8437aafa1d48fd32f8b858c808
+final_v2_4_audit_main_ci: CI #1117 / run 33340339282 / PASS / attempt 3 / 7 of 7
 post_v2_4_2_p3_issue: Issue #83 / CLOSED
 post_v2_4_2_p3_pr: PR #91
 post_v2_4_2_p3_exact_head: 1ed2946d9fdbe8e6f17effc5c666a733138b2038
@@ -36,11 +43,12 @@ release_pr_ci: CI #1092 / run 33333581692 / PASS
 release_main_ci: CI #1093 / run 33333816771 / PASS
 release_tag_creation: run 33334882825 / PASS
 local_action_required: NO
-next_action: NONE — post-release P3 hardening is complete; future product work requires a separately approved V2.4.x or V2.5 workstream
+next_action: NONE — V2.4.x hardening is complete; future product work requires separate approval; V2.5 remains paused and unapproved
 v2_4_status: RELEASED
 v2_4_1_status: RELEASED
 v2_4_2_status: RELEASED
 post_v2_4_2_p3_hardening_status: COMPLETE
+final_v2_4_audit_status: COMPLETE
 ```
 
 ## Immutable V2.4.2 release truth
@@ -257,6 +265,7 @@ V2.4.1 RELEASE / PR #85 / release commit 4c105bad936479690711c03f3e349db36fbadaf
 V2.4.2 PATCH / PR #87 audit + PR #88 accepted merge / Local Windows PASS
 V2.4.2 RELEASE / PR #89 / release commit 79e48b068f701bba3f1c826710337a82f0a64760 / CI #1093 PASS / annotated tag verified
 POST-V2.4.2 P3 HARDENING / Issue #83 CLOSED / PR #91 / main c528e2ce0fc1a64006f2fc76c5708cb808b37575 / CI #1097 PASS
+FINAL V2.4.x INDEPENDENT AUDIT / Issue #94 CLOSED / PR #96 / exact head 09f06c63968e888411bd0b94d495374f396ad95d / main 3b8c6c61894d4b8437aafa1d48fd32f8b858c808 / CI #1117 PASS attempt 3
 ```
 
 ## Frozen technical invariants
@@ -321,4 +330,23 @@ The provider change best-effort cancels the locked SSE reader before releasing i
 
 The regression suite first proved the new tests RED on the pre-patch implementation and GREEN after the patch. Exact-main CI #1097 attempt 1 then exposed two unrelated pre-existing Windows timing flakes (`exclusive-lock.test.ts` at a 500 ms wait threshold and `workflow-production-stages.test.ts` at a 5 s test timeout); the new P3 regression suite itself passed. Re-running `windows-verify` on the identical commit and tree passed, after which Windows media, B6, B7, and HyperFrames exact-SHA gates all passed. No product-code change or timeout relaxation was needed.
 
-The immutable release baseline therefore remains `v2.4.2 -> 79e48b068f701bba3f1c826710337a82f0a64760`; current engineering `main` includes the completed post-release hardening.
+## Final independent V2.4.x audit closure
+
+Issue #94 is closed. The final independent V2.4.x audit found and fixed two P1 and seven P2 correctness/durability/runtime-lifecycle issues. The accepted engineering exact head is `09f06c63968e888411bd0b94d495374f396ad95d`.
+
+Draft PR #95 carried the same exact head but was closed unmerged only because the connected GitHub Draft → Ready mutation was incompatible with the connector GraphQL schema. Replacement non-draft PR #96 contained the identical code and was merged with expected-head protection to engineering main `3b8c6c61894d4b8437aafa1d48fd32f8b858c808`.
+
+```text
+Issue:                       #94 / CLOSED
+superseded Draft PR:         #95 / CLOSED UNMERGED
+accepted merge PR:           #96 / MERGED
+exact accepted engineering:  09f06c63968e888411bd0b94d495374f396ad95d
+replacement PR CI #1116:     run 33340016483 / PASS / all seven gates
+engineering main:            3b8c6c61894d4b8437aafa1d48fd32f8b858c808
+exact-main CI #1117:         run 33340339282 / PASS / all seven gates / attempt 3
+Local Windows action needed: NO
+```
+
+Exact-main CI #1117 attempts 1 and 2 exposed only pre-existing hosted Windows timing sensitivity at the fixed 5-second Vitest boundary. Attempt 1 timed out two otherwise passing Workflow tests at 5285 ms and 5211 ms. On attempt 2 the first test passed in 2961 ms and only the W2 workflow integration test timed out at 5024 ms, just 24 ms beyond the threshold. The final-audit regression suites continued to pass. Attempt 3 on the identical `3b8c6c...` source tree passed Windows verification and then all four dependent real-engine gates: Media, B6, B7, and HyperFrames. No product code, dependency, timeout, Project Schema, version, release, or tag changed to obtain the PASS.
+
+The immutable release baseline remains `v2.4.2 -> 79e48b068f701bba3f1c826710337a82f0a64760`. The final audit is post-release hardening only and does not create V2.4.3. V2.5 development remains paused and unapproved.
