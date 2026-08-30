@@ -28,6 +28,7 @@ import {
   type ReviewProductionExecutionInput,
   type StepExecutionResult,
 } from "@/lib/production/execution/schema";
+import {isExclusiveLockProcessAlive} from "@/lib/fs/exclusive-lock";
 import {ProductionMissionRepository} from "@/lib/production/mission/repository";
 import type {ProductionMission} from "@/lib/production/mission/schema";
 import {ProductionPlanRepository} from "@/lib/production/plan/repository";
@@ -88,9 +89,17 @@ const nextRunnableStep=(plan:ProductionPlan,execution:ProductionExecution)=>plan
   return dependenciesSatisfied(plan,execution,step);
 });
 
+const clearRunnerOwnership=<T extends ProductionExecution["steps"][number]>(step:T):T=>({
+  ...step,
+  runnerOwnerPid:undefined,
+  runnerOwnerToken:undefined,
+  runnerClaimedAt:undefined,
+});
+
 const terminalizeInFlightSteps=(execution:ProductionExecution,reason:ProductionExecutionFailure):ProductionExecution["steps"]=>execution.steps.map(step=>{
   if(step.status!=="running"&&step.status!=="retrying"&&step.status!=="waiting-review")return step;
-  return{...step,status:"blocked",lastFailure:reason};
+  const preserveCancelledRunner=reason.code==="MISSION_CANCELLED"&&step.status==="running"&&step.runnerOwnerToken!==undefined;
+  return preserveCancelledRunner?{...step,status:"blocked",lastFailure:reason}:{...clearRunnerOwnership(step),status:"blocked",lastFailure:reason};
 });
 
 type ProductionAdvanceClaim={
@@ -99,6 +108,7 @@ type ProductionAdvanceClaim={
   plan?:ProductionPlan;
   step?:ProductionPlanStep;
   operationId?:string;
+  runnerOwnerToken?:string;
   recovery?:boolean;
 };
 
@@ -159,7 +169,7 @@ export class ProductionMissionExecutor{
       ...execution,
       status:"blocked",
       activeStepId:undefined,
-      steps:execution.steps.map(step=>step.stepId===target?.id?{...step,status:"blocked",lastFailure:reason}:step),
+      steps:execution.steps.map(step=>step.stepId===target?.id?{...clearRunnerOwnership(step),status:"blocked",lastFailure:reason}:step),
       updatedAt:this.now(),
     }));
     await this.markMission(projectId,missionId,next,"blocked");
@@ -240,7 +250,7 @@ export class ProductionMissionExecutor{
             ...next,
             status:"cancelled",
             activeStepId:undefined,
-            steps:next.steps.map(item=>item.stepId===step.id?{...item,status:"blocked",lastFailure:revisionFailure}:item),
+            steps:next.steps.map(item=>item.stepId===step.id?{...clearRunnerOwnership(item),status:"blocked",lastFailure:revisionFailure}:item),
             updatedAt:this.now(),
           }));
         }
@@ -252,7 +262,7 @@ export class ProductionMissionExecutor{
         expectedProjectRevision:result.projectRevisionAfter??next.expectedProjectRevision,
         activeStepId:undefined,
         steps:next.steps.map(item=>item.stepId===step.id?{
-          ...item,
+          ...clearRunnerOwnership(item),
           status:"completed",
           evidence:[...item.evidence,...result.evidence],
           lastFailure:undefined,
@@ -287,7 +297,7 @@ export class ProductionMissionExecutor{
         counters:next.counters,
         status:"cancelled",
         activeStepId:undefined,
-        steps:terminalizeInFlightSteps(current,failure("MISSION_CANCELLED","Execution stopped because the Mission was cancelled.",false)),
+        steps:terminalizeInFlightSteps(current,failure("MISSION_CANCELLED","Execution stopped because the Mission was cancelled.",false)).map(item=>item.stepId===step.id?clearRunnerOwnership(item):item),
         updatedAt:this.now(),
       }));
     }
@@ -302,7 +312,7 @@ export class ProductionMissionExecutor{
       ...next,
       status:"running",
       activeStepId:step.id,
-      steps:next.steps.map(item=>item.stepId===step.id?{...item,status:"retrying",lastFailure:retryFailure}:item),
+      steps:next.steps.map(item=>item.stepId===step.id?{...clearRunnerOwnership(item),status:"retrying",lastFailure:retryFailure}:item),
       updatedAt:this.now(),
     });
     if(!hasProductionExecutionAttemptBudget(retryCandidate,step)){
@@ -322,15 +332,28 @@ export class ProductionMissionExecutor{
       const activeState=execution.steps.find(item=>item.status==="running");
       if(activeState){
         const activeStep=plan.steps.find(item=>item.id===activeState.stepId);
-        if(activeStep&&(activeStep.kind==="edit-project"||activeStep.kind==="repair")){
-          const currentProject=await this.projects.load(projectId);
-          if(currentProject.project.revision===execution.expectedProjectRevision+1)return{execution,mission,plan,step:activeStep,operationId:activeState.operationId,recovery:true};
-          if(currentProject.project.revision!==execution.expectedProjectRevision)return{execution:await this.blockForStaleProject(projectId,missionId,execution,plan,currentProject.project.revision)};
-        }else if(activeStep){
-          const currentProject=await this.projects.load(projectId);
-          if(currentProject.project.revision!==execution.expectedProjectRevision)return{execution:await this.blockForStaleProject(projectId,missionId,execution,plan,currentProject.project.revision)};
+        if(!activeStep)return{execution:await this.blockExecution(projectId,missionId,execution,plan,failure("PLAN_STEP_MISMATCH","The active execution step no longer exists in the current Production Plan.",false))};
+        const currentProject=await this.projects.load(projectId);
+        const interruptedMutationRecovery=(activeStep.kind==="edit-project"||activeStep.kind==="repair")&&currentProject.project.revision===execution.expectedProjectRevision+1;
+        if(!interruptedMutationRecovery&&currentProject.project.revision!==execution.expectedProjectRevision){
+          return{execution:await this.blockForStaleProject(projectId,missionId,execution,plan,currentProject.project.revision)};
         }
-        return{execution};
+        if(activeState.runnerOwnerPid!==undefined&&await isExclusiveLockProcessAlive(activeState.runnerOwnerPid))return{execution};
+
+        const runnerOwnerToken=randomUUID();
+        execution=await this.executions.mutate(projectId,execution.id,current=>ProductionExecutionSchema.parse({
+          ...current,
+          steps:current.steps.map(item=>item.stepId===activeStep.id&&item.status==="running"?{
+            ...item,
+            runnerOwnerPid:process.pid,
+            runnerOwnerToken,
+            runnerClaimedAt:this.now(),
+          }:item),
+          updatedAt:this.now(),
+        }));
+        const reclaimedState=execution.steps.find(item=>item.stepId===activeStep.id);
+        if(!reclaimedState||reclaimedState.status!=="running"||reclaimedState.runnerOwnerToken!==runnerOwnerToken)return{execution};
+        return{execution,mission,plan,step:activeStep,operationId:reclaimedState.operationId,runnerOwnerToken,recovery:true};
       }
 
       const step=nextRunnableStep(plan,execution);
@@ -358,7 +381,7 @@ export class ProductionMissionExecutor{
           ...current,
           status:"waiting-review",
           activeStepId:step.id,
-          steps:current.steps.map(item=>item.stepId===step.id?{...item,status:"waiting-review",checkpoint}:item),
+          steps:current.steps.map(item=>item.stepId===step.id?{...clearRunnerOwnership(item),status:"waiting-review",checkpoint}:item),
           updatedAt:this.now(),
         }));
         await this.markMission(projectId,missionId,execution,"waiting-review",step.id);
@@ -371,6 +394,7 @@ export class ProductionMissionExecutor{
         return{execution:await this.blockExecution(projectId,missionId,execution,plan,failure(error.code,error.message,false))};
       }
 
+      const runnerOwnerToken=randomUUID();
       execution=await this.executions.mutate(projectId,execution.id,current=>{
         const currentState=current.steps.find(item=>item.stepId===step.id);
         if(!currentState||currentState.status==="running")return current;
@@ -379,34 +403,47 @@ export class ProductionMissionExecutor{
           ...claimed,
           status:"running",
           activeStepId:step.id,
-          steps:claimed.steps.map(item=>item.stepId===step.id?{...item,status:"running",startedAt:item.startedAt??this.now()}:item),
+          steps:claimed.steps.map(item=>item.stepId===step.id?{
+            ...item,
+            status:"running",
+            runnerOwnerPid:process.pid,
+            runnerOwnerToken,
+            runnerClaimedAt:this.now(),
+            startedAt:item.startedAt??this.now(),
+          }:item),
           updatedAt:this.now(),
         });
       });
       const claimedState=execution.steps.find(item=>item.stepId===step.id);
-      if(!claimedState||claimedState.status!=="running")return{execution};
+      if(!claimedState||claimedState.status!=="running"||claimedState.runnerOwnerToken!==runnerOwnerToken)return{execution};
       await this.markMission(projectId,missionId,execution,"running",step.id);
-      return{execution,mission,plan,step,operationId:claimedState.operationId};
+      return{execution,mission,plan,step,operationId:claimedState.operationId,runnerOwnerToken};
     });
   }
 
   private async reconcileRunnerResult(projectId:string,missionId:string,claim:ProductionAdvanceClaim,result:StepExecutionResult):Promise<ProductionExecution>{
-    if(!claim.mission||!claim.plan||!claim.step||!claim.operationId)return claim.execution;
+    if(!claim.mission||!claim.plan||!claim.step||!claim.operationId||!claim.runnerOwnerToken)return claim.execution;
     return this.executions.withMissionLock(projectId,missionId,async()=>{
       const mission=await this.missions.require(projectId,missionId);
       const execution=mission.executionId?await this.executions.load(projectId,mission.executionId):await this.executions.latestForMission(projectId,missionId);
       if(!execution)return claim.execution;
       const state=execution.steps.find(item=>item.stepId===claim.step!.id);
       const cancelledActive=execution.status==="cancelled"&&state?.status==="blocked"&&state.lastFailure?.code==="MISSION_CANCELLED";
-      if(execution.id!==claim.execution.id||!state||state.operationId!==claim.operationId||(!cancelledActive&&state.status!=="running"))return execution;
-      if(cancelledActive&&result.status!=="completed")return execution;
+      if(execution.id!==claim.execution.id||!state||state.operationId!==claim.operationId||state.runnerOwnerToken!==claim.runnerOwnerToken||(!cancelledActive&&state.status!=="running"))return execution;
+      if(cancelledActive&&result.status!=="completed"){
+        return this.executions.mutate(projectId,execution.id,current=>ProductionExecutionSchema.parse({
+          ...current,
+          steps:current.steps.map(item=>item.stepId===claim.step!.id?clearRunnerOwnership(item):item),
+          updatedAt:this.now(),
+        }));
+      }
       return this.handleRunnerResult(projectId,missionId,claim.plan!,claim.step!,execution,result);
     });
   }
 
   async advance(projectId:string,missionId:string):Promise<ProductionExecution>{
     const claim=await this.claimAdvance(projectId,missionId);
-    if(!claim.mission||!claim.plan||!claim.step||!claim.operationId)return claim.execution;
+    if(!claim.mission||!claim.plan||!claim.step||!claim.operationId||!claim.runnerOwnerToken)return claim.execution;
     let result:StepExecutionResult;
     try{
       result=await this.runner.execute({
@@ -443,7 +480,7 @@ export class ProductionMissionExecutor{
           status:"blocked",
           activeStepId:undefined,
           steps:current.steps.map(item=>item.stepId===active.stepId?{
-            ...item,
+            ...clearRunnerOwnership(item),
             status:"blocked",
             checkpoint:{...active.checkpoint!,status:"rejected",decidedAt},
             evidence:[...item.evidence,{kind:"review",id:review.checkpointId}],
@@ -460,7 +497,7 @@ export class ProductionMissionExecutor{
         status:"running",
         activeStepId:undefined,
         steps:current.steps.map(item=>item.stepId===active.stepId?{
-          ...item,
+          ...clearRunnerOwnership(item),
           status:"pending",
           checkpoint:{...active.checkpoint!,status:"approved",decidedAt},
           evidence:[...item.evidence,{kind:"review",id:review.checkpointId}],
