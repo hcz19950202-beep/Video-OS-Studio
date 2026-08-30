@@ -2,9 +2,9 @@
 
 ## Status
 
-`V2_4_2_RELEASE = FINALIZATION IN PROGRESS`
+`V2_4_2_RELEASE = COMPLETE`
 
-V2.4.2 product engineering and mandatory Local Windows acceptance are complete. The accepted product patch has been merged to `main`; package release metadata is synchronized to `2.4.2`. The immutable annotated `v2.4.2` tag must not be created until the release-finalization PR and the resulting exact-main release CI both pass all seven gates.
+V2.4.2 product engineering, mandatory Local Windows acceptance, release-finalization CI, immutable annotated tag creation, and independent Git Data verification are complete. The released package version is `2.4.2`; Project Schema remains `2.0.0`.
 
 ## Immutable previous release truth
 
@@ -180,28 +180,59 @@ package-lock.json  2 additions / 2 deletions
 
 The temporary version-sync workflow removed itself and is absent from the net release diff.
 
-## Release-finalization gates still required
+## Release completion evidence
 
-Before creating `v2.4.2`, the following must all complete:
+Release-finalization PR #89 froze exact head:
 
-1. Release-finalization PR exact-head CI — all seven gates PASS.
-2. Release-finalization PR merge with expected-head protection.
-3. Exact-main CI on the resulting release commit — all seven gates PASS.
-4. Independent check that `v2.4.2` does not already exist.
-5. Annotated tag creation with exact message `Video OS Studio v2.4.2` targeting the exact release commit.
-6. Independent GitHub Git Data verification that `refs/tags/v2.4.2` points to an object of type `tag` and that the tag object targets the exact release commit.
-7. Re-verification that immutable `v2.4.0` and `v2.4.1` still dereference to their original release commits.
+`6d72d70930f3571c84b9d3f250c140515dbbded3`
 
-## Release contract
+CI #1092 / run `33333581692` passed all seven gates on that exact head. PR #89 then merged with expected-head protection as release commit:
 
-Until all remaining gates pass:
+`79e48b068f701bba3f1c826710337a82f0a64760`
+
+Exact-main CI #1093 / run `33333816771` completed `SUCCESS` on that exact release commit with all seven gates passing:
 
 ```text
-v2.4.2 tag:        MUST NOT EXIST
-release status:    FINALIZATION IN PROGRESS
-product work:      FROZEN
+ubuntu-verify                    PASS
+windows-verify                   PASS
+browser-smoke                    PASS
+windows-media-smoke              PASS
+windows-b6-core-acceptance       PASS
+windows-b7-campaign-acceptance   PASS
+windows-hyperframes-smoke        PASS
+```
+
+Isolated tag creation run `33334882825` then created `v2.4.2` only after proving `origin/main` still exactly equaled the release commit, the tag did not already exist, and immutable `v2.4.1` remained unchanged. The one-shot workflow removed itself from the isolated tagging branch after success.
+
+Independent GitHub Git Data verification confirmed:
+
+```text
+ref:                 refs/tags/v2.4.2
+ref object type:     tag
+tag object SHA:      2c9b0ca2401f547066c6a51ff0ec60a641cfce35
+tag target type:     commit
+tag target commit:   79e48b068f701bba3f1c826710337a82f0a64760
+tag message:         Video OS Studio v2.4.2
+```
+
+Independent re-verification also confirmed:
+
+```text
+v2.4.1 tag object:   9f3d06d8eabb114d6f1bcd907e98b4de3756a4a7
+v2.4.1 target:       4c105bad936479690711c03f3e349db36fbadaf5
+v2.4.0 tag object:   96ebdd67e2412ed4d25be36cc6120f1bba8a8734
+v2.4.0 target:       da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
+```
+## Release contract
+
+```text
+v2.4.2 tag:        v2.4.2 / annotated / verified
+release commit:    79e48b068f701bba3f1c826710337a82f0a64760
+tag object:        2c9b0ca2401f547066c6a51ff0ec60a641cfce35
+release status:    COMPLETE
+product work:      UNFROZEN FOR A SEPARATELY APPROVED NEXT WORKSTREAM
 schema changes:    NONE
 local action:      NONE
 ```
 
-After the annotated tag is independently verified, this document, `PROJECT_STATUS.md`, and `README.md` must be updated in a docs-only release-truth sync. The immutable release tag must remain on the release commit even if `main` subsequently advances through that documentation-only merge.
+This docs-only release-truth sync does not create, move, or recreate the release tag. The immutable `v2.4.2` tag remains on `79e48b068f701bba3f1c826710337a82f0a64760` even after `main` advances through documentation-only merge commits.
