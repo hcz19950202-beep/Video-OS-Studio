@@ -11,7 +11,7 @@ import {VisualPlanSchema,type VisualPlanDiff} from "@/lib/visual-planner/schema"
 import type {VisualPlanService} from "@/lib/visual-planner/service";
 import type {WorkflowRun} from "@/lib/workflows/schema";
 import type {Project} from "@/schemas/project";
-import {isExclusiveLockProcessAlive} from "@/lib/fs/exclusive-lock";
+import {currentProcessIdentity,isProcessIdentityAlive} from "@/lib/process/process-identity";
 
 const VisualPlanOperationPayloadSchema=z.object({
   plan:VisualPlanSchema,
@@ -132,10 +132,11 @@ export class AgentProposalApplicationService{
       if(proposal.status==="applied")throw new AgentProposalApplicationError("Proposal is already applied but its durable Apply record could not be recovered.");
       if(current.approvedOperations.some(item=>item.operationId===operationId))return current;
       const existing=current.operationClaims.find(item=>item.operationId===operationId);
-      if(existing&&await isExclusiveLockProcessAlive(existing.ownerPid))return current;
+      if(existing&&await isProcessIdentityAlive({pid:existing.ownerPid,startedAt:existing.ownerStartedAt}))return current;
+      const ownerIdentity=currentProcessIdentity();
       return AgentSessionSchema.parse({
         ...current,
-        operationClaims:[...current.operationClaims.filter(item=>item.operationId!==operationId),{operationId,proposalId,claimToken,ownerPid:process.pid,claimedAt:this.now()}],
+        operationClaims:[...current.operationClaims.filter(item=>item.operationId!==operationId),{operationId,proposalId,claimToken,ownerPid:ownerIdentity.pid,ownerStartedAt:ownerIdentity.startedAt,claimedAt:this.now()}],
         updatedAt:this.now(),
       });
     });
@@ -151,7 +152,7 @@ export class AgentProposalApplicationService{
       if(session.approvedOperations.some(item=>item.operationId===operationId))return{status:"applied" as const,session};
       const claim=session.operationClaims.find(item=>item.operationId===operationId);
       if(!claim)return{status:"retry" as const,session};
-      if(!(await isExclusiveLockProcessAlive(claim.ownerPid))){
+      if(!(await isProcessIdentityAlive({pid:claim.ownerPid,startedAt:claim.ownerStartedAt}))){
         await this.dependencies.sessions.mutate(projectId,sessionId,current=>AgentSessionSchema.parse({...current,operationClaims:current.operationClaims.filter(item=>item.claimToken!==claim.claimToken),updatedAt:this.now()}));
         continue;
       }

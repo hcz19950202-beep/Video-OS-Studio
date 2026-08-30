@@ -28,7 +28,7 @@ import {
   type ReviewProductionExecutionInput,
   type StepExecutionResult,
 } from "@/lib/production/execution/schema";
-import {isExclusiveLockProcessAlive} from "@/lib/fs/exclusive-lock";
+import {currentProcessIdentity,isProcessIdentityAlive} from "@/lib/process/process-identity";
 import {ProductionMissionRepository} from "@/lib/production/mission/repository";
 import type {ProductionMission} from "@/lib/production/mission/schema";
 import {ProductionPlanRepository} from "@/lib/production/plan/repository";
@@ -92,6 +92,7 @@ const nextRunnableStep=(plan:ProductionPlan,execution:ProductionExecution)=>plan
 const clearRunnerOwnership=<T extends ProductionExecution["steps"][number]>(step:T):T=>({
   ...step,
   runnerOwnerPid:undefined,
+  runnerOwnerStartedAt:undefined,
   runnerOwnerToken:undefined,
   runnerClaimedAt:undefined,
 });
@@ -338,14 +339,17 @@ export class ProductionMissionExecutor{
         if(!interruptedMutationRecovery&&currentProject.project.revision!==execution.expectedProjectRevision){
           return{execution:await this.blockForStaleProject(projectId,missionId,execution,plan,currentProject.project.revision)};
         }
-        if(activeState.runnerOwnerPid!==undefined&&await isExclusiveLockProcessAlive(activeState.runnerOwnerPid))return{execution};
+        if(activeState.runnerOwnerPid!==undefined&&await isProcessIdentityAlive({pid:activeState.runnerOwnerPid,startedAt:activeState.runnerOwnerStartedAt}))return{execution};
 
         const runnerOwnerToken=randomUUID();
+
+        const runnerOwnerIdentity=currentProcessIdentity();
         execution=await this.executions.mutate(projectId,execution.id,current=>ProductionExecutionSchema.parse({
           ...current,
           steps:current.steps.map(item=>item.stepId===activeStep.id&&item.status==="running"?{
             ...item,
-            runnerOwnerPid:process.pid,
+            runnerOwnerPid:runnerOwnerIdentity.pid,
+            runnerOwnerStartedAt:runnerOwnerIdentity.startedAt,
             runnerOwnerToken,
             runnerClaimedAt:this.now(),
           }:item),
@@ -395,6 +399,8 @@ export class ProductionMissionExecutor{
       }
 
       const runnerOwnerToken=randomUUID();
+
+      const runnerOwnerIdentity=currentProcessIdentity();
       execution=await this.executions.mutate(projectId,execution.id,current=>{
         const currentState=current.steps.find(item=>item.stepId===step.id);
         if(!currentState||currentState.status==="running")return current;
@@ -406,7 +412,8 @@ export class ProductionMissionExecutor{
           steps:claimed.steps.map(item=>item.stepId===step.id?{
             ...item,
             status:"running",
-            runnerOwnerPid:process.pid,
+            runnerOwnerPid:runnerOwnerIdentity.pid,
+            runnerOwnerStartedAt:runnerOwnerIdentity.startedAt,
             runnerOwnerToken,
             runnerClaimedAt:this.now(),
             startedAt:item.startedAt??this.now(),
