@@ -14,7 +14,7 @@
     "format": "node scripts/h6-format.mjs --write",
     "format:check": "node scripts/h6-format.mjs --check",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:windows-media": "vitest run tests/h6/windows-media-smoke.test.ts",
