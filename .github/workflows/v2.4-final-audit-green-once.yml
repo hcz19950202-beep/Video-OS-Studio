@@ -1,0 +1,135 @@
+name: V2.4 Final Audit Green Once
+
+on:
+  push:
+    branches:
+      - fix/v2.4-final-audit-runtime-lifecycle
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/v2.4-final-audit-runtime-lifecycle
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Apply narrow runtime lifecycle patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one replacement, found {count}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "lib/jobs/store.ts",
+              'import {withWindowsTransientRetry} from "@/lib/fs/atomic-replace";\n',
+              'import {withWindowsTransientRetry} from "@/lib/fs/atomic-replace";\nimport {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";\n',
+          )
+          replace_once(
+              "lib/jobs/store.ts",
+              '  private backupPath(jobId:string,name:"job.json"|"artifacts.json"){return join(this.dir(jobId),name.replace(".json",".backup.json"));}\n',
+              '  private backupPath(jobId:string,name:"job.json"|"artifacts.json"){return join(this.dir(jobId),name.replace(".json",".backup.json"));}\n  private durableLockPath(jobId:string){return join(this.jobsRoot,`${JobIdSchema.parse(jobId)}.lock`);}\n',
+          )
+          replace_once(
+              "lib/jobs/store.ts",
+              '  async ensure(){await mkdir(this.jobsRoot,{recursive:true});}\n\n  async create(record:JobRecord){\n',
+              '  async ensure(){await mkdir(this.jobsRoot,{recursive:true});}\n  async withJobExclusiveLock<T>(jobId:string,work:()=>Promise<T>):Promise<T>{await this.ensure();return withExclusiveFileLock(this.durableLockPath(jobId),work);}\n\n  async create(record:JobRecord){\n',
+          )
+
+          replace_once(
+              "lib/jobs/runtime.ts",
+              '  private readonly activeControllers=new Map<string,AbortController>();\n  private readonly stateLocks=new Map<string,Promise<void>>();\n',
+              '  private readonly activeControllers=new Map<string,AbortController>();\n  private readonly activeExecutions=new Map<string,Promise<void>>();\n  private readonly stateLocks=new Map<string,Promise<void>>();\n',
+          )
+          replace_once(
+              "lib/jobs/runtime.ts",
+              '    await previous;\n    try{return await fn();}\n    finally{release();if(this.stateLocks.get(jobId)===tail)this.stateLocks.delete(jobId);}\n',
+              '    await previous;\n    try{return await this.store.withJobExclusiveLock(jobId,fn);}\n    finally{release();if(this.stateLocks.get(jobId)===tail)this.stateLocks.delete(jobId);}\n',
+          )
+          replace_once(
+              "lib/jobs/runtime.ts",
+              '  async waitUntilReady(){await this.ready;}\n\n  async create(input:CreateJobInput){\n',
+              '  async waitUntilReady(){await this.ready;}\n  async waitForIdle(jobId:string){for(;;){const execution=this.activeExecutions.get(jobId);if(!execution)return;await execution;}}\n\n  async create(input:CreateJobInput){\n',
+          )
+          replace_once(
+              "lib/jobs/runtime.ts",
+              '      this.activeByGroup.set(group,(this.activeByGroup.get(group)??0)+1);\n      void this.execute(jobId,group);\n',
+              '      this.activeByGroup.set(group,(this.activeByGroup.get(group)??0)+1);\n      const execution=this.execute(jobId,group);\n      this.activeExecutions.set(jobId,execution);\n      const cleanup=()=>{if(this.activeExecutions.get(jobId)===execution)this.activeExecutions.delete(jobId);};\n      void execution.then(cleanup,cleanup);\n',
+          )
+          replace_once(
+              "lib/jobs/runtime.ts",
+              '    }catch(error){\n      await logTail;\n      await this.withJobLock(jobId,async()=>{\n        const latest=await this.store.get(jobId);if(!latest)return;\n        if(isTerminalJobStatus(latest.status))return;\n        const finishedAt=nowIso();\n        const cancelled=controller.signal.aborted||latest.cancellationRequestedAt!==undefined||error instanceof ToolAbortedError;\n        await this.store.save(JobRecordSchema.parse({...latest,status:cancelled?"cancelled":"failed",stage:cancelled?"cancelled":"failed",error:normalizedError(error),progress:cancelled?latest.progress:Math.min(latest.progress,.99),finishedAt,updatedAt:finishedAt}));\n      });\n',
+              '    }catch(error){\n      await logTail;\n      try{\n        await this.withJobLock(jobId,async()=>{\n          const latest=await this.store.get(jobId);if(!latest)return;\n          if(isTerminalJobStatus(latest.status))return;\n          const finishedAt=nowIso();\n          const cancelled=controller.signal.aborted||latest.cancellationRequestedAt!==undefined||error instanceof ToolAbortedError;\n          await this.store.save(JobRecordSchema.parse({...latest,status:cancelled?"cancelled":"failed",stage:cancelled?"cancelled":"failed",error:normalizedError(error),progress:cancelled?latest.progress:Math.min(latest.progress,.99),finishedAt,updatedAt:finishedAt}));\n        });\n      }catch(recordingError){\n        throw new AggregateError([error,recordingError],`Job ${jobId} failed and its terminal state could not be persisted.`);\n      }\n',
+          )
+
+          replace_once(
+              "lib/workflows/runner.ts",
+              '    this.activeLoops.set(workflowId,loop);\n  }\n',
+              '    this.activeLoops.set(workflowId,loop);\n    void loop.catch(()=>undefined);\n  }\n',
+          )
+
+          replace_once(
+              "lib/production/campaign/runner.ts",
+              '  async run(campaignId:string,signal?:AbortSignal):Promise<ProductionCampaign>{\n    const claim=await this.repository.claimRunner(campaignId);\n    try{return await this.runOwned(campaignId,signal);}\n    finally{await this.repository.releaseRunnerClaim(campaignId,claim.ownerToken);}\n  }\n',
+              '  async run(campaignId:string,signal?:AbortSignal):Promise<ProductionCampaign>{\n    const claim=await this.repository.claimRunner(campaignId);\n    let result:ProductionCampaign|undefined;\n    let runError:unknown;\n    let runFailed=false;\n    try{result=await this.runOwned(campaignId,signal);}\n    catch(error){runFailed=true;runError=error;}\n    try{await this.repository.releaseRunnerClaim(campaignId,claim.ownerToken);}\n    catch(releaseError){\n      if(runFailed)throw new AggregateError([runError,releaseError],`Production Campaign ${campaignId} failed and its runner claim could not be released.`);\n      throw releaseError;\n    }\n    if(runFailed)throw runError;\n    return result!;\n  }\n',
+          )
+
+          replace_once(
+              "lib/fs/exclusive-lock.ts",
+              '  try{return await work();}\n  finally{\n    let closeError:unknown;\n    try{await handle.close();}\n    catch(error){closeError=error;}\n    let cleanupError:unknown;\n    try{await removeOwnedLock(record);}\n    catch(error){cleanupError=error;}\n    if(cleanupError)throw cleanupError;\n    if(closeError)throw closeError;\n  }\n};',
+              '  let result:T|undefined;\n  let workError:unknown;\n  let workFailed=false;\n  try{result=await work();}\n  catch(error){workFailed=true;workError=error;}\n  let closeError:unknown;\n  try{await handle.close();}\n  catch(error){closeError=error;}\n  let cleanupError:unknown;\n  try{await removeOwnedLock(record);}\n  catch(error){cleanupError=error;}\n  if(workFailed){\n    const cleanupErrors:unknown[]=[];\n    if(closeError!==undefined)cleanupErrors.push(closeError);\n    if(cleanupError!==undefined)cleanupErrors.push(cleanupError);\n    if(cleanupErrors.length)throw new AggregateError([workError,...cleanupErrors],"Exclusive file lock work failed and cleanup did not complete.");\n    throw workError;\n  }\n  if(cleanupError!==undefined)throw cleanupError;\n  if(closeError!==undefined)throw closeError;\n  return result as T;\n};',
+          )
+
+          replace_once(
+              "tests/v2.4-final-audit-runtime-lifecycle.test.ts",
+              'import {JobRecordSchema,type JobRecord} from "@/lib/jobs/schema";\n',
+              'import {JobRecordSchema} from "@/lib/jobs/schema";\nimport {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";\n',
+          )
+          test_path=Path("tests/v2.4-final-audit-runtime-lifecycle.test.ts")
+          test_text=test_path.read_text(encoding="utf-8")
+          marker='describe("V2.4 final audit durable Job ownership",()=>{\n'
+          if marker not in test_text:
+              raise SystemExit("test marker missing")
+          lock_test='''describe("V2.4 final audit exclusive lock error preservation",()=>{\n  it("preserves the work failure when owned-lock cleanup also fails",async()=>{\n    const root=await mkdtemp(join(tmpdir(),"video-os-final-audit-lock-error-"));\n    roots.push(root);\n    const workError=new Error("locked work failed");\n    const cleanupError=new Error("owned lock cleanup failed");\n    const removeFile=(async()=>{throw cleanupError;}) as typeof rm;\n    let thrown:unknown;\n    try{await withExclusiveFileLock(join(root,"audit.lock"),async()=>{throw workError;},{removeFile});}\n    catch(error){thrown=error;}\n    expect(thrown).toBeInstanceOf(AggregateError);\n    expect((thrown as AggregateError).errors).toEqual([workError,cleanupError]);\n    expect((thrown as AggregateError).message).not.toContain(cleanupError.message);\n  });\n});\n\n'''
+          test_path.write_text(test_text.replace(marker,lock_test+marker,1),encoding="utf-8")
+          PY
+
+      - name: Run targeted audit regressions
+        run: npx vitest run tests/v2.4-final-audit-runtime-lifecycle.test.ts tests/durable-jobs-h3.test.ts tests/v2.4.3-p3-hardening.test.ts tests/production-campaign-liveness.test.ts tests/exclusive-lock.test.ts
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Remove one-shot workflow
+        run: git rm .github/workflows/v2.4-final-audit-green-once.yml
+
+      - name: Commit hardened implementation
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/jobs/store.ts lib/jobs/runtime.ts lib/workflows/runner.ts lib/production/campaign/runner.ts lib/fs/exclusive-lock.ts tests/v2.4-final-audit-runtime-lifecycle.test.ts
+          git commit -m "fix(v2.4): harden runtime ownership and error lifecycles"
+          git push origin HEAD:fix/v2.4-final-audit-runtime-lifecycle
