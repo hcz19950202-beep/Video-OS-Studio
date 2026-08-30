@@ -3,7 +3,7 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import {toClientErrorState,type ClientErrorState} from "@/lib/client/api";
 import {importProjectMedia,type MediaImportReport} from "@/lib/client/media";
-import {ProjectRequestError,postProjectCommand} from "@/lib/client/project-mutations";
+import {ProjectRequestError,canPublishProject,postProjectCommand,publishProjectIfActive} from "@/lib/client/project-mutations";
 import {createStudioProject,listRecentProjects,loadStudioProject,type CreateStudioProjectInput} from "@/lib/client/projects";
 import type {StudioLocale,StudioMessageKey} from "@/lib/i18n/studio";
 import type {ProjectCommand} from "@/lib/project/commands";
@@ -56,13 +56,10 @@ export const useWorkspaceProjectRuntime=({initialProjects,project,locale,t,match
   const enqueueMutation=(op:()=>Promise<void>)=>{const next=mutationChainRef.current.catch(()=>undefined).then(op);mutationChainRef.current=next.catch(()=>undefined);return next;};
   const currentProject=()=>useProjectStore.getState().project;
   const isProjectActive=(projectId:string)=>currentProject()?.project.id===projectId;
-  const canPublishProject=(projectId:string,candidate:Project)=>{
-    const current=currentProject();
-    return current?.project.id===projectId&&current.project.revision<=candidate.project.revision;
-  };
+  const publishProject=(projectId:string,candidate:Project)=>publishProjectIfActive(projectId,candidate,currentProject,setProject);
   const postCommand=async(base:Project,command:ProjectCommand,message:string,recentMode:RecentRefreshMode="debounced")=>{
     const data=await postProjectCommand(base,command);
-    if(canPublishProject(base.project.id,data.project)){setProject(data.project);setNotice(message);}
+    if(publishProject(base.project.id,data.project))setNotice(message);
     if(recentMode==="immediate")await refreshRecent();else scheduleRecentRefresh();
     if(base.project.revision!==data.project.project.revision)pushHistory({projectId:base.project.id,label:message,before:base,after:data.project});
     return data.project;
@@ -75,7 +72,7 @@ export const useWorkspaceProjectRuntime=({initialProjects,project,locale,t,match
       try{await postCommand(base,command,message,recentMode);}catch(caught){
         if(caught instanceof ProjectRequestError&&caught.code==="PROJECT_REVISION_CONFLICT"){
           const latest=await loadStudioProject(base.project.id);
-          if(canPublishProject(base.project.id,latest))setProject(latest);
+          publishProject(base.project.id,latest);
         }
         throw caught;
       }
@@ -108,7 +105,7 @@ export const useWorkspaceProjectRuntime=({initialProjects,project,locale,t,match
       await mutationChainRef.current.catch(()=>undefined);
       const current=currentProject()??project;
       const loaded=await loadStudioProject(current.project.id);
-      if(canPublishProject(current.project.id,loaded)){setProject(loaded);setNotice(t("status.projectSaved"));}
+      if(publishProject(current.project.id,loaded))setNotice(t("status.projectSaved"));
       await refreshRecent();
     });
   };
@@ -130,7 +127,7 @@ export const useWorkspaceProjectRuntime=({initialProjects,project,locale,t,match
         const asset=next.assets.find(item=>item.id===report.assetId);
         if(asset?.width&&asset?.height&&(asset.width!==next.canvas.width||asset.height!==next.canvas.height))next=await postCommand(next,{type:"set-canvas",width:asset.width,height:asset.height},zh?`画布已匹配源视频 ${asset.width}×${asset.height}`:`Canvas matched source video ${asset.width}×${asset.height}`);
         if(isProjectActive(projectId))setMatchSourceCanvas(false);
-      }else if(canPublishProject(projectId,next))setProject(next);
+      }else publishProject(projectId,next);
       if(isProjectActive(projectId)){
         setImportStatus({fileName:file.name,phase:"ready",normalized:report?.normalized,workingFileName:report?.workingFileName});
         setNotice(report?.normalized?(zh?`原始 ${file.name} 已保留；正在使用 ${report.workingFileName??"内部 MP4"}`:`Original ${file.name} preserved; using ${report.workingFileName??"internal MP4"}`):(zh?`${file.name} 已导入`:`Imported ${file.name}`));
