@@ -15,8 +15,14 @@ package_json_version: 2.4.2
 package_lock_version: 2.4.2
 
 active_development_workstream: NONE
-active_stage: V2.4.2 RELEASE COMPLETE
+active_stage: POST-V2.4.2 P3 HARDENING COMPLETE
 active_branch: NONE
+post_v2_4_2_p3_issue: Issue #83 / CLOSED
+post_v2_4_2_p3_pr: PR #91
+post_v2_4_2_p3_exact_head: 1ed2946d9fdbe8e6f17effc5c666a733138b2038
+post_v2_4_2_p3_main: c528e2ce0fc1a64006f2fc76c5708cb808b37575
+post_v2_4_2_p3_pr_ci: CI #1096 / run 33336431466 / PASS
+post_v2_4_2_p3_main_ci: CI #1097 / run 33336689239 / PASS / attempt 2
 engineering_audit_pr: PR #87
 engineering_merge_pr: PR #88
 accepted_engineering_head: c3825fe42e77c4369ec6e03d89204161764667e9
@@ -30,10 +36,11 @@ release_pr_ci: CI #1092 / run 33333581692 / PASS
 release_main_ci: CI #1093 / run 33333816771 / PASS
 release_tag_creation: run 33334882825 / PASS
 local_action_required: NO
-next_action: NONE — V2.4.2 is released; future product work requires a separately approved V2.4.x or V2.5 workstream
+next_action: NONE — post-release P3 hardening is complete; future product work requires a separately approved V2.4.x or V2.5 workstream
 v2_4_status: RELEASED
 v2_4_1_status: RELEASED
 v2_4_2_status: RELEASED
+post_v2_4_2_p3_hardening_status: COMPLETE
 ```
 
 ## Immutable V2.4.2 release truth
@@ -249,6 +256,7 @@ V2.4.1 HARDENING / PR #82 audit + PR #84 accepted merge / Local Windows PASS
 V2.4.1 RELEASE / PR #85 / release commit 4c105bad936479690711c03f3e349db36fbadaf5 / CI #1016 PASS / annotated tag verified
 V2.4.2 PATCH / PR #87 audit + PR #88 accepted merge / Local Windows PASS
 V2.4.2 RELEASE / PR #89 / release commit 79e48b068f701bba3f1c826710337a82f0a64760 / CI #1093 PASS / annotated tag verified
+POST-V2.4.2 P3 HARDENING / Issue #83 CLOSED / PR #91 / main c528e2ce0fc1a64006f2fc76c5708cb808b37575 / CI #1097 PASS
 ```
 
 ## Frozen technical invariants
@@ -295,9 +303,22 @@ REUSE > MODIFY > CREATE
 - Remotion remains the master renderer;
 - released tags are immutable and must never be moved or recreated.
 
-## Deferred post-V2.4.1 follow-up
+## Completed post-release P3 follow-up
 
-Issue #83 tracks non-blocking P3 follow-up work that remains outside the completed V2.4.1 release unless a reproducible correctness/security failure upgrades severity:
+Issue #83 is complete. The deferred provider-stream cleanup and Workflow original-error preservation work was implemented after the immutable V2.4.2 release and merged through PR #91 without changing the released product version, Project Schema, dependency pins, or the `v2.4.2` tag.
 
-- successful provider-stream unread-body cleanup;
-- Workflow secondary-persistence-error/original-error preservation.
+```text
+Issue:     #83 / CLOSED
+PR:        #91 / MERGED
+exact accepted PR head:        1ed2946d9fdbe8e6f17effc5c666a733138b2038
+PR exact-head CI #1096:        run 33336431466 / PASS / all seven gates
+post-release hardening main:    c528e2ce0fc1a64006f2fc76c5708cb808b37575
+exact-main CI #1097: run 33336689239 / PASS / all seven gates / attempt 2
+Local Windows action required: NO
+```
+
+The provider change best-effort cancels the locked SSE reader before releasing it, so terminal/early-return paths do not leave unread successful response bodies alive while provider events and usage semantics remain unchanged. The Workflow change preserves both the original execution/reconciliation failure and any secondary durable failure-recording error instead of allowing the storage error to replace the primary failure.
+
+The regression suite first proved the new tests RED on the pre-patch implementation and GREEN after the patch. Exact-main CI #1097 attempt 1 then exposed two unrelated pre-existing Windows timing flakes (`exclusive-lock.test.ts` at a 500 ms wait threshold and `workflow-production-stages.test.ts` at a 5 s test timeout); the new P3 regression suite itself passed. Re-running `windows-verify` on the identical commit and tree passed, after which Windows media, B6, B7, and HyperFrames exact-SHA gates all passed. No product-code change or timeout relaxation was needed.
+
+The immutable release baseline therefore remains `v2.4.2 -> 79e48b068f701bba3f1c826710337a82f0a64760`; current engineering `main` includes the completed post-release hardening.
