@@ -1,0 +1,114 @@
+name: Post-V2.4.2 P3 Truth Sync
+
+on:
+  push:
+    branches:
+      - docs/post-v2.4.2-p3-truth
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update project truth
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("PROJECT_STATUS.md")
+          text = path.read_text(encoding="utf-8")
+
+          old_checkpoint = '''active_development_workstream: NONE
+active_stage: V2.4.2 RELEASE COMPLETE
+active_branch: NONE
+engineering_audit_pr: PR #87
+'''
+          new_checkpoint = '''active_development_workstream: NONE
+active_stage: POST-V2.4.2 P3 HARDENING COMPLETE
+active_branch: NONE
+post_v2_4_2_p3_issue: Issue #83 / CLOSED
+post_v2_4_2_p3_pr: PR #91
+post_v2_4_2_p3_exact_head: 1ed2946d9fdbe8e6f17effc5c666a733138b2038
+post_v2_4_2_p3_main: c528e2ce0fc1a64006f2fc76c5708cb808b37575
+post_v2_4_2_p3_pr_ci: CI #1096 / run 33336431466 / PASS
+post_v2_4_2_p3_main_ci: CI #1097 / run 33336689239 / PASS / attempt 2
+engineering_audit_pr: PR #87
+'''
+          if text.count(old_checkpoint) != 1:
+              raise SystemExit("Current-checkpoint anchor drifted")
+          text = text.replace(old_checkpoint, new_checkpoint, 1)
+
+          old_next = '''local_action_required: NO
+next_action: NONE — V2.4.2 is released; future product work requires a separately approved V2.4.x or V2.5 workstream
+v2_4_status: RELEASED
+v2_4_1_status: RELEASED
+v2_4_2_status: RELEASED
+'''
+          new_next = '''local_action_required: NO
+next_action: NONE — post-release P3 hardening is complete; future product work requires a separately approved V2.4.x or V2.5 workstream
+v2_4_status: RELEASED
+v2_4_1_status: RELEASED
+v2_4_2_status: RELEASED
+post_v2_4_2_p3_hardening_status: COMPLETE
+'''
+          if text.count(old_next) != 1:
+              raise SystemExit("Next-action anchor drifted")
+          text = text.replace(old_next, new_next, 1)
+
+          history_anchor = '''V2.4.2 RELEASE / PR #89 / release commit 79e48b068f701bba3f1c826710337a82f0a64760 / CI #1093 PASS / annotated tag verified
+'''
+          history_replacement = history_anchor + '''POST-V2.4.2 P3 HARDENING / Issue #83 CLOSED / PR #91 / main c528e2ce0fc1a64006f2fc76c5708cb808b37575 / CI #1097 PASS
+'''
+          if text.count(history_anchor) != 1:
+              raise SystemExit("Delivery-history anchor drifted")
+          text = text.replace(history_anchor, history_replacement, 1)
+
+          old_followup = '''## Deferred post-V2.4.1 follow-up
+
+Issue #83 tracks non-blocking P3 follow-up work that remains outside the completed V2.4.1 release unless a reproducible correctness/security failure upgrades severity:
+
+- successful provider-stream unread-body cleanup;
+- Workflow secondary-persistence-error/original-error preservation.
+'''
+          new_followup = '''## Completed post-release P3 follow-up
+
+Issue #83 is complete. The deferred provider-stream cleanup and Workflow original-error preservation work was implemented after the immutable V2.4.2 release and merged through PR #91 without changing the released product version, Project Schema, dependency pins, or the `v2.4.2` tag.
+
+```text
+Issue:                         #83 / CLOSED
+PR:                            #91 / MERGED
+exact accepted PR head:        1ed2946d9fdbe8e6f17effc5c666a733138b2038
+PR exact-head CI #1096:        run 33336431466 / PASS / all seven gates
+post-release hardening main:    c528e2ce0fc1a64006f2fc76c5708cb808b37575
+exact-main CI #1097:           run 33336689239 / PASS / all seven gates / attempt 2
+Local Windows action required: NO
+```
+
+The provider change best-effort cancels the locked SSE reader before releasing it, so terminal/early-return paths do not leave unread successful response bodies alive while provider events and usage semantics remain unchanged. The Workflow change preserves both the original execution/reconciliation failure and any secondary durable failure-recording error instead of allowing the storage error to replace the primary failure.
+
+The regression suite first proved the new tests RED on the pre-patch implementation and GREEN after the patch. Exact-main CI #1097 attempt 1 then exposed two unrelated pre-existing Windows timing flakes (`exclusive-lock.test.ts` at a 500 ms wait threshold and `workflow-production-stages.test.ts` at a 5 s test timeout); the new P3 regression suite itself passed. Re-running `windows-verify` on the identical commit and tree passed, after which Windows media, B6, B7, and HyperFrames exact-SHA gates all passed. No product-code change or timeout relaxation was needed.
+
+The immutable release baseline therefore remains `v2.4.2 -> 79e48b068f701bba3f1c826710337a82f0a64760`; current engineering `main` includes the completed post-release hardening.
+'''
+          if text.count(old_followup) != 1:
+              raise SystemExit("Deferred-followup anchor drifted")
+          text = text.replace(old_followup, new_followup, 1)
+
+          path.write_text(text, encoding="utf-8")
+
+      - name: Commit truth sync and self-remove workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/post-v2-4-2-p3-truth-sync.yml
+          git add PROJECT_STATUS.md
+          git commit -m "docs: record completed post-release P3 hardening"
+          git push origin HEAD:docs/post-v2.4.2-p3-truth
