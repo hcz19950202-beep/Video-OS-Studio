@@ -3,7 +3,8 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {afterEach,describe,expect,it,vi} from "vitest";
 import {DurableJobRuntime,type JobExecutor} from "@/lib/jobs/runtime";
-import {JobRecordSchema,type JobRecord} from "@/lib/jobs/schema";
+import {JobRecordSchema} from "@/lib/jobs/schema";
+import {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";
 import {FileJobStore} from "@/lib/jobs/store";
 import {ProductionCampaignRunner} from "@/lib/production/campaign/runner";
 import type {ProductionCampaignRepository,ProductionCampaignRunnerClaim} from "@/lib/production/campaign/repository";
@@ -26,6 +27,22 @@ const waitFor=async<T>(read:()=>Promise<T>,predicate:(value:T)=>boolean,timeoutM
 afterEach(async()=>{
   vi.restoreAllMocks();
   await Promise.all(roots.splice(0).map(root=>rm(root,{recursive:true,force:true})));
+});
+
+describe("V2.4 final audit exclusive lock error preservation",()=>{
+  it("preserves the work failure when owned-lock cleanup also fails",async()=>{
+    const root=await mkdtemp(join(tmpdir(),"video-os-final-audit-lock-error-"));
+    roots.push(root);
+    const workError=new Error("locked work failed");
+    const cleanupError=new Error("owned lock cleanup failed");
+    const removeFile=(async()=>{throw cleanupError;}) as typeof rm;
+    let thrown:unknown;
+    try{await withExclusiveFileLock(join(root,"audit.lock"),async()=>{throw workError;},{removeFile});}
+    catch(error){thrown=error;}
+    expect(thrown).toBeInstanceOf(AggregateError);
+    expect((thrown as AggregateError).errors).toEqual([workError,cleanupError]);
+    expect((thrown as AggregateError).message).not.toContain(cleanupError.message);
+  });
 });
 
 describe("V2.4 final audit durable Job ownership",()=>{

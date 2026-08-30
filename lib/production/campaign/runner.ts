@@ -199,7 +199,17 @@ export class ProductionCampaignRunner{
 
   async run(campaignId:string,signal?:AbortSignal):Promise<ProductionCampaign>{
     const claim=await this.repository.claimRunner(campaignId);
-    try{return await this.runOwned(campaignId,signal);}
-    finally{await this.repository.releaseRunnerClaim(campaignId,claim.ownerToken);}
+    let result:ProductionCampaign|undefined;
+    let runError:unknown;
+    let runFailed=false;
+    try{result=await this.runOwned(campaignId,signal);}
+    catch(error){runFailed=true;runError=error;}
+    try{await this.repository.releaseRunnerClaim(campaignId,claim.ownerToken);}
+    catch(releaseError){
+      if(runFailed)throw new AggregateError([runError,releaseError],`Production Campaign ${campaignId} failed and its runner claim could not be released.`);
+      throw releaseError;
+    }
+    if(runFailed)throw runError;
+    return result!;
   }
 }

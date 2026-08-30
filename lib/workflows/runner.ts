@@ -104,6 +104,7 @@ export class WorkflowRunner{
     if(this.activeLoops.has(workflowId))return;
     const loop=this.runLoop(workflowId).finally(()=>{if(this.activeLoops.get(workflowId)===loop)this.activeLoops.delete(workflowId);});
     this.activeLoops.set(workflowId,loop);
+    void loop.catch(()=>undefined);
   }
   async waitForIdle(workflowId:string){for(;;){const loop=this.activeLoops.get(workflowId);if(!loop)return;await loop;}}
 
