@@ -1,14 +1,13 @@
 import {randomUUID} from "node:crypto";
-import {appendFile,mkdir,open,readFile,readdir,rm,writeFile} from "node:fs/promises";
+import {appendFile,mkdir,readFile,readdir,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
 import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
+import {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";
 import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 import {WorkflowActivitySchema,type WorkflowActivity} from "@/lib/workflows/activity";
 import {WorkflowRunIdSchema,WorkflowRunSchema,type WorkflowRun} from "@/lib/workflows/schema";
 
 const parseWorkflow=(text:string)=>WorkflowRunSchema.parse(JSON.parse(text));
-const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
-const lockContention=(code:string|undefined)=>code==="EEXIST"||code==="EPERM"||code==="EACCES";
 
 export class WorkflowNotFoundError extends Error{
   readonly code="WORKFLOW_NOT_FOUND";
@@ -61,26 +60,7 @@ export class FileWorkflowStore{
 
   async withRunLock<T>(workflowRunId:string,fn:()=>Promise<T>):Promise<T>{
     const id=WorkflowRunIdSchema.parse(workflowRunId);
-    const lockPath=join(this.runDir(id),".workflow-run.lock");
-    let handle:Awaited<ReturnType<typeof open>>|undefined;
-    for(;;){
-      try{handle=await open(lockPath,"wx");break;}
-      catch(error){
-        const code=(error as NodeJS.ErrnoException).code;
-        if(!lockContention(code))throw error;
-        try{
-          const lockHandle=await open(lockPath,"r");
-          try{if(Date.now()-(await lockHandle.stat()).mtimeMs>30_000)await rm(lockPath,{force:true});}
-          finally{await lockHandle.close();}
-        }catch(lockError){
-          const lockCode=(lockError as NodeJS.ErrnoException).code;
-          if(lockCode!=="ENOENT"&&!lockContention(lockCode))throw lockError;
-        }
-        await sleep(5);
-      }
-    }
-    try{return await fn();}
-    finally{await handle.close();await rm(lockPath,{force:true});}
+    return withExclusiveFileLock(join(this.runDir(id),".workflow-run.lock"),fn);
   }
 
   async create(run:WorkflowRun){
