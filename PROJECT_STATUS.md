@@ -1,6 +1,6 @@
 # Video OS Studio — Current Project Status
 
-> Current-state source of truth for GPT Web, Local Codex, and other development agents. Historical PRs, commits, CI runs, local acceptance reports, released tags, and tag objects remain immutable evidence. GitHub is the code/status source of truth.
+> Current-state source of truth for GPT Web, Local Codex, and other development agents. GitHub is the code/status source of truth. Historical PRs, commits, CI runs, Local Windows reports, released tags, and tag objects remain immutable evidence.
 
 ## Current checkpoint
 
@@ -11,133 +11,122 @@ released_commit: da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
 released_tag_object_sha: 96ebdd67e2412ed4d25be36cc6120f1bba8a8734
 project_schema: 2.0.0
 
-package_json_version: 2.4.0
-package_lock_version: 2.4.0
+package_json_version: 2.4.1
+package_lock_version: 2.4.1
 
-active_development_workstream: V2.4.1 Engineering Hardening
-active_stage: ONLINE HARDENING COMPLETE; FRESH LOCAL WINDOWS RECERTIFICATION PENDING
-active_branch: fix/v2.4.1-online-hardening
-hardening_pr: PR #82 / DRAFT / DO NOT MERGE
-hardening_baseline_main: 667610d1bfbfdd9db9ba2d036aa3416d3419dd93
-prior_local_gate_sha: bc6c081d17b07fc24ddc31011fe16ac3679b38c7 / PASS BUT SUPERSEDED
-prior_local_gate_reason: GPT Web review found and fixed a crash window after durable Production step claim but before runner execution
-accepted_b7_main: fe883ca5581d721e996e833d43d7b7f88faebc41
-release_pr: PR #80
-release_pr_frozen_head: c4a395f9d3059dab7d2b6794df57fce292e8ea6d
-release_pr_ci: CI #970 / run 33291797863 / PASS
-release_main_ci: CI #971 / run 33292090068 / PASS after one browser-only timing-flake rerun
-release_tag_creation: run 33292747452 / PASS
-local_action_required: YES — fresh exact-head V2.4.1 Windows recertification after current PR cloud CI is green
-next_action: freeze the current PR #82 exact HEAD after cloud CI; Local Codex reruns runner-ownership/crash/restart plus B6/B7 real-media acceptance; then GPT Web performs final exact-head review and release finalization
+active_development_workstream: V2.4.1 Release Finalization
+active_stage: RELEASE METADATA CANDIDATE — TAG NOT YET CREATED
+active_branch: release/v2.4.1-finalization
+hardening_audit_pr: PR #82
+hardening_merge_pr: PR #84
+accepted_hardening_head: 0560280cfe0701444198e38b34f82f132762d246
+accepted_hardening_main: d868f7dd02c71577bab16029fa9cec2ae28bdf4e
+accepted_hardening_main_ci: CI #1014 / run 33309131066 / PASS
+local_windows_gate: 0560280cfe0701444198e38b34f82f132762d246 / PASS
+release_metadata_sync: run 33309439413 / PASS
+release_finalization_pr: PENDING
+local_action_required: NO
+next_action: create and freeze the metadata/docs-only release PR; require all six exact-head CI gates; merge with expected-head protection; require all six exact-main CI gates; create and verify immutable annotated v2.4.1; then perform docs-only immutable truth sync
 v2_4_status: RELEASED
-v2_4_1_status: HARDENING_CANDIDATE_NOT_YET_ACCEPTED
+v2_4_1_status: RELEASE_CANDIDATE_NOT_YET_TAGGED
 ```
 
-## V2.4.1 hardening truth
+## V2.4.1 accepted hardening truth
 
-V2.4.1 is a post-release correctness/security/durability hardening patch. It adds no new product capability and does not change Project Schema or frozen renderer/runtime versions.
+V2.4.1 is a correctness, security, durability, concurrency and release-hygiene patch over the immutable V2.4.0 product. It adds no new product capability, does not change Project Schema, and keeps the accepted Node / Remotion / HyperFrames versions frozen.
 
 Authoritative PRD:
 
 `docs/prd/Video_OS_Studio_V2_4_1_Engineering_Hardening_Master_PRD.md`
 
-PR #82 currently contains the accepted forward-fix direction for:
-
-- trusted renderer/workflow asset origins that never derive durable truth from request Host;
-- Windows transient retry + primary/backup durable recovery for critical JSON stores;
-- ownership-safe stale lock recovery;
-- Project/Mission stale async publication guards;
-- one-transaction Effect Preset application and lower frame-rate UI churn;
-- bounded process probing and 250ms production polling defaults;
-- Agent Session durable cross-process read/modify/write and apply-operation claims;
-- Production Mission short-lock claim → lock-free execute → short-lock reconcile;
-- durable Production runner ownership so a crash after claim but before execute can reclaim the same operation without consuming another attempt;
-- runner token verification so a late old execution cannot overwrite a newer reclaimed execution.
-
-The Local Windows acceptance previously passed on `bc6c081d17b07fc24ddc31011fe16ac3679b38c7`, including real B6/B7 media. That evidence remains valid historical evidence for that exact SHA, but it is **not** the final V2.4.1 gate because subsequent GPT Web review found the durable-claim/pre-execute crash window and advanced PR #82. A fresh exact-head Local Windows gate is mandatory before merge.
-
-## Immutable release truth
-
-Video OS Studio V2.4.0 is released at the annotated tag `v2.4.0`.
+Accepted boundary:
 
 ```text
-release commit:      da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
-annotated tag:       v2.4.0
-tag object SHA:      96ebdd67e2412ed4d25be36cc6120f1bba8a8734
-tag target type:     commit
-dereferenced target: da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
-tag message:         Video OS Studio v2.4.0
+engineering/audit PR:       #82
+accepted merge PR:          #84
+exact accepted head:        0560280cfe0701444198e38b34f82f132762d246
+resulting hardening main:    d868f7dd02c71577bab16029fa9cec2ae28bdf4e
+candidate CI #1012:          PASS / all six gates
+replacement PR CI #1013:    PASS / all six gates
+hardening main CI #1014:     PASS / all six gates
+Local Windows exact-SHA:     PASS
 ```
 
-Independent GitHub Git Data verification proved `refs/tags/v2.4.0` points to an object of type `tag`, not directly to a commit, and that tag object targets the exact release commit above.
+PR #84 merged the exact same tested hardening commit as PR #82 after the connected draft-to-ready mutation failed at the connector layer. The replacement PR introduced no source/content delta and was merged with expected-head protection on `0560280cfe0701444198e38b34f82f132762d246`.
 
-Previous immutable release tags `v2.3.0` and `v2.3.1` remain unchanged and must never be moved or recreated. `v2.4.0` is now equally immutable.
+Accepted corrections include:
 
-## V2.4 authoritative docs and sequence
+- trusted Job/Workflow renderer origins that do not persist request Host-derived authority;
+- Windows transient atomic-replace retry plus primary/backup durable recovery for critical stores;
+- ownership-safe filesystem locks with owner token, PID/liveness and owner-only release semantics;
+- Production Mission short-lock `claim -> execute outside lock -> reconcile` execution boundaries;
+- durable Production runner ownership and same-operation crash recovery without consuming an extra attempt;
+- owner-token reconciliation preventing stale runners from overwriting reclaimed execution;
+- stale Project and Mission client-publication guards;
+- Agent Session full cross-process read/modify/write protection and durable apply-operation claims;
+- Workflow corrupt-record isolation and bounded activity persistence;
+- bounded PID probing and production polling defaults;
+- one-transaction Effect Preset application and lower Asset Library playback render churn;
+- generated Next/Playwright worktree-hygiene fixes;
+- deterministic HTTP upload/security diagnostic coverage;
+- corrected B7 real-media acceptance construction so long real sources exercise a bounded 90-frame Campaign render rather than accidentally rendering full source duration.
+
+## Final Local Windows V2.4.1 acceptance
+
+Exact tested SHA:
+
+`0560280cfe0701444198e38b34f82f132762d246`
+
+Final verdict:
 
 ```text
-docs/prd/Video_OS_Studio_V2_4_Autonomous_Production_Agent_Master_PRD.md
-docs/prd/Video_OS_Studio_V2_4_Development_Plan.md
-docs/acceptance/V2_4_RELEASE_FINALIZATION.md
+LOCAL_WINDOWS_V2_4_1_TARGETED_B7_GATE = PASS
+LOCAL_WINDOWS_V2_4_1_GATE = PASS
 ```
+
+Real-user-media identity:
 
 ```text
-R0  Repository / PRD / Runtime Truth Sync
-B0  Production Mission Contracts + Store
-B1  Production Planner + Mission Step Graph
-B2  Asset Intelligence + Semantic Retrieval
-B3  Reusable Video Skills
-B4  Self-QA + Repair Proposals
-B5a Mission Executor / risk policy
-B5b Controlled autonomy + protected-edit boundary
-B5c Production Workspace UX
-B6  End-to-End Autonomous Real Video Acceptance
-B7  Campaign / Batch Production + Dashboard
-V2.4.0 Release
+Source A: H.264/AAC / 720x1280 / 30fps / 583.354921s / 89,591,973 bytes
+SHA-256: 2788FD4536E01F866BE90265B03EFA4D75BB2C99C454EBA4832F82846FC6E432
+
+Source B: H.264/AAC / 1024x576 / 30fps / 65.921451s / 4,274,293 bytes
+SHA-256: 2089729758C137573B68FACABE7916B58F0D50A6E1AD38164CCF95BB9431E32F
 ```
 
-## V2.4 milestone evidence
+B7 acceptance evidence:
 
 ```text
-R0   COMPLETE / PR #66 / exact-main CI #769 PASS
-B0   COMPLETE / PR #67 / exact-main CI #781 PASS
-B1   COMPLETE / PR #68 / exact-main CI #792 PASS
-B2   COMPLETE / PR #69 / exact-main CI #825 PASS
-B3   COMPLETE / PR #70 / exact-main CI #835 PASS
-B4   COMPLETE / PR #71 / exact-main CI #840 PASS
-B5a  COMPLETE / PR #73 / exact-main CI #845 PASS
-B5b  COMPLETE / PR #75 / exact-main CI #856 PASS
-B5c  COMPLETE / PR #77 / exact-main CI #894 PASS
-B6   COMPLETE / PR #78 / main 37602f0fd3cb9558fb51259b23936521d216098b / CI #929 PASS
-B7   COMPLETE / PR #79 / main fe883ca5581d721e996e833d43d7b7f88faebc41 / CI #969 PASS / Local Windows real-user-media PASS
-V2.4.0 RELEASE / PR #80 / release commit da22a5415cbf8ad2a9ce93b912b41b787b29a9b1 / CI #971 PASS / annotated tag verified
+Project duration:               90 frames each
+video-main clip count:          1 each
+clip duration:                  90 frames each
+renderDurationFrames:           90 each
+render logs:                    Rendered 90/90; Encoded 90/90
+Source A output:                H.264/AAC / 640x360 / 30fps / 3.050667s
+Source B output:                H.264/AAC / 640x360 / 30fps / 3.050667s
+configured Mission concurrency: 2
+observed Mission concurrency:   2
+observed render resource limit: 1
+Campaign:                       completed
+durable reload:                 completed
+JSON integrity:                 28 total / 0 invalid
+.props.json residue:            0
+.hf-work residue:               0
+*.tmp residue:                  0
+live/unrecoverable lock:        0
+attributable process/listener:  0
+primary worktree:               preserved exactly
 ```
 
-## Release-finalization evidence
+No additional Local Codex product gate is required for the metadata/docs-only release finalization. The release CI continues to rerun the Windows media, B6 and B7 gates after the package version bump.
 
-Accepted B7 product main before release metadata:
+## Exact-main hardening CI
 
-`fe883ca5581d721e996e833d43d7b7f88faebc41`
+After PR #84 merged, exact main was:
 
-Release metadata branch:
+`d868f7dd02c71577bab16029fa9cec2ae28bdf4e`
 
-`release/v2.4.0-finalization`
-
-The one-shot version synchronization changed only:
-
-```text
-package.json.version:                    2.3.1 → 2.4.0
-package-lock.json.version:               2.3.1 → 2.4.0
-package-lock.json.packages[""] .version: 2.3.1 → 2.4.0
-```
-
-Version-sync run `33291616642` passed structural guards proving no dependency, devDependency, engine, package-tree or lock-integrity drift.
-
-PR #80 frozen exact head:
-
-`c4a395f9d3059dab7d2b6794df57fce292e8ea6d`
-
-CI #970 / run `33291797863` passed all six release gates on that exact head:
+CI #1014 / run `33309131066` passed all six gates:
 
 ```text
 ubuntu-verify                    PASS
@@ -148,86 +137,58 @@ windows-b6-core-acceptance       PASS
 windows-b7-campaign-acceptance   PASS
 ```
 
-PR #80 merged with expected-head protection as:
+## V2.4.1 release metadata synchronization
 
-`da22a5415cbf8ad2a9ce93b912b41b787b29a9b1`
+Release branch:
 
-The release PR head and resulting merge commit have the identical Git tree:
+`release/v2.4.1-finalization`
 
-`4c034eb056ea75f186ba388fa31d0a9108c5db96`
+Accepted hardening main baseline:
 
-Resulting main CI #971 / run `33292090068` initially had one Browser Smoke timing failure in the legacy H1 editing-boundary test: an Undo-state poll remained at `system-ui H1 Draft` rather than `system-ui` for the 10-second wait. The same Git tree had passed Browser Smoke in CI #970; all other #971 gates passed. A Browser-only rerun on the unchanged exact main SHA passed the full Playwright suite, and workflow attempt 2 completed `SUCCESS`. No product code was changed for the rerun.
+`d868f7dd02c71577bab16029fa9cec2ae28bdf4e`
 
-Tag creation run `33292747452` then created `v2.4.0` only after rechecking that `origin/main` still exactly equaled the release commit and that the tag did not already exist. The workflow verified the local/remote annotated object and dereference before succeeding.
-
-## Mandatory B7 real-user-media acceptance
-
-Frozen B7 product SHA:
-
-`e053cbd953d58c61b4df98bec9e35d60faf1bbaf`
-
-Local Windows VERIFY ONLY passed using two distinct real user MP4s, including the exact long source that exposed the prior Remotion frame-extraction failure.
+One-shot version synchronization changed only:
 
 ```text
-Source A input:  H.264/AAC / 720x1280 / 30 fps / 583.354921 s / 89,591,973 bytes
-Source A output: H.264/AAC / 640x360  / 30 fps / 583.424 s    / 80,167,848 bytes
-
-Source B input:  H.264/AAC / 1024x576 / 30 fps / 65.921451 s / 4,274,293 bytes
-Source B output: H.264/AAC / 640x360  / 30 fps / 65.984 s    / 14,171,415 bytes
-
-configured Mission concurrency: 2
-observed Mission concurrency:   2
-observed heavy-render limit:    1
-durable Campaign reload:        completed
-cross-Project mutable leakage:  NO
-.props.json residue:            NO
-.hf-work residue:               NO
-stale lock/tmp residue:         NO
-attributable orphan process:    NO
-primary local worktree:         preserved exactly
+package.json.version:                    2.4.0 -> 2.4.1
+package-lock.json.version:               2.4.0 -> 2.4.1
+package-lock.json.packages[""].version:  2.4.0 -> 2.4.1
 ```
 
-## Accepted V2.4 product capabilities
+Run `33309439413` passed structural guards proving no dependency, devDependency, engine, package-tree or lock-integrity drift. The temporary workflow removed itself and is absent from the intended final release diff.
 
-V2.4 adds a bounded production-orchestration layer above the Project / Workflow / Durable Job / Agent foundations:
+Until the release metadata/docs PR is merged, its exact-main CI passes, and an annotated `v2.4.1` tag is independently verified, `v2.4.0` remains the immutable current release.
+
+## Immutable V2.4.0 release truth
 
 ```text
-Production Goal
-→ Production Mission
-→ Production Plan / Step Graph
-→ Asset Intelligence + reusable Skills
-→ controlled Agent execution
-→ protected Project mutation
-→ existing Workflow / Durable Jobs
-→ real Remotion render
-→ Self-QA
-→ bounded repair
-→ final review/evidence
+release commit:      da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
+annotated tag:       v2.4.0
+tag object SHA:      96ebdd67e2412ed4d25be36cc6120f1bba8a8734
+tag target type:     commit
+dereferenced target: da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
+tag message:         Video OS Studio v2.4.0
 ```
 
-B7 adds an isolated Campaign control plane:
+Previous release tags `v2.3.0` and `v2.3.1` remain immutable. `v2.4.0` must never be moved or recreated.
+
+## V2.4 delivery history
 
 ```text
-Campaign
-  shared logical references / policy
-  ├─ Mission A → Project A → Workflow / Jobs
-  ├─ Mission B → Project B → Workflow / Jobs
-  └─ Mission C → Project C → Workflow / Jobs
+R0   COMPLETE / PR #66
+B0   COMPLETE / PR #67
+B1   COMPLETE / PR #68
+B2   COMPLETE / PR #69
+B3   COMPLETE / PR #70
+B4   COMPLETE / PR #71
+B5a  COMPLETE / PR #73
+B5b  COMPLETE / PR #75
+B5c  COMPLETE / PR #77
+B6   COMPLETE / PR #78
+B7   COMPLETE / PR #79 / Local Windows real-user-media PASS
+V2.4.0 RELEASE / PR #80 / release commit da22a5415cbf8ad2a9ce93b912b41b787b29a9b1 / annotated tag verified
+V2.4.1 HARDENING / PR #82 audit + PR #84 accepted merge / Local Windows PASS
 ```
-
-Accepted boundaries include:
-
-- Mission, Plan, QA, Skill/Asset Intelligence and Campaign truth outside `project.json`;
-- one mutable Project truth per output;
-- no second Workflow, Durable Job, Agent Session or master renderer;
-- application-owned revision/risk/idempotency/edit-protection boundaries;
-- bounded Campaign concurrency and heavy-render resources;
-- sibling failure/cancel isolation and retry-failed semantics;
-- no generic Agent shell/filesystem/network/process/computer authority;
-- Remotion remains the master renderer;
-- ordinary Project video/B-roll defaults to frame-perfect OffthreadVideo, with one narrow same-Job HTML5 compatibility rerun only for the exact known Offthread `No frame found at position` extraction failure;
-- timeout/cancel/unrelated render errors are not reclassified;
-- transparent HyperFrames video remains on OffthreadVideo.
 
 ## Frozen technical invariants
 
@@ -264,10 +225,18 @@ Campaign != Mission
 REUSE > MODIFY > CREATE
 ```
 
-- `project.json` remains the editing truth for each output;
+- `project.json` remains the mutable editing truth for each output;
 - stale mutation-dependent state fails closed;
-- Project mutation must pass accepted application-owned mutation services and revision guards;
-- protected/manual edits must not be silently overwritten;
-- Campaign operations must not silently destroy sibling output truth;
-- no generic shell/filesystem/network/process/computer authority is introduced by V2.4;
-- released tags `v2.3.0`, `v2.3.1`, and `v2.4.0` are immutable and must never be moved or recreated.
+- Project mutation passes accepted application-owned mutation/revision boundaries;
+- protected/manual edits are not silently overwritten;
+- Campaign operations do not silently destroy sibling output truth;
+- no generic Agent shell/filesystem/network/process/computer authority is introduced;
+- Remotion remains the master renderer;
+- released tags are immutable and must never be moved or recreated.
+
+## Deferred post-V2.4.1 follow-up
+
+Issue #83 tracks non-blocking P3 follow-up work that is deliberately outside this patch release unless a reproducible correctness/security failure upgrades severity:
+
+- successful provider-stream unread-body cleanup;
+- Workflow secondary-persistence-error/original-error preservation.
