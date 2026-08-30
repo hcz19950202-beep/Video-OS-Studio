@@ -1,8 +1,10 @@
 "use client";
 
 import {useState} from "react";
+import {createOperationId} from "@/lib/client/project-mutations";
 import type {AssetPreset,AssetRegistry} from "@/lib/assets/schema";
 import type {ProjectCommand} from "@/lib/project/commands";
+import type {ProjectCommandTransaction} from "@/lib/project/history";
 import type {MotionTransform} from "@/schemas/clip";
 import type {Project} from "@/schemas/project";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
@@ -13,9 +15,10 @@ type Props={
   effectId:string;
   engine:"remotion"|"hyperframes";
   onCommand:(command:ProjectCommand,message:string)=>Promise<void>;
+  onTransaction:(transaction:ProjectCommandTransaction,message:string)=>Promise<void>;
 };
 
-export const EffectPresetControls=({project,clipId,effectId,engine,onCommand}:Props)=>{
+export const EffectPresetControls=({project,clipId,effectId,engine,onCommand,onTransaction}:Props)=>{
   const{t}=useStudioPreferences();
   const[presets,setPresets]=useState<AssetPreset[]>([]);
   const[selectedPresetId,setSelectedPresetId]=useState("");
@@ -56,9 +59,11 @@ export const EffectPresetControls=({project,clipId,effectId,engine,onCommand}:Pr
     if(!preset||preset.engine!=="remotion")return;
     setBusy(true);setError(null);
     try{
-      await onCommand({type:"update-motion-props",clipId,props:preset.props},t("preset.applied"));
-      if(preset.transform)await onCommand({type:"update-motion-transform",clipId,transform:preset.transform as MotionTransform},t("preset.applied"));
-      await onCommand({type:"update-clip-timing",clipId,durationInFrames:Math.min(preset.durationInFrames,project.canvas.durationInFrames)},t("preset.applied"));
+      const commands:ProjectCommand[]=[{type:"update-motion-props",clipId,props:preset.props}];
+      if(preset.transform)commands.push({type:"update-motion-transform",clipId,transform:preset.transform as MotionTransform});
+      commands.push({type:"update-clip-timing",clipId,durationInFrames:Math.min(preset.durationInFrames,project.canvas.durationInFrames)});
+      const label=t("preset.applied");
+      await onTransaction({id:createOperationId("preset"),label,commands},label);
     }catch(caught){setError(caught instanceof Error?caught.message:String(caught));}
     finally{setBusy(false);}
   };
