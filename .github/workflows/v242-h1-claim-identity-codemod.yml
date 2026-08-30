@@ -61,25 +61,13 @@ jobs:
               "lib/production/execution/executor.ts",
               '        const runnerOwnerToken=randomUUID();',
               '        const runnerOwnerToken=randomUUID();\n        const runnerOwnerIdentity=currentProcessIdentity();',
-              expected=1,
+              expected=2,
           )
           replace_exact(
               "lib/production/execution/executor.ts",
               '            runnerOwnerPid:process.pid,\n            runnerOwnerToken,',
               '            runnerOwnerPid:runnerOwnerIdentity.pid,\n            runnerOwnerStartedAt:runnerOwnerIdentity.startedAt,\n            runnerOwnerToken,',
-              expected=1,
-          )
-          replace_exact(
-              "lib/production/execution/executor.ts",
-              '      const runnerOwnerToken=randomUUID();',
-              '      const runnerOwnerToken=randomUUID();\n      const runnerOwnerIdentity=currentProcessIdentity();',
-              expected=1,
-          )
-          replace_exact(
-              "lib/production/execution/executor.ts",
-              '            runnerOwnerPid:process.pid,\n            runnerOwnerToken,',
-              '            runnerOwnerPid:runnerOwnerIdentity.pid,\n            runnerOwnerStartedAt:runnerOwnerIdentity.startedAt,\n            runnerOwnerToken,',
-              expected=1,
+              expected=2,
           )
 
           replace_exact(
