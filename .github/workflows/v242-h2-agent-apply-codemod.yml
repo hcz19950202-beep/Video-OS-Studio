@@ -31,25 +31,21 @@ jobs:
                   raise SystemExit(f"{path}: expected {expected} matches, found {hits}")
               p.write_text(text.replace(old, new), encoding="utf-8")
 
-          exact(
-              "lib/ai/application.ts",
-              "      await sleep(25);",
-              "      await sleep(100);",
-          )
+          exact("lib/ai/application.ts", "      await sleep(25);", "      await sleep(100);")
 
-          exact(
-              "lib/ai/application.ts",
-              '''  private async markApplied(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{''',
-              '''  private async markAppliedAfterExternalCompletion(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{
-    try{return await this.markApplied(projectId,sessionId,proposalId,operationId,claimToken);}
-    catch(error){
-      if(claimToken)await this.releaseApplyOperation(projectId,sessionId,operationId,claimToken).catch(()=>undefined);
-      throw error;
-    }
-  }
-
-  private async markApplied(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{''',
-          )
+          old_mark = "  private async markApplied(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{"
+          new_mark = "\n".join([
+              "  private async markAppliedAfterExternalCompletion(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{",
+              "    try{return await this.markApplied(projectId,sessionId,proposalId,operationId,claimToken);}",
+              "    catch(error){",
+              "      if(claimToken)await this.releaseApplyOperation(projectId,sessionId,operationId,claimToken).catch(()=>undefined);",
+              "      throw error;",
+              "    }",
+              "  }",
+              "",
+              old_mark,
+          ])
+          exact("lib/ai/application.ts", old_mark, new_mark)
 
           exact(
               "lib/ai/application.ts",
@@ -58,35 +54,52 @@ jobs:
               expected=2,
           )
 
-          exact(
-              "tests/ai-proposal-application.test.ts",
-              "const harness=async(revision=3)=>{\n  const fs=new InMemoryFileSystemAdapter();\n  const sessions=new AgentSessionRepository(fs,\"/agent-application\");\n  await sessions.create(sessionInput());",
-              "const harness=async(revision=3,failDurableFinalization=false)=>{\n  const fs=new InMemoryFileSystemAdapter();\n  const sessions=new AgentSessionRepository(fs,\"/agent-application\");\n  await sessions.create(sessionInput());\n  if(failDurableFinalization){\n    let failOnce=true;\n    const durableMutate=sessions.mutate.bind(sessions);\n    sessions.mutate=async(projectIdInput,sessionIdInput,mutation)=>durableMutate(projectIdInput,sessionIdInput,async current=>{\n      const next=await mutation(current);\n      if(failOnce&&next.approvedOperations.length>current.approvedOperations.length){\n        failOnce=false;\n        throw new Error(\"simulated durable finalization failure\");\n      }\n      return next;\n    });\n  }",
-          )
+          old_harness = "const harness=async(revision=3)=>{\n  const fs=new InMemoryFileSystemAdapter();\n  const sessions=new AgentSessionRepository(fs,\"/agent-application\");\n  await sessions.create(sessionInput());"
+          new_harness = "\n".join([
+              "const harness=async(revision=3,failDurableFinalization=false)=>{",
+              "  const fs=new InMemoryFileSystemAdapter();",
+              "  const sessions=new AgentSessionRepository(fs,\"/agent-application\");",
+              "  await sessions.create(sessionInput());",
+              "  if(failDurableFinalization){",
+              "    let failOnce=true;",
+              "    const durableMutate=sessions.mutate.bind(sessions);",
+              "    sessions.mutate=async(projectIdInput,sessionIdInput,mutation)=>durableMutate(projectIdInput,sessionIdInput,async current=>{",
+              "      const next=await mutation(current);",
+              "      if(failOnce&&next.approvedOperations.length>current.approvedOperations.length){",
+              "        failOnce=false;",
+              "        throw new Error(\"simulated durable finalization failure\");",
+              "      }",
+              "      return next;",
+              "    });",
+              "  }",
+          ])
+          exact("tests/ai-proposal-application.test.ts", old_harness, new_harness)
 
-          anchor='''  it("marks a proposal stale and blocks Apply when Project revision changed",async()=>{'''
-          regression='''  it("releases its claim and recovers exactly once when durable finalization fails after external Apply",async()=>{
-    const test=await harness(3,true);
-    await test.service.preview({projectId,sessionId,proposalId});
-
-    await expect(test.service.apply({projectId,sessionId,proposalId,expectedRevision:3,changeIds:["suggestion-proof"]})).rejects.toThrow("simulated durable finalization failure");
-
-    expect(test.projectRef.current.project.revision).toBe(4);
-    expect(test.applySelections).toEqual([["suggestion-proof"]]);
-    const interrupted=await test.sessions.require(projectId,sessionId);
-    expect(interrupted.approvedOperations).toHaveLength(0);
-    expect(interrupted.operationClaims).toHaveLength(0);
-
-    const retried=await test.service.apply({projectId,sessionId,proposalId,expectedRevision:3,changeIds:["suggestion-proof"]});
-    expect(retried.alreadyApplied).toBe(true);
-    expect(retried.project.project.revision).toBe(4);
-    expect(retried.session.approvedOperations).toHaveLength(1);
-    expect(retried.session.operationClaims).toHaveLength(0);
-    expect(test.applySelections).toHaveLength(1);
-  });
-
-'''
-          exact("tests/ai-proposal-application.test.ts", anchor, regression+anchor)
+          anchor = "  it(\"marks a proposal stale and blocks Apply when Project revision changed\",async()=>{"
+          regression = "\n".join([
+              "  it(\"releases its claim and recovers exactly once when durable finalization fails after external Apply\",async()=>{",
+              "    const test=await harness(3,true);",
+              "    await test.service.preview({projectId,sessionId,proposalId});",
+              "",
+              "    await expect(test.service.apply({projectId,sessionId,proposalId,expectedRevision:3,changeIds:[\"suggestion-proof\"]})).rejects.toThrow(\"simulated durable finalization failure\");",
+              "",
+              "    expect(test.projectRef.current.project.revision).toBe(4);",
+              "    expect(test.applySelections).toEqual([[\"suggestion-proof\"]]);",
+              "    const interrupted=await test.sessions.require(projectId,sessionId);",
+              "    expect(interrupted.approvedOperations).toHaveLength(0);",
+              "    expect(interrupted.operationClaims).toHaveLength(0);",
+              "",
+              "    const retried=await test.service.apply({projectId,sessionId,proposalId,expectedRevision:3,changeIds:[\"suggestion-proof\"]});",
+              "    expect(retried.alreadyApplied).toBe(true);",
+              "    expect(retried.project.project.revision).toBe(4);",
+              "    expect(retried.session.approvedOperations).toHaveLength(1);",
+              "    expect(retried.session.operationClaims).toHaveLength(0);",
+              "    expect(test.applySelections).toHaveLength(1);",
+              "  });",
+              "",
+              anchor,
+          ])
+          exact("tests/ai-proposal-application.test.ts", anchor, regression)
       - name: Remove one-shot workflow
         run: rm .github/workflows/v242-h2-agent-apply-codemod.yml
       - name: Commit H2 hardening
