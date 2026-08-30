@@ -1,6 +1,7 @@
 import {randomUUID} from "node:crypto";
-import {appendFile,mkdir,open,readFile,readdir,rename,rm,writeFile} from "node:fs/promises";
+import {appendFile,mkdir,open,readFile,readdir,rm,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
+import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
 import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 import {WorkflowActivitySchema,type WorkflowActivity} from "@/lib/workflows/activity";
 import {WorkflowRunIdSchema,WorkflowRunSchema,type WorkflowRun} from "@/lib/workflows/schema";
@@ -51,7 +52,7 @@ export class FileWorkflowStore{
       try{
         await mkdir(dirname(path),{recursive:true});
         await writeFile(temp,content,"utf8");
-        await rename(temp,path);
+        await replaceFileAtomically(temp,path);
       }finally{await rm(temp,{force:true});}
     });
   }
@@ -120,7 +121,7 @@ export class FileWorkflowStore{
   async list():Promise<WorkflowRun[]>{
     await this.ensure();
     const entries=await readdir(this.workflowsRoot,{withFileTypes:true});
-    const runs=await Promise.all(entries.filter(entry=>entry.isDirectory()).map(entry=>this.get(entry.name)));
+    const runs=await Promise.all(entries.filter(entry=>entry.isDirectory()).map(async entry=>{try{return await this.get(entry.name);}catch{return null;}}));
     return runs.filter((run):run is WorkflowRun=>run!==null).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
   }
 
