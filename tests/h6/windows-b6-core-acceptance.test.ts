@@ -361,6 +361,12 @@ describe("V2.4 B6 Windows real-video core acceptance", () => {
       );
       await protection.markAiOwned(
         projectId,
+        { kind: "clip", id: `clip-${imported.import.assetId}` },
+        baseRevision,
+        "B6 auto-imported source clip is explicitly AI-owned for bounded QA timing repair.",
+      );
+      await protection.markAiOwned(
+        projectId,
         { kind: "scene", id: "scene-cta" },
         baseRevision,
         "B6 acceptance CTA scene is explicitly AI-owned for bounded QA timing repair.",
