@@ -3,7 +3,7 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import {toClientErrorState,type ClientErrorState} from "@/lib/client/api";
 import {importProjectMedia,type MediaImportReport} from "@/lib/client/media";
-import {ProjectRequestError,canPublishProject,postProjectCommand,publishProjectIfActive} from "@/lib/client/project-mutations";
+import {ProjectRequestError,postProjectCommand,publishProjectIfActive} from "@/lib/client/project-mutations";
 import {createStudioProject,listRecentProjects,loadStudioProject,type CreateStudioProjectInput} from "@/lib/client/projects";
 import type {StudioLocale,StudioMessageKey} from "@/lib/i18n/studio";
 import type {ProjectCommand} from "@/lib/project/commands";
