@@ -1,0 +1,71 @@
+name: V2.4.2 H3 Publication Boundary Codemod
+
+on:
+  push:
+    branches:
+      - fix/v2.4.2-correctness-liveness
+    paths:
+      - .github/workflows/v242-h3-publication-codemod.yml
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v2.4.2-correctness-liveness
+          fetch-depth: 0
+      - name: Install single Studio Project publication boundary
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path=Path("components/studio/StudioWorkspaceV21.tsx")
+          text=path.read_text(encoding="utf-8")
+
+          def exact(old,new,expected=1):
+              global text
+              hits=text.count(old)
+              if hits!=expected:
+                  raise SystemExit(f"expected {expected} matches for {old!r}, found {hits}")
+              text=text.replace(old,new)
+
+          exact('import {useRef,useState} from "react";','import {useCallback,useRef,useState} from "react";')
+          exact(
+              'import {CANVAS_PRESETS,describeCanvas} from "@/lib/canvas/aspect";',
+              'import {CANVAS_PRESETS,describeCanvas} from "@/lib/canvas/aspect";\nimport {publishProjectIfActive} from "@/lib/client/project-mutations";',
+          )
+          exact(
+              'import type {ProjectSummary} from "@/lib/project/repository";',
+              'import type {ProjectSummary} from "@/lib/project/repository";\nimport type {Project} from "@/schemas/project";',
+          )
+          anchor='  const canvas=project?describeCanvas(project.canvas.width,project.canvas.height):null;'
+          boundary="\n".join([
+              anchor,
+              '  const publishProjectChange=useCallback((candidate:Project)=>{',
+              '    const requestProjectId=project?.project.id;',
+              '    if(!requestProjectId)return;',
+              '    publishProjectIfActive(requestProjectId,candidate,()=>useProjectStore.getState().project,setProject);',
+              '  },[project?.project.id,setProject]);',
+          ])
+          exact(anchor,boundary)
+          exact('onProjectChange={setProject}','onProjectChange={publishProjectChange}',expected=7)
+
+          if 'onProjectChange={setProject}' in text:
+              raise SystemExit("raw setProject publication remains in StudioWorkspaceV21")
+          if text.count('onProjectChange={publishProjectChange}')!=7:
+              raise SystemExit("guarded publication count drifted")
+          path.write_text(text,encoding="utf-8")
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/v242-h3-publication-codemod.yml
+      - name: Commit H3 boundary
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/studio/StudioWorkspaceV21.tsx .github/workflows/v242-h3-publication-codemod.yml
+          git diff --cached --check
+          git commit -m "fix(v2.4.2): centralize active Project publication"
+          git push origin HEAD:fix/v2.4.2-correctness-liveness
