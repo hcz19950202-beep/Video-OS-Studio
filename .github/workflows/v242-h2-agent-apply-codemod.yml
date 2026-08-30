@@ -1,0 +1,99 @@
+name: V2.4.2 H2 Agent Apply Codemod
+
+on:
+  push:
+    branches:
+      - fix/v2.4.2-correctness-liveness
+    paths:
+      - .github/workflows/v242-h2-agent-apply-codemod.yml
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v2.4.2-correctness-liveness
+          fetch-depth: 0
+      - name: Harden Agent Apply finalization and regression coverage
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def exact(path: str, old: str, new: str, expected: int = 1):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              hits = text.count(old)
+              if hits != expected:
+                  raise SystemExit(f"{path}: expected {expected} matches, found {hits}")
+              p.write_text(text.replace(old, new), encoding="utf-8")
+
+          exact(
+              "lib/ai/application.ts",
+              "      await sleep(25);",
+              "      await sleep(100);",
+          )
+
+          exact(
+              "lib/ai/application.ts",
+              '''  private async markApplied(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{''',
+              '''  private async markAppliedAfterExternalCompletion(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{
+    try{return await this.markApplied(projectId,sessionId,proposalId,operationId,claimToken);}
+    catch(error){
+      if(claimToken)await this.releaseApplyOperation(projectId,sessionId,operationId,claimToken).catch(()=>undefined);
+      throw error;
+    }
+  }
+
+  private async markApplied(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{''',
+          )
+
+          exact(
+              "lib/ai/application.ts",
+              "      session=await this.markApplied(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);",
+              "      session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);",
+              expected=2,
+          )
+
+          exact(
+              "tests/ai-proposal-application.test.ts",
+              "const harness=async(revision=3)=>{\n  const fs=new InMemoryFileSystemAdapter();\n  const sessions=new AgentSessionRepository(fs,\"/agent-application\");\n  await sessions.create(sessionInput());",
+              "const harness=async(revision=3,failDurableFinalization=false)=>{\n  const fs=new InMemoryFileSystemAdapter();\n  const sessions=new AgentSessionRepository(fs,\"/agent-application\");\n  await sessions.create(sessionInput());\n  if(failDurableFinalization){\n    let failOnce=true;\n    const durableMutate=sessions.mutate.bind(sessions);\n    sessions.mutate=async(projectIdInput,sessionIdInput,mutation)=>durableMutate(projectIdInput,sessionIdInput,async current=>{\n      const next=await mutation(current);\n      if(failOnce&&next.approvedOperations.length>current.approvedOperations.length){\n        failOnce=false;\n        throw new Error(\"simulated durable finalization failure\");\n      }\n      return next;\n    });\n  }",
+          )
+
+          anchor='''  it("marks a proposal stale and blocks Apply when Project revision changed",async()=>{'''
+          regression='''  it("releases its claim and recovers exactly once when durable finalization fails after external Apply",async()=>{
+    const test=await harness(3,true);
+    await test.service.preview({projectId,sessionId,proposalId});
+
+    await expect(test.service.apply({projectId,sessionId,proposalId,expectedRevision:3,changeIds:["suggestion-proof"]})).rejects.toThrow("simulated durable finalization failure");
+
+    expect(test.projectRef.current.project.revision).toBe(4);
+    expect(test.applySelections).toEqual([["suggestion-proof"]]);
+    const interrupted=await test.sessions.require(projectId,sessionId);
+    expect(interrupted.approvedOperations).toHaveLength(0);
+    expect(interrupted.operationClaims).toHaveLength(0);
+
+    const retried=await test.service.apply({projectId,sessionId,proposalId,expectedRevision:3,changeIds:["suggestion-proof"]});
+    expect(retried.alreadyApplied).toBe(true);
+    expect(retried.project.project.revision).toBe(4);
+    expect(retried.session.approvedOperations).toHaveLength(1);
+    expect(retried.session.operationClaims).toHaveLength(0);
+    expect(test.applySelections).toHaveLength(1);
+  });
+
+'''
+          exact("tests/ai-proposal-application.test.ts", anchor, regression+anchor)
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/v242-h2-agent-apply-codemod.yml
+      - name: Commit H2 hardening
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/ai/application.ts tests/ai-proposal-application.test.ts .github/workflows/v242-h2-agent-apply-codemod.yml
+          git diff --cached --check
+          git commit -m "fix(v2.4.2): recover Agent Apply finalization failures"
+          git push origin HEAD:fix/v2.4.2-correctness-liveness
