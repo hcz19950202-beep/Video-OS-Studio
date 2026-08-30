@@ -158,6 +158,8 @@ jobs:
         run: |
           ffmpeg -version
           ffprobe -version
+          npx --no-install hyperframes browser ensure
+          npx --no-install hyperframes browser path
           npx --no-install hyperframes doctor --json
       - name: Windows exact-SHA HyperFrames real render
         run: npm run test:windows-hyperframes
