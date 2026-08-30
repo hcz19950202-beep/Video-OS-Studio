@@ -54,12 +54,12 @@ export const projectForExportProfile=(project:Project,input?:Partial<ExportProfi
       const timing=scaleBoundedInterval(clip.startFrame,clip.durationInFrames,ratio,next.canvas.durationInFrames);
       const copy={...clip,...timing} as typeof clip;
       if(copy.type==="video"||copy.type==="audio"||copy.type==="broll"){
-        const sourceStartFrame=copy.type==="broll"?(clip.sourceStartFrame??0):clip.sourceStartFrame;
+        const sourceStartFrame=copy.type==="broll"?(copy.sourceStartFrame??0):copy.sourceStartFrame;
         const scaledAssetDuration=scaledAssetDurationById.get(copy.assetId);
         if(scaledAssetDuration!==undefined){
           copy.sourceStartFrame=scaleBoundedStart(sourceStartFrame,ratio,scaledAssetDuration);
           copy.durationInFrames=Math.min(copy.durationInFrames,scaledAssetDuration-copy.sourceStartFrame);
-        }else if(copy.type!=="broll"||clip.sourceStartFrame!==undefined){
+        }else if(copy.type!=="broll"||copy.sourceStartFrame!==undefined){
           copy.sourceStartFrame=scaleFrame(sourceStartFrame,ratio);
         }
       }
