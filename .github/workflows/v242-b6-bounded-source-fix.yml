@@ -1,0 +1,147 @@
+name: V2.4.2 B6 Bounded Source Fix
+
+on:
+  push:
+    branches:
+      - fix/v2.4.2-correctness-liveness
+    paths:
+      - .github/workflows/v242-b6-bounded-source-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v2.4.2-correctness-liveness
+          fetch-depth: 0
+      - name: Bound B6 imported source before first render
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("tests/h6/windows-b6-core-acceptance.test.ts")
+          text = path.read_text(encoding="utf-8")
+
+          def replace_exact(old_lines, new_lines, expected=1):
+              global text
+              old = "\n".join(old_lines)
+              new = "\n".join(new_lines)
+              hits = text.count(old)
+              if hits != expected:
+                  raise SystemExit(f"expected {expected} matches, found {hits}: {old_lines[0]}")
+              text = text.replace(old, new)
+
+          replace_exact(
+              [
+                  '      expect(sourceAsset?.kind).toBe("video");',
+                  '',
+                  '      const fixtureSetup = await mutations.applyTransaction(projectId, {',
+              ],
+              [
+                  '      expect(sourceAsset?.kind).toBe("video");',
+                  '      const importedVideoClips =',
+                  '        imported.project.tracks.find((track) => track.id === "video-main")?.clips ?? [];',
+                  '      expect(importedVideoClips.length).toBeGreaterThan(0);',
+                  '',
+                  '      const fixtureSetup = await mutations.applyTransaction(projectId, {',
+              ],
+          )
+
+          replace_exact(
+              [
+                  '          commands: [',
+                  '            {',
+                  '              type: "add-clip",',
+                  '              trackId: "video-main",',
+              ],
+              [
+                  '          commands: [',
+                  '            ...importedVideoClips.map((clip) => ({',
+                  '              type: "remove-clip" as const,',
+                  '              clipId: clip.id,',
+                  '            })),',
+                  '            { type: "set-duration", durationInFrames: SOURCE_DURATION_FRAMES },',
+                  '            {',
+                  '              type: "add-clip",',
+                  '              trackId: "video-main",',
+              ],
+          )
+
+          replace_exact(
+              [
+                  '      });',
+                  '      const baseRevision = fixtureSetup.project.project.revision;',
+                  '      expect(baseRevision).toBe(2);',
+              ],
+              [
+                  '      });',
+                  '      const boundedVideoClips =',
+                  '        fixtureSetup.project.tracks.find((track) => track.id === "video-main")?.clips ?? [];',
+                  '      expect(fixtureSetup.project.canvas.durationInFrames).toBe(SOURCE_DURATION_FRAMES);',
+                  '      expect(boundedVideoClips).toHaveLength(1);',
+                  '      expect(boundedVideoClips[0]).toMatchObject({',
+                  '        id: "b6-source-video",',
+                  '        assetId: imported.import.assetId,',
+                  '        startFrame: 0,',
+                  '        sourceStartFrame: 0,',
+                  '        durationInFrames: SOURCE_DURATION_FRAMES,',
+                  '      });',
+                  '      const baseRevision = fixtureSetup.project.project.revision;',
+                  '      expect(baseRevision).toBe(2);',
+              ],
+          )
+
+          replace_exact(
+              [
+                  '      await protection.markAiOwned(',
+                  '        projectId,',
+                  '        { kind: "clip", id: `clip-${imported.import.assetId}` },',
+                  '        baseRevision,',
+                  '        "B6 auto-imported source clip is explicitly AI-owned for bounded QA timing repair.",',
+                  '      );',
+              ],
+              [],
+          )
+
+          replace_exact(
+              [
+                  '      expect(allJobs.filter((job) => job.id === OPERATION_IDS[3])).toHaveLength(1);',
+                  '      expect(allJobs.filter((job) => job.id === OPERATION_IDS[6])).toHaveLength(1);',
+                  '',
+                  '      const firstQA = await qa.load(projectId, OPERATION_IDS[4]);',
+              ],
+              [
+                  '      expect(allJobs.filter((job) => job.id === OPERATION_IDS[3])).toHaveLength(1);',
+                  '      expect(allJobs.filter((job) => job.id === OPERATION_IDS[6])).toHaveLength(1);',
+                  '',
+                  '      const firstRelativePath = String(firstRender?.output?.outputRelativePath ?? "");',
+                  '      expect(firstRelativePath).toMatch(/\\.mp4$/u);',
+                  '      const firstPath = projects.resolveProjectFile(projectId, firstRelativePath);',
+                  '      const firstProbe = await ffmpeg.probe(firstPath);',
+                  '      expect(firstProbe.width).toBe(640);',
+                  '      expect(firstProbe.height).toBe(360);',
+                  '      expect(Math.abs(firstProbe.durationSeconds - SOURCE_DURATION_FRAMES / 30)).toBeLessThanOrEqual(',
+                  '        0.25,',
+                  '      );',
+                  '      await expect(access(`${firstPath}.props.json`)).rejects.toThrow();',
+                  '',
+                  '      const firstQA = await qa.load(projectId, OPERATION_IDS[4]);',
+              ],
+          )
+
+          path.write_text(text, encoding="utf-8")
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/v242-b6-bounded-source-fix.yml
+      - name: Validate and commit
+        run: |
+          npx prettier --check tests/h6/windows-b6-core-acceptance.test.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/h6/windows-b6-core-acceptance.test.ts .github/workflows/v242-b6-bounded-source-fix.yml
+          git diff --cached --check
+          git commit -m "test(v2.4.2): bound B6 real-source render duration"
+          git push origin HEAD:fix/v2.4.2-correctness-liveness
