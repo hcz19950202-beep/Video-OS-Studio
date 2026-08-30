@@ -4,21 +4,21 @@ Video OS Studio is a local-first AI-native video production workspace.
 
 ## Current immutable release
 
-**Video OS Studio v2.4.0 is released.**
+**Video OS Studio v2.4.1 is released.**
 
 ```text
-Product version: 2.4.0
+Product version: 2.4.1
 Project Schema: 2.0.0
-Release commit: da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
-Release tag: v2.4.0 (annotated, verified)
-Tag object: 96ebdd67e2412ed4d25be36cc6120f1bba8a8734
+Release commit: 4c105bad936479690711c03f3e349db36fbadaf5
+Release tag: v2.4.1 (annotated, verified)
+Tag object: 9f3d06d8eabb114d6f1bcd907e98b4de3756a4a7
 ```
 
-The annotated `v2.4.0` tag is the immutable current release boundary. Previous `v2.3.0` and `v2.3.1` release tags remain immutable evidence and must never be moved or recreated.
+The annotated `v2.4.1` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, and `v2.4.0` release tags remain immutable evidence and must never be moved or recreated.
 
 Release evidence is recorded in:
 
-[`docs/acceptance/V2_4_RELEASE_FINALIZATION.md`](docs/acceptance/V2_4_RELEASE_FINALIZATION.md)
+[`docs/acceptance/V2_4_1_RELEASE_FINALIZATION.md`](docs/acceptance/V2_4_1_RELEASE_FINALIZATION.md)
 
 The live repository source of truth is:
 
@@ -80,6 +80,10 @@ Engineering Hardening / Patch Acceptance
 V2.4.0
 Autonomous Production Agent + Campaign Production
         ✅ RELEASED
+
+V2.4.1
+Engineering Hardening / Durability + Security Patch
+        ✅ RELEASED
 ```
 
 ## V2.4 delivery sequence
@@ -97,6 +101,7 @@ B5c Production Workspace / Mission UI           ✅
 B6  End-to-End Autonomous Real Video Acceptance ✅
 B7  Campaign / Batch Production + Dashboard     ✅
 V2.4.0 Release                                  ✅ VERIFIED
+V2.4.1 Engineering Hardening                    ✅ VERIFIED
 ```
 
 ## V2.4 accepted capabilities
@@ -169,41 +174,57 @@ V2.4.0 Release                                  ✅ VERIFIED
 - **FFmpeg / ffprobe** behind adapters/services;
 - **Playwright 1.62.1** for browser acceptance.
 
-## Release verification
+## V2.4.1 release verification
 
-The V2.4 release-finalization PR #80 froze exact head:
+The accepted hardening exact SHA was:
 
-`c4a395f9d3059dab7d2b6794df57fce292e8ea6d`
+`0560280cfe0701444198e38b34f82f132762d246`
 
-Exact-head CI #970 / run `33291797863` passed all six current gates. PR #80 then merged with expected-head protection as:
+It passed cloud CI #1012 and #1013 across all six gates and the final Local Windows real-user-media gate. PR #84 merged that exact tested commit with expected-head protection as hardening main:
 
-`da22a5415cbf8ad2a9ce93b912b41b787b29a9b1`
+`d868f7dd02c71577bab16029fa9cec2ae28bdf4e`
 
-Resulting main CI #971 / run `33292090068` completed `SUCCESS`. Attempt 1 had one legacy H1 Browser Smoke 10-second Undo-state timing timeout while all other gates passed. The release PR head and resulting merge commit had the identical Git tree, and a Browser-only rerun on the unchanged exact main SHA passed the full Playwright suite. No product code changed for that rerun.
+Exact-main hardening CI #1014 / run `33309131066` passed all six gates.
 
-The annotated `v2.4.0` tag was then created by run `33292747452` only after confirming `origin/main` still exactly equaled the release commit and the tag did not already exist. Independent GitHub Git Data inspection verified:
+The metadata/docs-only release PR #85 froze exact head:
+
+`31e8b27f547880a660f2ea306013a93cb063793b`
+
+CI #1015 / run `33309688111` passed all six release gates on that exact head. PR #85 then merged with expected-head protection as the immutable release commit:
+
+`4c105bad936479690711c03f3e349db36fbadaf5`
+
+Exact-main release CI #1016 / run `33310596562` completed `SUCCESS` at attempt 1 with all six gates passing.
+
+The isolated one-shot tag workflow run `33310884372` created `v2.4.1` only after confirming `origin/main` still exactly equaled the release commit, the tag did not already exist, and the previous `v2.4.0` release remained unchanged. Independent GitHub Git Data inspection verified:
 
 ```text
-tag ref:             refs/tags/v2.4.0
+tag ref:             refs/tags/v2.4.1
 tag object type:     tag
-tag object SHA:      96ebdd67e2412ed4d25be36cc6120f1bba8a8734
+tag object SHA:      9f3d06d8eabb114d6f1bcd907e98b4de3756a4a7
 tag target type:     commit
-dereferenced commit: da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
-tag message:         Video OS Studio v2.4.0
+dereferenced commit: 4c105bad936479690711c03f3e349db36fbadaf5
+tag message:         Video OS Studio v2.4.1
 ```
+
+`v2.4.0` was independently reverified to remain annotated object `96ebdd67e2412ed4d25be36cc6120f1bba8a8734`, targeting `da22a5415cbf8ad2a9ce93b912b41b787b29a9b1`.
 
 ## Real-media acceptance
 
-V2.4 B6 and B7 used exact-SHA Windows acceptance for behavior cloud-only tests cannot fully prove. The final B7 gate used two distinct real user videos and successfully rendered the exact 583.354921-second H.264/AAC source that had exposed the prior Remotion frame-extraction defect.
+V2.4 B6 and B7 use exact-SHA Windows acceptance for behavior cloud-only tests cannot fully prove. V2.4.1 final recertification reused the same byte-identical real sources and proved each Campaign Project was intentionally bounded to 90 frames rather than accidentally rendering the full source duration.
 
-Final B7 proof included:
+Final V2.4.1 proof included:
 
-- configured Mission concurrency `2` and observed concurrency `2`;
+- Source A: H.264/AAC, 720x1280, 30fps, 583.354921s, SHA-256 `2788FD4536E01F866BE90265B03EFA4D75BB2C99C454EBA4832F82846FC6E432`;
+- Source B: H.264/AAC, 1024x576, 30fps, 65.921451s, SHA-256 `2089729758C137573B68FACABE7916B58F0D50A6E1AD38164CCF95BB9431E32F`;
+- each Project and only video clip bounded to 90 frames;
+- both Render logs reached `Rendered 90/90` and `Encoded 90/90`;
+- outputs H.264/AAC, 640x360, 30fps, 3.050667s;
+- configured/observed Mission concurrency `2`;
 - heavy-render resource limit `1`;
-- distinct Projects, Jobs and output paths;
 - durable Campaign reload to `completed`;
-- no cross-Project mutable truth leakage;
-- no `.props.json`, `.hf-work`, stale lock/tmp residue, or attributable orphan process;
+- 28 JSON records / 0 invalid;
+- no `.props.json`, `.hf-work`, tmp/live-lock, attributable process, or listener residue;
 - primary local worktree preserved exactly.
 
 ## Permanent architecture boundaries
@@ -316,4 +337,4 @@ Browser-impacting work also runs Playwright acceptance. Windows/media-impacting 
 4. the approved PRD / development plan for the next workstream
 5. relevant acceptance/release evidence
 
-No new V2.4.x or V2.5 product workstream is active until separately planned and approved from the immutable `v2.4.0` baseline.
+No new V2.4.x or V2.5 product workstream is active until separately planned and approved from the immutable `v2.4.1` baseline.
