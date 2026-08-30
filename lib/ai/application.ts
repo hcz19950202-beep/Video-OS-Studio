@@ -157,7 +157,7 @@ export class AgentProposalApplicationService{
         continue;
       }
       if(Date.now()>=deadline)throw new AgentProposalApplicationError("Another Agent confirmation is still applying this operation; retry after it finishes.");
-      await sleep(25);
+      await sleep(100);
     }
   }
 
@@ -167,6 +167,14 @@ export class AgentProposalApplicationService{
       if(!claim||claim.claimToken!==claimToken)return current;
       return AgentSessionSchema.parse({...current,operationClaims:current.operationClaims.filter(item=>item.claimToken!==claimToken),updatedAt:this.now()});
     });
+  }
+
+  private async markAppliedAfterExternalCompletion(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{
+    try{return await this.markApplied(projectId,sessionId,proposalId,operationId,claimToken);}
+    catch(error){
+      if(claimToken)await this.releaseApplyOperation(projectId,sessionId,operationId,claimToken).catch(()=>undefined);
+      throw error;
+    }
   }
 
   private async markApplied(projectId:string,sessionId:string,proposalId:string,operationId:string,claimToken?:string):Promise<AgentSession>{
@@ -336,7 +344,7 @@ export class AgentProposalApplicationService{
         throw error;
       }
       externalCompleted=true;
-      session=await this.markApplied(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
+      session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
       return{project:current,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:applied.alreadyApplied,workflow:applied.workflow,workflowAction:workflowPayload.action};
     }
 
@@ -349,7 +357,7 @@ export class AgentProposalApplicationService{
       throw error;
     }
 
-    session=await this.markApplied(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
+    session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
     return{project:applied.project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:selectedChangeIds,transactionId:applied.transactionId,alreadyApplied:Boolean(applied.alreadyApplied)};
   }
 }

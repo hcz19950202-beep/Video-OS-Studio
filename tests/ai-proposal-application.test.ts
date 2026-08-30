@@ -67,10 +67,22 @@ const diffFor=(selectedIds:string[]):VisualPlanDiff=>({
   densityAfter:{motionCards:selectedIds.length,cardsPerMinute:selectedIds.length*3,peakConcurrency:selectedIds.length?1:0,averageGapFrames:null,minimumGapFrames:null},
 });
 
-const harness=async(revision=3)=>{
+const harness=async(revision=3,failDurableFinalization=false)=>{
   const fs=new InMemoryFileSystemAdapter();
   const sessions=new AgentSessionRepository(fs,"/agent-application");
   await sessions.create(sessionInput());
+  if(failDurableFinalization){
+    let failOnce=true;
+    const durableMutate=sessions.mutate.bind(sessions);
+    sessions.mutate=async(projectIdInput,sessionIdInput,mutation)=>durableMutate(projectIdInput,sessionIdInput,async current=>{
+      const next=await mutation(current);
+      if(failOnce&&next.approvedOperations.length>current.approvedOperations.length){
+        failOnce=false;
+        throw new Error("simulated durable finalization failure");
+      }
+      return next;
+    });
+  }
   const projectRef={current:buildProject(revision)};
   const appliedOperations=new Map<string,{expectedRevision:number;appliedRevision:number}>();
   const previewSelections:string[][]=[];
@@ -132,6 +144,26 @@ describe("V2.3 A4 Agent proposal application boundary",()=>{
     const retried=await test.service.apply({projectId,sessionId,proposalId,expectedRevision:3,changeIds:["suggestion-proof"]});
     expect(retried.alreadyApplied).toBe(true);
     expect(retried.project.project.revision).toBe(4);
+    expect(test.applySelections).toHaveLength(1);
+  });
+
+  it("releases its claim and recovers exactly once when durable finalization fails after external Apply",async()=>{
+    const test=await harness(3,true);
+    await test.service.preview({projectId,sessionId,proposalId});
+
+    await expect(test.service.apply({projectId,sessionId,proposalId,expectedRevision:3,changeIds:["suggestion-proof"]})).rejects.toThrow("simulated durable finalization failure");
+
+    expect(test.projectRef.current.project.revision).toBe(4);
+    expect(test.applySelections).toEqual([["suggestion-proof"]]);
+    const interrupted=await test.sessions.require(projectId,sessionId);
+    expect(interrupted.approvedOperations).toHaveLength(0);
+    expect(interrupted.operationClaims).toHaveLength(0);
+
+    const retried=await test.service.apply({projectId,sessionId,proposalId,expectedRevision:3,changeIds:["suggestion-proof"]});
+    expect(retried.alreadyApplied).toBe(true);
+    expect(retried.project.project.revision).toBe(4);
+    expect(retried.session.approvedOperations).toHaveLength(1);
+    expect(retried.session.operationClaims).toHaveLength(0);
     expect(test.applySelections).toHaveLength(1);
   });
 
