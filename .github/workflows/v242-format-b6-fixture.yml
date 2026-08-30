@@ -1,0 +1,45 @@
+name: V2.4.2 Normalize B6 Fixture
+
+on:
+  push:
+    branches:
+      - fix/v2.4.2-correctness-liveness
+    paths:
+      - .github/workflows/v242-format-b6-fixture.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/v2.4.2-correctness-liveness
+      - name: Apply exact formatted constructor shape
+        shell: python
+        run: |
+          from pathlib import Path
+          path=Path("tests/h6/windows-b6-core-acceptance.test.ts")
+          text=path.read_text(encoding="utf-8")
+          old="      const repairTargets = new ProductionQARepairTargetResolver(repairResolver,projects);"
+          new="\n".join([
+              "      const repairTargets = new ProductionQARepairTargetResolver(",
+              "        repairResolver,",
+              "        projects,",
+              "      );",
+          ])
+          if text.count(old)!=1:
+              raise SystemExit("expected exactly one unformatted repairTargets constructor")
+          path.write_text(text.replace(old,new),encoding="utf-8")
+      - name: Remove one-shot workflow
+        run: rm .github/workflows/v242-format-b6-fixture.yml
+      - name: Commit formatting fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/h6/windows-b6-core-acceptance.test.ts .github/workflows/v242-format-b6-fixture.yml
+          git diff --cached --check
+          git commit -m "style(v2.4.2): format B6 repair resolver fixture"
+          git push origin HEAD:fix/v2.4.2-correctness-liveness
