@@ -19,6 +19,7 @@
     "test:e2e": "node scripts/run-playwright-e2e.mjs",
     "test:v2.4.1-http-upload": "node scripts/v2.4.1-http-upload-gate.mjs",
     "test:windows-media": "vitest run tests/h6/windows-media-smoke.test.ts",
+    "test:windows-hyperframes": "vitest run tests/h0/windows-hyperframes-smoke.test.ts",
     "test:windows-b6": "vitest run tests/h6/windows-b6-core-acceptance.test.ts",
     "test:windows-b7": "vitest run tests/h6/windows-b7-campaign-acceptance.test.ts",
     "test:live-volcengine": "node scripts/run-a3-volcengine-agent-plan-live.mjs",
