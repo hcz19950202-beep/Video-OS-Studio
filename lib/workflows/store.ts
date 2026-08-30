@@ -1,14 +1,20 @@
 import {randomUUID} from "node:crypto";
-import {access,appendFile,copyFile,mkdir,readFile,readdir,rm,writeFile} from "node:fs/promises";
+import {access,appendFile,copyFile,mkdir,readFile,readdir,rm,stat,writeFile} from "node:fs/promises";
 import {dirname,join} from "node:path";
-import {replaceFileAtomically} from "@/lib/fs/atomic-replace";
-import {withWindowsTransientRetry} from "@/lib/fs/atomic-replace";
+import {replaceFileAtomically,withWindowsTransientRetry} from "@/lib/fs/atomic-replace";
 import {withExclusiveFileLock} from "@/lib/fs/exclusive-lock";
 import {RuntimeOwnerStore} from "@/lib/runtime/runtime-owner";
 import {WorkflowActivitySchema,type WorkflowActivity} from "@/lib/workflows/activity";
 import {WorkflowRunIdSchema,WorkflowRunSchema,type WorkflowRun} from "@/lib/workflows/schema";
 
 const parseWorkflow=(text:string)=>WorkflowRunSchema.parse(JSON.parse(text));
+const DEFAULT_ACTIVITY_MAX_RECORDS=5_000;
+const DEFAULT_ACTIVITY_COMPACT_BYTES=4*1024*1024;
+
+export type FileWorkflowStoreOptions={
+  activityMaxRecords?:number;
+  activityCompactBytes?:number;
+};
 
 export class WorkflowNotFoundError extends Error{
   readonly code="WORKFLOW_NOT_FOUND";
@@ -22,10 +28,14 @@ export class FileWorkflowStore{
   readonly workflowsRoot:string;
   readonly runtimeOwner:RuntimeOwnerStore;
   private readonly pathChains=new Map<string,Promise<void>>();
+  private readonly activityMaxRecords:number;
+  private readonly activityCompactBytes:number;
 
-  constructor(dataRoot:string,runtimeOwner=new RuntimeOwnerStore(dataRoot)){
+  constructor(dataRoot:string,runtimeOwner=new RuntimeOwnerStore(dataRoot),options:FileWorkflowStoreOptions={}){
     this.workflowsRoot=join(dataRoot,"workflows");
     this.runtimeOwner=runtimeOwner;
+    this.activityMaxRecords=Math.max(1,Math.floor(options.activityMaxRecords??DEFAULT_ACTIVITY_MAX_RECORDS));
+    this.activityCompactBytes=Math.max(256,Math.floor(options.activityCompactBytes??DEFAULT_ACTIVITY_COMPACT_BYTES));
   }
 
   private runDir(workflowRunId:string){return join(this.workflowsRoot,WorkflowRunIdSchema.parse(workflowRunId));}
@@ -97,6 +107,26 @@ export class FileWorkflowStore{
     return recovered;
   }
 
+  private parseActivityLines(text:string){
+    return text.split("\n").filter(Boolean).map(line=>WorkflowActivitySchema.parse(JSON.parse(line)));
+  }
+
+  private boundedActivityTail(records:WorkflowActivity[]){
+    const byCount=records.slice(-this.activityMaxRecords);
+    const byteTarget=Math.max(128,Math.floor(this.activityCompactBytes*0.75));
+    const kept:WorkflowActivity[]=[];
+    let bytes=0;
+    for(let index=byCount.length-1;index>=0;index-=1){
+      const record=byCount[index]!;
+      const encoded=JSON.stringify(record)+"\n";
+      const nextBytes=bytes+Buffer.byteLength(encoded,"utf8");
+      if(kept.length>0&&nextBytes>byteTarget)break;
+      kept.push(record);
+      bytes=nextBytes;
+    }
+    return kept.reverse();
+  }
+
   async ensure(){await mkdir(this.workflowsRoot,{recursive:true});}
 
   async withRunLock<T>(workflowRunId:string,fn:()=>Promise<T>):Promise<T>{
@@ -149,17 +179,26 @@ export class FileWorkflowStore{
     const parsed=WorkflowActivitySchema.parse(activity);
     if(!(await this.get(parsed.workflowId)))throw new WorkflowNotFoundError(parsed.workflowId);
     const path=this.activityPath(parsed.workflowId);
-    await this.withPathLock(path,()=>appendFile(path,JSON.stringify(parsed)+"\n","utf8"));
+    await this.withPathLock(path,async()=>{
+      await appendFile(path,JSON.stringify(parsed)+"\n","utf8");
+      const info=await stat(path);
+      if(info.size<=this.activityCompactBytes)return;
+      const records=this.parseActivityLines(await readFile(path,"utf8"));
+      const retained=this.boundedActivityTail(records);
+      if(retained.length===records.length)return;
+      await this.atomicWriteUnlocked(path,retained.map(record=>JSON.stringify(record)).join("\n")+"\n");
+    });
     return parsed;
   }
 
-  async readActivity(workflowRunId:string):Promise<WorkflowActivity[]>{
+  async readActivity(workflowRunId:string,options:{limit?:number}={}):Promise<WorkflowActivity[]>{
     const id=WorkflowRunIdSchema.parse(workflowRunId);
     if(!(await this.get(id)))throw new WorkflowNotFoundError(id);
     const path=this.activityPath(id);
+    const limit=Math.min(this.activityMaxRecords,Math.max(1,Math.floor(options.limit??this.activityMaxRecords)));
     return this.withPathLock(path,async()=>{
-      const text=await readFile(path,"utf8");
-      return text.split("\n").filter(Boolean).map(line=>WorkflowActivitySchema.parse(JSON.parse(line)));
+      const records=this.parseActivityLines(await readFile(path,"utf8"));
+      return records.slice(-limit);
     });
   }
 }
