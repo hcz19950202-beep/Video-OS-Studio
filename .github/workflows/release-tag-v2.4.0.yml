@@ -1,0 +1,59 @@
+name: Create V2.4.0 Annotated Tag
+
+on:
+  push:
+    branches:
+      - release/v2.4.0-finalization
+    paths:
+      - .github/workflows/release-tag-v2.4.0.yml
+
+permissions:
+  contents: write
+
+jobs:
+  create-annotated-tag:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v2.4.0-finalization
+          fetch-depth: 0
+
+      - name: Verify immutable release target
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="da22a5415cbf8ad2a9ce93b912b41b787b29a9b1"
+          git fetch origin main --no-tags
+          test "$(git rev-parse origin/main)" = "$target"
+          if git ls-remote --exit-code --tags origin "refs/tags/v2.4.0" >/dev/null 2>&1; then
+            echo "v2.4.0 already exists; refusing to overwrite"
+            exit 1
+          fi
+
+      - name: Create annotated immutable tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="da22a5415cbf8ad2a9ce93b912b41b787b29a9b1"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a v2.4.0 "$target" -m "Video OS Studio v2.4.0"
+          test "$(git cat-file -t v2.4.0)" = "tag"
+          test "$(git rev-parse 'v2.4.0^{}')" = "$target"
+          git push origin refs/tags/v2.4.0:refs/tags/v2.4.0
+
+      - name: Verify remote tag and dereference
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="da22a5415cbf8ad2a9ce93b912b41b787b29a9b1"
+          remote_tag="$(git ls-remote --tags origin 'refs/tags/v2.4.0' | awk '{print $1}')"
+          remote_commit="$(git ls-remote --tags origin 'refs/tags/v2.4.0^{}' | awk '{print $1}')"
+          test -n "$remote_tag"
+          test "$remote_tag" != "$target"
+          test "$remote_commit" = "$target"
+          echo "V240_TAG_OBJECT=$remote_tag"
+          echo "V240_DEREFERENCED_COMMIT=$remote_commit"
+          echo "V240_ANNOTATED_TAG=PASS"
