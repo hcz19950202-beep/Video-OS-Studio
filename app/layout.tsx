@@ -13,6 +13,7 @@ import "./v21-a11y.css";
 import "./v21-completion.css";
 import "./v22-workflow.css";
 import "./v23-agent.css";
+import "./v25-agent.css";
 
 export const metadata:Metadata={title:"Video OS Studio",description:"Local-first AI-native universal video production workspace"};
 export default function RootLayout({children}:Readonly<{children:React.ReactNode}>){return <html lang="zh-CN"><body>{children}</body></html>;}
