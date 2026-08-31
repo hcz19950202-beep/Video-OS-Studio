@@ -32,7 +32,7 @@ test("C2 opens directly into one Agent conversation with execution policy and ad
   await expect(executionMode).toHaveValue("review-first");
   await executionMode.selectOption("plan-only");
   await expect(executionMode).toHaveValue("plan-only");
-  await expect(page.getByTestId("agent-execution-mode")).toContainText("Plan/analyze only");
+  await expect(page.getByTestId("agent-execution-mode")).toContainText("Read, analyze, search, plan and propose only");
 
   await page.getByText("Advanced",{exact:true}).click();
   await expect(page.getByRole("button",{name:"Mission",exact:true})).toBeVisible();
