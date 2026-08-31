@@ -10,6 +10,7 @@ type SelectionState={
   selectedScriptRange:ScriptSelectionRange|null;
   selectedContextTarget:ContextSelectionTarget|null;
   contextSelectionMode:boolean;
+  contextSelectionVersion:number;
   selectClip:(clipId:string|null)=>void;
   selectClips:(clipIds:string[])=>void;
   toggleClip:(clipId:string)=>void;
@@ -33,12 +34,14 @@ export const useSelectionStore=create<SelectionState>((set)=>({
   selectedScriptRange:null,
   selectedContextTarget:null,
   contextSelectionMode:false,
+  contextSelectionVersion:0,
   selectClip:(clipId)=>set(state=>({
     selectedClipIds:clipId?[clipId]:[],
     selectedClipId:clipId,
     selectedSceneId:state.selectedSceneId,
     selectedScriptRange:null,
     selectedContextTarget:clipId?clipTarget(clipId):null,
+    contextSelectionVersion:state.contextSelectionVersion+1,
   })),
   selectClips:(clipIds)=>set(state=>{
     const ids=unique(clipIds);
@@ -48,6 +51,7 @@ export const useSelectionStore=create<SelectionState>((set)=>({
       selectedSceneId:state.selectedSceneId,
       selectedScriptRange:null,
       selectedContextTarget:ids[0]?clipTarget(ids[0]):null,
+      contextSelectionVersion:state.contextSelectionVersion+1,
     };
   }),
   toggleClip:(clipId)=>set((state)=>{
@@ -59,6 +63,7 @@ export const useSelectionStore=create<SelectionState>((set)=>({
       selectedSceneId:state.selectedSceneId,
       selectedScriptRange:null,
       selectedContextTarget:ids[0]?clipTarget(ids[0]):null,
+      contextSelectionVersion:state.contextSelectionVersion+1,
     };
   }),
   selectScene:(sceneId)=>set(state=>{
@@ -69,23 +74,26 @@ export const useSelectionStore=create<SelectionState>((set)=>({
       selectedSceneId:sceneId,
       selectedScriptRange:null,
       selectedContextTarget:sceneId?sceneTarget(sceneId):null,
+      contextSelectionVersion:state.contextSelectionVersion+1,
     };
   }),
-  selectScriptRange:(range)=>set({
+  selectScriptRange:(range)=>set(state=>({
     selectedClipIds:[],
     selectedClipId:null,
     selectedSceneId:null,
     selectedScriptRange:range,
     selectedContextTarget:range?scriptTarget(range):null,
-  }),
-  selectContextTarget:(target)=>set({selectedContextTarget:target}),
+    contextSelectionVersion:state.contextSelectionVersion+1,
+  })),
+  selectContextTarget:(target)=>set(state=>({selectedContextTarget:target,contextSelectionVersion:state.contextSelectionVersion+1})),
   setContextSelectionMode:(active)=>set({contextSelectionMode:active}),
   toggleContextSelectionMode:()=>set(state=>({contextSelectionMode:!state.contextSelectionMode})),
-  clearSelection:()=>set({
+  clearSelection:()=>set(state=>({
     selectedClipIds:[],
     selectedClipId:null,
     selectedSceneId:null,
     selectedScriptRange:null,
     selectedContextTarget:null,
-  }),
+    contextSelectionVersion:state.contextSelectionVersion+1,
+  })),
 }));
