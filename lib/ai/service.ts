@@ -4,6 +4,7 @@ import type {AgentContextService,AgentSelectionSnapshot} from "@/lib/ai/context"
 import type {AgentToolRegistry} from "@/lib/ai/tools/registry";
 import {AgentRunner,reconcileStaleProposals} from "@/lib/ai/runner";
 import type {AgentTurnBudgetInput} from "@/lib/ai/budget";
+import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
 import {AgentSessionRepository} from "@/lib/ai/session/repository";
 import {AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";
 
@@ -27,6 +28,7 @@ export type RunAgentTurnInput={
   projectId:string;
   sessionId:string;
   userContent:string;
+  executionMode?:AgentExecutionMode;
   selection?:Partial<AgentSelectionSnapshot>;
   budget?:AgentTurnBudgetInput;
   signal?:AbortSignal;
@@ -96,7 +98,7 @@ export class AgentSessionService{
   }
 
   async runTurn(input:RunAgentTurnInput):Promise<AgentSession>{
-    return this.runner.runTurn(input);
+    return this.runner.runTurn({...input,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE});
   }
 
   async list(projectId:string):Promise<AgentSession[]>{

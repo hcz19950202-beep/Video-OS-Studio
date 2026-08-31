@@ -1,5 +1,5 @@
 import {z} from "zod";
-import {AgentSelectionSnapshotSchema,AgentSessionIdSchema,type AgentProviderEvent} from "@/lib/ai";
+import {AgentExecutionModeSchema,AgentSelectionSnapshotSchema,AgentSessionIdSchema,DEFAULT_AGENT_EXECUTION_MODE,type AgentProviderEvent} from "@/lib/ai";
 import {createServerAgentSessionService,getAgentProviderRuntimeStatus} from "@/lib/server/agent-runtime";
 
 export const runtime="nodejs";
@@ -7,6 +7,7 @@ type Context={params:Promise<{projectId:string;sessionId:string}>};
 
 const RunTurnRequestSchema=z.object({
   userContent:z.string().trim().min(1).max(100_000),
+  executionMode:AgentExecutionModeSchema.default(DEFAULT_AGENT_EXECUTION_MODE),
   selection:AgentSelectionSnapshotSchema.partial().optional(),
 }).strict();
 
@@ -55,9 +56,9 @@ export async function POST(request:Request,{params}:Context){
         else if(event.type==="error")send("provider-error",{code:event.error.code,retryable:event.error.retryable});
       };
 
-      send("turn-started",{sessionId,providerId:provider.providerId,model:provider.model});
+      send("turn-started",{sessionId,providerId:provider.providerId,model:provider.model,executionMode:input.executionMode});
       const service=createServerAgentSessionService(observe);
-      void service.runTurn({projectId,sessionId,userContent:input.userContent,selection:input.selection,signal:abortController.signal}).then(session=>{
+      void service.runTurn({projectId,sessionId,userContent:input.userContent,executionMode:input.executionMode,selection:input.selection,signal:abortController.signal}).then(session=>{
         const turn=session.turns.at(-1);
         if(!turn){
           send("turn-error",{code:"missing_turn",retryable:true});

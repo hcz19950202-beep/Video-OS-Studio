@@ -87,6 +87,14 @@ const openRecentProject = async (page: Page, projectId: string) => {
   await expect(page.locator(".v21-project-title")).toContainText(PROJECT_NAME);
 };
 
+const openWorkflowDetail = async (page: Page) => {
+  await page.getByTitle("AI").click();
+  await expect(page.getByTestId("unified-agent-conversation")).toBeVisible();
+  await page.getByText("Advanced", { exact: true }).click();
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
+  await expect(page.getByTestId("advanced-workflow-detail")).toBeVisible();
+};
+
 test("W4 Workflow tab discovers durable runs and cancels without starting engines", async ({
   page,
 }) => {
@@ -143,8 +151,7 @@ test("W4 Workflow tab discovers durable runs and cancels without starting engine
       (workflow) => workflow.id === pending.id && workflow.status === "pending",
     ),
   ).toBe(true);
-  await page.getByTitle("AI").click();
-  await page.getByRole("tab", { name: "Workflow", exact: true }).click();
+  await openWorkflowDetail(page);
   const panel = page.locator(".v22-workflow-panel");
   await expect(panel).toHaveAttribute("data-workflow-state", "pending");
   await expect(page.locator('[data-workflow-stage="CONTENT_REVIEW"]')).toBeVisible();
@@ -170,8 +177,7 @@ test("W4 Workflow tab discovers durable runs and cancels without starting engine
       (workflow) => workflow.id === pending.id && workflow.status === "cancelled",
     ),
   ).toBe(true);
-  await page.getByTitle("AI").click();
-  await page.getByRole("tab", { name: "Workflow", exact: true }).click();
+  await openWorkflowDetail(page);
   await expect(page.locator(".v22-workflow-panel")).toHaveAttribute(
     "data-workflow-state",
     "cancelled",

@@ -39,7 +39,7 @@ const applyCommand = async (
 
 const openAgent = async (page: Page) => {
   await page.getByTitle("AI").click();
-  await page.getByRole("tab", { name: "Agent", exact: true }).click();
+  await expect(page.getByTestId("unified-agent-conversation")).toBeVisible();
   await expect(page.locator(".a4-agent-context")).toBeVisible();
 };
 

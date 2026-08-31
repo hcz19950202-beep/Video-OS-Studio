@@ -1,4 +1,5 @@
 import type {AgentProposalApplyResult,AgentProposalPreview} from "@/lib/ai/application";
+import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
 import type {AgentSelectionSnapshot,AgentSession} from "@/lib/ai";
 
 export type AgentProviderRuntimeStatus={providerId:string;model:string;configured:boolean};
@@ -67,6 +68,7 @@ export async function runAgentTurn(input:{
   projectId:string;
   sessionId:string;
   userContent:string;
+  executionMode?:AgentExecutionMode;
   selection?:Partial<AgentSelectionSnapshot>;
   signal?:AbortSignal;
   onEvent?:(event:AgentTurnStreamEvent)=>void;
@@ -74,7 +76,7 @@ export async function runAgentTurn(input:{
   const response=await fetch(`${sessionBase(input.projectId,input.sessionId)}/turns`,{
     method:"POST",
     headers:{"Content-Type":"application/json","Accept":"text/event-stream"},
-    body:JSON.stringify({userContent:input.userContent,selection:input.selection}),
+    body:JSON.stringify({userContent:input.userContent,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE,selection:input.selection}),
     signal:input.signal,
   });
   if(!response.ok)throw new Error(await readError(response));

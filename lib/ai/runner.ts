@@ -4,6 +4,7 @@ import {
   AgentMessageSchema,
   AgentProposalSchema,
   AgentProviderEventSchema,
+  AgentToolResultSchema,
   AgentUsageSchema,
   AIProviderRequestSchema,
   type AgentProviderError,
@@ -17,6 +18,7 @@ import {AIProviderAbortError} from "@/lib/ai/errors";
 import type {AgentContextService,AgentSelectionSnapshot} from "@/lib/ai/context";
 import type {AgentToolRegistry} from "@/lib/ai/tools/registry";
 import type {AgentContextSnapshot} from "@/lib/ai/context";
+import {describeAgentExecutionMode,type AgentExecutionMode} from "@/lib/ai/execution-mode";
 import {
   AgentBudgetExceededError,
   AgentTurnBudgetTracker,
@@ -35,6 +37,7 @@ export type AgentRunnerInput={
   projectId:string;
   sessionId:string;
   userContent:string;
+  executionMode:AgentExecutionMode;
   selection?:Partial<AgentSelectionSnapshot>;
   budget?:AgentTurnBudgetInput;
   signal?:AbortSignal;
@@ -121,10 +124,11 @@ const runtimeError=(error:unknown,outerSignal?:AbortSignal):AgentRuntimeError=>{
   return{category:"provider",code:"provider",message:"AI provider request failed.",retryable:true};
 };
 
-const systemPrompt=(context:AgentContextSnapshot)=>[
+const systemPrompt=(context:AgentContextSnapshot,executionMode:AgentExecutionMode)=>[
   "You are the bounded Video OS Studio editing Agent.",
   "Use only the provided allow-listed tools. Never claim that a proposal has already mutated the Project.",
-  "Project-changing ideas must remain reviewable proposals until a later explicit Apply boundary.",
+  describeAgentExecutionMode(executionMode),
+  "Project-changing ideas must remain reviewable proposals until the accepted application approval/apply boundary authorizes them.",
   "Do not expose hidden chain-of-thought. Return concise user-facing rationale and results.",
   "Current bounded Project context follows as JSON:",
   JSON.stringify(context),
@@ -201,7 +205,7 @@ export class AgentRunner{
     if(session.providerId!==this.dependencies.provider.id)throw new Error("Agent session provider does not match the active provider.");
 
     const context=await this.dependencies.context.build(input.projectId,input.selection);
-    const contextPrompt=systemPrompt(context);
+    const contextPrompt=systemPrompt(context,input.executionMode);
     const budget=new AgentTurnBudgetTracker(input.budget,this.nowMs);
     const turnId=this.makeId();
     const userMessageId=this.makeId();
@@ -311,7 +315,19 @@ export class AgentRunner{
             }
             result=prior.result;
           }else{
-            result=await this.dependencies.tools.execute(call,{sessionId:session.id,context,now:this.now,makeId:this.makeId});
+            const definition=this.dependencies.tools.getDefinition(call.toolId);
+            if(definition?.risk==="mutating-request"){
+              result=AgentToolResultSchema.parse({
+                callId:call.id,
+                toolId:call.toolId,
+                status:"error",
+                error:input.executionMode==="plan-only"
+                  ?{code:"execution_mode_blocked",message:"Plan Only blocks mutating Agent requests.",retryable:false}
+                  :{code:"approval_required",message:"This Agent tool requires application approval and cannot execute directly from the legacy Agent registry.",retryable:false},
+              });
+            }else{
+              result=await this.dependencies.tools.execute(call,{sessionId:session.id,context,now:this.now,makeId:this.makeId});
+            }
           }
           const toolMessage=AgentMessageSchema.parse({
             id:this.makeId(),

@@ -63,11 +63,7 @@ const openRecentProject = async (page: Page, projectId: string) => {
 
 const openAgent = async (page: Page) => {
   await page.getByTitle("AI").click();
-  await expect(page.getByRole("tab", { name: "Composer", exact: true })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
-  await page.getByRole("tab", { name: "Agent", exact: true }).click();
+  await expect(page.getByTestId("unified-agent-conversation")).toBeVisible();
   await expect(page.locator(".a4-agent-toolbar")).toBeVisible();
   await expect(page.locator(".a4-agent-context")).toContainText("a4-mock-provider · a4-mock-model");
 };

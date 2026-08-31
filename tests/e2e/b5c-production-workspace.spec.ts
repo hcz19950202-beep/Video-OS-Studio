@@ -19,7 +19,10 @@ const openRecentProject = async (page: Page, projectId: string) => {
 
 const openMissionWorkspace = async (page: Page) => {
   await page.getByTitle("AI").click();
-  await page.getByRole("tab", { name: "Mission", exact: true }).click();
+  await expect(page.getByTestId("unified-agent-conversation")).toBeVisible();
+  await page.getByText("Advanced", { exact: true }).click();
+  await page.getByRole("button", { name: "Mission", exact: true }).click();
+  await expect(page.getByTestId("advanced-mission-detail")).toBeVisible();
   await expect(page.getByText("Production Mission Workspace", { exact: true })).toBeVisible();
 };
 
