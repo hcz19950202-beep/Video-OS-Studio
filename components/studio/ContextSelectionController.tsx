@@ -19,7 +19,7 @@ export const ContextSelectionController=({project}:{project:Project|null})=>{
   const[region,setRegion]=useState<Region|null>(null);
 
   useEffect(()=>{
-    if(!mode||!project){dragRef.current=null;setRegion(null);return;}
+    if(!mode||!project)return;
 
     const finishViewerRegion=(event:PointerEvent,drag:Drag)=>{
       const rect=drag.shell.getBoundingClientRect();
@@ -34,7 +34,7 @@ export const ContextSelectionController=({project}:{project:Project|null})=>{
       width=Math.min(width,1-x);
       height=Math.min(height,1-y);
       selectContextTarget({kind:"viewer-region",label:`Viewer region · frame ${drag.frame}`,target:{frame:drag.frame,x,y,width,height}});
-      setRegion({left:rect.left+x*rect.width,top:rect.top+y*rect.height,width:width*rect.width,height:height*rect.height});
+      setRegion(null);
     };
 
     const onPointerDown=(event:PointerEvent)=>{
