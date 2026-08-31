@@ -56,7 +56,7 @@ const inspectContextTool=(observe:(context:AgentToolExecutionContext)=>void):Reg
     risk:"read",
     inputJsonSchema:{type:"object",additionalProperties:false},
     revisionPolicy:"none",
-    idempotency:"safe-repeat",
+    idempotency:"read-only",
     requiresConfirmation:false,
     errorCodes:["tool_execution_failed"],
   },
