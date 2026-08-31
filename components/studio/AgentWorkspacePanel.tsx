@@ -2,7 +2,8 @@
 
 import {useEffect,useMemo,useRef,useState} from "react";
 import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
-import type {AgentProposalPreview,AgentSelectionSnapshot,AgentSession} from "@/lib/ai";
+import {attachContextSelection,contextReferenceKey,contextSelectionKey,type ContextSelectionTarget} from "@/lib/ai/context-selection";
+import type {AgentProposalPreview,AgentSelectionSnapshot,AgentSession,ContextReference} from "@/lib/ai";
 import {applyAgentProposal,createAgentSession,listAgentSessions,openAgentSession,rejectAgentProposal,reviewAgentProposal,runAgentTurn,type AgentProviderRuntimeStatus,type AgentTurnStreamEvent} from "@/lib/client/agent";
 import type {Project} from "@/schemas/project";
 import {useHistoryStore} from "@/store/history-store";
@@ -14,14 +15,18 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const{locale}=useStudioPreferences();
   const zh=locale==="zh-CN";
   const pushHistory=useHistoryStore(state=>state.push);
+  const selectedClipIds=useSelectionStore(state=>state.selectedClipIds);
   const selectedClipId=useSelectionStore(state=>state.selectedClipId);
   const selectedSceneId=useSelectionStore(state=>state.selectedSceneId);
   const selectedScriptRange=useSelectionStore(state=>state.selectedScriptRange);
+  const selectedContextTarget=useSelectionStore(state=>state.selectedContextTarget);
+  const contextSelectionMode=useSelectionStore(state=>state.contextSelectionMode);
+  const toggleContextSelectionMode=useSelectionStore(state=>state.toggleContextSelectionMode);
   const selection=useMemo<Partial<AgentSelectionSnapshot>>(()=>({
-    selectedClipIds:selectedClipId?[selectedClipId]:[],
+    selectedClipIds,
     selectedSceneId:selectedSceneId??null,
     selectedScriptRange:selectedScriptRange??null,
-  }),[selectedClipId,selectedSceneId,selectedScriptRange]);
+  }),[selectedClipIds,selectedSceneId,selectedScriptRange]);
 
   const[sessions,setSessions]=useState<AgentSession[]>([]);
   const[session,setSession]=useState<AgentSession|null>(null);
@@ -36,9 +41,45 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const[lastPrompt,setLastPrompt]=useState("");
   const[previews,setPreviews]=useState<Record<string,AgentProposalPreview>>({});
   const[changeSelections,setChangeSelections]=useState<Record<string,Set<string>>>({});
+  const[draftContextReferences,setDraftContextReferences]=useState<ContextReference[]>([]);
+  const[pendingContextReferences,setPendingContextReferences]=useState<ContextReference[]>([]);
   const abortRef=useRef<AbortController|null>(null);
 
   const syncSession=(next:AgentSession)=>{setSession(next);setSessions(current=>[next,...current.filter(item=>item.id!==next.id)]);};
+
+  const attachTarget=(target:ContextSelectionTarget)=>setDraftContextReferences(current=>{
+    const scoped=current.filter(reference=>reference.projectId===project.project.id);
+    const key=contextSelectionKey(target);
+    const index=scoped.findIndex(reference=>contextReferenceKey(reference)===key);
+    if(index>=0&&scoped[index]?.baseProjectRevision===project.project.revision)return scoped;
+    const reference=attachContextSelection({selection:target,projectId:project.project.id,baseProjectRevision:project.project.revision});
+    if(index<0)return[...scoped,reference];
+    const next=[...scoped];next[index]=reference;return next;
+  });
+
+  useEffect(()=>{
+    let lastVersion=useSelectionStore.getState().contextSelectionVersion;
+    return useSelectionStore.subscribe(state=>{
+      if(state.contextSelectionVersion===lastVersion)return;
+      lastVersion=state.contextSelectionVersion;
+      if(!state.contextSelectionMode||!state.selectedContextTarget)return;
+      const target=state.selectedContextTarget;
+      setDraftContextReferences(current=>{
+        const scoped=current.filter(reference=>reference.projectId===project.project.id);
+        const key=contextSelectionKey(target);
+        const index=scoped.findIndex(reference=>contextReferenceKey(reference)===key);
+        if(index>=0&&scoped[index]?.baseProjectRevision===project.project.revision)return scoped;
+        const reference=attachContextSelection({selection:target,projectId:project.project.id,baseProjectRevision:project.project.revision});
+        if(index<0)return[...scoped,reference];
+        const next=[...scoped];next[index]=reference;return next;
+      });
+    });
+  },[project.project.id,project.project.revision]);
+
+  const visibleDraftContextReferences=draftContextReferences.filter(reference=>reference.projectId===project.project.id);
+  const visiblePendingContextReferences=pendingContextReferences.filter(reference=>reference.projectId===project.project.id);
+  const addCurrentContext=()=>attachTarget(selectedContextTarget??{kind:"project",label:project.project.name,target:{}});
+  const removeContext=(referenceId:string)=>setDraftContextReferences(current=>current.filter(reference=>reference.id!==referenceId));
 
   const refresh=async()=>{
     const data=await listAgentSessions(project.project.id);
@@ -94,18 +135,21 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
 
   const send=async(prompt=input.trim()||lastPrompt)=>{
     if(!prompt||busy||proposalBusy||provider?.configured===false)return;
-    setBusy(true);setError(null);setStreamText("");setActivity([]);setLastPrompt(prompt);setInput("");setPreviews({});setChangeSelections({});
+    const sentContextReferences=draftContextReferences.filter(reference=>reference.projectId===project.project.id);
+    setBusy(true);setError(null);setStreamText("");setActivity([]);setLastPrompt(prompt);setInput("");setPreviews({});setChangeSelections({});setPendingContextReferences(sentContextReferences);
     const controller=new AbortController();abortRef.current=controller;
     try{
       let target=session;
       if(!target){target=await createAgentSession(project.project.id,selection);syncSession(target);}
-      syncSession(await runAgentTurn({projectId:project.project.id,sessionId:target.id,userContent:prompt,executionMode,selection,signal:controller.signal,onEvent:observe}));
+      syncSession(await runAgentTurn({projectId:project.project.id,sessionId:target.id,userContent:prompt,executionMode,selection,contextReferences:sentContextReferences,signal:controller.signal,onEvent:observe}));
+      const sentIds=new Set(sentContextReferences.map(reference=>reference.id));
+      setDraftContextReferences(current=>current.filter(reference=>!sentIds.has(reference.id)));
       setStreamText("");
     }catch(caught){
       if(controller.signal.aborted)setError(zh?"本轮已取消。":"Turn cancelled.");
       else setError(caught instanceof Error?caught.message:String(caught));
       try{await refresh();}catch{}
-    }finally{if(abortRef.current===controller)abortRef.current=null;setBusy(false);}
+    }finally{if(abortRef.current===controller)abortRef.current=null;setPendingContextReferences([]);setBusy(false);}
   };
 
   const reviewProposal=async(proposalId:string)=>{
@@ -174,9 +218,14 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
     zh={zh}
     projectId={project.project.id}
     projectName={project.project.name}
+    currentProjectRevision={project.project.revision}
     selectedSceneId={selectedSceneId??null}
     selectedClipId={selectedClipId??null}
     selectedScriptRange={selectedScriptRange??null}
+    selectedContextTarget={selectedContextTarget}
+    contextSelectionMode={contextSelectionMode}
+    draftContextReferences={visibleDraftContextReferences}
+    pendingContextReferences={visiblePendingContextReferences}
     provider={provider}
     sessions={sessions}
     sessionId={session?.id??null}
@@ -184,6 +233,7 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
     busy={busy}
     proposalBusy={proposalBusy}
     messages={messages}
+    turns={session?.turns??[]}
     lastPrompt={lastPrompt}
     streamText={streamText}
     activity={shownActivity}
@@ -202,6 +252,9 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
     onSend={prompt=>void send(prompt)}
     onCancel={cancel}
     onInputChange={setInput}
+    onToggleContextSelectionMode={toggleContextSelectionMode}
+    onAddCurrentContext={addCurrentContext}
+    onRemoveContext={removeContext}
     onOpenMission={onOpenMission}
   />;
 };

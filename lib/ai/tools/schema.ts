@@ -1,5 +1,6 @@
 import {z} from "zod";
 import {AgentContextSnapshotSchema,type AgentContextSnapshot} from "@/lib/ai/context";
+import type {BoundedResolvedContextReference} from "@/lib/ai/context-reference-service";
 import {AgentProposalSchema,type AgentToolDefinition} from "@/lib/ai/schema";
 import {AssetIntelligenceQuerySchema,AssetIntelligenceSearchResultSchema} from "@/lib/assets/intelligence/schema";
 import {VideoSkillIdSchema,VideoSkillSearchQuerySchema,VideoSkillSearchResultSchema,VideoSkillSelectionIntentSchema,VideoSkillSelectionRequestSchema,VideoSkillVersionSchema} from "@/lib/production/skills/schema";
@@ -8,6 +9,7 @@ import {WorkflowArtifactKindSchema,WorkflowCheckpointStatusSchema,WorkflowRunIdS
 export type AgentToolExecutionContext={
   sessionId:string;
   context:AgentContextSnapshot;
+  contextReferences?:ReadonlyArray<BoundedResolvedContextReference>;
   now?:()=>string;
   makeId?:()=>string;
 };

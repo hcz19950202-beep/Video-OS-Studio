@@ -1,5 +1,5 @@
 import {z} from "zod";
-import {AgentExecutionModeSchema,AgentSelectionSnapshotSchema,AgentSessionIdSchema,DEFAULT_AGENT_EXECUTION_MODE,type AgentProviderEvent} from "@/lib/ai";
+import {AgentExecutionModeSchema,AgentSelectionSnapshotSchema,AgentSessionIdSchema,ContextReferenceListSchema,ContextReferenceValidationError,DEFAULT_AGENT_EXECUTION_MODE,type AgentProviderEvent} from "@/lib/ai";
 import {createServerAgentSessionService,getAgentProviderRuntimeStatus} from "@/lib/server/agent-runtime";
 
 export const runtime="nodejs";
@@ -9,6 +9,7 @@ const RunTurnRequestSchema=z.object({
   userContent:z.string().trim().min(1).max(100_000),
   executionMode:AgentExecutionModeSchema.default(DEFAULT_AGENT_EXECUTION_MODE),
   selection:AgentSelectionSnapshotSchema.partial().optional(),
+  contextReferences:ContextReferenceListSchema.optional(),
 }).strict();
 
 const encoder=new TextEncoder();
@@ -56,12 +57,12 @@ export async function POST(request:Request,{params}:Context){
         else if(event.type==="error")send("provider-error",{code:event.error.code,retryable:event.error.retryable});
       };
 
-      send("turn-started",{sessionId,providerId:provider.providerId,model:provider.model,executionMode:input.executionMode});
+      send("turn-started",{sessionId,providerId:provider.providerId,model:provider.model,executionMode:input.executionMode,contextReferenceCount:input.contextReferences?.length??0});
       const service=createServerAgentSessionService(observe);
-      void service.runTurn({projectId,sessionId,userContent:input.userContent,executionMode:input.executionMode,selection:input.selection,signal:abortController.signal}).then(session=>{
+      void service.runTurn({projectId,sessionId,userContent:input.userContent,executionMode:input.executionMode,selection:input.selection,contextReferences:input.contextReferences,signal:abortController.signal}).then(session=>{
         const turn=session.turns.at(-1);
         if(!turn){
-          send("turn-error",{code:"missing_turn",retryable:true});
+          send("turn-error",{code:"missing_turn",message:"Agent turn was not persisted.",retryable:true});
           finish();
           return;
         }
@@ -74,8 +75,15 @@ export async function POST(request:Request,{params}:Context){
         }
         send("turn-finished",{sessionId:session.id,turnId:turn.id,status:turn.status,error:turn.error?{category:turn.error.category,code:turn.error.code,retryable:turn.error.retryable}:undefined});
         finish();
-      }).catch(()=>{
-        send("turn-error",{code:"agent_turn_failed",retryable:true});
+      }).catch(error=>{
+        if(error instanceof ContextReferenceValidationError){
+          send("turn-error",{
+            code:error.code,
+            message:error.message,
+            retryable:false,
+            resolutions:error.resolutions.map(item=>({referenceId:item.referenceId,status:item.status,currentProjectRevision:item.currentProjectRevision,reason:item.reason})),
+          });
+        }else send("turn-error",{code:"agent_turn_failed",message:"Agent turn failed before completion.",retryable:true});
         finish();
       });
     },

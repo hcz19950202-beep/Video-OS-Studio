@@ -1,6 +1,8 @@
 import {randomUUID} from "node:crypto";
 import type {AIProvider} from "@/lib/ai/provider";
 import type {AgentContextService,AgentSelectionSnapshot} from "@/lib/ai/context";
+import type {ContextReference} from "@/lib/ai/context-reference";
+import type {ContextReferenceService} from "@/lib/ai/context-reference-service";
 import type {AgentToolRegistry} from "@/lib/ai/tools/registry";
 import {AgentRunner,reconcileStaleProposals} from "@/lib/ai/runner";
 import type {AgentTurnBudgetInput} from "@/lib/ai/budget";
@@ -11,6 +13,7 @@ import {AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";
 export type AgentServiceDependencies={
   provider:AIProvider;
   context:AgentContextService;
+  contextReferences?:ContextReferenceService;
   tools:AgentToolRegistry;
   sessions:AgentSessionRepository;
   now?:()=>string;
@@ -30,6 +33,7 @@ export type RunAgentTurnInput={
   userContent:string;
   executionMode?:AgentExecutionMode;
   selection?:Partial<AgentSelectionSnapshot>;
+  contextReferences?:ReadonlyArray<ContextReference>;
   budget?:AgentTurnBudgetInput;
   signal?:AbortSignal;
 };
@@ -60,7 +64,7 @@ export class AgentSessionService{
       turns:[],
       proposals:[],
       approvedOperations:[],
-      lastContext:{baseProjectRevision:context.baseProjectRevision,selection:context.selection},
+      lastContext:{baseProjectRevision:context.baseProjectRevision,selection:context.selection,references:[]},
     });
     return this.dependencies.sessions.create(session);
   }
@@ -89,8 +93,9 @@ export class AgentSessionService{
       let next=AgentSessionSchema.parse({...current,turns});
       const reconciled=reconcileStaleProposals(next,context.baseProjectRevision);
       if(reconciled!==next){next=AgentSessionSchema.parse(reconciled);changed=true;}
+      const references=next.lastContext?.references??[];
       if(next.lastContext?.baseProjectRevision!==context.baseProjectRevision||JSON.stringify(next.lastContext?.selection)!==JSON.stringify(context.selection)){
-        next=AgentSessionSchema.parse({...next,lastContext:{baseProjectRevision:context.baseProjectRevision,selection:context.selection}});
+        next=AgentSessionSchema.parse({...next,lastContext:{baseProjectRevision:context.baseProjectRevision,selection:context.selection,references}});
         changed=true;
       }
       return changed?AgentSessionSchema.parse({...next,updatedAt:now}):next;

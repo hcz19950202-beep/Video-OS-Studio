@@ -1,6 +1,6 @@
 import type {AgentProposalApplyResult,AgentProposalPreview} from "@/lib/ai/application";
 import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
-import type {AgentSelectionSnapshot,AgentSession} from "@/lib/ai";
+import type {AgentSelectionSnapshot,AgentSession,ContextReference} from "@/lib/ai";
 
 export type AgentProviderRuntimeStatus={providerId:string;model:string;configured:boolean};
 export type AgentTurnStreamEvent={event:string;data:Record<string,unknown>};
@@ -70,13 +70,14 @@ export async function runAgentTurn(input:{
   userContent:string;
   executionMode?:AgentExecutionMode;
   selection?:Partial<AgentSelectionSnapshot>;
+  contextReferences?:ReadonlyArray<ContextReference>;
   signal?:AbortSignal;
   onEvent?:(event:AgentTurnStreamEvent)=>void;
 }):Promise<AgentSession>{
   const response=await fetch(`${sessionBase(input.projectId,input.sessionId)}/turns`,{
     method:"POST",
     headers:{"Content-Type":"application/json","Accept":"text/event-stream"},
-    body:JSON.stringify({userContent:input.userContent,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE,selection:input.selection}),
+    body:JSON.stringify({userContent:input.userContent,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE,selection:input.selection,contextReferences:input.contextReferences}),
     signal:input.signal,
   });
   if(!response.ok)throw new Error(await readError(response));
@@ -85,6 +86,11 @@ export async function runAgentTurn(input:{
   const reader=response.body.getReader();
   const decoder=new TextDecoder();
   let buffer="";
+  let streamError:string|null=null;
+  const handleEvent=(event:AgentTurnStreamEvent)=>{
+    input.onEvent?.(event);
+    if(event.event==="turn-error")streamError=typeof event.data.message==="string"?event.data.message:"Agent turn failed before completion.";
+  };
   try{
     for(;;){
       const{done,value}=await reader.read();
@@ -95,16 +101,17 @@ export async function runAgentTurn(input:{
         const block=buffer.slice(0,boundary);
         buffer=buffer.slice(boundary+2);
         const event=parseSseBlock(block);
-        if(event)input.onEvent?.(event);
+        if(event)handleEvent(event);
         boundary=buffer.indexOf("\n\n");
       }
     }
     buffer+=decoder.decode();
     if(buffer.trim()){
       const event=parseSseBlock(buffer.trim());
-      if(event)input.onEvent?.(event);
+      if(event)handleEvent(event);
     }
   }finally{reader.releaseLock();}
 
+  if(streamError)throw new Error(streamError);
   return openAgentSession(input.projectId,input.sessionId);
 }
