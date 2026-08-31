@@ -19,6 +19,16 @@ const bridgeServer=getGlobalRuntime(
 
 export const getLocalMcpBridgeSnapshot=()=>bridgeController.getSnapshot();
 
+export const getLocalMcpReadToolCatalog=()=>sharedAgentReadToolRegistry.listContracts()
+  .filter(contract=>contract.riskClass==="R0")
+  .map(contract=>({
+    id:contract.toolId,
+    version:contract.version,
+    description:contract.description,
+    riskClass:contract.riskClass,
+    requiredScopes:[...contract.requiredScopes],
+  }));
+
 export const startLocalMcpBridge=()=>bridgeServer.start();
 export const stopLocalMcpBridge=()=>bridgeServer.stop();
 
