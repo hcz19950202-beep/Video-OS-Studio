@@ -1,7 +1,8 @@
 "use client";
 
 import {useEffect,useMemo,useRef,useState} from "react";
-import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode,type AgentProposalPreview,type AgentSelectionSnapshot,type AgentSession} from "@/lib/ai";
+import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
+import type {AgentProposalPreview,AgentSelectionSnapshot,AgentSession} from "@/lib/ai";
 import {applyAgentProposal,createAgentSession,listAgentSessions,openAgentSession,rejectAgentProposal,reviewAgentProposal,runAgentTurn,type AgentProviderRuntimeStatus,type AgentTurnStreamEvent} from "@/lib/client/agent";
 import type {Project} from "@/schemas/project";
 import {useHistoryStore} from "@/store/history-store";
