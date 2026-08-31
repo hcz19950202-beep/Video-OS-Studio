@@ -24,9 +24,12 @@ export const AgentNativeContextDock=({inspector}:Props)=>{
   const{locale}=useStudioPreferences();
   const zh=locale==="zh-CN";
   const project=useProjectStore(state=>state.project);
-  const undoEntries=useHistoryStore(state=>state.undoStack.map(entry=>({projectId:entry.projectId,label:entry.label})).filter(entry=>entry.projectId===project?.project.id));
-  const redoEntries=useHistoryStore(state=>state.redoStack.map(entry=>({projectId:entry.projectId,label:entry.label})).filter(entry=>entry.projectId===project?.project.id));
+  const undoStack=useHistoryStore(state=>state.undoStack);
+  const redoStack=useHistoryStore(state=>state.redoStack);
   const[tab,setTab]=useState<ContextTab>("inspector");
+  const projectId=project?.project.id;
+  const undoEntries=useMemo(()=>undoStack.filter(entry=>entry.projectId===projectId).map(entry=>({label:entry.label})),[projectId,undoStack]);
+  const redoEntries=useMemo(()=>redoStack.filter(entry=>entry.projectId===projectId).map(entry=>({label:entry.label})),[projectId,redoStack]);
   const captionClips=useMemo(()=>project?.tracks.flatMap(track=>track.clips).filter(clip=>clip.type==="caption")??[],[project]);
   const enabledClips=useMemo(()=>project?.tracks.flatMap(track=>track.clips).filter(clip=>clip.enabled).length??0,[project]);
 
