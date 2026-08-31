@@ -43,8 +43,9 @@ test("C1 keeps Agent Viewer Context and Timeline stable in one desktop workspace
     )
     .toBe(afterWidth);
 
+  const projectName = page.getByRole("textbox", { name: "Project name", exact: true });
   await page.getByTestId("open-projects").click();
-  await page.getByLabel("Project name").fill(PROJECT_NAME);
+  await projectName.fill(PROJECT_NAME);
   const createResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" && response.url().endsWith("/api/projects"),
@@ -58,7 +59,7 @@ test("C1 keeps Agent Viewer Context and Timeline stable in one desktop workspace
   await expect(page.getByTestId("agent-native-workspace")).toContainText("Agent Workspace");
 
   await page.getByTestId("open-projects").click();
-  await expect(page.getByLabel("Project name")).toBeVisible();
+  await expect(projectName).toBeVisible();
   await expect(page.locator(".v21-project-title")).toContainText(PROJECT_NAME);
   await page.getByTestId("agent-surface-toggle").click();
 
