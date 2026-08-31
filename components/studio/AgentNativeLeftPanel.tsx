@@ -1,10 +1,8 @@
 "use client";
 
-import {useCallback,type ReactNode} from "react";
+import type {ReactNode} from "react";
 import {AIWorkspacePanel} from "@/components/studio/AIWorkspacePanel";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
-import {publishProjectIfActive} from "@/lib/client/project-mutations";
-import type {Project} from "@/schemas/project";
 import {useProjectStore} from "@/store/project-store";
 import styles from "@/components/studio/AgentNativeWorkspace.module.css";
 
@@ -18,12 +16,6 @@ export const AgentNativeLeftPanel=({legacyRail,legacyContent,surface,onSurfaceCh
   const project=useProjectStore(state=>state.project);
   const setProject=useProjectStore(state=>state.setProject);
 
-  const publishProjectChange=useCallback((candidate:Project)=>{
-    const projectId=project?.project.id;
-    if(!projectId)return;
-    publishProjectIfActive(projectId,candidate,()=>useProjectStore.getState().project,setProject);
-  },[project?.project.id,setProject]);
-
   return <section className={styles.leftPanel} data-testid="agent-native-workspace">
     <header className={styles.leftHeader}>
       <div><strong>{zh?"Agent 工作区":"Agent Workspace"}</strong><small>{zh?"统一对话、提案与生产状态":"Unified conversation, proposals and production state"}</small></div>
@@ -35,7 +27,7 @@ export const AgentNativeLeftPanel=({legacyRail,legacyContent,surface,onSurfaceCh
     <div className={styles.leftBody}>
       <nav className={styles.legacyRail} aria-label={zh?"编辑工具":"Editing tools"} onClickCapture={()=>onSurfaceChange("tools")}>{legacyRail}</nav>
       <div className={styles.leftSurface}>
-        {surface==="agent"?project?<AIWorkspacePanel project={project} onProjectChange={publishProjectChange}/>:<div className={styles.emptyState}><strong>{zh?"打开项目后即可使用 Agent":"Open a project to use the Agent"}</strong><span>{zh?"可通过左侧 Project 工具新建或打开项目。":"Use the Project tool on the left to create or open a project."}</span></div>:<div className={styles.legacyContent}>{legacyContent}</div>}
+        {surface==="agent"?project?<AIWorkspacePanel project={project} onProjectChange={setProject}/>:<div className={styles.emptyState}><strong>{zh?"打开项目后即可使用 Agent":"Open a project to use the Agent"}</strong><span>{zh?"可通过左侧 Project 工具新建或打开项目。":"Use the Project tool on the left to create or open a project."}</span></div>:<div className={styles.legacyContent}>{legacyContent}</div>}
       </div>
     </div>
   </section>;
