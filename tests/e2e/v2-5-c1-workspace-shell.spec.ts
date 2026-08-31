@@ -43,7 +43,7 @@ test("C1 keeps Agent Viewer Context and Timeline stable in one desktop workspace
     )
     .toBe(afterWidth);
 
-  await page.getByTitle("Project").click();
+  await page.getByTestId("open-projects").click();
   await page.getByLabel("Project name").fill(PROJECT_NAME);
   const createResponse = page.waitForResponse(
     (response) =>
@@ -57,10 +57,15 @@ test("C1 keeps Agent Viewer Context and Timeline stable in one desktop workspace
   await page.getByTestId("agent-surface-toggle").click();
   await expect(page.getByTestId("agent-native-workspace")).toContainText("Agent Workspace");
 
+  await page.getByTestId("open-projects").click();
+  await expect(page.getByLabel("Project name")).toBeVisible();
+  await expect(page.locator(".v21-project-title")).toContainText(PROJECT_NAME);
+  await page.getByTestId("agent-surface-toggle").click();
+
   await page.getByRole("tab", { name: "Assets", exact: true }).click();
   await expect(page.locator('[data-context-tab="assets"]')).toBeVisible();
   await expect(page.locator(".v21-project-title")).toContainText(PROJECT_NAME);
-  await page.getByRole("tab", { name: "History", exact: true }).click();
+  await page.getByTestId("open-history").click();
   await expect(page.locator('[data-context-tab="history"]')).toBeVisible();
   await expect(page.locator(".v21-project-title")).toContainText(PROJECT_NAME);
   await page.getByRole("tab", { name: "Inspector", exact: true }).click();
