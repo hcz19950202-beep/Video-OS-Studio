@@ -129,7 +129,7 @@ test("A4 Agent selection → proposal → Review/Apply → reopen → stale guar
   await expect(caption).toBeVisible();
   await caption.click();
   await openAgent(page);
-  await expect(page.locator(".a4-agent-context")).toContainText(`@Clip · ${CAPTION_ID}`);
+  await expect(page.locator(".a4-agent-context")).toContainText(`Selection · Clip ${CAPTION_ID}`);
 
   const beforeProposal = await readProject(page, projectId);
   await sendAgent(
