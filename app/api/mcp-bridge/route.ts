@@ -4,6 +4,7 @@ import {AgentSelectionSnapshotSchema} from "@/lib/ai/context";
 import {
   clearLocalMcpOpenProject,
   getLocalMcpBridgeSnapshot,
+  getLocalMcpReadToolCatalog,
   issueLocalMcpCredential,
   revokeLocalMcpCredential,
   rotateLocalMcpCredential,
@@ -52,10 +53,14 @@ const response=(body:unknown,status=200)=>NextResponse.json(body,{
   status,
   headers:{"Cache-Control":"no-store"},
 });
+const bridgePayload=(bridge=getLocalMcpBridgeSnapshot())=>({
+  bridge,
+  tools:getLocalMcpReadToolCatalog(),
+});
 
 export async function GET(request:NextRequest){
   if(!isLoopbackRequest(request))return response({error:"loopback_required"},403);
-  return response({bridge:getLocalMcpBridgeSnapshot()});
+  return response(bridgePayload());
 }
 
 export async function POST(request:NextRequest){
@@ -70,30 +75,30 @@ export async function POST(request:NextRequest){
     const action=parsed.data;
     if(action.action==="start"){
       await startLocalMcpBridge();
-      return response({bridge:getLocalMcpBridgeSnapshot()});
+      return response(bridgePayload());
     }
     if(action.action==="stop"){
       await stopLocalMcpBridge();
-      return response({bridge:getLocalMcpBridgeSnapshot()});
+      return response(bridgePayload());
     }
     if(action.action==="issue-credential"){
       const credential=issueLocalMcpCredential(action);
-      return response({bridge:getLocalMcpBridgeSnapshot(),credential});
+      return response({...bridgePayload(),credential});
     }
     if(action.action==="rotate-credential"){
       const credential=rotateLocalMcpCredential(action);
-      return response({bridge:getLocalMcpBridgeSnapshot(),credential});
+      return response({...bridgePayload(),credential});
     }
     if(action.action==="revoke-credential"){
       const revoked=revokeLocalMcpCredential(action.credentialId);
-      return response({bridge:getLocalMcpBridgeSnapshot(),revoked});
+      return response({...bridgePayload(),revoked});
     }
     if(action.action==="sync-context"){
       const bridge=await syncLocalMcpOpenProject(action.projectId,action.selection);
-      return response({bridge});
+      return response(bridgePayload(bridge));
     }
     const bridge=clearLocalMcpOpenProject(action.projectId);
-    return response({bridge});
+    return response(bridgePayload(bridge));
   }catch(error){
     console.error("[video-os][mcp-admin] bridge action failed",{
       action:parsed.data.action,
