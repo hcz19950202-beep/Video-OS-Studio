@@ -16,8 +16,8 @@ const ProjectHistoryControls=({project}:{project:Project})=>{
   const undoCount=useHistoryStore(state=>state.undoStack.filter(entry=>entry.projectId===project.project.id).length);
   const redoCount=useHistoryStore(state=>state.redoStack.filter(entry=>entry.projectId===project.project.id).length);
   return <>
-    <button type="button" disabled={undoCount===0} onClick={()=>void undo()} title={zh?"撤销最近一次项目修改":"Undo the latest project mutation"}>{zh?"撤销":"Undo"}</button>
-    <button type="button" disabled={redoCount===0} onClick={()=>void redo()} title={zh?"重做最近一次项目修改":"Redo the latest project mutation"}>{zh?"重做":"Redo"}</button>
+    <button type="button" disabled={undoCount===0} onClick={()=>void undo()} aria-label={zh?"撤销最近修改":"Undo latest change"}>{zh?"撤销":"Undo"}</button>
+    <button type="button" disabled={redoCount===0} onClick={()=>void redo()} aria-label={zh?"重做最近修改":"Redo latest change"}>{zh?"重做":"Redo"}</button>
   </>;
 };
 
