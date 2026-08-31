@@ -2,6 +2,7 @@
 
 import type {ReactNode} from "react";
 import {AIWorkspacePanel} from "@/components/studio/AIWorkspacePanel";
+import {ContextSelectionController} from "@/components/studio/ContextSelectionController";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
 import {useProjectStore} from "@/store/project-store";
 import styles from "@/components/studio/AgentNativeWorkspace.module.css";
@@ -27,7 +28,7 @@ export const AgentNativeLeftPanel=({legacyRail,legacyContent,surface,onSurfaceCh
     <div className={styles.leftBody}>
       <nav className={styles.legacyRail} aria-label={zh?"编辑工具":"Editing tools"} onClickCapture={()=>onSurfaceChange("tools")}>{legacyRail}</nav>
       <div className={styles.leftSurface}>
-        {surface==="agent"?project?<AIWorkspacePanel project={project} onProjectChange={setProject}/>:<div className={styles.emptyState}><strong>{zh?"打开项目后即可使用 Agent":"Open a project to use the Agent"}</strong><span>{zh?"可通过左侧 Project 工具新建或打开项目。":"Use the Project tool on the left to create or open a project."}</span></div>:<div className={styles.legacyContent}>{legacyContent}</div>}
+        {surface==="agent"?project?<><ContextSelectionController project={project}/><AIWorkspacePanel project={project} onProjectChange={setProject}/></>:<div className={styles.emptyState}><strong>{zh?"打开项目后即可使用 Agent":"Open a project to use the Agent"}</strong><span>{zh?"可通过左侧 Project 工具新建或打开项目。":"Use the Project tool on the left to create or open a project."}</span></div>:<div className={styles.legacyContent}>{legacyContent}</div>}
       </div>
     </div>
   </section>;
