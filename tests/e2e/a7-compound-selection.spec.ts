@@ -126,16 +126,27 @@ test("A7 normal Studio path retains Scene + Caption compound Agent context", asy
   await hookScene.click();
   await caption.click();
   await openAgent(page);
-  const context = page.locator(".a4-agent-context");
-  await expect(context).toContainText(`@Scene · ${hookSceneId}`);
-  await expect(context).toContainText(`@Clip · ${captionId}`);
+  const currentSelection = page.getByTestId("current-context-selection");
+  await expect(currentSelection).toContainText(`Selection · Clip ${captionId}`);
+
+  const turnRequest = page.waitForRequest(
+    (request) => request.method() === "POST" && request.url().endsWith("/turns"),
+  );
+  await page.locator(".a4-agent-composer textarea").fill("Plan for the current compound selection.");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  const sent = await turnRequest;
+  const payload = sent.postDataJSON() as {
+    selection?: { selectedSceneId?: string | null; selectedClipIds?: string[] };
+  };
+  expect(payload.selection?.selectedSceneId).toBe(hookSceneId);
+  expect(payload.selection?.selectedClipIds).toEqual([captionId]);
+  await expect(page.getByText("PROPOSAL READY", { exact: true })).toBeVisible({ timeout: 20_000 });
 
   await proofScene.click();
-  await expect(context).toContainText(`@Scene · ${proofSceneId}`);
-  await expect(context).not.toContainText(`@Clip · ${captionId}`);
+  await expect(currentSelection).toContainText(`Selection · Scene ${proofSceneId}`);
+  await expect(currentSelection).not.toContainText(captionId);
 
   await hookScene.click();
   await caption.click();
-  await expect(context).toContainText(`@Scene · ${hookSceneId}`);
-  await expect(context).toContainText(`@Clip · ${captionId}`);
+  await expect(currentSelection).toContainText(`Selection · Clip ${captionId}`);
 });
