@@ -29,18 +29,29 @@ export const getLocalMcpReadToolCatalog=()=>sharedAgentToolRegistry.listContract
     requiredScopes:[...contract.requiredScopes],
   }));
 
-export const getLocalMcpControlledToolCatalog=()=>sharedAgentToolRegistry.listContracts()
-  .filter(contract=>contract.riskClass==="R0"||(
-    contract.riskClass==="R1"&&
+const isControlledLocalMcpContract=(contract:ReturnType<typeof sharedAgentToolRegistry.listContracts>[number])=>{
+  if(contract.riskClass==="R0")return true;
+  return contract.riskClass==="R1"&&
     contract.requiredScopes.includes("project:propose")&&
-    !contract.requiredScopes.includes("project:write")
-  ))
+    !contract.requiredScopes.includes("project:write")&&
+    contract.approval.defaultMode==="auto"&&
+    !contract.approval.allowSessionOverride&&
+    contract.revisionPolicy==="snapshot"&&
+    contract.idempotency==="proposal-only";
+};
+
+export const getLocalMcpControlledToolCatalog=()=>sharedAgentToolRegistry.listContracts()
+  .filter(isControlledLocalMcpContract)
   .map(contract=>({
     id:contract.toolId,
     version:contract.version,
     description:contract.description,
     riskClass:contract.riskClass,
     requiredScopes:[...contract.requiredScopes],
+    authority:contract.riskClass==="R0"?"direct-read" as const:"proposal-only" as const,
+    approval:{...contract.approval},
+    revisionPolicy:contract.revisionPolicy,
+    idempotency:contract.idempotency,
   }));
 
 export const startLocalMcpBridge=()=>bridgeServer.start();

@@ -36,17 +36,21 @@ type BridgeSnapshot={
   clients:BridgeClient[];
   activity:BridgeActivity[];
 };
-type ReadTool={
+type ControlledTool={
   id:string;
   version:string;
   description:string;
-  riskClass:"R0";
+  riskClass:"R0"|"R1";
   requiredScopes:string[];
+  authority:"direct-read"|"proposal-only";
+  approval:{defaultMode:string;allowSessionOverride:boolean};
+  revisionPolicy:string;
+  idempotency:string;
 };
 type OneTimeCredential={credentialId:string;token:string;clientType:string;clientLabel:string};
 type BridgeResponse={
   bridge?:BridgeSnapshot;
-  tools?:ReadTool[];
+  tools?:ControlledTool[];
   credential?:OneTimeCredential;
   revoked?:boolean;
   error?:string;
@@ -85,7 +89,7 @@ export const ConnectionCenter=()=>{
   const selectedScriptRange=useSelectionStore(state=>state.selectedScriptRange);
   const[open,setOpen]=useState(false);
   const[bridge,setBridge]=useState<BridgeSnapshot>(emptyBridge);
-  const[tools,setTools]=useState<ReadTool[]>([]);
+  const[tools,setTools]=useState<ControlledTool[]>([]);
   const[credential,setCredential]=useState<OneTimeCredential|null>(null);
   const[busy,setBusy]=useState(false);
   const[error,setError]=useState<string|null>(null);
@@ -170,6 +174,12 @@ export const ConnectionCenter=()=>{
       clientLabel:"External MCP client",
     });
   };
+  const authorityLabel=(tool:ControlledTool)=>tool.authority==="direct-read"
+    ?(zh?"直接读取":"Direct read")
+    :(zh?"仅创建提案":"Proposal only");
+  const approvalLabel=(tool:ControlledTool)=>tool.authority==="proposal-only"
+    ?(zh?"创建自动 · Apply 单独审批":"Create auto · Apply separately approved")
+    :zh?"无需审批":"No approval";
   const live=bridge.status!=="stopped"&&bridge.status!=="error";
 
   return <div className={styles.root}>
@@ -188,7 +198,7 @@ export const ConnectionCenter=()=>{
       <div className={styles.header}>
         <div>
           <h3>{zh?"连接中心":"Connection Center"}</h3>
-          <p>{zh?"本机 MCP 只读桥接。外部客户端只能读取当前打开的 Project。":"Authenticated loopback MCP read bridge. External clients can read only the currently open Project."}</p>
+          <p>{zh?"本机 MCP 受控桥接：允许读取当前 Project，并允许创建可审查的编辑提案；外部客户端没有直接 Apply 或 Project 写权限。":"Authenticated loopback MCP bridge: clients may read the open Project and create reviewable edit Proposals, but have no direct Apply or Project write authority."}</p>
         </div>
         <button type="button" className={styles.close} onClick={close} aria-label={zh?"关闭":"Close"}>×</button>
       </div>
@@ -203,7 +213,7 @@ export const ConnectionCenter=()=>{
       </div>
 
       <div className={styles.actions}>
-        {!live?<button type="button" disabled={busy} onClick={()=>void runAction({action:"start"})}>{zh?"启动只读桥":"Start read bridge"}</button>:<button type="button" disabled={busy} onClick={()=>void runAction({action:"stop"})}>{zh?"停止桥接":"Stop bridge"}</button>}
+        {!live?<button type="button" disabled={busy} onClick={()=>void runAction({action:"start"})}>{zh?"启动受控桥":"Start controlled bridge"}</button>:<button type="button" disabled={busy} onClick={()=>void runAction({action:"stop"})}>{zh?"停止桥接":"Stop bridge"}</button>}
         <button type="button" disabled={busy||!live} data-testid="issue-mcp-credential" onClick={()=>void pair()}>{zh?"生成配对凭证":"Pair client"}</button>
         <button type="button" disabled={busy||!live} onClick={()=>void rotate()}>{zh?"轮换全部凭证":"Rotate credentials"}</button>
         <button type="button" className={styles.refresh} disabled={busy} onClick={()=>void refresh()}>{zh?"刷新":"Refresh"}</button>
@@ -215,16 +225,18 @@ export const ConnectionCenter=()=>{
         <p>{zh?"仅此次显示。关闭连接中心后不会保留明文凭证。":"Shown only for this issuance. Plaintext is cleared when Connection Center closes."}</p>
       </div>:null}
 
-      <section className={styles.section}>
-        <h4>{zh?`只读工具（${tools.length}）`:`Read tools (${tools.length})`}</h4>
+      <section className={styles.section} data-permission-center="controlled-tools">
+        <h4>{zh?`权限中心 · 受控工具（${tools.length}）`:`Permission Center · Controlled tools (${tools.length})`}</h4>
         <div className={styles.list} data-testid="mcp-read-tool-catalog">
           {tools.length===0?<p className={styles.empty}>{zh?"暂无工具数据。":"No tool catalog loaded."}</p>:tools.map(tool=><div className={styles.row} key={tool.id}>
             <div className={styles.rowMain}>
               <span className={styles.rowTitle}>{tool.id}</span>
-              <span className={styles.rowMeta}>{tool.riskClass} · v{tool.version} · {tool.requiredScopes.join(", ")}</span>
+              <span className={styles.rowMeta}>{tool.riskClass} · {authorityLabel(tool)} · {approvalLabel(tool)}</span>
+              <span className={styles.rowMeta}>v{tool.version} · {tool.requiredScopes.join(", ")} · {tool.revisionPolicy}</span>
             </div>
           </div>)}
         </div>
+        <p className={styles.empty}>{zh?"R1 只能生成 Proposal。Apply 由应用层独立处理，并继续受 revision、History 和原子事务约束。":"R1 may create Proposals only. Apply remains application-owned and is still governed by revision, History, and atomic transaction boundaries."}</p>
       </section>
 
       <section className={styles.section}>
