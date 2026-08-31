@@ -20,6 +20,26 @@
   overflow: auto;
 }
 
+.v21-resizer-horizontal > button {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 38px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--muted);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.v21-resizer-horizontal:hover > button,
+.v21-resizer-horizontal:focus-within > button {
+  opacity: 1;
+}
+
 :root[data-studio-theme="light"] .v21-workspace {
   background: var(--bg);
   color: var(--text);
