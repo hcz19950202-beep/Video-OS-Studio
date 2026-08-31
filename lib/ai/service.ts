@@ -28,7 +28,7 @@ export type RunAgentTurnInput={
   projectId:string;
   sessionId:string;
   userContent:string;
-  executionMode:AgentExecutionMode;
+  executionMode?:AgentExecutionMode;
   selection?:Partial<AgentSelectionSnapshot>;
   budget?:AgentTurnBudgetInput;
   signal?:AbortSignal;
