@@ -96,9 +96,9 @@ const AgentProposalItem=({zh,proposal,preview,selectedChanges,proposalBusy,busy,
 const AgentErrorState=({zh,error,lastPrompt,busy,proposalBusy,onSend}:Pick<Props,"zh"|"error"|"lastPrompt"|"busy"|"proposalBusy"|"onSend">)=>error?<div className="a4-agent-error"><span>{error}</span>{lastPrompt&&!busy&&!proposalBusy?<button type="button" className="button small" onClick={()=>onSend(lastPrompt)}>{zh?"重试":"Retry"}</button>:null}</div>:null;
 
 const executionModeHelp=(mode:AgentExecutionMode,zh:boolean)=>{
-  if(mode==="plan-only")return zh?"只规划/分析；不会授权持久化操作。":"Plan/analyze only; no durable operation is authorized.";
-  if(mode==="apply-safe-edits")return zh?"可主动推进安全路径，但 R2/R3/R4 仍必须经过既有审批/Apply。":"May proactively use safe paths; R2/R3/R4 still require the existing approval/Apply boundary.";
-  return zh?"默认模式：先生成可审查方案，再由你 Review / Apply。":"Default: prepare a reviewable proposal, then wait for Review / Apply.";
+  if(mode==="plan-only")return zh?"只读、分析、搜索、规划和提案；不执行 Project 修改或高成本 Job。":"Read, analyze, search, plan and propose only; no Project mutation or costly Job execution.";
+  if(mode==="apply-safe-edits")return zh?"仅应用层明确允许会话自动执行的低风险可逆修改可自动应用；R3/R4 仍需审批。":"Only application-approved reversible R2 tools with session-auto eligibility may auto-apply; R3/R4 still require approval.";
+  return zh?"默认模式：读取、分析、规划和提案可自动进行；持久化修改仍先审查。":"Default: reads, analysis, planning and proposals may run automatically; durable mutations still require review.";
 };
 
 const AgentComposer=({zh,input,executionMode,busy,proposalBusy,provider,onInputChange,onExecutionModeChange,onSend,onCancel}:Pick<Props,"zh"|"input"|"executionMode"|"busy"|"proposalBusy"|"provider"|"onInputChange"|"onExecutionModeChange"|"onSend"|"onCancel">)=>
