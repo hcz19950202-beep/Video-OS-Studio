@@ -2,28 +2,28 @@
 .leftHeader,.contextHeader{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel-2)}
 .leftHeader>div:first-child,.contextHeader>div{display:flex;min-width:0;flex-direction:column;gap:2px}
 .leftHeader strong,.contextHeader strong{font-size:12px;letter-spacing:.02em}
-.leftHeader small,.contextHeader small{overflow:hidden;color:var(--text-3);font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.leftHeader small,.contextHeader small{overflow:hidden;color:var(--muted);font-size:10px;text-overflow:ellipsis;white-space:nowrap}
 .segmented{display:flex;gap:2px;padding:2px;border:1px solid var(--border);border-radius:7px;background:var(--bg-deep)}
-.segmented button,.contextTabs button{border:0;background:transparent;color:var(--text-3);cursor:pointer}
+.segmented button,.contextTabs button{border:0;background:transparent;color:var(--muted);cursor:pointer}
 .segmented button{padding:5px 8px;border-radius:5px;font-size:10px}
-.segmented button.active,.contextTabs button.active{background:var(--accent-soft);color:var(--text)}
-.leftBody,.contextBody{flex:1;min-height:0;overflow:auto}
+.segmented button.active,.contextTabs button.active{background:var(--panel-2);color:var(--text);box-shadow:inset 0 -2px var(--accent)}
+.leftBody{flex:1;min-height:0;display:grid;grid-template-columns:48px minmax(0,1fr);overflow:hidden}
+.leftSurface,.contextBody{min-width:0;min-height:0;overflow:auto}
+.contextBody{flex:1}
 .emptyState{display:flex;min-height:180px;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:20px;text-align:center}
-.emptyState strong{font-size:12px}.emptyState span{max-width:260px;color:var(--text-3);font-size:11px;line-height:1.5}
-.legacyTools{height:100%;min-height:0;display:grid;grid-template-columns:48px minmax(0,1fr)}
+.emptyState strong{font-size:12px}.emptyState span{max-width:260px;color:var(--muted);font-size:11px;line-height:1.5}
 .legacyRail{min-height:0;overflow:auto;border-right:1px solid var(--border);background:var(--panel-2)}
-.legacyContent{min-width:0;min-height:0;overflow:hidden}
+.legacyContent{height:100%;min-width:0;min-height:0;overflow:hidden}
 .contextTabs{flex:0 0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;padding:6px;border-bottom:1px solid var(--border);background:var(--panel)}
 .contextTabs button{min-width:0;padding:6px 4px;border-radius:5px;font-size:10px;white-space:nowrap}
-.contextBody{padding:0}
 .contextList{display:flex;flex-direction:column;padding:8px}
 .contextList article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:8px 6px;border-bottom:1px solid var(--border)}
-.contextList article strong{overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.contextList article span,.contextList p{color:var(--text-3);font-size:10px}
+.contextList article strong{overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.contextList article span,.contextList p{color:var(--muted);font-size:10px}
 .qaSummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:10px}
 .qaSummary>div{display:flex;flex-direction:column;gap:3px;padding:10px 6px;border:1px solid var(--border);border-radius:7px;background:var(--panel-2);text-align:center}
-.qaSummary>div strong{font-size:16px}.qaSummary>div span{color:var(--text-3);font-size:9px}.qaSummary p{grid-column:1/-1;color:var(--text-3);font-size:10px;line-height:1.5}
-.historyPanel{display:flex;flex-direction:column;gap:12px;padding:10px}.historyPanel section{display:flex;flex-direction:column;gap:5px}.historyPanel section>strong{font-size:10px;color:var(--text-2)}.historyPanel section>span{padding:6px 8px;border:1px solid var(--border);border-radius:5px;background:var(--panel-2);font-size:10px}.historyPanel p{color:var(--text-3);font-size:10px}
-.commandStrip{flex:0 0 34px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px;border-bottom:1px solid var(--border);background:var(--panel-2);color:var(--text-2)}
-.commandGroup{display:flex;align-items:center;gap:5px}.commandStrip button{min-height:24px;padding:3px 7px;border:1px solid var(--border);border-radius:5px;background:var(--panel);color:inherit;font-size:10px;cursor:pointer}.commandStrip button:disabled{cursor:not-allowed;opacity:.45}.connection{display:inline-flex;align-items:center;gap:5px;font-size:10px}.connection::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.connected{color:var(--success,#4fbf7f)}.disconnected{color:var(--text-3)}
+.qaSummary>div strong{font-size:16px}.qaSummary>div span{color:var(--muted);font-size:9px}.qaSummary p{grid-column:1/-1;color:var(--muted);font-size:10px;line-height:1.5}
+.historyPanel{display:flex;flex-direction:column;gap:12px;padding:10px}.historyPanel section{display:flex;flex-direction:column;gap:5px}.historyPanel section>strong{font-size:10px;color:var(--text)}.historyPanel section>span{padding:6px 8px;border:1px solid var(--border);border-radius:5px;background:var(--panel-2);font-size:10px}.historyPanel p{color:var(--muted);font-size:10px}
+.commandStrip{flex:0 0 34px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px;border-bottom:1px solid var(--border);background:var(--panel-2);color:var(--text)}
+.commandGroup{display:flex;align-items:center;gap:5px}.commandStrip button{min-height:24px;padding:3px 7px;border:1px solid var(--border);border-radius:5px;background:var(--panel);color:inherit;font-size:10px;cursor:pointer}.commandStrip button:disabled{cursor:not-allowed;opacity:.45}.connection{display:inline-flex;align-items:center;gap:5px;font-size:10px}.connection::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.connected{color:var(--success,#4fbf7f)}.disconnected{color:var(--muted)}
 .paletteWrap{position:relative}.palette{position:absolute;z-index:50;top:30px;right:0;width:210px;padding:6px;border:1px solid var(--border);border-radius:8px;background:var(--panel);box-shadow:0 14px 32px rgba(0,0,0,.24)}.palette button{display:block;width:100%;margin:2px 0;text-align:left}
 @media(max-width:1360px){.leftHeader small,.contextHeader small{display:none}.contextTabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
