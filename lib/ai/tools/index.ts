@@ -19,11 +19,12 @@ export type A1AgentToolDependencies={
 };
 
 export function createA1AgentToolRegistry(dependencies:A1AgentToolDependencies):AgentToolRegistry{
+  const useSharedReads=dependencies.sharedReadRegistry!==undefined;
   return new AgentToolRegistry([
-    createProjectContextReadTool(),
-    ...(dependencies.assetIntelligence?[createAssetIntelligenceReadTool(dependencies.assetIntelligence)]:[]),
+    ...(!useSharedReads?[createProjectContextReadTool()]:[]),
+    ...(!useSharedReads&&dependencies.assetIntelligence?[createAssetIntelligenceReadTool(dependencies.assetIntelligence)]:[]),
     ...(dependencies.videoSkills?createVideoSkillAgentTools(dependencies.videoSkills):[]),
-    ...(dependencies.qaReports?[createQAReportReadTool(dependencies.qaReports)]:[]),
+    ...(!useSharedReads&&dependencies.qaReports?[createQAReportReadTool(dependencies.qaReports)]:[]),
     ...(dependencies.sharedReadRegistry?createC4ReadOnlyAgentTools(dependencies.sharedReadRegistry):[]),
     createVisualPlanProposalTool(dependencies.visualPlans),
     ...(dependencies.workflows?createWorkflowAgentTools(dependencies.workflows):[]),
