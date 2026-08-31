@@ -6,7 +6,7 @@ import {
   AgentWorkflowActionExecutor,
   ContextReferenceService,
   createA1AgentToolRegistry,
-  createC4SharedReadRegistry,
+  createC5ControlledMutationRegistry,
   createVolcengineAgentPlanProviderFromProcessEnv,
   observeAIProvider,
   type AgentProviderProgressObserver,
@@ -25,10 +25,13 @@ const contextReferences=getGlobalRuntime(`${dataRoot}:agent-context-references`,
   missions:productionMissionRepository,
   plans:productionPlanRepository,
 }));
-const sharedReadTools=getGlobalRuntime(`${dataRoot}:shared-read-tools`,()=>createC4SharedReadRegistry({
-  assetIntelligence:assetIntelligenceService,
-  missions:productionMissionRepository,
-  qaReports:productionQAService,
+const sharedTools=getGlobalRuntime(`${dataRoot}:shared-tools`,()=>createC5ControlledMutationRegistry({
+  reads:{
+    assetIntelligence:assetIntelligenceService,
+    missions:productionMissionRepository,
+    qaReports:productionQAService,
+  },
+  proposals:{sessions},
 }));
 const tools=getGlobalRuntime(`${dataRoot}:agent-tools`,()=>createA1AgentToolRegistry({
   visualPlans:visualPlanService,
@@ -36,7 +39,7 @@ const tools=getGlobalRuntime(`${dataRoot}:agent-tools`,()=>createA1AgentToolRegi
   assetIntelligence:assetIntelligenceService,
   videoSkills:builtInVideoSkillRegistry,
   qaReports:productionQAService,
-  sharedReadRegistry:sharedReadTools,
+  sharedToolRegistry:sharedTools,
 }));
 const workflowActions=getGlobalRuntime(`${dataRoot}:agent-workflow-actions`,()=>new AgentWorkflowActionExecutor(workflowService,{assetBaseUrl:resolveTrustedAssetBaseUrl()}));
 const applications=getGlobalRuntime(`${dataRoot}:agent-applications`,()=>new AgentProposalApplicationService({sessions,projects:projectRepository,mutations:projectMutations,visualPlans:visualPlanService,workflowActions}));
@@ -67,5 +70,6 @@ export const createServerAgentSessionService=(observer?:AgentProviderProgressObs
 export const agentSessionRepository=sessions;
 export const agentContextService=context;
 export const agentContextReferenceService=contextReferences;
-export const sharedAgentReadToolRegistry=sharedReadTools;
+export const sharedAgentToolRegistry=sharedTools;
+export const sharedAgentReadToolRegistry=sharedTools;
 export const agentProposalApplicationService=applications;

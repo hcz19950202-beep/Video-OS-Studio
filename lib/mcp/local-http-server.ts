@@ -1,5 +1,6 @@
 import {createServer,type IncomingMessage,type Server,type ServerResponse} from "node:http";
 import {z} from "zod";
+import type {SharedAgentToolContract} from "@/lib/ai/tools/shared-contract";
 import type {SharedToolRegistry} from "@/lib/ai/tools/shared-registry";
 import {
   LOCAL_MCP_PROTOCOL_VERSION,
@@ -28,7 +29,7 @@ type ClientInfo={name?:string;version?:string};
 
 const SERVER_INFO={name:"video-os-studio",version:"2.4.2"} as const;
 const SERVER_META={"io.modelcontextprotocol/serverInfo":SERVER_INFO} as const;
-const FORBIDDEN_C4_ARGUMENT_KEYS=new Set([
+const FORBIDDEN_AUTHORITY_ARGUMENT_KEYS=new Set([
   "projectId",
   "baseProjectRevision",
   "expectedRevision",
@@ -117,8 +118,20 @@ const toolArguments=(request:JsonRpcRequest):Record<string,unknown>|null=>{
   return value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:null;
 };
 
-const hasForbiddenC4AuthorityArguments=(args:Record<string,unknown>)=>
-  Object.keys(args).some(key=>FORBIDDEN_C4_ARGUMENT_KEYS.has(key));
+const hasForbiddenAuthorityArguments=(args:Record<string,unknown>)=>
+  Object.keys(args).some(key=>FORBIDDEN_AUTHORITY_ARGUMENT_KEYS.has(key));
+
+const isMcpCallableContract=(contract:SharedAgentToolContract|undefined)=>{
+  if(!contract)return false;
+  if(contract.riskClass==="R0")return true;
+  return contract.riskClass==="R1"&&
+    contract.requiredScopes.includes("project:propose")&&
+    !contract.requiredScopes.includes("project:write")&&
+    contract.approval.defaultMode==="auto"&&
+    !contract.approval.allowSessionOverride&&
+    contract.revisionPolicy==="snapshot"&&
+    contract.idempotency==="proposal-only";
+};
 
 type RateWindow={startedAt:number;count:number};
 
@@ -265,13 +278,13 @@ export class LocalMcpHttpServer{
       const clientInfo=clientInfoFrom(request);
       if(request.method==="server/discover"){
         this.controller.observeAuthenticatedRequest({
-          principal,clientInfo,kind:"discover",summary:"External MCP client discovered the Video OS read bridge.",
+          principal,clientInfo,kind:"discover",summary:"External MCP client discovered the Video OS controlled tool bridge.",
         });
         json(res,200,rpcResult(request.id,{
           resultType:"complete",
           supportedVersions:[LOCAL_MCP_PROTOCOL_VERSION],
           capabilities:{tools:{}},
-          instructions:"Video OS Local MCP C4 exposes authenticated read-only application tools for the currently open Project. It grants no shell, filesystem, network, or mutation authority.",
+          instructions:"Video OS Local MCP C5 exposes authenticated read tools plus proposal-only edit creation for the currently open Project. It grants no shell, arbitrary filesystem/network access, direct Project mutation, Apply authority, or History bypass.",
           ttlMs:30_000,
           cacheScope:"private",
         }));
@@ -280,16 +293,21 @@ export class LocalMcpHttpServer{
 
       if(request.method==="tools/list"){
         this.controller.observeAuthenticatedRequest({
-          principal,clientInfo,kind:"tool-list",summary:"External MCP client listed the read-only shared tool catalog.",
+          principal,clientInfo,kind:"tool-list",summary:"External MCP client listed the controlled shared tool catalog.",
         });
         const tools=this.tools.listContracts()
-          .filter(contract=>contract.riskClass==="R0")
+          .filter(isMcpCallableContract)
           .map(contract=>({
             name:contract.toolId,
             description:contract.description,
             inputSchema:contract.inputJsonSchema,
             outputSchema:contract.outputJsonSchema,
-            annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false},
+            annotations:{
+              readOnlyHint:contract.riskClass==="R0",
+              destructiveHint:false,
+              idempotentHint:contract.idempotency==="read-only",
+              openWorldHint:false,
+            },
             _meta:{
               "video-os/toolContractVersion":contract.version,
               "video-os/riskClass":contract.riskClass,
@@ -317,12 +335,12 @@ export class LocalMcpHttpServer{
         return;
       }
       const contract=this.tools.getContract(toolId);
-      if(!contract||contract.riskClass!=="R0"){
-        json(res,400,rpcError(request.id,-32602,"Unknown or non-readable MCP tool."));
+      if(!isMcpCallableContract(contract)){
+        json(res,400,rpcError(request.id,-32602,"Unknown or unauthorized MCP tool."));
         return;
       }
       const args=toolArguments(request);
-      if(!args||hasForbiddenC4AuthorityArguments(args)){
+      if(!args||hasForbiddenAuthorityArguments(args)){
         json(res,400,rpcError(request.id,-32602,"Tool arguments contain invalid or forbidden authority fields."));
         return;
       }
@@ -334,7 +352,7 @@ export class LocalMcpHttpServer{
       if(!executionContext){
         this.controller.observeAuthenticatedRequest({
           principal,clientInfo,kind:"error",toolId,outcome:"denied",
-          summary:"Read request denied because no current open Project is bound to the local bridge.",
+          summary:"Tool request denied because no current open Project is bound to the local bridge.",
         });
         json(res,409,rpcError(request.id,-32004,"No active Video OS Project is available for this credential."));
         return;
@@ -343,7 +361,7 @@ export class LocalMcpHttpServer{
       const result=await this.tools.execute(toolId,args,executionContext);
       if(result.status==="cancelled"){
         this.controller.observeAuthenticatedRequest({
-          principal,clientInfo,kind:"tool-call",toolId,outcome:"cancelled",summary:"Shared read tool request cancelled.",
+          principal,clientInfo,kind:"tool-call",toolId,outcome:"cancelled",summary:"Shared tool request cancelled.",
         });
         if(!res.writableEnded)json(res,200,rpcResult(request.id,{
           resultType:"complete",
@@ -355,7 +373,7 @@ export class LocalMcpHttpServer{
       }
       if(result.status==="error"){
         this.controller.observeAuthenticatedRequest({
-          principal,clientInfo,kind:"tool-call",toolId,outcome:"error",summary:`Shared read tool failed safely with code ${result.error.code}.`,
+          principal,clientInfo,kind:"tool-call",toolId,outcome:"error",summary:`Shared tool failed safely with code ${result.error.code}.`,
         });
         json(res,200,rpcResult(request.id,{
           resultType:"complete",
@@ -367,7 +385,7 @@ export class LocalMcpHttpServer{
       }
 
       this.controller.observeAuthenticatedRequest({
-        principal,clientInfo,kind:"tool-call",toolId,summary:"Shared read tool completed successfully.",
+        principal,clientInfo,kind:"tool-call",toolId,summary:"Shared tool completed successfully.",
       });
       json(res,200,rpcResult(request.id,{
         resultType:"complete",

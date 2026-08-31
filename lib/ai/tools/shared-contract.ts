@@ -63,6 +63,11 @@ export const SharedAgentToolContractSchema=z.object({
   if(tool.riskClass==="R0"&&tool.idempotency!=="read-only"){
     ctx.addIssue({code:"custom",path:["idempotency"],message:"R0 tools must be read-only"});
   }
+  if(tool.riskClass==="R1"){
+    if(tool.revisionPolicy!=="snapshot")ctx.addIssue({code:"custom",path:["revisionPolicy"],message:"R1 Proposal tools must bind to the captured Project snapshot revision"});
+    if(tool.idempotency!=="proposal-only")ctx.addIssue({code:"custom",path:["idempotency"],message:"R1 Proposal tools must be proposal-only"});
+    if(tool.requiredScopes.includes("project:write"))ctx.addIssue({code:"custom",path:["requiredScopes"],message:"R1 Proposal tools cannot receive project:write scope"});
+  }
   if(tool.riskClass==="R2"){
     if(tool.revisionPolicy!=="expected-revision")ctx.addIssue({code:"custom",path:["revisionPolicy"],message:"R2 Project mutations require expected revision semantics"});
     if(tool.idempotency!=="stable-operation-id")ctx.addIssue({code:"custom",path:["idempotency"],message:"R2 Project mutations require a stable operation id"});

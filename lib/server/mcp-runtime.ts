@@ -3,7 +3,7 @@ import {LocalMcpBridgeController} from "@/lib/mcp/bridge-controller";
 import {LocalMcpHttpServer} from "@/lib/mcp/local-http-server";
 import {
   agentContextService,
-  sharedAgentReadToolRegistry,
+  sharedAgentToolRegistry,
 } from "@/lib/server/agent-runtime";
 import {getGlobalRuntime} from "@/lib/server/global-runtime";
 import {dataRoot} from "@/lib/server/runtime";
@@ -14,13 +14,27 @@ const bridgeController=getGlobalRuntime(
 );
 const bridgeServer=getGlobalRuntime(
   `${dataRoot}:local-mcp-http-server`,
-  ()=>new LocalMcpHttpServer(bridgeController,sharedAgentReadToolRegistry),
+  ()=>new LocalMcpHttpServer(bridgeController,sharedAgentToolRegistry),
 );
 
 export const getLocalMcpBridgeSnapshot=()=>bridgeController.getSnapshot();
 
-export const getLocalMcpReadToolCatalog=()=>sharedAgentReadToolRegistry.listContracts()
+export const getLocalMcpReadToolCatalog=()=>sharedAgentToolRegistry.listContracts()
   .filter(contract=>contract.riskClass==="R0")
+  .map(contract=>({
+    id:contract.toolId,
+    version:contract.version,
+    description:contract.description,
+    riskClass:contract.riskClass,
+    requiredScopes:[...contract.requiredScopes],
+  }));
+
+export const getLocalMcpControlledToolCatalog=()=>sharedAgentToolRegistry.listContracts()
+  .filter(contract=>contract.riskClass==="R0"||(
+    contract.riskClass==="R1"&&
+    contract.requiredScopes.includes("project:propose")&&
+    !contract.requiredScopes.includes("project:write")
+  ))
   .map(contract=>({
     id:contract.toolId,
     version:contract.version,
