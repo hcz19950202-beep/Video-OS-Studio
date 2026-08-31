@@ -28,7 +28,7 @@ describe("V2.5 C1 agent-native workspace shell",()=>{
     expect(left).toContain('AgentNativeSurface="agent"|"tools"');
     expect(left).toContain("legacyRail");
     expect(left).toContain("legacyContent");
-    expect(left).toContain("AgentWorkspacePanel");
+    expect(left).toContain("AIWorkspacePanel");
     expect(left).not.toContain("useState<AgentNativeSurface>");
   });
 
