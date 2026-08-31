@@ -9,12 +9,15 @@ type SelectionState={
   selectedSceneId:string|null;
   selectedScriptRange:ScriptSelectionRange|null;
   selectedContextTarget:ContextSelectionTarget|null;
+  contextSelectionMode:boolean;
   selectClip:(clipId:string|null)=>void;
   selectClips:(clipIds:string[])=>void;
   toggleClip:(clipId:string)=>void;
   selectScene:(sceneId:string|null)=>void;
   selectScriptRange:(range:ScriptSelectionRange|null)=>void;
   selectContextTarget:(target:ContextSelectionTarget|null)=>void;
+  setContextSelectionMode:(active:boolean)=>void;
+  toggleContextSelectionMode:()=>void;
   clearSelection:()=>void;
 };
 
@@ -29,6 +32,7 @@ export const useSelectionStore=create<SelectionState>((set)=>({
   selectedSceneId:null,
   selectedScriptRange:null,
   selectedContextTarget:null,
+  contextSelectionMode:false,
   selectClip:(clipId)=>set(state=>({
     selectedClipIds:clipId?[clipId]:[],
     selectedClipId:clipId,
@@ -75,6 +79,8 @@ export const useSelectionStore=create<SelectionState>((set)=>({
     selectedContextTarget:range?scriptTarget(range):null,
   }),
   selectContextTarget:(target)=>set({selectedContextTarget:target}),
+  setContextSelectionMode:(active)=>set({contextSelectionMode:active}),
+  toggleContextSelectionMode:()=>set(state=>({contextSelectionMode:!state.contextSelectionMode})),
   clearSelection:()=>set({
     selectedClipIds:[],
     selectedClipId:null,
