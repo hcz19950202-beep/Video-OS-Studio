@@ -6,22 +6,26 @@ export type AgentExecutionMode=z.infer<typeof AgentExecutionModeSchema>;
 
 export const DEFAULT_AGENT_EXECUTION_MODE:AgentExecutionMode="review-first";
 
-export const canExecutionModeAutoRunRisk=(_mode:AgentExecutionMode,risk:SharedToolRiskClass)=>risk==="R0"||risk==="R1";
+export const canExecutionModeAutoRun=(input:{mode:AgentExecutionMode;riskClass:SharedToolRiskClass;allowSessionOverride:boolean})=>{
+  if(input.riskClass==="R0"||input.riskClass==="R1")return true;
+  if(input.riskClass!=="R2")return false;
+  return input.mode==="apply-safe-edits"&&input.allowSessionOverride;
+};
 
 export const describeAgentExecutionMode=(mode:AgentExecutionMode)=>{
   if(mode==="plan-only")return[
     "Execution policy intent: PLAN ONLY.",
     "Do not request or perform durable Project, Workflow, Mission, Job, QA, or Campaign mutations.",
-    "Use read/analyze/plan capabilities only. You may describe or create a reviewable proposal, but do not execute a durable operation.",
+    "Use read/analyze/search/plan/proposal capabilities only. Do not execute a durable mutation or costly Job.",
   ].join(" ");
   if(mode==="apply-safe-edits")return[
     "Execution policy intent: APPLY SAFE EDITS.",
-    "You may proactively use application-approved read/analyze capabilities and prepare reversible edits for the normal proposal path.",
-    "This intent can auto-run only R0/R1 capabilities. It never overrides R2/R3/R4 approval, revision checks, protected edits, or explicit Proposal Apply boundaries.",
+    "R0/R1 capabilities may run automatically. An R2 reversible Project mutation is eligible for session auto-apply only when application-owned policy explicitly allows a session override for that tool.",
+    "R3/R4 remain approval-bound. This mode never overrides revision checks, protected edits, idempotency, or application approval policy.",
   ].join(" ");
   return[
     "Execution policy intent: REVIEW FIRST.",
-    "Prepare reviewable changes and wait for the normal Review / Apply boundary before any durable Project or Workflow mutation.",
-    "Application risk class, revision checks, protected edits, and approval policy remain authoritative; only R0/R1 capabilities may run automatically.",
+    "Read, analyze, search, plan, and proposal creation may run automatically, but durable Project mutation, costly Jobs, and protected operations require the normal application review/approval boundary.",
+    "Application risk class, revision checks, protected edits, idempotency, and approval policy remain authoritative.",
   ].join(" ");
 };
