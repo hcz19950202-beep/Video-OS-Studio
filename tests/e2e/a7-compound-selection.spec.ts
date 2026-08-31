@@ -132,7 +132,9 @@ test("A7 normal Studio path retains Scene + Caption compound Agent context", asy
   const turnRequest = page.waitForRequest(
     (request) => request.method() === "POST" && request.url().endsWith("/turns"),
   );
-  await page.locator(".a4-agent-composer textarea").fill("Plan for the current compound selection.");
+  await page
+    .locator(".a4-agent-composer textarea")
+    .fill("Plan for the current compound selection.");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   const sent = await turnRequest;
   const payload = sent.postDataJSON() as {
