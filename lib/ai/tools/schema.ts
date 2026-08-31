@@ -9,7 +9,7 @@ import {WorkflowArtifactKindSchema,WorkflowCheckpointStatusSchema,WorkflowRunIdS
 export type AgentToolExecutionContext={
   sessionId:string;
   context:AgentContextSnapshot;
-  contextReferences:ReadonlyArray<BoundedResolvedContextReference>;
+  contextReferences?:ReadonlyArray<BoundedResolvedContextReference>;
   now?:()=>string;
   makeId?:()=>string;
 };
