@@ -336,7 +336,7 @@ export class LocalMcpHttpServer{
       }
       const contract=this.tools.getContract(toolId);
       if(!isMcpCallableContract(contract)){
-        json(res,400,rpcError(request.id,-32602,"Unknown or unauthorized MCP tool."));
+        json(res,400,rpcError(request.id,-32602,"Unknown or non-readable MCP tool."));
         return;
       }
       const args=toolArguments(request);
