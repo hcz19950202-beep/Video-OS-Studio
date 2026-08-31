@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect,useMemo,useRef,useState} from "react";
-import type {AgentProposalPreview,AgentSelectionSnapshot,AgentSession} from "@/lib/ai";
+import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode,type AgentProposalPreview,type AgentSelectionSnapshot,type AgentSession} from "@/lib/ai";
 import {applyAgentProposal,createAgentSession,listAgentSessions,openAgentSession,rejectAgentProposal,reviewAgentProposal,runAgentTurn,type AgentProviderRuntimeStatus,type AgentTurnStreamEvent} from "@/lib/client/agent";
 import type {Project} from "@/schemas/project";
 import {useHistoryStore} from "@/store/history-store";
@@ -9,7 +9,7 @@ import {useSelectionStore} from "@/store/selection-store";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
 import {AgentConversationSurface,type AgentConversationActivity} from "@/components/studio/AgentConversationSurface";
 
-export const AgentWorkspacePanel=({project,onProjectChange}:{project:Project;onProjectChange:(project:Project)=>void})=>{
+export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{project:Project;onProjectChange:(project:Project)=>void;onOpenMission?:()=>void})=>{
   const{locale}=useStudioPreferences();
   const zh=locale==="zh-CN";
   const pushHistory=useHistoryStore(state=>state.push);
@@ -26,6 +26,7 @@ export const AgentWorkspacePanel=({project,onProjectChange}:{project:Project;onP
   const[session,setSession]=useState<AgentSession|null>(null);
   const[provider,setProvider]=useState<AgentProviderRuntimeStatus|null>(null);
   const[input,setInput]=useState("");
+  const[executionMode,setExecutionMode]=useState<AgentExecutionMode>(DEFAULT_AGENT_EXECUTION_MODE);
   const[busy,setBusy]=useState(false);
   const[proposalBusy,setProposalBusy]=useState<string|null>(null);
   const[error,setError]=useState<string|null>(null);
@@ -97,7 +98,7 @@ export const AgentWorkspacePanel=({project,onProjectChange}:{project:Project;onP
     try{
       let target=session;
       if(!target){target=await createAgentSession(project.project.id,selection);syncSession(target);}
-      syncSession(await runAgentTurn({projectId:project.project.id,sessionId:target.id,userContent:prompt,selection,signal:controller.signal,onEvent:observe}));
+      syncSession(await runAgentTurn({projectId:project.project.id,sessionId:target.id,userContent:prompt,executionMode,selection,signal:controller.signal,onEvent:observe}));
       setStreamText("");
     }catch(caught){
       if(controller.signal.aborted)setError(zh?"本轮已取消。":"Turn cancelled.");
@@ -170,6 +171,7 @@ export const AgentWorkspacePanel=({project,onProjectChange}:{project:Project;onP
 
   return <AgentConversationSurface
     zh={zh}
+    projectId={project.project.id}
     projectName={project.project.name}
     selectedSceneId={selectedSceneId??null}
     selectedClipId={selectedClipId??null}
@@ -177,6 +179,7 @@ export const AgentWorkspacePanel=({project,onProjectChange}:{project:Project;onP
     provider={provider}
     sessions={sessions}
     sessionId={session?.id??null}
+    executionMode={executionMode}
     busy={busy}
     proposalBusy={proposalBusy}
     messages={messages}
@@ -190,6 +193,7 @@ export const AgentWorkspacePanel=({project,onProjectChange}:{project:Project;onP
     input={input}
     onSelectSession={id=>void selectSession(id)}
     onCreateSession={()=>void createSession()}
+    onExecutionModeChange={setExecutionMode}
     onReviewProposal={proposalId=>void reviewProposal(proposalId)}
     onRejectProposal={proposalId=>void rejectProposal(proposalId)}
     onApplyProposal={(proposalId,applyAll)=>void applyProposal(proposalId,applyAll)}
@@ -197,5 +201,6 @@ export const AgentWorkspacePanel=({project,onProjectChange}:{project:Project;onP
     onSend={prompt=>void send(prompt)}
     onCancel={cancel}
     onInputChange={setInput}
+    onOpenMission={onOpenMission}
   />;
 };
