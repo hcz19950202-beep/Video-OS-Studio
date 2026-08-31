@@ -40,9 +40,7 @@ test("C4 Connection Center read bridge", async ({ page }) => {
   await expect(page.getByTestId("mcp-bridge-status")).toHaveText("stopped");
 
   await center.getByRole("button", { name: "Start read bridge", exact: true }).click();
-  await expect(page.getByTestId("mcp-bridge-status")).toHaveText(
-    /ready|connected|disconnected/,
-  );
+  await expect(page.getByTestId("mcp-bridge-status")).toHaveText(/ready|connected|disconnected/);
   const address = await page.getByTestId("mcp-bridge-address").textContent();
   expect(address).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/api\/mcp$/);
 
