@@ -9,6 +9,7 @@ type WorkspaceLayoutContextValue={
   setPreset:(preset:WorkspacePreset)=>void;
   toggleLeft:()=>void;
   toggleInspector:()=>void;
+  toggleTimeline:()=>void;
   resetWorkspace:()=>void;
 };
 
@@ -30,6 +31,7 @@ export const WorkspaceLayoutProvider=({children}:{children:React.ReactNode})=>{
     setPreset:preset=>persist(applyWorkspacePreset(preset)),
     toggleLeft:()=>persist(updateWorkspaceLayout(layout,{leftCollapsed:!layout.leftCollapsed})),
     toggleInspector:()=>persist(updateWorkspaceLayout(layout,{inspectorCollapsed:!layout.inspectorCollapsed})),
+    toggleTimeline:()=>persist(updateWorkspaceLayout(layout,{timelineCollapsed:!layout.timelineCollapsed})),
     resetWorkspace:()=>persist(applyWorkspacePreset(layout.preset)),
   }),[layout]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
