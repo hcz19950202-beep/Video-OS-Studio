@@ -1,6 +1,7 @@
 import {describe,expect,it,vi} from "vitest";
 import {z} from "zod";
 import type {AgentContextSnapshot} from "@/lib/ai/context";
+import {createA1AgentToolRegistry} from "@/lib/ai/tools";
 import {AgentToolRegistry} from "@/lib/ai/tools/registry";
 import {createC4ReadOnlyAgentTool} from "@/lib/ai/tools/shared-agent-adapter";
 import {
@@ -94,6 +95,21 @@ describe("V2.5 C4 SharedToolRegistry",()=>{
       projectId:"project-c4",
       requestId:"agent-request-1",
     });
+  });
+
+  it("makes shared reads authoritative in the production-style Built-in Agent registry",()=>{
+    const shared=new SharedToolRegistry([sharedTool(()=>({echoed:"shared",transport:"agent"}))]);
+    const agent=createA1AgentToolRegistry({
+      visualPlans:{generate:async()=>{throw new Error("not called");}},
+      assetIntelligence:{search:async()=>[]},
+      qaReports:{latest:async()=>null},
+      sharedReadRegistry:shared,
+    });
+    const ids=agent.listDefinitions().map(definition=>definition.id);
+    expect(ids).toContain("read_echo");
+    expect(ids).not.toContain("get_project_context");
+    expect(ids).not.toContain("search_asset_intelligence");
+    expect(ids).not.toContain("inspect_latest_qa_report");
   });
 
   it("applies one input and output validation boundary independent of transport",async()=>{
