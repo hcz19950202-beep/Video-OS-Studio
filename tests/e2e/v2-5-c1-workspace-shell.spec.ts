@@ -9,10 +9,11 @@ test("C1 keeps Agent Viewer Context and Timeline stable in one desktop workspace
   await page.addInitScript(() => {
     localStorage.setItem("video-os-studio-locale", "en-US");
     localStorage.setItem("video-os-studio-theme", "dark");
-    localStorage.removeItem("video-os-v2.1-workspace-layout");
   });
 
   await page.goto("/");
+  await page.evaluate(() => localStorage.removeItem("video-os-v2.1-workspace-layout"));
+  await page.reload();
 
   await expect(page.getByTestId("agent-native-workspace")).toBeVisible();
   await expect(page.locator('[data-workspace-region="viewer"]')).toBeVisible();
@@ -53,8 +54,8 @@ test("C1 keeps Agent Viewer Context and Timeline stable in one desktop workspace
   await expect(page.locator(".v21-project-title")).toContainText(PROJECT_NAME);
   await expect(page.getByTestId("project-connection-status")).toContainText("Project connected");
 
-  await page.getByRole("tab", { name: "Agent", exact: true }).click();
-  await expect(page.getByText("Agent Workspace", { exact: true })).toBeVisible();
+  await page.getByTestId("agent-surface-toggle").click();
+  await expect(page.getByTestId("agent-native-workspace")).toContainText("Agent Workspace");
 
   await page.getByRole("tab", { name: "Assets", exact: true }).click();
   await expect(page.locator('[data-context-tab="assets"]')).toBeVisible();
