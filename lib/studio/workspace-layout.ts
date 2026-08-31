@@ -23,10 +23,10 @@ export const WORKSPACE_LIMITS={
 } as const;
 
 export const WORKSPACE_PRESETS:Record<WorkspacePreset,WorkspaceLayout>={
-  edit:{version:1,preset:"edit",leftWidth:340,inspectorWidth:340,timelineHeight:300,leftCollapsed:false,inspectorCollapsed:false,timelineCollapsed:false},
-  ai:{version:1,preset:"ai",leftWidth:400,inspectorWidth:320,timelineHeight:300,leftCollapsed:false,inspectorCollapsed:false,timelineCollapsed:false},
-  script:{version:1,preset:"script",leftWidth:440,inspectorWidth:320,timelineHeight:240,leftCollapsed:false,inspectorCollapsed:false,timelineCollapsed:false},
-  motion:{version:1,preset:"motion",leftWidth:340,inspectorWidth:380,timelineHeight:360,leftCollapsed:false,inspectorCollapsed:false,timelineCollapsed:false},
+  edit:{version:1,preset:"edit",leftWidth:300,inspectorWidth:320,timelineHeight:300,leftCollapsed:false,inspectorCollapsed:false,timelineCollapsed:false},
+  ai:{version:1,preset:"ai",leftWidth:400,inspectorWidth:300,timelineHeight:300,leftCollapsed:false,inspectorCollapsed:true,timelineCollapsed:false},
+  script:{version:1,preset:"script",leftWidth:440,inspectorWidth:300,timelineHeight:240,leftCollapsed:false,inspectorCollapsed:true,timelineCollapsed:false},
+  motion:{version:1,preset:"motion",leftWidth:300,inspectorWidth:360,timelineHeight:360,leftCollapsed:false,inspectorCollapsed:false,timelineCollapsed:false},
 };
 
 const clamp=(value:number,min:number,max:number,fallback:number)=>Number.isFinite(value)?Math.max(min,Math.min(max,Math.round(value))):fallback;
