@@ -10,10 +10,7 @@ import styles from "@/components/studio/AgentNativeWorkspace.module.css";
 
 type Surface="agent"|"tools";
 
-type Props={
-  legacyRail:ReactNode;
-  legacyContent:ReactNode;
-};
+type Props={legacyRail:ReactNode;legacyContent:ReactNode};
 
 export const AgentNativeLeftPanel=({legacyRail,legacyContent}:Props)=>{
   const{locale}=useStudioPreferences();
@@ -30,13 +27,10 @@ export const AgentNativeLeftPanel=({legacyRail,legacyContent}:Props)=>{
 
   return <section className={styles.leftPanel} data-testid="agent-native-workspace">
     <header className={styles.leftHeader}>
-      <div>
-        <strong>{zh?"Agent 工作区":"Agent Workspace"}</strong>
-        <small>{zh?"对话、提案与工具活动":"Conversation, proposals and tool activity"}</small>
-      </div>
-      <div className={styles.segmented} role="tablist" aria-label={zh?"Agent 工作区视图":"Agent workspace view"}>
-        <button type="button" role="tab" aria-selected={surface==="agent"} className={surface==="agent"?styles.active:""} onClick={()=>setSurface("agent")}>{zh?"Agent":"Agent"}</button>
-        <button type="button" role="tab" aria-selected={surface==="tools"} className={surface==="tools"?styles.active:""} onClick={()=>setSurface("tools")}>{zh?"工具":"Tools"}</button>
+      <div><strong>{zh?"Agent 工作区":"Agent Workspace"}</strong><small>{zh?"对话、提案与工具活动":"Conversation, proposals and tool activity"}</small></div>
+      <div className={styles.segmented} role="group" aria-label={zh?"Agent 工作区视图":"Agent workspace view"}>
+        <button type="button" data-testid="agent-surface-toggle" aria-pressed={surface==="agent"} className={surface==="agent"?styles.active:""} onClick={()=>setSurface("agent")}>{zh?"Agent":"Agent"}</button>
+        <button type="button" data-testid="tools-surface-toggle" aria-pressed={surface==="tools"} className={surface==="tools"?styles.active:""} onClick={()=>setSurface("tools")}>{zh?"工具":"Tools"}</button>
       </div>
     </header>
     <div className={styles.leftBody}>
