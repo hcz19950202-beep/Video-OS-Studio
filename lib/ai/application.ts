@@ -1,6 +1,6 @@
 import {createHash,randomUUID} from "node:crypto";
 import {z} from "zod";
-import {AgentProposalIdSchema,AgentProposalSchema,AgentSessionIdSchema,type AgentProposal,type AgentProposedOperation} from "@/lib/ai/schema";
+import {AgentProjectTransactionProposalPayloadSchema,AgentProposalIdSchema,AgentProposalSchema,AgentSessionIdSchema,type AgentProposal,type AgentProposedOperation} from "@/lib/ai/schema";
 import {AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";
 import type {AgentSessionRepository} from "@/lib/ai/session/repository";
 import {WorkflowActionProposalPayloadSchema,type WorkflowActionProposalPayload} from "@/lib/ai/tools/schema";
@@ -71,7 +71,7 @@ export type AgentProposalApplyResult={
 export type AgentProposalApplicationDependencies={
   sessions:AgentSessionRepository;
   projects:Pick<ProjectRepository,"load">;
-  mutations:Pick<ProjectMutationCoordinator,"getOperation">;
+  mutations:Pick<ProjectMutationCoordinator,"getOperation">&Partial<Pick<ProjectMutationCoordinator,"applyTransaction">>;
   visualPlans:Pick<VisualPlanService,"preview"|"apply">;
   workflowActions?:AgentWorkflowActionExecutor;
   now?:()=>string;
@@ -219,6 +219,12 @@ export class AgentProposalApplicationService{
         operations.push({operationId:operation.id,kind:operation.kind,summary:operation.summary,selectableChangeIds:payload.selectedIds,selectedChangeIds,visualPlanDiff:await this.dependencies.visualPlans.preview(input.projectId,payload.plan,selectedChangeIds)});
         continue;
       }
+      if(operation.kind==="project-transaction"){
+        if(input.changeIds?.length)throw new AgentProposalApplicationError("Project transactions do not accept visual change selections.");
+        AgentProjectTransactionProposalPayloadSchema.parse(operation.payload);
+        operations.push({operationId:operation.id,kind:operation.kind,summary:operation.summary,selectableChangeIds:[],selectedChangeIds:[]});
+        continue;
+      }
       if(operation.kind==="workflow-action"){
         if(input.changeIds?.length)throw new AgentProposalApplicationError("Workflow actions do not accept visual change selections.");
         if(!this.dependencies.workflowActions)throw new AgentProposalApplicationError("Workflow action application is not configured.");
@@ -275,10 +281,13 @@ export class AgentProposalApplicationService{
     const operation=selected[0];
     const visualPayload=operation.kind==="visual-plan"?VisualPlanOperationPayloadSchema.parse(operation.payload):undefined;
     const workflowPayload=operation.kind==="workflow-action"?WorkflowActionProposalPayloadSchema.parse(operation.payload):undefined;
+    const projectTransactionPayload=operation.kind==="project-transaction"?AgentProjectTransactionProposalPayloadSchema.parse(operation.payload):undefined;
     const workflowActions=this.dependencies.workflowActions;
-    if(!visualPayload&&!workflowPayload)throw new AgentProposalApplicationError(`Proposal operation kind ${operation.kind} is not applyable in A5 yet.`);
+    if(!visualPayload&&!workflowPayload&&!projectTransactionPayload)throw new AgentProposalApplicationError(`Proposal operation kind ${operation.kind} is not applyable in A5 yet.`);
     if(workflowPayload&&input.changeIds?.length)throw new AgentProposalApplicationError("Workflow actions do not accept visual change selections.");
+    if(projectTransactionPayload&&input.changeIds?.length)throw new AgentProposalApplicationError("Project transactions do not accept visual change selections.");
     if(workflowPayload&&!workflowActions)throw new AgentProposalApplicationError("Workflow action application is not configured.");
+    if(projectTransactionPayload&&!this.dependencies.mutations.applyTransaction)throw new AgentProposalApplicationError("Project transaction application is not configured.");
     const selectedChangeIds=visualPayload?selectVisualChanges(visualPayload.selectedIds,input.changeIds):[];
     const applyOperationId=stableApplyOperationId(proposal.id,[operation.id],selectedChangeIds);
     const priorApproved=session.approvedOperations.find(item=>item.operationId===applyOperationId);
@@ -290,7 +299,7 @@ export class AgentProposalApplicationService{
       return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:true,workflowAction:workflowPayload.action};
     }
 
-    if(visualPayload){
+    if(visualPayload||projectTransactionPayload){
       const priorMutation=await this.dependencies.mutations.getOperation(input.projectId,applyOperationId);
       if(priorMutation?.status==="applied"){
         const project=await this.dependencies.projects.load(input.projectId);
@@ -346,6 +355,21 @@ export class AgentProposalApplicationService{
       externalCompleted=true;
       session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
       return{project:current,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:applied.alreadyApplied,workflow:applied.workflow,workflowAction:workflowPayload.action};
+    }
+
+    if(projectTransactionPayload){
+      let applied:Awaited<ReturnType<ProjectMutationCoordinator["applyTransaction"]>>;
+      let mutationCompleted=false;
+      try{
+        applied=await this.dependencies.mutations.applyTransaction!(input.projectId,{expectedRevision:proposal.baseProjectRevision,transactionId:applyOperationId,transaction:projectTransactionPayload});
+        mutationCompleted=true;
+      }catch(error){
+        if(!mutationCompleted&&claimToken)await this.releaseApplyOperation(input.projectId,sessionId,applyOperationId,claimToken).catch(()=>undefined);
+        if(error instanceof ProjectRevisionConflictError){({session,proposal}=await this.saveStale(session,proposal));throw new AgentProposalStaleError(error.expectedRevision,error.currentRevision);}
+        throw error;
+      }
+      session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
+      return{project:applied.project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:applyOperationId,alreadyApplied:applied.alreadyApplied};
     }
 
     let applied:Awaited<ReturnType<VisualPlanService["apply"]>>;

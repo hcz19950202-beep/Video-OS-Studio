@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {ProjectTransactionPayloadSchema} from "@/lib/project/mutation-contract";
 import {ProjectIdSchema} from "@/schemas/project";
 
 const StableIdSchema=z.string().min(1).max(160).regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]*$/,"ID contains unsupported characters");
@@ -88,7 +89,14 @@ export const AgentToolResultSchema=z.object({
 });
 export type AgentToolResult=z.infer<typeof AgentToolResultSchema>;
 
-export const AgentProposalOperationKindSchema=z.enum(["visual-plan","script-edit","scene-edit","brand-style","clip-changes","workflow-action"]);
+export const AgentProjectTransactionProposalPayloadSchema=ProjectTransactionPayloadSchema.superRefine((payload,ctx)=>{
+  payload.commands.forEach((command,index)=>{
+    if(command.type==="restore-project-snapshot")ctx.addIssue({code:"custom",path:["commands",index,"type"],message:"Project snapshot replacement cannot be proposed through project-transaction."});
+  });
+});
+export type AgentProjectTransactionProposalPayload=z.infer<typeof AgentProjectTransactionProposalPayloadSchema>;
+
+export const AgentProposalOperationKindSchema=z.enum(["visual-plan","script-edit","scene-edit","brand-style","clip-changes","workflow-action","project-transaction"]);
 export type AgentProposalOperationKind=z.infer<typeof AgentProposalOperationKindSchema>;
 
 export const AgentProposedOperationSchema=z.object({
@@ -96,7 +104,11 @@ export const AgentProposedOperationSchema=z.object({
   kind:AgentProposalOperationKindSchema,
   summary:z.string().min(1).max(2_000),
   payload:JsonObjectSchema,
-}).strict();
+}).strict().superRefine((operation,ctx)=>{
+  if(operation.kind!=="project-transaction")return;
+  const parsed=AgentProjectTransactionProposalPayloadSchema.safeParse(operation.payload);
+  if(!parsed.success)ctx.addIssue({code:"custom",path:["payload"],message:"project-transaction payload must be a bounded Project command transaction without snapshot replacement."});
+});
 export type AgentProposedOperation=z.infer<typeof AgentProposedOperationSchema>;
 
 export const AgentProposalStatusSchema=z.enum(["draft","reviewed","applied","rejected","stale"]);

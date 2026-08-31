@@ -60,7 +60,7 @@ const contract:SharedAgentToolContract={
           required:["id","kind","summary","payload"],
           properties:{
             id:{type:"string"},
-            kind:{type:"string",enum:["visual-plan","script-edit","scene-edit","brand-style","clip-changes","workflow-action"]},
+            kind:{type:"string",enum:["visual-plan","script-edit","scene-edit","brand-style","clip-changes","workflow-action","project-transaction"]},
             summary:{type:"string"},
             payload:{type:"object"},
           },
