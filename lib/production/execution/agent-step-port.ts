@@ -163,6 +163,7 @@ export class ApplicationProductionAgentStepPort implements ProductionAgentStepPo
         projectId:input.mission.projectId,
         sessionId:input.operationId,
         userContent:fixedInstruction(input),
+        executionMode:"plan-only",
         budget,
       });
     }catch{
