@@ -14,12 +14,10 @@ const project:ContextReferenceProjectSnapshot={
   id:"project-c3",
   revision:7,
   assets:[{id:"asset-1"}],
-  scenes:[{
-    id:"scene-1",
-    tracks:[{
-      id:"track-1",
-      clips:[{id:"clip-1"}],
-    }],
+  scenes:[{id:"scene-1"}],
+  tracks:[{
+    id:"track-1",
+    clips:[{id:"clip-1"}],
   }],
 };
 
