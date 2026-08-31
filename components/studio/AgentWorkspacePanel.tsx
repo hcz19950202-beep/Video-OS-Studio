@@ -21,7 +21,6 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const selectedScriptRange=useSelectionStore(state=>state.selectedScriptRange);
   const selectedContextTarget=useSelectionStore(state=>state.selectedContextTarget);
   const contextSelectionMode=useSelectionStore(state=>state.contextSelectionMode);
-  const contextSelectionVersion=useSelectionStore(state=>state.contextSelectionVersion);
   const toggleContextSelectionMode=useSelectionStore(state=>state.toggleContextSelectionMode);
   const selection=useMemo<Partial<AgentSelectionSnapshot>>(()=>({
     selectedClipIds,
@@ -45,32 +44,40 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const[draftContextReferences,setDraftContextReferences]=useState<ContextReference[]>([]);
   const[pendingContextReferences,setPendingContextReferences]=useState<ContextReference[]>([]);
   const abortRef=useRef<AbortController|null>(null);
-  const lastAutoSelectionVersionRef=useRef(contextSelectionVersion);
 
   const syncSession=(next:AgentSession)=>{setSession(next);setSessions(current=>[next,...current.filter(item=>item.id!==next.id)]);};
 
   const attachTarget=(target:ContextSelectionTarget)=>setDraftContextReferences(current=>{
+    const scoped=current.filter(reference=>reference.projectId===project.project.id);
     const key=contextSelectionKey(target);
-    const index=current.findIndex(reference=>contextReferenceKey(reference)===key);
-    if(index>=0&&current[index]?.baseProjectRevision===project.project.revision)return current;
+    const index=scoped.findIndex(reference=>contextReferenceKey(reference)===key);
+    if(index>=0&&scoped[index]?.baseProjectRevision===project.project.revision)return scoped;
     const reference=attachContextSelection({selection:target,projectId:project.project.id,baseProjectRevision:project.project.revision});
-    if(index<0)return[...current,reference];
-    const next=[...current];next[index]=reference;return next;
+    if(index<0)return[...scoped,reference];
+    const next=[...scoped];next[index]=reference;return next;
   });
 
   useEffect(()=>{
-    if(!contextSelectionMode){lastAutoSelectionVersionRef.current=contextSelectionVersion;return;}
-    if(contextSelectionVersion===lastAutoSelectionVersionRef.current)return;
-    lastAutoSelectionVersionRef.current=contextSelectionVersion;
-    if(selectedContextTarget)attachTarget(selectedContextTarget);
-  },[contextSelectionMode,contextSelectionVersion,selectedContextTarget]);
+    let lastVersion=useSelectionStore.getState().contextSelectionVersion;
+    return useSelectionStore.subscribe(state=>{
+      if(state.contextSelectionVersion===lastVersion)return;
+      lastVersion=state.contextSelectionVersion;
+      if(!state.contextSelectionMode||!state.selectedContextTarget)return;
+      const target=state.selectedContextTarget;
+      setDraftContextReferences(current=>{
+        const scoped=current.filter(reference=>reference.projectId===project.project.id);
+        const key=contextSelectionKey(target);
+        const index=scoped.findIndex(reference=>contextReferenceKey(reference)===key);
+        if(index>=0&&scoped[index]?.baseProjectRevision===project.project.revision)return scoped;
+        const reference=attachContextSelection({selection:target,projectId:project.project.id,baseProjectRevision:project.project.revision});
+        if(index<0)return[...scoped,reference];
+        const next=[...scoped];next[index]=reference;return next;
+      });
+    });
+  },[project.project.id,project.project.revision]);
 
-  useEffect(()=>{
-    setDraftContextReferences([]);
-    setPendingContextReferences([]);
-    lastAutoSelectionVersionRef.current=useSelectionStore.getState().contextSelectionVersion;
-  },[project.project.id]);
-
+  const visibleDraftContextReferences=draftContextReferences.filter(reference=>reference.projectId===project.project.id);
+  const visiblePendingContextReferences=pendingContextReferences.filter(reference=>reference.projectId===project.project.id);
   const addCurrentContext=()=>attachTarget(selectedContextTarget??{kind:"project",label:project.project.name,target:{}});
   const removeContext=(referenceId:string)=>setDraftContextReferences(current=>current.filter(reference=>reference.id!==referenceId));
 
@@ -128,7 +135,7 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
 
   const send=async(prompt=input.trim()||lastPrompt)=>{
     if(!prompt||busy||proposalBusy||provider?.configured===false)return;
-    const sentContextReferences=[...draftContextReferences];
+    const sentContextReferences=draftContextReferences.filter(reference=>reference.projectId===project.project.id);
     setBusy(true);setError(null);setStreamText("");setActivity([]);setLastPrompt(prompt);setInput("");setPreviews({});setChangeSelections({});setPendingContextReferences(sentContextReferences);
     const controller=new AbortController();abortRef.current=controller;
     try{
@@ -217,8 +224,8 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
     selectedScriptRange={selectedScriptRange??null}
     selectedContextTarget={selectedContextTarget}
     contextSelectionMode={contextSelectionMode}
-    draftContextReferences={draftContextReferences}
-    pendingContextReferences={pendingContextReferences}
+    draftContextReferences={visibleDraftContextReferences}
+    pendingContextReferences={visiblePendingContextReferences}
     provider={provider}
     sessions={sessions}
     sessionId={session?.id??null}
