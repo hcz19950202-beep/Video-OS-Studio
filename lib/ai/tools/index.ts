@@ -32,5 +32,6 @@ export * from "@/lib/ai/tools/qa-tools";
 export * from "@/lib/ai/tools/read-tools";
 export * from "@/lib/ai/tools/registry";
 export * from "@/lib/ai/tools/schema";
+export * from "@/lib/ai/tools/shared-contract";
 export * from "@/lib/ai/tools/skill-tools";
 export * from "@/lib/ai/tools/workflow-tools";
