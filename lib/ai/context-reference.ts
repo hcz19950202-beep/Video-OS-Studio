@@ -34,6 +34,11 @@ const AssetContextReferenceSchema=ContextReferenceBaseSchema.extend({
   target:z.object({assetId:LogicalIdSchema}).strict(),
 }).strict();
 
+const TrackContextReferenceSchema=ContextReferenceBaseSchema.extend({
+  kind:z.literal("track"),
+  target:z.object({trackId:LogicalIdSchema}).strict(),
+}).strict();
+
 const TranscriptRangeContextReferenceSchema=ContextReferenceBaseSchema.extend({
   kind:z.literal("transcript-range"),
   target:z.object({startWordId:LogicalIdSchema,endWordId:LogicalIdSchema}).strict(),
@@ -65,9 +70,24 @@ const QAFindingContextReferenceSchema=ContextReferenceBaseSchema.extend({
   target:z.object({reportId:LogicalIdSchema,findingId:LogicalIdSchema}).strict(),
 }).strict();
 
+const MissionContextReferenceSchema=ContextReferenceBaseSchema.extend({
+  kind:z.literal("mission"),
+  target:z.object({missionId:LogicalIdSchema}).strict(),
+}).strict();
+
 const MissionStepContextReferenceSchema=ContextReferenceBaseSchema.extend({
   kind:z.literal("mission-step"),
   target:z.object({missionId:LogicalIdSchema,stepId:LogicalIdSchema}).strict(),
+}).strict();
+
+const JobContextReferenceSchema=ContextReferenceBaseSchema.extend({
+  kind:z.literal("job"),
+  target:z.object({jobId:LogicalIdSchema}).strict(),
+}).strict();
+
+const ExportPresetContextReferenceSchema=ContextReferenceBaseSchema.extend({
+  kind:z.literal("export-preset"),
+  target:z.object({presetId:LogicalIdSchema}).strict(),
 }).strict();
 
 export const ContextReferenceSchema=z.discriminatedUnion("kind",[
@@ -75,13 +95,18 @@ export const ContextReferenceSchema=z.discriminatedUnion("kind",[
   SceneContextReferenceSchema,
   ClipContextReferenceSchema,
   AssetContextReferenceSchema,
+  TrackContextReferenceSchema,
   TranscriptRangeContextReferenceSchema,
   TimelinePointContextReferenceSchema,
   ViewerRegionContextReferenceSchema,
   QAFindingContextReferenceSchema,
+  MissionContextReferenceSchema,
   MissionStepContextReferenceSchema,
+  JobContextReferenceSchema,
+  ExportPresetContextReferenceSchema,
 ]);
 export type ContextReference=z.infer<typeof ContextReferenceSchema>;
+export type ContextReferenceKind=ContextReference["kind"];
 
 export const ContextReferenceListSchema=z.array(ContextReferenceSchema).max(32);
 export type ContextReferenceList=z.infer<typeof ContextReferenceListSchema>;
