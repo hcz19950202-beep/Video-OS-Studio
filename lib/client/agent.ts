@@ -1,5 +1,6 @@
 import type {AgentProposalApplyResult,AgentProposalPreview} from "@/lib/ai/application";
-import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode,type AgentSelectionSnapshot,type AgentSession} from "@/lib/ai";
+import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
+import type {AgentSelectionSnapshot,AgentSession} from "@/lib/ai";
 
 export type AgentProviderRuntimeStatus={providerId:string;model:string;configured:boolean};
 export type AgentTurnStreamEvent={event:string;data:Record<string,unknown>};
