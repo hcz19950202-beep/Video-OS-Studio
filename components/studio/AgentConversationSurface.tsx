@@ -1,6 +1,7 @@
 "use client";
 
-import type {AgentExecutionMode,AgentProposalPreview,AgentSession} from "@/lib/ai";
+import type {AgentExecutionMode,AgentProposalPreview,AgentSession,ContextReference} from "@/lib/ai";
+import type {ContextSelectionTarget} from "@/lib/ai/context-selection";
 import type {AgentProviderRuntimeStatus} from "@/lib/client/agent";
 import {AgentConversationProductionCards} from "@/components/studio/AgentConversationProductionCards";
 
@@ -10,9 +11,14 @@ type Props={
   zh:boolean;
   projectId:string;
   projectName:string;
+  currentProjectRevision:number;
   selectedSceneId:string|null;
   selectedClipId:string|null;
   selectedScriptRange:{startWordId:string;endWordId:string}|null;
+  selectedContextTarget:ContextSelectionTarget|null;
+  contextSelectionMode:boolean;
+  draftContextReferences:ContextReference[];
+  pendingContextReferences:ContextReference[];
   provider:AgentProviderRuntimeStatus|null;
   sessions:AgentSession[];
   sessionId:string|null;
@@ -20,6 +26,7 @@ type Props={
   busy:boolean;
   proposalBusy:string|null;
   messages:AgentSession["messages"];
+  turns:AgentSession["turns"];
   lastPrompt:string;
   streamText:string;
   activity:AgentConversationActivity[];
@@ -38,10 +45,20 @@ type Props={
   onSend:(prompt?:string)=>void;
   onCancel:()=>void;
   onInputChange:(value:string)=>void;
+  onToggleContextSelectionMode:()=>void;
+  onAddCurrentContext:()=>void;
+  onRemoveContext:(referenceId:string)=>void;
   onOpenMission?:()=>void;
 };
 
 const compactTime=(value:string)=>{const date=new Date(value);return Number.isNaN(date.getTime())?value:date.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});};
+
+const AgentContextChip=({reference,currentProjectRevision,removable,onRemove}:{reference:ContextReference;currentProjectRevision:number;removable?:boolean;onRemove?:(referenceId:string)=>void})=>{
+  const stale=reference.baseProjectRevision!==currentProjectRevision;
+  return <span className="a5-agent-context-chip" data-kind={reference.kind} data-status={stale?"stale":"attached"} title={`${reference.kind} · rev ${reference.baseProjectRevision}`}>
+    <b>@{reference.kind}</b><span>{reference.label}</span>{stale?<em>stale</em>:null}{removable?<button type="button" aria-label={`Remove ${reference.label}`} onClick={()=>onRemove?.(reference.id)}>×</button>:null}
+  </span>;
+};
 
 const AgentSessionSelector=({zh,provider,sessions,sessionId,busy,proposalBusy,onSelectSession,onCreateSession}:Pick<Props,"zh"|"provider"|"sessions"|"sessionId"|"busy"|"proposalBusy"|"onSelectSession"|"onCreateSession">)=>
   <section className="a4-agent-toolbar">
@@ -54,13 +71,15 @@ const AgentSessionSelector=({zh,provider,sessions,sessionId,busy,proposalBusy,on
     </div>
   </section>;
 
-const AgentConversationMessages=({zh,messages,busy,lastPrompt,streamText}:Pick<Props,"zh"|"messages"|"busy"|"lastPrompt"|"streamText">)=>
-  <section className="a4-agent-conversation" aria-live="polite" data-testid="agent-conversation-list">
+const AgentConversationMessages=({zh,messages,turns,busy,lastPrompt,streamText,currentProjectRevision,pendingContextReferences}:Pick<Props,"zh"|"messages"|"turns"|"busy"|"lastPrompt"|"streamText"|"currentProjectRevision"|"pendingContextReferences">)=>{
+  const turnByUserMessage=new Map(turns.map(turn=>[turn.userMessageId,turn]));
+  return <section className="a4-agent-conversation" aria-live="polite" data-testid="agent-conversation-list">
     {messages.length===0&&!busy?<div className="a4-agent-empty"><strong>{zh?"直接告诉 Agent 你想完成什么":"Tell the Agent what outcome you want"}</strong><p>{zh?"无需先选择 Mission、Agent、Composer 或 Workflow。需要的能力会在同一对话中呈现为工具活动、方案和生产状态。":"You do not need to choose Mission, Agent, Composer, or Workflow first. The conversation exposes tools, proposals, and production state as needed."}</p></div>:null}
-    {messages.map(message=><article key={message.id} className={`a4-agent-message ${message.role}`}><header><strong>{message.role==="user"?(zh?"你":"You"):(zh?"Agent":"Agent")}</strong><small>{compactTime(message.createdAt)}</small></header><p>{message.content}</p></article>)}
-    {busy&&lastPrompt?<article className="a4-agent-message user pending"><header><strong>{zh?"你":"You"}</strong><small>{zh?"发送中":"sending"}</small></header><p>{lastPrompt}</p></article>:null}
+    {messages.map(message=>{const refs=message.role==="user"?(turnByUserMessage.get(message.id)?.contextReferences??[]):[];return <article key={message.id} className={`a4-agent-message ${message.role}`}><header><strong>{message.role==="user"?(zh?"你":"You"):(zh?"Agent":"Agent")}</strong><small>{compactTime(message.createdAt)}</small></header><p>{message.content}</p>{refs.length?<div className="a5-agent-message-context" data-testid="agent-message-context">{refs.map(reference=><AgentContextChip key={reference.id} reference={reference} currentProjectRevision={currentProjectRevision}/>)}</div>:null}</article>;})}
+    {busy&&lastPrompt?<article className="a4-agent-message user pending"><header><strong>{zh?"你":"You"}</strong><small>{zh?"发送中":"sending"}</small></header><p>{lastPrompt}</p>{pendingContextReferences.length?<div className="a5-agent-message-context">{pendingContextReferences.map(reference=><AgentContextChip key={reference.id} reference={reference} currentProjectRevision={currentProjectRevision}/>)}</div>:null}</article>:null}
     {streamText?<article className="a4-agent-message assistant streaming"><header><strong>Agent</strong><small>{zh?"生成中":"streaming"}</small></header><p>{streamText}</p></article>:null}
   </section>;
+};
 
 const AgentToolActivity=({zh,busy,activity}:Pick<Props,"zh"|"busy"|"activity">)=>activity.length?<section className="a4-agent-activity" data-testid="agent-tool-activity"><header><strong>{zh?"工具活动":"Tool activity"}</strong><small>{busy?zh?"进行中":"running":zh?"最近一轮":"latest turn"}</small></header>{activity.map(item=><div key={item.id}><span>{item.label}</span><em data-status={item.status}>{item.status}</em></div>)}</section>:null;
 
@@ -101,33 +120,37 @@ const executionModeHelp=(mode:AgentExecutionMode,zh:boolean)=>{
   return zh?"默认模式：读取、分析、规划和提案可自动进行；持久化修改仍先审查。":"Default: reads, analysis, planning and proposals may run automatically; durable mutations still require review.";
 };
 
-const AgentComposer=({zh,input,executionMode,busy,proposalBusy,provider,onInputChange,onExecutionModeChange,onSend,onCancel}:Pick<Props,"zh"|"input"|"executionMode"|"busy"|"proposalBusy"|"provider"|"onInputChange"|"onExecutionModeChange"|"onSend"|"onCancel">)=>
+const AgentComposer=({zh,input,executionMode,busy,proposalBusy,provider,selectedContextTarget,contextSelectionMode,draftContextReferences,currentProjectRevision,onInputChange,onExecutionModeChange,onSend,onCancel,onToggleContextSelectionMode,onAddCurrentContext,onRemoveContext}:Pick<Props,"zh"|"input"|"executionMode"|"busy"|"proposalBusy"|"provider"|"selectedContextTarget"|"contextSelectionMode"|"draftContextReferences"|"currentProjectRevision"|"onInputChange"|"onExecutionModeChange"|"onSend"|"onCancel"|"onToggleContextSelectionMode"|"onAddCurrentContext"|"onRemoveContext">)=>
   <section className="a4-agent-composer">
     <div className="a4-agent-execution-mode" data-testid="agent-execution-mode">
       <label>{zh?"执行模式":"Execution mode"}<select aria-label={zh?"执行模式":"Execution mode"} value={executionMode} disabled={busy||Boolean(proposalBusy)} onChange={event=>onExecutionModeChange(event.target.value as AgentExecutionMode)}><option value="review-first">{zh?"先审查":"Review First"}</option><option value="apply-safe-edits">{zh?"应用安全编辑":"Apply Safe Edits"}</option><option value="plan-only">{zh?"仅规划":"Plan Only"}</option></select></label>
       <small>{executionModeHelp(executionMode,zh)}</small>
     </div>
-    <textarea value={input} disabled={busy||Boolean(proposalBusy)||provider?.configured===false} onChange={event=>onInputChange(event.target.value)} onKeyDown={event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();onSend();}}} placeholder={zh?"告诉 Agent 你想完成什么。Project / Workflow 的持久化修改仍遵守既有风险、revision、Review / Apply 边界。":"Tell the Agent what outcome you want. Durable Project / Workflow changes still obey the existing risk, revision, and Review / Apply boundaries."}/>
-    <div><small>{zh?"Enter 发送 · Shift+Enter 换行":"Enter to send · Shift+Enter for newline"}</small>{busy?<button type="button" className="button secondary small" onClick={onCancel}>{zh?"取消":"Cancel"}</button>:<button type="button" className="button small" disabled={!input.trim()||Boolean(proposalBusy)||provider?.configured===false} onClick={()=>onSend()}>{zh?"发送":"Send"}</button>}</div>
+    <div className="a5-agent-context-controls" data-testid="agent-context-controls">
+      <button type="button" className={`button secondary small ${contextSelectionMode?"active":""}`} aria-pressed={contextSelectionMode} data-testid="context-selection-mode" disabled={busy||Boolean(proposalBusy)} onClick={onToggleContextSelectionMode}>{contextSelectionMode?(zh?"选择模式：开":"Selection Mode: On"):(zh?"选择模式":"Selection Mode")}</button>
+      <button type="button" className="button secondary small" data-testid="add-context" disabled={busy||Boolean(proposalBusy)} onClick={onAddCurrentContext}>@ {zh?"添加上下文":"Add context"}</button>
+      <small>{selectedContextTarget?(zh?`当前选择：${selectedContextTarget.label}`:`Selected: ${selectedContextTarget.label}`):(zh?"未选择对象时添加 Project":"Adds Project when nothing is selected")}</small>
+    </div>
+    {draftContextReferences.length?<div className="a5-agent-context-chips" data-testid="agent-context-chips">{draftContextReferences.map(reference=><AgentContextChip key={reference.id} reference={reference} currentProjectRevision={currentProjectRevision} removable onRemove={onRemoveContext}/>)}</div>:null}
+    <textarea value={input} disabled={busy||Boolean(proposalBusy)||provider?.configured===false} onChange={event=>onInputChange(event.target.value)} onKeyDown={event=>{if((event.key==="Backspace"||event.key==="Delete")&&!input&&draftContextReferences.length){event.preventDefault();onRemoveContext(draftContextReferences.at(-1)!.id);return;}if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();onSend();}}} placeholder={zh?"告诉 Agent 你想完成什么。用 Selection Mode 或 @ 添加精确上下文。":"Tell the Agent what outcome you want. Use Selection Mode or @ Add context for precise grounding."}/>
+    <div><small>{zh?"Enter 发送 · Shift+Enter 换行 · 空输入 Backspace 删除最后芯片":"Enter to send · Shift+Enter for newline · Backspace removes last chip when empty"}</small>{busy?<button type="button" className="button secondary small" onClick={onCancel}>{zh?"取消":"Cancel"}</button>:<button type="button" className="button small" disabled={!input.trim()||Boolean(proposalBusy)||provider?.configured===false} onClick={()=>onSend()}>{zh?"发送":"Send"}</button>}</div>
   </section>;
 
 export const AgentConversationSurface=(props:Props)=>{
-  const{zh,projectId,projectName,selectedSceneId,selectedClipId,selectedScriptRange,provider,sessions,sessionId,executionMode,busy,proposalBusy,messages,lastPrompt,streamText,activity,proposals,previews,changeSelections,error,input}=props;
+  const{zh,projectId,projectName,currentProjectRevision,selectedSceneId,selectedClipId,selectedScriptRange,selectedContextTarget,provider,sessions,sessionId,executionMode,busy,proposalBusy,messages,turns,lastPrompt,streamText,activity,proposals,previews,changeSelections,error,input}=props;
   return <div className="a4-agent-workspace" data-agent-surface="conversation" data-testid="unified-agent-conversation">
     <AgentSessionSelector {...props}/>
     <section className="a4-agent-context">
-      <span>@Project · {projectName}</span>
-      {selectedSceneId?<span>@Scene · {selectedSceneId}</span>:null}
-      {selectedClipId?<span>@Clip · {selectedClipId}</span>:null}
-      {selectedScriptRange?<span>@Transcript · {selectedScriptRange.startWordId} → {selectedScriptRange.endWordId}</span>:null}
+      <span>Project · {projectName}</span>
+      {selectedContextTarget?<span data-testid="current-context-selection">{zh?"当前选择":"Selection"} · {selectedContextTarget.label}</span>:selectedSceneId?<span>{zh?"场景":"Scene"} · {selectedSceneId}</span>:selectedClipId?<span>Clip · {selectedClipId}</span>:selectedScriptRange?<span>Transcript · {selectedScriptRange.startWordId} → {selectedScriptRange.endWordId}</span>:null}
       <em>{provider?.configured?`${provider.providerId} · ${provider.model}`:zh?"Agent Plan 未配置":"Agent Plan not configured"}</em>
     </section>
     <AgentConversationProductionCards projectId={projectId} zh={zh} onOpenMission={props.onOpenMission}/>
     {provider&&provider.configured===false?<section className="a4-agent-empty"><strong>{zh?"Agent Provider 未配置":"Agent provider is not configured"}</strong><p>{zh?"高级 Composer 与 Workflow 仍可使用。配置本机 Volcengine Agent Plan 后再启动 Agent 会话。":"Advanced Composer and Workflow remain available. Configure the local Volcengine Agent Plan runtime to use Agent sessions."}</p></section>:null}
-    <AgentConversationMessages zh={zh} messages={messages} busy={busy} lastPrompt={lastPrompt} streamText={streamText}/>
+    <AgentConversationMessages zh={zh} messages={messages} turns={turns} busy={busy} lastPrompt={lastPrompt} streamText={streamText} currentProjectRevision={currentProjectRevision} pendingContextReferences={props.pendingContextReferences}/>
     <AgentToolActivity zh={zh} busy={busy} activity={activity}/>
     {proposals.map(proposal=><AgentProposalItem key={proposal.id} zh={zh} proposal={proposal} preview={previews[proposal.id]} selectedChanges={changeSelections[proposal.id]??new Set(previews[proposal.id]?.operations.flatMap(operation=>operation.selectableChangeIds)??[])} proposalBusy={proposalBusy} busy={busy} onReviewProposal={props.onReviewProposal} onRejectProposal={props.onRejectProposal} onApplyProposal={props.onApplyProposal} onToggleChange={props.onToggleChange} onSend={props.onSend}/>)}
     <AgentErrorState zh={zh} error={error} lastPrompt={lastPrompt} busy={busy} proposalBusy={proposalBusy} onSend={props.onSend}/>
-    <AgentComposer zh={zh} input={input} executionMode={executionMode} busy={busy} proposalBusy={proposalBusy} provider={provider} onInputChange={props.onInputChange} onExecutionModeChange={props.onExecutionModeChange} onSend={props.onSend} onCancel={props.onCancel}/>
+    <AgentComposer zh={zh} input={input} executionMode={executionMode} busy={busy} proposalBusy={proposalBusy} provider={provider} selectedContextTarget={selectedContextTarget} contextSelectionMode={props.contextSelectionMode} draftContextReferences={props.draftContextReferences} currentProjectRevision={currentProjectRevision} onInputChange={props.onInputChange} onExecutionModeChange={props.onExecutionModeChange} onSend={props.onSend} onCancel={props.onCancel} onToggleContextSelectionMode={props.onToggleContextSelectionMode} onAddCurrentContext={props.onAddCurrentContext} onRemoveContext={props.onRemoveContext}/>
   </div>;
 };
