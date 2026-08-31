@@ -77,7 +77,7 @@ describe("V2.5 C2 execution mode runtime",()=>{
     expect(result.turns[0]?.status).toBe("completed");
   });
 
-  it("does not turn Apply Safe Edits into implicit mutation authority",async()=>{
+  it("keeps Apply Safe Edits conditional on application-owned R2 session eligibility",async()=>{
     const provider=new ScriptedProvider([answer("Proposal path only")]);
     const{project,service}=buildService(provider);
     const session=await service.create({projectId:project.project.id});
@@ -85,6 +85,8 @@ describe("V2.5 C2 execution mode runtime",()=>{
 
     expect(provider.requests[0]?.system).toContain("Execution policy intent: APPLY SAFE EDITS.");
     expect(provider.requests[0]?.system).toContain("R0/R1");
-    expect(provider.requests[0]?.system).toContain("R2/R3/R4");
+    expect(provider.requests[0]?.system).toContain("R2 reversible Project mutation");
+    expect(provider.requests[0]?.system).toContain("application-owned policy explicitly allows a session override");
+    expect(provider.requests[0]?.system).toContain("R3/R4 remain approval-bound");
   });
 });
