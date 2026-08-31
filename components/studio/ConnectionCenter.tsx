@@ -141,7 +141,6 @@ export const ConnectionCenter=()=>{
 
   useEffect(()=>{
     if(!open)return;
-    void refresh();
     const interval=window.setInterval(()=>void refresh(),3_000);
     return()=>window.clearInterval(interval);
   },[open,refresh]);
@@ -150,6 +149,10 @@ export const ConnectionCenter=()=>{
     setOpen(false);
     setCredential(null);
     setError(null);
+  };
+  const openCenter=()=>{
+    setOpen(true);
+    void refresh();
   };
   const pair=async()=>{
     setCredential(null);
@@ -176,7 +179,7 @@ export const ConnectionCenter=()=>{
       data-testid="open-connection-center"
       aria-haspopup="dialog"
       aria-expanded={open}
-      onClick={()=>open?close():setOpen(true)}
+      onClick={()=>open?close():openCenter()}
     >
       <span className={styles.dot} data-live={live}/>
       {zh?"连接中心":"Connections"}
