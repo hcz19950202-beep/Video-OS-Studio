@@ -1,17 +1,17 @@
 "use client";
 
-import {useMemo,useState,type ReactNode} from "react";
+import {useMemo,type ReactNode} from "react";
 import {ProductionMissionPanel} from "@/components/studio/ProductionMissionPanel";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
 import {useHistoryStore} from "@/store/history-store";
 import {useProjectStore} from "@/store/project-store";
 import styles from "@/components/studio/AgentNativeWorkspace.module.css";
 
-type ContextTab="inspector"|"assets"|"transcript"|"mission"|"qa"|"history";
+export type AgentNativeContextTab="inspector"|"assets"|"transcript"|"mission"|"qa"|"history";
 
-type Props={inspector:ReactNode};
+type Props={inspector:ReactNode;tab:AgentNativeContextTab;onTabChange:(tab:AgentNativeContextTab)=>void};
 
-const tabs:Array<{id:ContextTab;zh:string;en:string}>=[
+const tabs:Array<{id:AgentNativeContextTab;zh:string;en:string}>=[
   {id:"inspector",zh:"检查器",en:"Inspector"},
   {id:"assets",zh:"素材",en:"Assets"},
   {id:"transcript",zh:"转写",en:"Transcript"},
@@ -20,13 +20,12 @@ const tabs:Array<{id:ContextTab;zh:string;en:string}>=[
   {id:"history",zh:"历史",en:"History"},
 ];
 
-export const AgentNativeContextDock=({inspector}:Props)=>{
+export const AgentNativeContextDock=({inspector,tab,onTabChange}:Props)=>{
   const{locale}=useStudioPreferences();
   const zh=locale==="zh-CN";
   const project=useProjectStore(state=>state.project);
   const undoStack=useHistoryStore(state=>state.undoStack);
   const redoStack=useHistoryStore(state=>state.redoStack);
-  const[tab,setTab]=useState<ContextTab>("inspector");
   const projectId=project?.project.id;
   const undoEntries=useMemo(()=>undoStack.filter(entry=>entry.projectId===projectId).map(entry=>({label:entry.label})),[projectId,undoStack]);
   const redoEntries=useMemo(()=>redoStack.filter(entry=>entry.projectId===projectId).map(entry=>({label:entry.label})),[projectId,redoStack]);
@@ -38,7 +37,7 @@ export const AgentNativeContextDock=({inspector}:Props)=>{
       <div><strong>{zh?"上下文":"Context"}</strong><small>{project?.project.name??(zh?"未打开项目":"No project")}</small></div>
     </header>
     <div className={styles.contextTabs} role="tablist" aria-label={zh?"上下文面板":"Context dock"}>
-      {tabs.map(item=><button type="button" key={item.id} role="tab" aria-selected={tab===item.id} className={tab===item.id?styles.active:""} onClick={()=>setTab(item.id)}>{zh?item.zh:item.en}</button>)}
+      {tabs.map(item=><button type="button" key={item.id} role="tab" aria-selected={tab===item.id} className={tab===item.id?styles.active:""} onClick={()=>onTabChange(item.id)}>{zh?item.zh:item.en}</button>)}
     </div>
     <div className={styles.contextBody} data-context-tab={tab}>
       {tab==="inspector"?inspector:null}
