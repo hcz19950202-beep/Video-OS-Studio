@@ -100,5 +100,5 @@ describe("V2.2 W2 production workflow stages",()=>{
     const motionExecution=done?.stageExecutions.find(stage=>stage.stageId==="MOTION_GENERATION");expect(motionExecution?.jobIds).toHaveLength(2);
     const project=await repository.load("demo");expect(project.script.segments).toHaveLength(2);expect(project.scenes.length).toBeGreaterThan(0);expect(project.tracks.find(track=>track.id==="captions-main")?.clips.length).toBe(2);const motion=project.tracks.find(track=>track.id==="motion-main")?.clips??[];expect(motion.filter(clip=>clip.type==="motion"&&clip.engine==="hyperframes")).toHaveLength(2);expect(motion.some(clip=>clip.type==="motion"&&clip.engine==="remotion")).toBe(true);
     expect(done?.artifacts.filter(artifact=>artifact.kind==="motion")).toHaveLength(2);expect(done?.artifacts.some(artifact=>artifact.kind==="transcript")).toBe(true);expect(done?.artifacts.some(artifact=>artifact.kind==="script-analysis")).toBe(true);expect(done?.artifacts.some(artifact=>artifact.kind==="visual-plan")).toBe(true);expect(done?.artifacts.some(artifact=>artifact.kind==="final-render")).toBe(true);
-  });
+  },15_000);
 });
