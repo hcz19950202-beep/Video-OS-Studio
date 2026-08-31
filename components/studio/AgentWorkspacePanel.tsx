@@ -21,6 +21,7 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const selectedScriptRange=useSelectionStore(state=>state.selectedScriptRange);
   const selectedContextTarget=useSelectionStore(state=>state.selectedContextTarget);
   const contextSelectionMode=useSelectionStore(state=>state.contextSelectionMode);
+  const contextSelectionVersion=useSelectionStore(state=>state.contextSelectionVersion);
   const toggleContextSelectionMode=useSelectionStore(state=>state.toggleContextSelectionMode);
   const selection=useMemo<Partial<AgentSelectionSnapshot>>(()=>({
     selectedClipIds,
@@ -44,7 +45,7 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const[draftContextReferences,setDraftContextReferences]=useState<ContextReference[]>([]);
   const[pendingContextReferences,setPendingContextReferences]=useState<ContextReference[]>([]);
   const abortRef=useRef<AbortController|null>(null);
-  const lastAutoSelectionKeyRef=useRef<string|null>(null);
+  const lastAutoSelectionVersionRef=useRef(contextSelectionVersion);
 
   const syncSession=(next:AgentSession)=>{setSession(next);setSessions(current=>[next,...current.filter(item=>item.id!==next.id)]);};
 
@@ -58,18 +59,16 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   });
 
   useEffect(()=>{
-    const key=selectedContextTarget?contextSelectionKey(selectedContextTarget):null;
-    if(!contextSelectionMode){lastAutoSelectionKeyRef.current=key;return;}
-    if(!selectedContextTarget){lastAutoSelectionKeyRef.current=null;return;}
-    if(key===lastAutoSelectionKeyRef.current)return;
-    lastAutoSelectionKeyRef.current=key;
-    attachTarget(selectedContextTarget);
-  },[contextSelectionMode,selectedContextTarget]);
+    if(!contextSelectionMode){lastAutoSelectionVersionRef.current=contextSelectionVersion;return;}
+    if(contextSelectionVersion===lastAutoSelectionVersionRef.current)return;
+    lastAutoSelectionVersionRef.current=contextSelectionVersion;
+    if(selectedContextTarget)attachTarget(selectedContextTarget);
+  },[contextSelectionMode,contextSelectionVersion,selectedContextTarget]);
 
   useEffect(()=>{
     setDraftContextReferences([]);
     setPendingContextReferences([]);
-    lastAutoSelectionKeyRef.current=null;
+    lastAutoSelectionVersionRef.current=useSelectionStore.getState().contextSelectionVersion;
   },[project.project.id]);
 
   const addCurrentContext=()=>attachTarget(selectedContextTarget??{kind:"project",label:project.project.name,target:{}});
