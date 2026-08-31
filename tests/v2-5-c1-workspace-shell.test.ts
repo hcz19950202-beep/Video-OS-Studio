@@ -25,10 +25,11 @@ describe("V2.5 C1 agent-native workspace shell",()=>{
 
   it("keeps the legacy editing tool rail reachable inside the dedicated Agent surface",()=>{
     const left=readFileSync(resolve(process.cwd(),"components/studio/AgentNativeLeftPanel.tsx"),"utf8");
-    expect(left).toContain('Surface="agent"|"tools"');
+    expect(left).toContain('AgentNativeSurface="agent"|"tools"');
     expect(left).toContain("legacyRail");
     expect(left).toContain("legacyContent");
     expect(left).toContain("AgentWorkspacePanel");
+    expect(left).not.toContain("useState<AgentNativeSurface>");
   });
 
   it("provides the frozen Context Dock tab contract without moving project runtime ownership",()=>{
@@ -36,6 +37,7 @@ describe("V2.5 C1 agent-native workspace shell",()=>{
     for(const tab of ["inspector","assets","transcript","mission","qa","history"])expect(dock).toContain(`id:\"${tab}\"`);
     expect(dock).toContain("ProductionMissionPanel");
     expect(dock).toContain("useProjectStore");
+    expect(dock).toContain("onTabChange");
     expect(dock).not.toContain("useWorkspaceProjectRuntime");
   });
 
@@ -46,5 +48,18 @@ describe("V2.5 C1 agent-native workspace shell",()=>{
     expect(commands).toContain("void redo()");
     expect(commands).toContain("resetWorkspace");
     expect(commands).toContain("toggleTimeline");
+  });
+
+  it("provides direct Projects and Versions History entries without duplicating Project runtime",()=>{
+    const commands=readFileSync(resolve(process.cwd(),"components/studio/AgentNativeCommandStrip.tsx"),"utf8");
+    const shell=readFileSync(resolve(process.cwd(),"components/studio/ResizableWorkspaceShell.tsx"),"utf8");
+    const workspace=readFileSync(resolve(process.cwd(),"components/studio/StudioWorkspaceV21.tsx"),"utf8");
+    expect(commands).toContain('data-testid="open-projects"');
+    expect(commands).toContain('data-testid="open-history"');
+    expect(shell).toContain('setLeftSurface("tools")');
+    expect(shell).toContain('setContextTab("history")');
+    expect(workspace).toContain('onOpenProjects={()=>activateTool("project")}');
+    expect(commands).not.toContain("useWorkspaceProjectRuntime");
+    expect(shell).not.toContain("useWorkspaceProjectRuntime");
   });
 });
