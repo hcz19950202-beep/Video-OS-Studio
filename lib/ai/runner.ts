@@ -316,12 +316,14 @@ export class AgentRunner{
             result=prior.result;
           }else{
             const definition=this.dependencies.tools.getDefinition(call.toolId);
-            if(input.executionMode==="plan-only"&&definition?.risk==="mutating-request"){
+            if(definition?.risk==="mutating-request"){
               result=AgentToolResultSchema.parse({
                 callId:call.id,
                 toolId:call.toolId,
                 status:"error",
-                error:{code:"execution_mode_blocked",message:"Plan Only blocks mutating Agent requests.",retryable:false},
+                error:input.executionMode==="plan-only"
+                  ?{code:"execution_mode_blocked",message:"Plan Only blocks mutating Agent requests.",retryable:false}
+                  :{code:"approval_required",message:"This Agent tool requires application approval and cannot execute directly from the legacy Agent registry.",retryable:false},
               });
             }else{
               result=await this.dependencies.tools.execute(call,{sessionId:session.id,context,now:this.now,makeId:this.makeId});
