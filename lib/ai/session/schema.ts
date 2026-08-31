@@ -10,6 +10,7 @@ import {
   AgentUsageSchema,
 } from "@/lib/ai/schema";
 import {AgentSelectionSnapshotSchema} from "@/lib/ai/context";
+import {ContextReferenceListSchema} from "@/lib/ai/context-reference";
 import {ProjectIdSchema} from "@/schemas/project";
 
 const StableRuntimeIdSchema=z.string().min(1).max(160).regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]*$/,"ID contains unsupported characters");
@@ -44,6 +45,7 @@ export type AgentToolExecution=z.infer<typeof AgentToolExecutionSchema>;
 export const AgentContextReferenceSchema=z.object({
   baseProjectRevision:z.number().int().nonnegative(),
   selection:AgentSelectionSnapshotSchema.optional(),
+  references:ContextReferenceListSchema.default([]),
 }).strict();
 export type AgentContextReference=z.infer<typeof AgentContextReferenceSchema>;
 
@@ -52,6 +54,7 @@ export const AgentTurnSchema=z.object({
   baseProjectRevision:z.number().int().nonnegative(),
   userMessageId:StableRuntimeIdSchema,
   assistantMessageId:StableRuntimeIdSchema.optional(),
+  contextReferences:ContextReferenceListSchema.default([]),
   startedAt:z.string().datetime(),
   completedAt:z.string().datetime().optional(),
   status:AgentTurnStatusSchema,
