@@ -19,50 +19,56 @@ test("C3 attaches precise context and shows stale references", async ({ page }) 
   };
   const projectId = created.project.project.id;
 
-  const addCaption = await page.request.post(`/api/projects/${encodeURIComponent(projectId)}/commands`, {
-    data: {
-      expectedRevision: 0,
-      commandId: "c3-add-caption",
-      command: {
-        type: "add-clip",
-        trackId: "captions-main",
-        clip: {
-          id: "c3-caption",
-          type: "caption",
-          text: "Alpha proof",
-          enabled: true,
-          layer: 4,
-          startFrame: 10,
-          durationInFrames: 40,
+  const addCaption = await page.request.post(
+    `/api/projects/${encodeURIComponent(projectId)}/commands`,
+    {
+      data: {
+        expectedRevision: 0,
+        commandId: "c3-add-caption",
+        command: {
+          type: "add-clip",
+          trackId: "captions-main",
+          clip: {
+            id: "c3-caption",
+            type: "caption",
+            text: "Alpha proof",
+            enabled: true,
+            layer: 4,
+            startFrame: 10,
+            durationInFrames: 40,
+          },
         },
       },
     },
-  });
+  );
   expect(addCaption.ok()).toBeTruthy();
 
-  const setScript = await page.request.post(`/api/projects/${encodeURIComponent(projectId)}/commands`, {
-    data: {
-      expectedRevision: 1,
-      commandId: "c3-set-script",
-      command: {
-        type: "set-script-document",
-        script: {
-          baseSourceRanges: [{ startFrame: 0, endFrame: 60 }],
-          segments: [
-            {
-              id: "c3-segment",
-              status: "active",
-              semanticTags: [],
-              words: [
-                { id: "word-alpha", text: "Alpha", startFrame: 0, endFrame: 10 },
-                { id: "word-proof", text: "proof", startFrame: 10, endFrame: 20 },
-              ],
-            },
-          ],
+  const setScript = await page.request.post(
+    `/api/projects/${encodeURIComponent(projectId)}/commands`,
+    {
+      data: {
+        expectedRevision: 1,
+        commandId: "c3-set-script",
+        command: {
+          type: "set-script-document",
+          script: {
+            baseSourceRanges: [{ startFrame: 0, endFrame: 60 }],
+            segments: [
+              {
+                id: "c3-segment",
+                status: "active",
+                semanticTags: [],
+                words: [
+                  { id: "word-alpha", text: "Alpha", startFrame: 0, endFrame: 10 },
+                  { id: "word-proof", text: "proof", startFrame: 10, endFrame: 20 },
+                ],
+              },
+            ],
+          },
         },
       },
     },
-  });
+  );
   expect(setScript.ok()).toBeTruthy();
 
   await page.goto("/");
@@ -93,12 +99,20 @@ test("C3 attaches precise context and shows stale references", async ({ page }) 
   const viewer = page.locator(".player-shell");
   const viewerBox = await viewer.boundingBox();
   expect(viewerBox).not.toBeNull();
-  await page.mouse.move(viewerBox!.x + viewerBox!.width * 0.2, viewerBox!.y + viewerBox!.height * 0.2);
+  await page.mouse.move(
+    viewerBox!.x + viewerBox!.width * 0.2,
+    viewerBox!.y + viewerBox!.height * 0.2,
+  );
   await page.mouse.down();
-  await page.mouse.move(viewerBox!.x + viewerBox!.width * 0.55, viewerBox!.y + viewerBox!.height * 0.55);
+  await page.mouse.move(
+    viewerBox!.x + viewerBox!.width * 0.55,
+    viewerBox!.y + viewerBox!.height * 0.55,
+  );
   await page.mouse.up();
   await expect(page.getByTestId("agent-context-chips")).toContainText("@viewer-region");
-  await expect(page.locator('[data-testid="agent-context-chips"] .a5-agent-context-chip')).toHaveCount(4);
+  await expect(
+    page.locator('[data-testid="agent-context-chips"] .a5-agent-context-chip'),
+  ).toHaveCount(4);
 
   const composer = page.locator(".a4-agent-composer textarea");
   await composer.fill("Use the attached C3 context and only plan.");
@@ -113,6 +127,10 @@ test("C3 attaches precise context and shows stale references", async ({ page }) 
 
   const addMarker = page.locator(".timeline-actions button").filter({ hasText: "◆ M" }).first();
   await addMarker.click();
-  await expect(page.locator('[data-testid="agent-message-context"] .a5-agent-context-chip[data-status="stale"]')).toHaveCount(4);
+  await expect(
+    page.locator(
+      '[data-testid="agent-message-context"] .a5-agent-context-chip[data-status="stale"]',
+    ),
+  ).toHaveCount(4);
   await expect(messageContext).toContainText("stale");
 });
