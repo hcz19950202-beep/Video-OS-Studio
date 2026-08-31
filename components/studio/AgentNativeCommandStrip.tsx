@@ -3,6 +3,7 @@
 import {useState} from "react";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
 import {useTimelineProjectActions} from "@/components/timeline/useTimelineProjectActions";
+import {ConnectionCenter} from "@/components/studio/ConnectionCenter";
 import {useWorkspaceLayout} from "@/components/studio/WorkspaceLayoutProvider";
 import type {Project} from "@/schemas/project";
 import {useHistoryStore} from "@/store/history-store";
@@ -40,6 +41,7 @@ export const AgentNativeCommandStrip=({onOpenProjects,onOpenHistory}:Props)=>{
     </div>
     <div className={styles.commandGroup}>
       <span className={`${styles.connection} ${project?styles.connected:styles.disconnected}`} data-testid="project-connection-status">{project?(zh?"Project 已连接":"Project connected"):(zh?"无 Project":"No project")}</span>
+      <ConnectionCenter/>
       <div className={styles.paletteWrap}>
         <button type="button" aria-haspopup="menu" aria-expanded={paletteOpen} onClick={()=>setPaletteOpen(value=>!value)}>⌘ {zh?"命令":"Commands"}</button>
         {paletteOpen?<div className={styles.palette} role="menu">
