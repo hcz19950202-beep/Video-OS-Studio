@@ -8,12 +8,10 @@ export interface ContextReferenceProjectSnapshot {
   id:string;
   revision:number;
   assets:ReadonlyArray<{id:string}>;
-  scenes:ReadonlyArray<{
+  scenes:ReadonlyArray<{id:string}>;
+  tracks:ReadonlyArray<{
     id:string;
-    tracks:ReadonlyArray<{
-      id:string;
-      clips:ReadonlyArray<{id:string}>;
-    }>;
+    clips:ReadonlyArray<{id:string}>;
   }>;
 }
 
@@ -116,11 +114,11 @@ export function resolveContextReference(input:{
         ?resolution(reference,project,"resolved")
         :missing(reference,project,"Asset");
     case "clip":
-      return project.scenes.some((scene)=>scene.tracks.some((track)=>track.clips.some((clip)=>clip.id===reference.target.clipId)))
+      return project.tracks.some((track)=>track.clips.some((clip)=>clip.id===reference.target.clipId))
         ?resolution(reference,project,"resolved")
         :missing(reference,project,"Clip");
     case "track":
-      return project.scenes.some((scene)=>scene.tracks.some((track)=>track.id===reference.target.trackId))
+      return project.tracks.some((track)=>track.id===reference.target.trackId)
         ?resolution(reference,project,"resolved")
         :missing(reference,project,"Track");
     case "timeline-point":
