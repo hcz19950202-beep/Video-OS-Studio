@@ -40,7 +40,10 @@ export const AgentNativeLeftPanel=({legacyRail,legacyContent}:Props)=>{
       </div>
     </header>
     <div className={styles.leftBody}>
-      {surface==="agent"?project?<AgentWorkspacePanel project={project} onProjectChange={publishProjectChange}/>:<div className={styles.emptyState}><strong>{zh?"打开项目后即可使用 Agent":"Open a project to use the Agent"}</strong><span>{zh?"项目上下文会保持在同一工作区中。":"Project context stays in the same workspace."}</span></div>:<div className={styles.legacyTools}><nav className={styles.legacyRail} aria-label={zh?"编辑工具":"Editing tools"}>{legacyRail}</nav><div className={styles.legacyContent}>{legacyContent}</div></div>}
+      <nav className={styles.legacyRail} aria-label={zh?"编辑工具":"Editing tools"} onClickCapture={()=>setSurface("tools")}>{legacyRail}</nav>
+      <div className={styles.leftSurface}>
+        {surface==="agent"?project?<AgentWorkspacePanel project={project} onProjectChange={publishProjectChange}/>:<div className={styles.emptyState}><strong>{zh?"打开项目后即可使用 Agent":"Open a project to use the Agent"}</strong><span>{zh?"可通过左侧 Project 工具新建或打开项目。":"Use the Project tool on the left to create or open a project."}</span></div>:<div className={styles.legacyContent}>{legacyContent}</div>}
+      </div>
     </div>
   </section>;
 };
