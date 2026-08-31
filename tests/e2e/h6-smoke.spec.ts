@@ -175,6 +175,10 @@ test("H6 Create/Open/Import/Caption/Canvas/AI/Undo/Redo/Save/Reopen", async ({ p
   await page.keyboard.press("Space");
 
   await page.getByTitle("AI").click();
+  await expect(page.getByTestId("unified-agent-conversation")).toBeVisible();
+  await page.getByText("Advanced", { exact: true }).click();
+  await page.getByRole("button", { name: "Composer", exact: true }).click();
+  await expect(page.getByTestId("advanced-composer-detail")).toBeVisible();
   await page.getByRole("button", { name: "Analyze Scenes", exact: true }).click();
   await expect(page.getByText("Review Recommendations", { exact: true })).toBeVisible();
   const applySelected = page.getByRole("button", { name: /Apply Selected/ });
