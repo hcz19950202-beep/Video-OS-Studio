@@ -9,6 +9,8 @@ import {useHistoryStore} from "@/store/history-store";
 import {useProjectStore} from "@/store/project-store";
 import styles from "@/components/studio/AgentNativeWorkspace.module.css";
 
+type Props={onOpenProjects:()=>void;onOpenHistory:()=>void};
+
 const ProjectHistoryControls=({project}:{project:Project})=>{
   const{locale}=useStudioPreferences();
   const zh=locale==="zh-CN";
@@ -21,7 +23,7 @@ const ProjectHistoryControls=({project}:{project:Project})=>{
   </>;
 };
 
-export const AgentNativeCommandStrip=()=>{
+export const AgentNativeCommandStrip=({onOpenProjects,onOpenHistory}:Props)=>{
   const{locale}=useStudioPreferences();
   const zh=locale==="zh-CN";
   const project=useProjectStore(state=>state.project);
@@ -31,7 +33,9 @@ export const AgentNativeCommandStrip=()=>{
 
   return <div className={styles.commandStrip} data-testid="agent-native-command-strip">
     <div className={styles.commandGroup}>
+      <button type="button" data-testid="open-projects" onClick={onOpenProjects}>{zh?"← 项目":"← Projects"}</button>
       {project?<ProjectHistoryControls project={project}/>:<><button type="button" disabled>{zh?"撤销":"Undo"}</button><button type="button" disabled>{zh?"重做":"Redo"}</button></>}
+      <button type="button" data-testid="open-history" disabled={!project} onClick={onOpenHistory}>{zh?"版本 / 历史":"Versions / History"}</button>
       <button type="button" onClick={toggleTimeline}>{layout.timelineCollapsed?(zh?"展开时间轴":"Show Timeline"):(zh?"收起时间轴":"Hide Timeline")}</button>
     </div>
     <div className={styles.commandGroup}>
@@ -39,6 +43,8 @@ export const AgentNativeCommandStrip=()=>{
       <div className={styles.paletteWrap}>
         <button type="button" aria-haspopup="menu" aria-expanded={paletteOpen} onClick={()=>setPaletteOpen(value=>!value)}>⌘ {zh?"命令":"Commands"}</button>
         {paletteOpen?<div className={styles.palette} role="menu">
+          <button type="button" role="menuitem" onClick={()=>run(onOpenProjects)}>{zh?"打开项目列表":"Open Projects"}</button>
+          <button type="button" role="menuitem" disabled={!project} onClick={()=>run(onOpenHistory)}>{zh?"打开版本 / 历史":"Open Versions / History"}</button>
           <button type="button" role="menuitem" onClick={()=>run(toggleLeft)}>{layout.leftCollapsed?(zh?"显示 Agent 工作区":"Show Agent Workspace"):(zh?"隐藏 Agent 工作区":"Hide Agent Workspace")}</button>
           <button type="button" role="menuitem" onClick={()=>run(toggleInspector)}>{layout.inspectorCollapsed?(zh?"显示 Context Dock":"Show Context Dock"):(zh?"隐藏 Context Dock":"Hide Context Dock")}</button>
           <button type="button" role="menuitem" onClick={()=>run(toggleTimeline)}>{layout.timelineCollapsed?(zh?"显示 Timeline":"Show Timeline"):(zh?"隐藏 Timeline":"Hide Timeline")}</button>
