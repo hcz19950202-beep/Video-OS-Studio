@@ -45,7 +45,7 @@ export type AgentToolExecution=z.infer<typeof AgentToolExecutionSchema>;
 export const AgentContextReferenceSchema=z.object({
   baseProjectRevision:z.number().int().nonnegative(),
   selection:AgentSelectionSnapshotSchema.optional(),
-  references:ContextReferenceListSchema.default([]),
+  references:ContextReferenceListSchema.optional(),
 }).strict();
 export type AgentContextReference=z.infer<typeof AgentContextReferenceSchema>;
 
@@ -54,7 +54,7 @@ export const AgentTurnSchema=z.object({
   baseProjectRevision:z.number().int().nonnegative(),
   userMessageId:StableRuntimeIdSchema,
   assistantMessageId:StableRuntimeIdSchema.optional(),
-  contextReferences:ContextReferenceListSchema.default([]),
+  contextReferences:ContextReferenceListSchema.optional(),
   startedAt:z.string().datetime(),
   completedAt:z.string().datetime().optional(),
   status:AgentTurnStatusSchema,
