@@ -1,7 +1,7 @@
 import {describe,expect,it} from "vitest";
 import {readFileSync} from "node:fs";
 import {resolve} from "node:path";
-import {canExecutionModeAutoRunRisk} from "@/lib/ai/execution-mode";
+import {canExecutionModeAutoRun} from "@/lib/ai/execution-mode";
 
 const source=(path:string)=>readFileSync(resolve(process.cwd(),path),"utf8");
 
@@ -35,26 +35,33 @@ describe("V2.5 C2 unified Agent conversation",()=>{
     expect(surface).not.toContain("applyAgentProposal");
   });
 
-  it("derives Mission and QA cards from Production Workspace rather than duplicating durable truth",()=>{
+  it("derives Mission and QA cards plus findings/actions from Production Workspace without duplicating durable truth",()=>{
     const cards=source("components/studio/AgentConversationProductionCards.tsx");
     expect(cards).toContain("listProductionMissions");
     expect(cards).toContain("getProductionWorkspace");
     expect(cards).toContain("ProductionWorkspaceSnapshot");
     expect(cards).toContain("workspace.qa.state");
     expect(cards).toContain("workspace.stale.qa");
+    expect(cards).toContain("latestQA?.findings");
+    expect(cards).toContain("repairProposal?.actions");
+    expect(cards).toContain('data-testid="agent-qa-findings"');
+    expect(cards).toContain('data-testid="agent-qa-actions"');
     expect(cards).not.toContain("createProductionMission");
     expect(cards).not.toContain("updateProductionMission");
     expect(cards).not.toContain("cancelProductionMission");
   });
 
-  it("keeps Execution Mode as policy intent and never auto-authorizes R2 R3 or R4",()=>{
+  it("keeps Execution Mode application-owned and allows safe R2 only with explicit session eligibility",()=>{
     for(const mode of ["review-first","apply-safe-edits","plan-only"] as const){
-      expect(canExecutionModeAutoRunRisk(mode,"R0")).toBe(true);
-      expect(canExecutionModeAutoRunRisk(mode,"R1")).toBe(true);
-      expect(canExecutionModeAutoRunRisk(mode,"R2")).toBe(false);
-      expect(canExecutionModeAutoRunRisk(mode,"R3")).toBe(false);
-      expect(canExecutionModeAutoRunRisk(mode,"R4")).toBe(false);
+      expect(canExecutionModeAutoRun({mode,riskClass:"R0",allowSessionOverride:false})).toBe(true);
+      expect(canExecutionModeAutoRun({mode,riskClass:"R1",allowSessionOverride:false})).toBe(true);
+      expect(canExecutionModeAutoRun({mode,riskClass:"R3",allowSessionOverride:true})).toBe(false);
+      expect(canExecutionModeAutoRun({mode,riskClass:"R4",allowSessionOverride:true})).toBe(false);
     }
+    expect(canExecutionModeAutoRun({mode:"review-first",riskClass:"R2",allowSessionOverride:true})).toBe(false);
+    expect(canExecutionModeAutoRun({mode:"plan-only",riskClass:"R2",allowSessionOverride:true})).toBe(false);
+    expect(canExecutionModeAutoRun({mode:"apply-safe-edits",riskClass:"R2",allowSessionOverride:false})).toBe(false);
+    expect(canExecutionModeAutoRun({mode:"apply-safe-edits",riskClass:"R2",allowSessionOverride:true})).toBe(true);
     const sessionSchema=source("lib/ai/session/schema.ts");
     expect(sessionSchema).not.toContain("AgentExecutionMode");
   });
