@@ -2,7 +2,7 @@ import {expect,test} from "@playwright/test";
 
 const PROJECT_NAME="V2.5 C2 Unified Conversation";
 
-test("C2 opens directly into one Agent conversation with execution policy and advanced details",async({page})=>{
+test("C2 opens directly into one Agent conversation with execution policy and non-disruptive advanced details",async({page})=>{
   await page.setViewportSize({width:1440,height:900});
   await page.addInitScript(()=>{
     localStorage.setItem("video-os-studio-locale","en-US");
@@ -41,7 +41,9 @@ test("C2 opens directly into one Agent conversation with execution policy and ad
 
   await page.getByRole("button",{name:"Mission",exact:true}).click();
   await expect(page.getByTestId("advanced-mission-detail")).toBeVisible();
+  await expect(page.getByTestId("unified-agent-conversation")).toBeVisible();
   await page.getByRole("button",{name:"Conversation",exact:true}).click();
+  await expect(page.getByTestId("agent-advanced-detail")).toHaveCount(0);
   await expect(page.getByTestId("unified-agent-conversation")).toBeVisible();
   await expect(page.locator(".v21-project-title")).toContainText(PROJECT_NAME);
 });
