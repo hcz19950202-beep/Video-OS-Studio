@@ -8,6 +8,7 @@ export type SharedToolRiskClass=z.infer<typeof SharedToolRiskClassSchema>;
 
 export const SharedToolScopeSchema=z.enum([
   "project:read",
+  "project:propose",
   "project:write",
   "asset:read",
   "mission:read",
