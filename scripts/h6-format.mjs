@@ -73,8 +73,14 @@ for (const file of [...files].sort()) {
   const source = await readFile(file, "utf8");
   const formatted = await prettier.format(source, { ...config, filepath: file });
   if (formatted === source) continue;
+  const relativePath = relative(ROOT, file);
+  if (!write && relativePath === "tests/e2e/v2-5-c4-connection-center.spec.ts") {
+    console.error("C4_PRETTIER_OUTPUT_BEGIN");
+    console.error(formatted);
+    console.error("C4_PRETTIER_OUTPUT_END");
+  }
   if (write) await writeFile(file, formatted, "utf8");
-  else changed.push(relative(ROOT, file));
+  else changed.push(relativePath);
 }
 
 if (changed.length) {
