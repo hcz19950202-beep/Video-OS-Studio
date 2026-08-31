@@ -93,6 +93,7 @@ describe("ApplicationProductionAgentStepPort",()=>{
       projectId:PROJECT_ID,
       sessionId:OPERATION_ID,
       userContent:expect.stringContaining("structured visual-plan proposal"),
+      executionMode:"plan-only",
       budget:expect.objectContaining({maxProviderRoundTrips:4}),
     }));
     const userContent=runner.runTurn.mock.calls[0]![0].userContent;
