@@ -6,6 +6,7 @@ import {
   AgentWorkflowActionExecutor,
   ContextReferenceService,
   createA1AgentToolRegistry,
+  createC4SharedReadRegistry,
   createVolcengineAgentPlanProviderFromProcessEnv,
   observeAIProvider,
   type AgentProviderProgressObserver,
@@ -24,7 +25,19 @@ const contextReferences=getGlobalRuntime(`${dataRoot}:agent-context-references`,
   missions:productionMissionRepository,
   plans:productionPlanRepository,
 }));
-const tools=getGlobalRuntime(`${dataRoot}:agent-tools`,()=>createA1AgentToolRegistry({visualPlans:visualPlanService,workflows:workflowService,assetIntelligence:assetIntelligenceService,videoSkills:builtInVideoSkillRegistry,qaReports:productionQAService}));
+const sharedReadTools=getGlobalRuntime(`${dataRoot}:shared-read-tools`,()=>createC4SharedReadRegistry({
+  assetIntelligence:assetIntelligenceService,
+  missions:productionMissionRepository,
+  qaReports:productionQAService,
+}));
+const tools=getGlobalRuntime(`${dataRoot}:agent-tools`,()=>createA1AgentToolRegistry({
+  visualPlans:visualPlanService,
+  workflows:workflowService,
+  assetIntelligence:assetIntelligenceService,
+  videoSkills:builtInVideoSkillRegistry,
+  qaReports:productionQAService,
+  sharedReadRegistry:sharedReadTools,
+}));
 const workflowActions=getGlobalRuntime(`${dataRoot}:agent-workflow-actions`,()=>new AgentWorkflowActionExecutor(workflowService,{assetBaseUrl:resolveTrustedAssetBaseUrl()}));
 const applications=getGlobalRuntime(`${dataRoot}:agent-applications`,()=>new AgentProposalApplicationService({sessions,projects:projectRepository,mutations:projectMutations,visualPlans:visualPlanService,workflowActions}));
 const mockProviderRequested=()=>process.env.VIDEO_OS_AGENT_PROVIDER?.trim()==="mock"&&process.env.NODE_ENV!=="production";
@@ -54,4 +67,5 @@ export const createServerAgentSessionService=(observer?:AgentProviderProgressObs
 export const agentSessionRepository=sessions;
 export const agentContextService=context;
 export const agentContextReferenceService=contextReferences;
+export const sharedAgentReadToolRegistry=sharedReadTools;
 export const agentProposalApplicationService=applications;
