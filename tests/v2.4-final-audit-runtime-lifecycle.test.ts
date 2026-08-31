@@ -108,7 +108,7 @@ describe("V2.4 final audit durable Job ownership",()=>{
     await sleep(50);
     releaseExecutors();
     await waitFor(()=>seedStore.get(job.id),current=>current?.status==="completed");
-    await runtimeA.waitUntilReady();
+    await Promise.all([runtimeA.waitForIdle(job.id),runtimeB.waitForIdle(job.id)]);
 
     expect(runtimeBExecutedBeforeOwnerReleased).toBe(false);
     expect(callsA+callsB).toBe(1);

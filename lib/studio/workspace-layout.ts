@@ -8,6 +8,7 @@ export type WorkspaceLayout={
   timelineHeight:number;
   leftCollapsed:boolean;
   inspectorCollapsed:boolean;
+  timelineCollapsed:boolean;
 };
 
 export const WORKSPACE_LIMITS={
@@ -22,10 +23,10 @@ export const WORKSPACE_LIMITS={
 } as const;
 
 export const WORKSPACE_PRESETS:Record<WorkspacePreset,WorkspaceLayout>={
-  edit:{version:1,preset:"edit",leftWidth:300,inspectorWidth:320,timelineHeight:300,leftCollapsed:false,inspectorCollapsed:false},
-  ai:{version:1,preset:"ai",leftWidth:400,inspectorWidth:300,timelineHeight:300,leftCollapsed:false,inspectorCollapsed:true},
-  script:{version:1,preset:"script",leftWidth:440,inspectorWidth:300,timelineHeight:240,leftCollapsed:false,inspectorCollapsed:true},
-  motion:{version:1,preset:"motion",leftWidth:300,inspectorWidth:360,timelineHeight:360,leftCollapsed:false,inspectorCollapsed:false},
+  edit:{version:1,preset:"edit",leftWidth:300,inspectorWidth:320,timelineHeight:300,leftCollapsed:false,inspectorCollapsed:false,timelineCollapsed:false},
+  ai:{version:1,preset:"ai",leftWidth:400,inspectorWidth:300,timelineHeight:300,leftCollapsed:false,inspectorCollapsed:true,timelineCollapsed:false},
+  script:{version:1,preset:"script",leftWidth:440,inspectorWidth:300,timelineHeight:240,leftCollapsed:false,inspectorCollapsed:true,timelineCollapsed:false},
+  motion:{version:1,preset:"motion",leftWidth:300,inspectorWidth:360,timelineHeight:360,leftCollapsed:false,inspectorCollapsed:false,timelineCollapsed:false},
 };
 
 const clamp=(value:number,min:number,max:number,fallback:number)=>Number.isFinite(value)?Math.max(min,Math.min(max,Math.round(value))):fallback;
@@ -41,6 +42,7 @@ export const normalizeWorkspaceLayout=(layout:Partial<WorkspaceLayout>|null|unde
     timelineHeight:clamp(layout?.timelineHeight??base.timelineHeight,WORKSPACE_LIMITS.timelineMin,WORKSPACE_LIMITS.timelineMax,base.timelineHeight),
     leftCollapsed:Boolean(layout?.leftCollapsed??base.leftCollapsed),
     inspectorCollapsed:Boolean(layout?.inspectorCollapsed??base.inspectorCollapsed),
+    timelineCollapsed:Boolean(layout?.timelineCollapsed??base.timelineCollapsed),
   };
 };
 
