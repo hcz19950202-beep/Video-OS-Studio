@@ -10,7 +10,7 @@ import styles from "@/components/studio/AgentNativeWorkspace.module.css";
 
 export type AgentNativeContextTab="inspector"|"assets"|"transcript"|"mission"|"qa"|"history";
 
-type Props={inspector:ReactNode;tab:AgentNativeContextTab;onTabChange:(tab:AgentNativeContextTab)=>void};
+type Props={inspector:ReactNode;tab:AgentNativeContextTab;onTabChange:(tab:AgentNativeContextTab)=>void;preferredMissionId?:string};
 
 const tabs:Array<{id:AgentNativeContextTab;zh:string;en:string}>=[
   {id:"inspector",zh:"检查器",en:"Inspector"},
@@ -21,7 +21,7 @@ const tabs:Array<{id:AgentNativeContextTab;zh:string;en:string}>=[
   {id:"history",zh:"历史",en:"History"},
 ];
 
-export const AgentNativeContextDock=({inspector,tab,onTabChange}:Props)=>{
+export const AgentNativeContextDock=({inspector,tab,onTabChange,preferredMissionId}:Props)=>{
   const{locale}=useStudioPreferences();
   const zh=locale==="zh-CN";
   const project=useProjectStore(state=>state.project);
@@ -42,8 +42,8 @@ export const AgentNativeContextDock=({inspector,tab,onTabChange}:Props)=>{
       {tab==="inspector"?inspector:null}
       {tab==="assets"?<div className={styles.contextList}>{project?.assets.length?project.assets.map(asset=>{const label=asset.label??asset.originalName??asset.id;const selected=selectedContextTarget?.kind==="asset"&&selectedContextTarget.target.assetId===asset.id;return <article key={asset.id} data-context-selected={selected?"true":"false"}><strong>{label}</strong><span>{asset.kind}</span><button type="button" className="button secondary small" data-testid={`select-asset-context-${asset.id}`} onClick={()=>selectContextTarget({kind:"asset",label,target:{assetId:asset.id}})}>@ {zh?"选择上下文":"Select context"}</button></article>;}):<p>{zh?"当前项目还没有素材。":"No project assets yet."}</p>}</div>:null}
       {tab==="transcript"?<div className={styles.contextList}>{transcriptWords.length?transcriptWords.map(({segmentId,word})=>{const selected=selectedContextTarget?.kind==="transcript-range"&&selectedContextTarget.target.startWordId===word.id&&selectedContextTarget.target.endWordId===word.id;return <article key={`${segmentId}-${word.id}`} data-context-selected={selected?"true":"false"}><strong>f{word.startFrame}</strong><span>{word.text}</span><button type="button" className="button secondary small" data-testid={`select-transcript-context-${word.id}`} onClick={()=>selectScriptRange({startWordId:word.id,endWordId:word.id})}>@ {zh?"选择上下文":"Select context"}</button></article>;}):captionClips.length?captionClips.slice(0,150).map(clip=><article key={clip.id}><strong>f{clip.startFrame}</strong><span>{clip.text}</span></article>):<p>{zh?"当前项目还没有字幕或转写内容。":"No transcript or caption content yet."}</p>}</div>:null}
-      {tab==="mission"?project?<ProductionContextSurface project={project} mode="mission"/>:<p>{zh?"打开项目后查看任务。":"Open a project to view missions."}</p>:null}
-      {tab==="qa"?project?<ProductionContextSurface project={project} mode="qa"/>:<p>{zh?"打开项目后查看质检上下文。":"Open a project to view QA context."}</p>:null}
+      {tab==="mission"?project?<ProductionContextSurface project={project} mode="mission" preferredMissionId={preferredMissionId}/>:<p>{zh?"打开项目后查看任务。":"Open a project to view missions."}</p>:null}
+      {tab==="qa"?project?<ProductionContextSurface project={project} mode="qa" preferredMissionId={preferredMissionId}/>:<p>{zh?"打开项目后查看质检上下文。":"Open a project to view QA context."}</p>:null}
       {tab==="history"?project?<ProjectHistorySurface project={project}/>:<p>{zh?"打开项目后查看历史。":"Open a project to view History."}</p>:null}
     </div>
   </section>;
