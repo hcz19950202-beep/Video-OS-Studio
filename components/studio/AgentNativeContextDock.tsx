@@ -2,8 +2,8 @@
 
 import {useMemo,type ReactNode} from "react";
 import {ProductionContextSurface} from "@/components/studio/ProductionContextSurface";
+import {ProjectHistorySurface} from "@/components/studio/ProjectHistorySurface";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
-import {useHistoryStore} from "@/store/history-store";
 import {useProjectStore} from "@/store/project-store";
 import {useSelectionStore} from "@/store/selection-store";
 import styles from "@/components/studio/AgentNativeWorkspace.module.css";
@@ -25,14 +25,9 @@ export const AgentNativeContextDock=({inspector,tab,onTabChange}:Props)=>{
   const{locale}=useStudioPreferences();
   const zh=locale==="zh-CN";
   const project=useProjectStore(state=>state.project);
-  const undoStack=useHistoryStore(state=>state.undoStack);
-  const redoStack=useHistoryStore(state=>state.redoStack);
   const selectContextTarget=useSelectionStore(state=>state.selectContextTarget);
   const selectScriptRange=useSelectionStore(state=>state.selectScriptRange);
   const selectedContextTarget=useSelectionStore(state=>state.selectedContextTarget);
-  const projectId=project?.project.id;
-  const undoEntries=useMemo(()=>undoStack.filter(entry=>entry.projectId===projectId).map(entry=>({label:entry.label})),[projectId,undoStack]);
-  const redoEntries=useMemo(()=>redoStack.filter(entry=>entry.projectId===projectId).map(entry=>({label:entry.label})),[projectId,redoStack]);
   const captionClips=useMemo(()=>project?.tracks.flatMap(track=>track.clips).filter(clip=>clip.type==="caption")??[],[project]);
   const transcriptWords=useMemo(()=>project?.script.segments.flatMap(segment=>segment.words.map(word=>({segmentId:segment.id,word}))).slice(0,150)??[],[project]);
 
@@ -49,7 +44,7 @@ export const AgentNativeContextDock=({inspector,tab,onTabChange}:Props)=>{
       {tab==="transcript"?<div className={styles.contextList}>{transcriptWords.length?transcriptWords.map(({segmentId,word})=>{const selected=selectedContextTarget?.kind==="transcript-range"&&selectedContextTarget.target.startWordId===word.id&&selectedContextTarget.target.endWordId===word.id;return <article key={`${segmentId}-${word.id}`} data-context-selected={selected?"true":"false"}><strong>f{word.startFrame}</strong><span>{word.text}</span><button type="button" className="button secondary small" data-testid={`select-transcript-context-${word.id}`} onClick={()=>selectScriptRange({startWordId:word.id,endWordId:word.id})}>@ {zh?"选择上下文":"Select context"}</button></article>;}):captionClips.length?captionClips.slice(0,150).map(clip=><article key={clip.id}><strong>f{clip.startFrame}</strong><span>{clip.text}</span></article>):<p>{zh?"当前项目还没有字幕或转写内容。":"No transcript or caption content yet."}</p>}</div>:null}
       {tab==="mission"?project?<ProductionContextSurface project={project} mode="mission"/>:<p>{zh?"打开项目后查看任务。":"Open a project to view missions."}</p>:null}
       {tab==="qa"?project?<ProductionContextSurface project={project} mode="qa"/>:<p>{zh?"打开项目后查看质检上下文。":"Open a project to view QA context."}</p>:null}
-      {tab==="history"?<div className={styles.historyPanel}><section><strong>{zh?"可撤销":"Undo"} · {undoEntries.length}</strong>{undoEntries.length?undoEntries.slice().reverse().slice(0,30).map((entry,index)=><span key={`${entry.label}-${index}`}>{entry.label}</span>):<p>{zh?"暂无历史记录。":"No history entries."}</p>}</section><section><strong>{zh?"可重做":"Redo"} · {redoEntries.length}</strong>{redoEntries.length?redoEntries.slice().reverse().slice(0,30).map((entry,index)=><span key={`${entry.label}-${index}`}>{entry.label}</span>):<p>{zh?"暂无重做记录。":"No redo entries."}</p>}</section></div>:null}
+      {tab==="history"?project?<ProjectHistorySurface project={project}/>:<p>{zh?"打开项目后查看历史。":"Open a project to view History."}</p>:null}
     </div>
   </section>;
 };
