@@ -90,6 +90,35 @@ export const AgentOperationClaimSchema=z.object({
 }).strict();
 export type AgentOperationClaim=z.infer<typeof AgentOperationClaimSchema>;
 
+export const AgentOperationAuditSourceSchema=z.enum(["builtin-agent","local-mcp"]);
+export type AgentOperationAuditSource=z.infer<typeof AgentOperationAuditSourceSchema>;
+
+export const AgentOperationAuditActionSchema=z.enum([
+  "proposal-created",
+  "proposal-reviewed",
+  "proposal-applied",
+  "proposal-rejected",
+  "proposal-stale",
+]);
+export type AgentOperationAuditAction=z.infer<typeof AgentOperationAuditActionSchema>;
+
+export const AgentOperationAuditOutcomeSchema=z.enum(["success","rejected","stale","error"]);
+export type AgentOperationAuditOutcome=z.infer<typeof AgentOperationAuditOutcomeSchema>;
+
+export const AgentOperationAuditEntrySchema=z.object({
+  id:StableRuntimeIdSchema,
+  source:AgentOperationAuditSourceSchema,
+  action:AgentOperationAuditActionSchema,
+  outcome:AgentOperationAuditOutcomeSchema,
+  proposalId:AgentProposalIdSchema,
+  toolId:z.string().min(1).max(128).optional(),
+  requestId:z.string().min(1).max(256).optional(),
+  providerId:z.string().min(1).max(120).optional(),
+  operationId:StableRuntimeIdSchema.optional(),
+  createdAt:z.string().datetime(),
+}).strict();
+export type AgentOperationAuditEntry=z.infer<typeof AgentOperationAuditEntrySchema>;
+
 export const AgentSessionSchema=z.object({
   id:AgentSessionIdSchema,
   projectId:ProjectIdSchema,
@@ -103,6 +132,7 @@ export const AgentSessionSchema=z.object({
   proposals:z.array(AgentProposalSchema).max(1_000),
   approvedOperations:z.array(AgentApprovedOperationSchema).max(2_000),
   operationClaims:z.array(AgentOperationClaimSchema).max(2_000).default([]),
+  operationAudit:z.array(AgentOperationAuditEntrySchema).max(4_000).default([]),
   lastContext:AgentContextReferenceSchema.optional(),
   usage:AgentUsageSchema.optional(),
 }).strict().superRefine((session,ctx)=>{
@@ -137,6 +167,12 @@ export const AgentSessionSchema=z.object({
     if(claimIds.has(claim.operationId))ctx.addIssue({code:"custom",message:"Agent operation claim IDs must be unique."});
     claimIds.add(claim.operationId);
     if(!proposalIds.has(claim.proposalId))ctx.addIssue({code:"custom",message:"Agent operation claim must reference a proposal in the same session."});
+  }
+  const auditIds=new Set<string>();
+  for(const audit of session.operationAudit){
+    if(auditIds.has(audit.id))ctx.addIssue({code:"custom",message:"Agent operation audit entry IDs must be unique."});
+    auditIds.add(audit.id);
+    if(!proposalIds.has(audit.proposalId))ctx.addIssue({code:"custom",message:"Agent operation audit entry must reference a proposal in the same session."});
   }
 });
 export type AgentSession=z.infer<typeof AgentSessionSchema>;

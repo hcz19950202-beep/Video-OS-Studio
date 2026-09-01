@@ -4,7 +4,7 @@ import {AgentSelectionSnapshotSchema} from "@/lib/ai/context";
 import {
   clearLocalMcpOpenProject,
   getLocalMcpBridgeSnapshot,
-  getLocalMcpReadToolCatalog,
+  getLocalMcpControlledToolCatalog,
   issueLocalMcpCredential,
   revokeLocalMcpCredential,
   rotateLocalMcpCredential,
@@ -55,7 +55,7 @@ const response=(body:unknown,status=200)=>NextResponse.json(body,{
 });
 const bridgePayload=(bridge=getLocalMcpBridgeSnapshot())=>({
   bridge,
-  tools:getLocalMcpReadToolCatalog(),
+  tools:getLocalMcpControlledToolCatalog(),
 });
 
 export async function GET(request:NextRequest){

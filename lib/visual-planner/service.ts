@@ -87,7 +87,7 @@ export class VisualPlanService{
 
     if(commands.length===0)return{project:baseline,diff,transactionId:null,appliedIds:[]};
     const transaction:ProjectCommandTransaction={id:operationId,label:`AI Director · Apply ${suggestions.length} suggestions`,commands};
-    const committed=await this.mutations.mutate({projectId,expectedRevision,operationId,kind:"visual-plan",payload:{planGeneratedAt:plan.generatedAt,selectedIds:[...selectedIds].sort(),transaction},apply:current=>applyProjectCommandTransaction(current,transaction)});
+    const committed=await this.mutations.mutate({projectId,expectedRevision,operationId,kind:"visual-plan",payload:{planGeneratedAt:plan.generatedAt,selectedIds:[...selectedIds].sort(),transaction},historyTransaction:transaction,apply:current=>applyProjectCommandTransaction(current,transaction)});
     return{project:committed.project,diff,transactionId:transaction.id,appliedIds:suggestions.map(suggestion=>suggestion.id),alreadyApplied:committed.alreadyApplied};
   }
 }

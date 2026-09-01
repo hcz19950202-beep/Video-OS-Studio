@@ -5,7 +5,7 @@ import {createWorkflowAgentTools,type AgentWorkflowReader} from "@/lib/ai/tools/
 import {createAssetIntelligenceReadTool,type AgentAssetIntelligenceReader} from "@/lib/ai/tools/asset-intelligence-tools";
 import {createVideoSkillAgentTools} from "@/lib/ai/tools/skill-tools";
 import {createQAReportReadTool,type AgentQAReportReader} from "@/lib/ai/tools/qa-tools";
-import {createC4ReadOnlyAgentTools} from "@/lib/ai/tools/shared-agent-adapter";
+import {createC5SharedAgentTools} from "@/lib/ai/tools/shared-agent-adapter";
 import type {SharedToolRegistry} from "@/lib/ai/tools/shared-registry";
 import type {VideoSkillRegistry} from "@/lib/production/skills/registry";
 
@@ -16,16 +16,18 @@ export type A1AgentToolDependencies={
   videoSkills?:VideoSkillRegistry;
   qaReports?:AgentQAReportReader;
   sharedReadRegistry?:SharedToolRegistry;
+  sharedToolRegistry?:SharedToolRegistry;
 };
 
 export function createA1AgentToolRegistry(dependencies:A1AgentToolDependencies):AgentToolRegistry{
-  const useSharedReads=dependencies.sharedReadRegistry!==undefined;
+  const sharedRegistry=dependencies.sharedToolRegistry??dependencies.sharedReadRegistry;
+  const useSharedReads=sharedRegistry!==undefined;
   return new AgentToolRegistry([
     ...(!useSharedReads?[createProjectContextReadTool()]:[]),
     ...(!useSharedReads&&dependencies.assetIntelligence?[createAssetIntelligenceReadTool(dependencies.assetIntelligence)]:[]),
     ...(dependencies.videoSkills?createVideoSkillAgentTools(dependencies.videoSkills):[]),
     ...(!useSharedReads&&dependencies.qaReports?[createQAReportReadTool(dependencies.qaReports)]:[]),
-    ...(dependencies.sharedReadRegistry?createC4ReadOnlyAgentTools(dependencies.sharedReadRegistry):[]),
+    ...(sharedRegistry?createC5SharedAgentTools(sharedRegistry):[]),
     createVisualPlanProposalTool(dependencies.visualPlans),
     ...(dependencies.workflows?createWorkflowAgentTools(dependencies.workflows):[]),
   ]);
@@ -39,6 +41,7 @@ export * from "@/lib/ai/tools/registry";
 export * from "@/lib/ai/tools/schema";
 export * from "@/lib/ai/tools/shared-agent-adapter";
 export * from "@/lib/ai/tools/shared-contract";
+export * from "@/lib/ai/tools/shared-proposal-tools";
 export * from "@/lib/ai/tools/shared-read-tools";
 export * from "@/lib/ai/tools/shared-registry";
 export * from "@/lib/ai/tools/skill-tools";

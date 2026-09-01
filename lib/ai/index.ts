@@ -5,6 +5,7 @@ export * from "@/lib/ai/context-reference";
 export * from "@/lib/ai/context-reference-resolver";
 export * from "@/lib/ai/context-reference-service";
 export * from "@/lib/ai/context-selection";
+export * from "@/lib/ai/durable-job-proposal";
 export * from "@/lib/ai/errors";
 export * from "@/lib/ai/execution-mode";
 export * from "@/lib/ai/mock-provider";

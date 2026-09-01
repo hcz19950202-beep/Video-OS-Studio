@@ -2,7 +2,14 @@ import {createHash} from "node:crypto";
 import {z} from "zod";
 import type {FileSystemAdapter} from "@/adapters/contracts";
 import {applyProjectCommand} from "@/lib/project/commands";
-import {applyProjectCommandTransaction} from "@/lib/project/history";
+import {
+  ProjectCommandTransactionSchema,
+  ProjectHistoryTransactionSchema,
+  applyProjectCommandTransaction,
+  createDurableProjectHistoryTransaction,
+  type ProjectCommandTransaction,
+  type ProjectHistoryTransaction,
+} from "@/lib/project/history";
 import {
   ProjectCommandMutationSchema,
   ProjectReplacementMutationSchema,
@@ -26,6 +33,7 @@ const ProjectOperationRecordSchema=z.object({
   appliedRevision:z.number().int().nonnegative(),
   status:OperationStatusSchema,
   recordedAt:z.string().datetime(),
+  history:ProjectHistoryTransactionSchema.optional(),
 });
 type ProjectOperationRecord=z.infer<typeof ProjectOperationRecordSchema>;
 export type ProjectOperationState=Pick<ProjectOperationRecord,"operationId"|"kind"|"expectedRevision"|"appliedRevision"|"status"|"recordedAt">;
@@ -50,6 +58,14 @@ export class ProjectOperationIdReuseError extends Error{
 export class ProjectMutationInvariantError extends Error{
   readonly code="PROJECT_MUTATION_INVARIANT";
   constructor(message:string){super(message);this.name="ProjectMutationInvariantError";}
+}
+
+export class ProjectHistoryTransactionNotFoundError extends Error{
+  readonly code="PROJECT_HISTORY_TRANSACTION_NOT_FOUND";
+  constructor(readonly operationId:string){
+    super(`Applied Project history transaction ${operationId} was not found.`);
+    this.name="ProjectHistoryTransactionNotFoundError";
+  }
 }
 
 const stableValue=(value:unknown):unknown=>{
@@ -83,6 +99,7 @@ export type CoordinatedProjectMutation={
   operationId:string;
   kind:OperationKind;
   payload:unknown;
+  historyTransaction?:ProjectCommandTransaction;
   apply:(current:Project)=>Project|Promise<Project>;
 };
 
@@ -159,17 +176,28 @@ export class ProjectMutationCoordinator{
     }
   }
 
-  private async reconciledOperationRecord(projectId:string,operationId:string):Promise<ProjectOperationRecord|null>{
+  private async reconciledRecords(projectId:string):Promise<ProjectOperationRecord[]>{
     const current=await this.repository.load(projectId);
     let records=await this.readRecords(projectId);
     await this.reconcilePending(projectId,current,records);
     records=await this.readRecords(projectId);
+    return records;
+  }
+
+  private async reconciledOperationRecord(projectId:string,operationId:string):Promise<ProjectOperationRecord|null>{
+    const records=await this.reconciledRecords(projectId);
     return this.latestRecords(records).get(operationId)??null;
   }
 
   private operationState(record:ProjectOperationRecord):ProjectOperationState{
-    const{fingerprint:_,...state}=record;
-    return state;
+    return{
+      operationId:record.operationId,
+      kind:record.kind,
+      expectedRevision:record.expectedRevision,
+      appliedRevision:record.appliedRevision,
+      status:record.status,
+      recordedAt:record.recordedAt,
+    };
   }
 
   async getOperation(projectId:string,operationId:string):Promise<ProjectOperationState|null>{
@@ -185,6 +213,23 @@ export class ProjectMutationCoordinator{
       if(!record)return null;
       if(record.kind!==kind||record.fingerprint!==fingerprint(payload))throw new ProjectOperationIdReuseError(operationId);
       return this.operationState(record);
+    });
+  }
+
+  async listHistory(projectId:string):Promise<ProjectHistoryTransaction[]>{
+    return this.withProjectLock(projectId,async()=>{
+      const records=await this.reconciledRecords(projectId);
+      return this.latestRecordList(records)
+        .filter(record=>record.status==="applied"&&record.history!==undefined)
+        .map(record=>ProjectHistoryTransactionSchema.parse(record.history));
+    });
+  }
+
+  async getHistoryTransaction(projectId:string,operationId:string):Promise<ProjectHistoryTransaction|null>{
+    return this.withProjectLock(projectId,async()=>{
+      const record=await this.reconciledOperationRecord(projectId,operationId);
+      if(record?.status!=="applied"||!record.history)return null;
+      return ProjectHistoryTransactionSchema.parse(record.history);
     });
   }
 
@@ -210,7 +255,14 @@ export class ProjectMutationCoordinator{
       if(next.project.id!==current.project.id)throw new ProjectMutationInvariantError("A coordinated mutation cannot change the Project ID.");
       if(next.project.revision!==current.project.revision+1)throw new ProjectMutationInvariantError(`A coordinated mutation must advance revision exactly once (${current.project.revision} → ${current.project.revision+1}).`);
 
-      const pending:ProjectOperationRecord={operationId:input.operationId,kind:input.kind,fingerprint:inputFingerprint,expectedRevision:input.expectedRevision,appliedRevision:next.project.revision,status:"pending",recordedAt:new Date().toISOString()};
+      let history:ProjectHistoryTransaction|undefined;
+      if(input.historyTransaction){
+        const transaction=ProjectCommandTransactionSchema.parse(input.historyTransaction);
+        if(transaction.id!==input.operationId)throw new ProjectMutationInvariantError("History transaction ID must match its coordinated mutation operation ID.");
+        history=createDurableProjectHistoryTransaction({before:current,transaction,appliedRevision:next.project.revision});
+      }
+
+      const pending:ProjectOperationRecord={operationId:input.operationId,kind:input.kind,fingerprint:inputFingerprint,expectedRevision:input.expectedRevision,appliedRevision:next.project.revision,status:"pending",recordedAt:new Date().toISOString(),...(history?{history}:{})};
       await this.appendRecord(input.projectId,pending);
       try{await this.repository.save(next);}
       catch(error){
@@ -229,8 +281,21 @@ export class ProjectMutationCoordinator{
 
   async applyTransaction(projectId:string,input:ProjectTransactionMutation):Promise<ProjectMutationResponse>{
     const parsed=ProjectTransactionMutationSchema.parse(input);
-    const transaction={id:parsed.transactionId,...parsed.transaction};
-    return this.mutate({projectId,expectedRevision:parsed.expectedRevision,operationId:parsed.transactionId,kind:"transaction",payload:transaction,apply:current=>applyProjectCommandTransaction(current,transaction)});
+    const transaction=ProjectCommandTransactionSchema.parse({id:parsed.transactionId,...parsed.transaction});
+    return this.mutate({projectId,expectedRevision:parsed.expectedRevision,operationId:parsed.transactionId,kind:"transaction",payload:transaction,historyTransaction:transaction,apply:current=>applyProjectCommandTransaction(current,transaction)});
+  }
+
+  async undoHistory(projectId:string,input:{historyOperationId:string;expectedRevision:number;operationId:string}):Promise<ProjectMutationResponse>{
+    const history=await this.getHistoryTransaction(projectId,input.historyOperationId);
+    if(!history)throw new ProjectHistoryTransactionNotFoundError(input.historyOperationId);
+    return this.applyTransaction(projectId,{
+      expectedRevision:input.expectedRevision,
+      transactionId:input.operationId,
+      transaction:{
+        label:`Undo · ${history.label}`,
+        commands:history.backward,
+      },
+    });
   }
 
   async replaceProject(projectId:string,input:ProjectReplacementMutation):Promise<ProjectMutationResponse>{

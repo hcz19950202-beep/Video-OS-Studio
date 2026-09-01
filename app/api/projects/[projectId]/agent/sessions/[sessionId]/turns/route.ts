@@ -1,6 +1,7 @@
 import {z} from "zod";
 import {AgentExecutionModeSchema,AgentSelectionSnapshotSchema,AgentSessionIdSchema,ContextReferenceListSchema,ContextReferenceValidationError,DEFAULT_AGENT_EXECUTION_MODE,type AgentProviderEvent} from "@/lib/ai";
-import {createServerAgentSessionService,getAgentProviderRuntimeStatus} from "@/lib/server/agent-runtime";
+import {attemptAgentProposalAutoApply} from "@/lib/ai/proposal-approval-policy";
+import {agentProposalApplicationService,agentSessionRepository,createServerAgentSessionService,getAgentProviderRuntimeStatus} from "@/lib/server/agent-runtime";
 
 export const runtime="nodejs";
 type Context={params:Promise<{projectId:string;sessionId:string}>};
@@ -59,21 +60,60 @@ export async function POST(request:Request,{params}:Context){
 
       send("turn-started",{sessionId,providerId:provider.providerId,model:provider.model,executionMode:input.executionMode,contextReferenceCount:input.contextReferences?.length??0});
       const service=createServerAgentSessionService(observe);
-      void service.runTurn({projectId,sessionId,userContent:input.userContent,executionMode:input.executionMode,selection:input.selection,contextReferences:input.contextReferences,signal:abortController.signal}).then(session=>{
+      void service.runTurn({projectId,sessionId,userContent:input.userContent,executionMode:input.executionMode,selection:input.selection,contextReferences:input.contextReferences,signal:abortController.signal}).then(async session=>{
+        let settledSession=session;
         const turn=session.turns.at(-1);
         if(!turn){
           send("turn-error",{code:"missing_turn",message:"Agent turn was not persisted.",retryable:true});
           finish();
           return;
         }
-        for(const execution of turn.toolExecutions){
+
+        if(turn.proposalIds.length===1){
+          const proposal=session.proposals.find(item=>item.id===turn.proposalIds[0]);
+          if(proposal){
+            try{
+              const auto=await attemptAgentProposalAutoApply({
+                projectId,
+                session,
+                sourceTurn:turn,
+                proposal,
+                executionMode:input.executionMode,
+                application:agentProposalApplicationService,
+              });
+              settledSession=auto.session;
+              if(auto.applied){
+                send("proposal-auto-applied",{
+                  id:proposal.id,
+                  applyOperationId:auto.applyOperationId,
+                  projectRevision:auto.project.project.revision,
+                  transactionId:auto.transactionId,
+                });
+              }else if(input.executionMode==="apply-safe-edits"){
+                send("proposal-auto-apply-deferred",{
+                  id:proposal.id,
+                  reason:auto.decision.reason,
+                  protectedCommandTypes:auto.decision.protectedCommandTypes,
+                });
+              }
+            }catch{
+              settledSession=await agentSessionRepository.require(projectId,sessionId);
+              if(input.executionMode==="apply-safe-edits")send("proposal-auto-apply-deferred",{id:proposal.id,reason:"apply-failed"});
+            }
+          }
+        }else if(input.executionMode==="apply-safe-edits"&&turn.proposalIds.length>1){
+          send("proposal-auto-apply-deferred",{proposalIds:turn.proposalIds,reason:"multiple-proposals-require-review"});
+        }
+
+        const settledTurn=settledSession.turns.find(item=>item.id===turn.id)??turn;
+        for(const execution of settledTurn.toolExecutions){
           send("tool-result",{callId:execution.call.id,toolId:execution.call.toolId,status:execution.result.status});
         }
-        for(const proposalId of turn.proposalIds){
-          const proposal=session.proposals.find(item=>item.id===proposalId);
+        for(const proposalId of settledTurn.proposalIds){
+          const proposal=settledSession.proposals.find(item=>item.id===proposalId);
           if(proposal)send("proposal-ready",{id:proposal.id,title:proposal.title,summary:proposal.summary,status:proposal.status,baseProjectRevision:proposal.baseProjectRevision,operationCount:proposal.operations.length});
         }
-        send("turn-finished",{sessionId:session.id,turnId:turn.id,status:turn.status,error:turn.error?{category:turn.error.category,code:turn.error.code,retryable:turn.error.retryable}:undefined});
+        send("turn-finished",{sessionId:settledSession.id,turnId:settledTurn.id,status:settledTurn.status,error:settledTurn.error?{category:settledTurn.error.category,code:settledTurn.error.code,retryable:settledTurn.error.retryable}:undefined});
         finish();
       }).catch(error=>{
         if(error instanceof ContextReferenceValidationError){
