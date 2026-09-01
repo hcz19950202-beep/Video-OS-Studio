@@ -190,8 +190,14 @@ export class ProjectMutationCoordinator{
   }
 
   private operationState(record:ProjectOperationRecord):ProjectOperationState{
-    const{fingerprint:_,history:__,...state}=record;
-    return state;
+    return{
+      operationId:record.operationId,
+      kind:record.kind,
+      expectedRevision:record.expectedRevision,
+      appliedRevision:record.appliedRevision,
+      status:record.status,
+      recordedAt:record.recordedAt,
+    };
   }
 
   async getOperation(projectId:string,operationId:string):Promise<ProjectOperationState|null>{
