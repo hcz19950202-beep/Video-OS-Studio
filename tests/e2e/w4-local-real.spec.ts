@@ -85,8 +85,6 @@ test("W4 real browser Generate First Draft review edit approve and final render"
   const caption = page.locator('[data-clip-id^="wf-caption-"]').first();
   await expect(caption).toBeVisible();
   await caption.click();
-  await expect(page.getByRole("button", { name: "Expand inspector", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Expand inspector", exact: true }).click();
   await expect(page.locator('[data-inspector-section="typography"]')).toBeVisible();
   const fontSize = page.getByLabel("Font Size");
   await expect(fontSize).toBeVisible();
