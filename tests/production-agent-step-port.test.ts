@@ -69,6 +69,7 @@ const completedSession=(kind:"analyze-script"|"plan-visuals"|"prepare-assets"="p
   }]:[],
   approvedOperations:[],
   operationClaims:[],
+  operationAudit:[],
 });
 
 const repository=(initial:AgentSession|null=null)=>{
