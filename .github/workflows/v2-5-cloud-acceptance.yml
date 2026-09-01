@@ -56,6 +56,7 @@ jobs:
       - name: V2.5 Agent workspace and MCP browser acceptance
         run: >-
           npm run test:e2e --
+          tests/e2e/a4-agent-workspace.spec.ts
           tests/e2e/v2-5-c2-unified-conversation.spec.ts
           tests/e2e/v2-5-c3-selection-context.spec.ts
           tests/e2e/v2-5-c4-connection-center.spec.ts
