@@ -1,6 +1,7 @@
 import {z} from "zod";
 import {AgentProposalApplicationError,AgentProposalNotFoundError,AgentProposalStaleError,AgentSessionIdSchema,AgentWorkflowActionError,AgentWorkflowActionStaleError} from "@/lib/ai";
 import {agentProposalApplicationService} from "@/lib/server/agent-runtime";
+import {projectHistoryAttributions} from "@/lib/server/history-runtime";
 
 export const runtime="nodejs";
 type Context={params:Promise<{projectId:string;sessionId:string;proposalId:string}>};
@@ -27,6 +28,11 @@ export async function POST(request:Request,{params}:Context){
     const input=ProposalActionSchema.parse(await request.json());
     if(input.action==="review")return Response.json(await agentProposalApplicationService.preview({projectId,sessionId,proposalId,operationIds:input.operationIds,changeIds:input.changeIds}));
     if(input.action==="reject")return Response.json({session:await agentProposalApplicationService.reject({projectId,sessionId,proposalId})});
-    return Response.json(await agentProposalApplicationService.apply({projectId,sessionId,proposalId,expectedRevision:input.expectedRevision,operationIds:input.operationIds,changeIds:input.changeIds}));
+    const result=await agentProposalApplicationService.apply({projectId,sessionId,proposalId,expectedRevision:input.expectedRevision,operationIds:input.operationIds,changeIds:input.changeIds});
+    if(result.transactionId){
+      const kind=result.session.providerId==="local-mcp"?"external-agent":"builtin-agent";
+      await projectHistoryAttributions.record(projectId,result.transactionId,{kind,sessionId,proposalId}).catch(()=>undefined);
+    }
+    return Response.json(result);
   }catch(error){return errorResponse(error);}
 }

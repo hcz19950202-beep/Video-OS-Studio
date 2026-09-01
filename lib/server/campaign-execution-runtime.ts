@@ -23,6 +23,7 @@ import {
   getAgentProviderRuntimeStatus,
 } from "@/lib/server/agent-runtime";
 import {productionCampaignRepository} from "@/lib/server/campaign-runtime";
+import {projectHistoryAttributions} from "@/lib/server/history-runtime";
 import {
   dataRoot,
   jobRuntime,
@@ -50,7 +51,7 @@ const createProductionExecutionService=()=>{
   const visualTargets=new ProductionVisualPlanTargetResolver(proposals);
   const qa=new ApplicationProductionQAStepPort(productionQAService);
   const repairs=new ProductionQARepairResolver(productionQAService);
-  const repair=new ApplicationProductionRepairStepPort(repairs,projectRepository,projectMutations);
+  const repair=new ApplicationProductionRepairStepPort(repairs,projectRepository,projectMutations,projectHistoryAttributions);
   const repairTargets=new ProductionQARepairTargetResolver(repairs,projectRepository);
   const assetBaseUrl=resolveTrustedAssetBaseUrl();
   const application=new ApplicationProductionStepRunner(

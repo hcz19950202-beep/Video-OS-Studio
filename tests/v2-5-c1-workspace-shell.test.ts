@@ -35,7 +35,9 @@ describe("V2.5 C1 agent-native workspace shell",()=>{
   it("provides the frozen Context Dock tab contract without moving project runtime ownership",()=>{
     const dock=readFileSync(resolve(process.cwd(),"components/studio/AgentNativeContextDock.tsx"),"utf8");
     for(const tab of ["inspector","assets","transcript","mission","qa","history"])expect(dock).toContain(`id:\"${tab}\"`);
-    expect(dock).toContain("ProductionMissionPanel");
+    expect(dock).toContain("ProductionContextSurface");
+    expect(dock).toContain('mode="mission"');
+    expect(dock).toContain('mode="qa"');
     expect(dock).toContain("useProjectStore");
     expect(dock).toContain("onTabChange");
     expect(dock).not.toContain("useWorkspaceProjectRuntime");

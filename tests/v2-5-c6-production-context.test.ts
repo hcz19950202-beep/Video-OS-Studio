@@ -1,0 +1,66 @@
+import {describe,expect,it} from "vitest";
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
+
+const read=(path:string)=>readFileSync(resolve(process.cwd(),path),"utf8");
+
+describe("V2.5 C6 production Context surfaces",()=>{
+  it("reads Mission and QA from the durable Production Workspace instead of copying truth into Project UI state",()=>{
+    const surface=read("components/studio/ProductionContextSurface.tsx");
+    expect(surface).toContain("listProductionMissions");
+    expect(surface).toContain("getProductionWorkspace");
+    expect(surface).toContain("ProductionWorkspaceSnapshot");
+    expect(surface).toContain("currentWorkspace.finalRenderReadiness");
+    expect(surface).toContain("currentWorkspace.evidence");
+    expect(surface).toContain("currentWorkspace.latestQA?.findings");
+    expect(surface).toContain("workspace?.project.id===projectId?workspace:null");
+    expect(surface).not.toContain("createProductionMission");
+    expect(surface).not.toContain("updateProductionMission");
+    expect(surface).not.toContain("cancelProductionMission");
+  });
+
+  it("routes Mission step and QA finding Ask Agent actions through Selection Mode ContextReferences",()=>{
+    const surface=read("components/studio/ProductionContextSurface.tsx");
+    expect(surface).toContain('kind:"mission-step"');
+    expect(surface).toContain('kind:"qa-finding"');
+    expect(surface).toContain('data-testid={`ask-agent-mission-step-${step.id}`}');
+    expect(surface).toContain('data-testid={`ask-agent-qa-finding-${finding.id}`}');
+    const missionStart=surface.indexOf("const askAgentMissionStep");
+    const qaStart=surface.indexOf("const askAgentFinding");
+    const renderStart=surface.indexOf("if(projectLoading");
+    const missionHandler=surface.slice(missionStart,qaStart);
+    const qaHandler=surface.slice(qaStart,renderStart);
+    expect(missionStart).toBeGreaterThanOrEqual(0);
+    expect(qaStart).toBeGreaterThan(missionStart);
+    expect(renderStart).toBeGreaterThan(qaStart);
+    expect(missionHandler.indexOf("setContextSelectionMode(true)")).toBeLessThan(missionHandler.indexOf("selectContextTarget"));
+    expect(qaHandler.indexOf("setContextSelectionMode(true)")).toBeLessThan(qaHandler.indexOf("selectContextTarget"));
+  });
+
+  it("shows a QA timeline location only when repair evidence identifies a real Project scene",()=>{
+    const surface=read("components/studio/ProductionContextSurface.tsx");
+    expect(surface).toContain("currentWorkspace?.latestQA?.repairProposal?.actions");
+    expect(surface).toContain("if(!action.sceneId)continue");
+    expect(surface).toContain("sceneById.get(action.sceneId)");
+    expect(surface).toContain("startFrame:scene.startFrame");
+    expect(surface).toContain("location.sceneName");
+    expect(surface).toContain("location.startFrame");
+  });
+
+  it("keeps repair requests review-only inside Context Dock",()=>{
+    const surface=read("components/studio/ProductionContextSurface.tsx");
+    expect(surface).toContain("repairProposal?.requiresReview");
+    expect(surface).toContain("Context Dock never executes it automatically");
+    expect(surface).not.toContain("prepareQARepair");
+    expect(surface).not.toContain("applyQARepair");
+  });
+
+  it("wires both frozen Context tabs to the same durable Production surface and preserves optional Mission handoff",()=>{
+    const dock=read("components/studio/AgentNativeContextDock.tsx");
+    expect(dock).toContain('<ProductionContextSurface project={project} mode="mission" preferredMissionId={preferredMissionId}/>');
+    expect(dock).toContain('<ProductionContextSurface project={project} mode="qa" preferredMissionId={preferredMissionId}/>');
+    expect(dock).not.toContain("ProductionMissionPanel");
+    expect(dock).not.toContain("enabledClips");
+    expect(dock).not.toContain("Project health view");
+  });
+});

@@ -4,6 +4,7 @@ import type {ProductionRepairStepPort} from "@/lib/production/execution/applicat
 import type {ProductionStepRunnerInput} from "@/lib/production/execution/executor";
 import type {StepExecutionResult} from "@/lib/production/execution/schema";
 import type {ProjectCommand} from "@/lib/project/commands";
+import type {ProjectHistoryAttributionRepository} from "@/lib/project/history-attribution";
 import type {ProjectMutationCoordinator} from "@/lib/project/mutation-coordinator";
 import {prepareQARepairApplication} from "@/lib/production/qa/repair";
 import type {ProductionQAService} from "@/lib/production/qa/service";
@@ -14,6 +15,7 @@ const unique=<T>(values:T[])=>[...new Set(values)];
 
 type ProductionQAReportReader=Pick<ProductionQAService,"load">;
 type ProductionRepairMutationWriter=Pick<ProjectMutationCoordinator,"applyTransaction">;
+type ProductionRepairHistoryAttributionWriter=Pick<ProjectHistoryAttributionRepository,"record">;
 export interface ProductionRepairProjectReader{load(projectId:string):Promise<Project>;}
 
 type ResolvedQARepair={report:QAReport};
@@ -104,6 +106,7 @@ export class ApplicationProductionRepairStepPort implements ProductionRepairStep
     private readonly repairs:ProductionQARepairResolver,
     private readonly projects:ProductionRepairProjectReader,
     private readonly mutations:ProductionRepairMutationWriter,
+    private readonly historyAttributions?:ProductionRepairHistoryAttributionWriter,
   ){}
 
   async execute(input:ProductionStepRunnerInput):Promise<StepExecutionResult>{
@@ -178,6 +181,9 @@ export class ApplicationProductionRepairStepPort implements ProductionRepairStep
           commands:mutation.commands,
         },
       });
+      if(this.historyAttributions){
+        await this.historyAttributions.record(input.mission.projectId,result.operationId,{kind:"mission",missionId:input.mission.id}).catch(()=>undefined);
+      }
       return{
         status:"completed",
         evidence:[{kind:"qa-report",id:report.id},{kind:"apply-operation",id:input.operationId}],
