@@ -14,7 +14,9 @@ const dynamicStates=new Set(["planning","running","retrying","repairing"]);
 const percent=(value:number)=>`${Math.max(0,Math.min(100,value)).toFixed(1)}%`;
 const shortId=(value:string)=>value.length>22?`${value.slice(0,9)}…${value.slice(-7)}`:value;
 
-export const ProductionContextSurface=({project,mode}:{project:Project;mode:ProductionContextMode})=>{
+type Props={project:Project;mode:ProductionContextMode;preferredMissionId?:string};
+
+export const ProductionContextSurface=({project,mode,preferredMissionId}:Props)=>{
   const{locale}=useStudioPreferences();
   const zh=locale==="zh-CN";
   const[missions,setMissions]=useState<ProductionMission[]>([]);
@@ -34,7 +36,7 @@ export const ProductionContextSurface=({project,mode}:{project:Project;mode:Prod
     void listProductionMissions(projectId).then(async next=>{
       if(!active)return;
       setMissions(next);
-      const missionId=next[0]?.id??"";
+      const missionId=(preferredMissionId&&next.some(item=>item.id===preferredMissionId)?preferredMissionId:next[0]?.id)??"";
       setSelectedMissionId(missionId);
       if(!missionId){
         setWorkspace(null);setError(null);setLoading(false);setLoadedProjectId(projectId);
@@ -50,7 +52,7 @@ export const ProductionContextSurface=({project,mode}:{project:Project;mode:Prod
       if(active){setMissions([]);setSelectedMissionId("");setWorkspace(null);setError(caught instanceof Error?caught.message:String(caught));setLoading(false);setLoadedProjectId(projectId);}
     });
     return()=>{active=false;};
-  },[projectId]);
+  },[preferredMissionId,projectId]);
 
   const selectMission=async(missionId:string)=>{
     if(!missionId||missionId===selectedMissionId)return;
