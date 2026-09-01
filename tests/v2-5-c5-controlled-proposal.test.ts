@@ -94,7 +94,7 @@ describe("V2.5 C5 controlled Proposal boundary",()=>{
     expect(tool?.contract.requiredScopes).not.toContain("project:write");
   });
 
-  it("persists a draft Proposal at the authenticated snapshot revision without changing Project data",async()=>{
+  it("persists a draft Proposal and MCP audit entry at the authenticated snapshot revision without changing Project data",async()=>{
     const before=JSON.stringify(project);
     const {registry,sessions,snapshot}=await createHarness();
     const result=await registry.execute(C5_CREATE_EDIT_PROPOSAL_TOOL_ID,validInput,{
@@ -119,6 +119,46 @@ describe("V2.5 C5 controlled Proposal boundary",()=>{
     expect(persisted?.providerId).toBe("local-mcp");
     expect(persisted?.proposals).toHaveLength(1);
     expect(persisted?.proposals[0]?.baseProjectRevision).toBe(snapshot.baseProjectRevision);
+    expect(persisted?.operationAudit).toEqual([{
+      id:`proposal-create:${PROPOSAL_ID}`,
+      source:"local-mcp",
+      action:"proposal-created",
+      outcome:"success",
+      proposalId:PROPOSAL_ID,
+      toolId:C5_CREATE_EDIT_PROPOSAL_TOOL_ID,
+      requestId:"c5-create-1",
+      providerId:"local-mcp",
+      createdAt:NOW,
+    }]);
+    expect(JSON.stringify(project)).toBe(before);
+  });
+
+  it("attributes the same durable Proposal audit contract to the built-in Agent surface",async()=>{
+    const before=JSON.stringify(project);
+    const {registry,sessions,snapshot}=await createHarness();
+    const result=await registry.execute(C5_CREATE_EDIT_PROPOSAL_TOOL_ID,validInput,{
+      transport:"agent",
+      projectId:project.project.id,
+      requestId:"c5-agent-create-1",
+      sessionId:SESSION_ID,
+      projectContext:snapshot,
+    });
+
+    expect(result.status).toBe("success");
+    expect(sessions.read()).toMatchObject({
+      providerId:"builtin-agent",
+      operationAudit:[{
+        id:`proposal-create:${PROPOSAL_ID}`,
+        source:"builtin-agent",
+        action:"proposal-created",
+        outcome:"success",
+        proposalId:PROPOSAL_ID,
+        toolId:C5_CREATE_EDIT_PROPOSAL_TOOL_ID,
+        requestId:"c5-agent-create-1",
+        providerId:"builtin-agent",
+        createdAt:NOW,
+      }],
+    });
     expect(JSON.stringify(project)).toBe(before);
   });
 
