@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { LOCAL_MCP_PROTOCOL_VERSION } from "@/lib/mcp/bridge-controller";
 import type { Project } from "@/schemas/project";
 
@@ -50,7 +50,7 @@ const mcpPost = async <T>(
   };
 };
 
-const readProject = async (page: Parameters<typeof test>[0]["page"], projectId: string) => {
+const readProject = async (page: Page, projectId: string) => {
   const response = await page.request.get(`/api/projects/${encodeURIComponent(projectId)}`);
   expect(response.ok()).toBeTruthy();
   const payload = (await response.json()) as { project: Project };
@@ -107,7 +107,13 @@ test("C7 external MCP Proposal is reviewed in Studio, applied once, attributed, 
   const readBefore = await mcpPost<{
     structuredContent: { projectId: string; revision: number };
     isError: boolean;
-  }>(initialAddress, token, "tools/call", { name: "read_project_summary", arguments: {} }, "read_project_summary");
+  }>(
+    initialAddress,
+    token,
+    "tools/call",
+    { name: "read_project_summary", arguments: {} },
+    "read_project_summary",
+  );
   expect(readBefore.status).toBe(200);
   expect(readBefore.body.result?.isError).toBe(false);
   expect(readBefore.body.result?.structuredContent).toMatchObject({
@@ -167,9 +173,9 @@ test("C7 external MCP Proposal is reviewed in Studio, applied once, attributed, 
 
   const afterProposal = await readProject(page, projectId);
   expect(afterProposal).toEqual(beforeMcp);
-  expect(afterProposal.tracks.flatMap((track) => track.clips).some((clip) => clip.id === CLIP_ID)).toBe(
-    false,
-  );
+  expect(
+    afterProposal.tracks.flatMap((track) => track.clips).some((clip) => clip.id === CLIP_ID),
+  ).toBe(false);
 
   await center.getByRole("button", { name: "Close" }).click();
   await page.getByTestId("agent-surface-toggle").click();
@@ -186,9 +192,9 @@ test("C7 external MCP Proposal is reviewed in Studio, applied once, attributed, 
   await expect(page.locator(`[data-clip-id="${CLIP_ID}"]`)).toBeVisible();
   await expect.poll(async () => (await readProject(page, projectId)).project.revision).toBe(1);
   const appliedProject = await readProject(page, projectId);
-  expect(appliedProject.tracks.flatMap((track) => track.clips).some((clip) => clip.id === CLIP_ID)).toBe(
-    true,
-  );
+  expect(
+    appliedProject.tracks.flatMap((track) => track.clips).some((clip) => clip.id === CLIP_ID),
+  ).toBe(true);
 
   const historyResponse = await page.request.get(
     `/api/projects/${encodeURIComponent(projectId)}/transactions`,
