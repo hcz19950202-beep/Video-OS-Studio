@@ -1,3 +1,4 @@
+import {CampaignMissionHandoffController} from "@/components/studio/CampaignMissionHandoffController";
 import {StudioWorkspaceV21} from "@/components/studio/StudioWorkspaceV21";
 import {ProductionMissionIdSchema} from "@/lib/production/mission/schema";
 import {projectRepository} from "@/lib/server/runtime";
@@ -15,9 +16,8 @@ export default async function Home({searchParams}:{searchParams:SearchParams}){
   const projectId=ProjectIdSchema.safeParse(scalar(query.projectId));
   const missionId=ProductionMissionIdSchema.safeParse(scalar(query.missionId));
   const validHandoff=projectId.success&&missionId.success;
-  return <StudioWorkspaceV21
-    initialProjects={initialProjects}
-    initialOpenProjectId={validHandoff?projectId.data:undefined}
-    initialOpenMissionId={validHandoff?missionId.data:undefined}
-  />;
+  return <>
+    {validHandoff?<CampaignMissionHandoffController projectId={projectId.data} missionId={missionId.data}/>:null}
+    <StudioWorkspaceV21 initialProjects={initialProjects}/>
+  </>;
 }
