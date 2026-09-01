@@ -1,6 +1,6 @@
 import { execFile, spawn } from "node:child_process";
 import { readFile, rm } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
@@ -96,8 +96,7 @@ const parseLockRecord = (text) => {
     }
     if (
       value.processStartedAt !== undefined &&
-      (typeof value.processStartedAt !== "number" ||
-        !Number.isFinite(value.processStartedAt))
+      (typeof value.processStartedAt !== "number" || !Number.isFinite(value.processStartedAt))
     ) {
       return null;
     }
@@ -137,12 +136,28 @@ const removeWithWindowsRetry = async (lockPath, removeFile, platform) => {
   }
 };
 
+export const isIsolatedE2EDataRoot = (dataRoot, env = process.env) => {
+  if (env.VIDEO_OS_E2E_ISOLATED_DATA_ROOT === "1") return true;
+  if (env.CI !== "true" || !env.RUNNER_TEMP) return false;
+  const runnerTemp = resolve(env.RUNNER_TEMP);
+  const candidate = resolve(dataRoot);
+  const childPath = relative(runnerTemp, candidate);
+  return (
+    childPath.length > 0 &&
+    childPath !== ".." &&
+    !childPath.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) &&
+    !isAbsolute(childPath)
+  );
+};
+
 export const recoverDeadRuntimeOwnerLock = async (dataRoot, options = {}) => {
   const lockPath = join(dataRoot, ".runtime-owner.lock");
   const readText = options.readText ?? defaultReadText;
   const removeFile = options.removeFile ?? rm;
   const isOwnerAlive = options.isOwnerAlive ?? defaultIsProcessIdentityAlive;
   const platform = options.platform ?? process.platform;
+  const allowInvalidOrphanRecovery = options.allowInvalidOrphanRecovery ?? false;
+  const settleInvalidLock = options.settleInvalidLock ?? (() => sleep(250));
 
   let observedText;
   try {
@@ -152,12 +167,35 @@ export const recoverDeadRuntimeOwnerLock = async (dataRoot, options = {}) => {
     throw error;
   }
 
-  const observed = parseLockRecord(observedText);
+  let observed = parseLockRecord(observedText);
   if (observed === null) {
-    throw new RuntimeOwnerResidueError(
-      "Browser shutdown left an invalid runtime-owner lock; refusing unsafe cleanup.",
-      lockPath,
-    );
+    if (!allowInvalidOrphanRecovery) {
+      throw new RuntimeOwnerResidueError(
+        "Browser shutdown left an invalid runtime-owner lock; refusing unsafe cleanup.",
+        lockPath,
+      );
+    }
+    await settleInvalidLock();
+    let settledText;
+    try {
+      settledText = await readText(lockPath);
+    } catch (error) {
+      if (error?.code === "ENOENT") return { status: "already-absent", lockPath };
+      throw error;
+    }
+    const settled = parseLockRecord(settledText);
+    if (settled !== null) {
+      observedText = settledText;
+      observed = settled;
+    } else if (settledText === observedText) {
+      await removeWithWindowsRetry(lockPath, removeFile, platform);
+      return { status: "recovered-isolated-invalid-owner", lockPath };
+    } else {
+      throw new RuntimeOwnerResidueError(
+        "Invalid runtime-owner lock changed during isolated cleanup; refusing to remove an active writer.",
+        lockPath,
+      );
+    }
   }
 
   if (
@@ -210,8 +248,13 @@ export const runPlaywrightE2E = async (args = process.argv.slice(2)) => {
   let cleanupError;
   try {
     const dataRoot = resolve(process.env.VIDEO_OS_DATA_ROOT ?? ".video-os-data");
-    const result = await recoverDeadRuntimeOwnerLock(dataRoot);
-    if (result.status === "recovered-dead-owner") {
+    const result = await recoverDeadRuntimeOwnerLock(dataRoot, {
+      allowInvalidOrphanRecovery: isIsolatedE2EDataRoot(dataRoot),
+    });
+    if (
+      result.status === "recovered-dead-owner" ||
+      result.status === "recovered-isolated-invalid-owner"
+    ) {
       console.log(`Recovered dead browser runtime-owner lock: ${result.lockPath}`);
     }
   } catch (error) {
