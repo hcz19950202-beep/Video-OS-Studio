@@ -1,0 +1,48 @@
+name: C7 Durable Job Test Patch
+
+on:
+  push:
+    branches:
+      - release/v2.5-acceptance-hardening
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/v2.5-acceptance-hardening
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Patch durable Job teardown and format
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/e2e/v2-5-c7-agent-mcp-acceptance.spec.ts')
+          text = path.read_text(encoding='utf-8')
+          old = '''  const jobsAfterRestart = (await readJobs(page, projectId)).jobs.filter(\n    (job) => job.type === "render-final",\n  );\n  expect(jobsAfterRestart).toHaveLength(1);\n  expect(jobsAfterRestart[0]?.id).toBe(durableJobId);\n  await expect(page.getByTestId("mcp-activity-log")).not.toContainText(token);\n\n  await reopenedCenter.getByRole("button", { name: "Stop bridge", exact: true }).click();\n  await expect(page.getByTestId("mcp-bridge-status")).toHaveText("stopped");\n});\n'''
+          new = '''  const jobsAfterRestart = (await readJobs(page, projectId)).jobs.filter(\n    (job) => job.type === "render-final",\n  );\n  expect(jobsAfterRestart).toHaveLength(1);\n  expect(jobsAfterRestart[0]?.id).toBe(durableJobId);\n  await expect(page.getByTestId("mcp-activity-log")).not.toContainText(token);\n\n  // The C7 browser gate owns this costly Job. After restart durability is proven,\n  // settle it before Playwright tears down the server so Remotion can run its\n  // normal temporary-props cleanup instead of being killed mid-render.\n  const terminalStatuses = new Set(["completed", "failed", "cancelled", "interrupted"]);\n  const restartedJob = jobsAfterRestart[0];\n  expect(restartedJob).toBeTruthy();\n  if (!terminalStatuses.has(restartedJob!.status)) {\n    const cancelResponse = await page.request.delete(\n      `/api/jobs/${encodeURIComponent(durableJobId)}`,\n    );\n    expect(cancelResponse.ok()).toBeTruthy();\n  }\n  await expect\n    .poll(\n      async () => {\n        const response = await page.request.get(`/api/jobs/${encodeURIComponent(durableJobId)}`);\n        expect(response.ok()).toBeTruthy();\n        const body = (await response.json()) as { job: { status: string } };\n        return terminalStatuses.has(body.job.status);\n      },\n      { timeout: 120_000 },\n    )\n    .toBe(true);\n\n  await reopenedCenter.getByRole("button", { name: "Stop bridge", exact: true }).click();\n  await expect(page.getByTestId("mcp-bridge-status")).toHaveText("stopped");\n});\n'''
+          if old not in text:
+              raise SystemExit('expected C7 durable Job teardown block not found')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          npm run format
+          npm run format:check
+      - name: Commit patched acceptance
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/v2-5-c7-agent-mcp-acceptance.spec.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "test(v2.5-c7): settle durable render before teardown"
+          git push origin HEAD:release/v2.5-acceptance-hardening
