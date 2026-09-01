@@ -10,9 +10,10 @@ describe("V2.5 C6 production Context surfaces",()=>{
     expect(surface).toContain("listProductionMissions");
     expect(surface).toContain("getProductionWorkspace");
     expect(surface).toContain("ProductionWorkspaceSnapshot");
-    expect(surface).toContain("workspace.finalRenderReadiness");
-    expect(surface).toContain("workspace.evidence");
-    expect(surface).toContain("workspace.latestQA?.findings");
+    expect(surface).toContain("currentWorkspace.finalRenderReadiness");
+    expect(surface).toContain("currentWorkspace.evidence");
+    expect(surface).toContain("currentWorkspace.latestQA?.findings");
+    expect(surface).toContain("workspace?.project.id===projectId?workspace:null");
     expect(surface).not.toContain("createProductionMission");
     expect(surface).not.toContain("updateProductionMission");
     expect(surface).not.toContain("cancelProductionMission");
@@ -24,15 +25,21 @@ describe("V2.5 C6 production Context surfaces",()=>{
     expect(surface).toContain('kind:"qa-finding"');
     expect(surface).toContain('data-testid={`ask-agent-mission-step-${step.id}`}');
     expect(surface).toContain('data-testid={`ask-agent-qa-finding-${finding.id}`}');
-    const missionHandler=surface.slice(surface.indexOf("const askAgentMissionStep"),surface.indexOf("const askAgentFinding"));
-    const qaHandler=surface.slice(surface.indexOf("const askAgentFinding"),surface.indexOf("if(error)"));
+    const missionStart=surface.indexOf("const askAgentMissionStep");
+    const qaStart=surface.indexOf("const askAgentFinding");
+    const renderStart=surface.indexOf("if(projectLoading");
+    const missionHandler=surface.slice(missionStart,qaStart);
+    const qaHandler=surface.slice(qaStart,renderStart);
+    expect(missionStart).toBeGreaterThanOrEqual(0);
+    expect(qaStart).toBeGreaterThan(missionStart);
+    expect(renderStart).toBeGreaterThan(qaStart);
     expect(missionHandler.indexOf("setContextSelectionMode(true)")).toBeLessThan(missionHandler.indexOf("selectContextTarget"));
     expect(qaHandler.indexOf("setContextSelectionMode(true)")).toBeLessThan(qaHandler.indexOf("selectContextTarget"));
   });
 
   it("shows a QA timeline location only when repair evidence identifies a real Project scene",()=>{
     const surface=read("components/studio/ProductionContextSurface.tsx");
-    expect(surface).toContain("workspace?.latestQA?.repairProposal?.actions");
+    expect(surface).toContain("currentWorkspace?.latestQA?.repairProposal?.actions");
     expect(surface).toContain("if(!action.sceneId)continue");
     expect(surface).toContain("sceneById.get(action.sceneId)");
     expect(surface).toContain("startFrame:scene.startFrame");
