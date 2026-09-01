@@ -78,9 +78,9 @@ const tempRoots: string[] = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  fakes.projectMutations.listHistory.mockResolvedValue([]);
   fakes.projectHistoryAttributions.list.mockResolvedValue([]);
   fakes.projectHistoryAttributions.record.mockResolvedValue({operationId:"op-1",origin:{kind:"human"},recordedAt:"2026-09-01T00:00:00.000Z"});
-  fakes.projectMutations.listHistory.mockResolvedValue([]);
 });
 
 afterEach(async () => {
@@ -188,39 +188,179 @@ describe("H6 route contracts", () => {
     expect(transactionResponse.status).toBe(200);
     expect(fakes.projectMutations.applyTransaction).toHaveBeenCalledWith(
       "h6-project",
-      expect.objectContaining({transactionId:"tx-1",expectedRevision:0}),
+      expect.objectContaining({ transactionId: "tx-1", expectedRevision: 0 }),
     );
     expect(fakes.projectHistoryAttributions.record).toHaveBeenCalledWith("h6-project","op-1",{kind:"human"});
   });
 
-  it("imports media through the Project media route", async () => {
-    fakes.mediaImportService.importWithReport.mockResolvedValue({project,import:{kind:"video",normalized:false}});
-    const form=new FormData();form.set("file",new File(["video"],"sample.mp4",{type:"video/mp4"}));
-    const response=await mediaRoute.POST(new Request("http://localhost/api/projects/h6-project/media",{method:"POST",body:form}),{params:Promise.resolve({projectId:"h6-project"})});
+  it("streams raw media request bytes into a staged file before import", async () => {
+    const root = await mkdtemp(join(tmpdir(), "video-os-h6-media-"));
+    tempRoots.push(root);
+    const uploadPath = join(root, "upload.part");
+    fakes.projectRepository.resolveProjectFile.mockReturnValue(uploadPath);
+    fakes.mediaImportService.importWithReport.mockImplementation(async (input) => {
+      expect(input.fileName).toBe("tiny clip.mp4");
+      expect(input.expectedRevision).toBe(3);
+      expect(input.operationId).toBe("media-1");
+      expect(input.sizeBytes).toBe(5);
+      expect([...(await readFile(input.sourcePath))]).toEqual([1, 2, 3, 4, 5]);
+      return { project, assetId: "asset-1", normalized: false };
+    });
+
+    const response = await mediaRoute.POST(
+      new Request(
+        "http://localhost/api/projects/h6-project/media?fileName=tiny%20clip.mp4&expectedRevision=3&operationId=media-1",
+        {
+          method: "POST",
+          headers: { "content-type": "video/mp4", "content-length": "5" },
+          body: new Uint8Array([1, 2, 3, 4, 5]),
+        },
+      ),
+      { params: Promise.resolve({ projectId: "h6-project" }) },
+    );
+
     expect(response.status).toBe(200);
+    expect(fakes.mediaImportService.importWithReport).toHaveBeenCalledTimes(1);
   });
 
-  it("serves project asset files with range support", async () => {
-    const root=await mkdtemp(join(tmpdir(),"video-os-h6-route-"));tempRoots.push(root);
-    const file=join(root,"asset.mp4");await writeFile(file,Buffer.from("0123456789"));
-    fakes.projectRepository.resolveProjectFile.mockReturnValue(file);
-    const response=await assetRoute.GET(new Request("http://localhost/api/projects/h6-project/assets/asset-1",{headers:{range:"bytes=2-5"}}),{params:Promise.resolve({projectId:"h6-project",assetId:"asset-1"})});
-    expect(response.status).toBe(206);
-    expect(await response.text()).toBe("2345");
+  it("rejects media upload preflight above the 2 GB limit without importing", async () => {
+    const response = await mediaRoute.POST(
+      new Request(
+        "http://localhost/api/projects/h6-project/media?fileName=too-big.mp4&expectedRevision=0&operationId=media-big",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "video/mp4",
+            "content-length": String(2 * 1024 * 1024 * 1024 + 1),
+          },
+          body: new Uint8Array(),
+        },
+      ),
+      { params: Promise.resolve({ projectId: "h6-project" }) },
+    );
+
+    expect(response.status).toBe(413);
+    expect((await response.json()).code).toBe("MEDIA_UPLOAD_TOO_LARGE");
+    expect(fakes.mediaImportService.importWithReport).not.toHaveBeenCalled();
   });
 
-  it("creates, lists, reads, retries and cancels durable Jobs", async () => {
-    fakes.jobRuntime.list.mockResolvedValue([job]);fakes.jobRuntime.create.mockResolvedValue(job);fakes.jobRuntime.get.mockResolvedValue(job);fakes.jobRuntime.getArtifacts.mockResolvedValue([]);fakes.jobRuntime.retry.mockResolvedValue(job);fakes.jobRuntime.cancel.mockResolvedValue(job);
-    const listed=await jobsRoute.GET(new Request("http://localhost/api/jobs?projectId=h6-project"));expect(listed.status).toBe(200);
-    const created=await jobsRoute.POST(new Request("http://localhost/api/jobs",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({type:"render-final",projectId:"h6-project",input:{}})}));expect(created.status).toBe(201);
-    const detail=await jobRoute.GET(new Request("http://localhost/api/jobs/job"),{params:Promise.resolve({jobId:job.id})});expect(detail.status).toBe(200);
-    const retried=await retryRoute.POST(new Request("http://localhost/api/jobs/job/retry",{method:"POST"}),{params:Promise.resolve({jobId:job.id})});expect(retried.status).toBe(200);
-    const cancelled=await jobRoute.DELETE(new Request("http://localhost/api/jobs/job",{method:"DELETE"}),{params:Promise.resolve({jobId:job.id})});expect(cancelled.status).toBe(200);
+  it("serves Asset GET/HEAD and single byte Range through the real route", async () => {
+    const root = await mkdtemp(join(tmpdir(), "video-os-h6-asset-"));
+    tempRoots.push(root);
+    const assetPath = join(root, "tiny.mp4");
+    await writeFile(assetPath, Buffer.from([10, 11, 12, 13, 14, 15]));
+    const assetProject = structuredClone(project);
+    assetProject.assets.push({
+      id: "asset-1",
+      kind: "video",
+      relativePath: "input/tiny.mp4",
+      mimeType: "video/mp4",
+      sizeBytes: 6,
+    });
+    fakes.projectRepository.load.mockResolvedValue(assetProject);
+    fakes.projectRepository.resolveProjectFile.mockReturnValue(assetPath);
+    const context = { params: Promise.resolve({ projectId: "h6-project", assetId: "asset-1" }) };
+
+    const ranged = await assetRoute.GET(
+      new Request("http://localhost/api/projects/h6-project/assets/asset-1", {
+        headers: { range: "bytes=1-3" },
+      }),
+      context,
+    );
+    expect(ranged.status).toBe(206);
+    expect(ranged.headers.get("content-range")).toBe("bytes 1-3/6");
+    expect([...new Uint8Array(await ranged.arrayBuffer())]).toEqual([11, 12, 13]);
+
+    const headed = await assetRoute.HEAD(
+      new Request("http://localhost/api/projects/h6-project/assets/asset-1", { method: "HEAD" }),
+      context,
+    );
+    expect(headed.status).toBe(200);
+    expect(headed.headers.get("content-length")).toBe("6");
+    expect(await headed.text()).toBe("");
+
+    const invalid = await assetRoute.GET(
+      new Request("http://localhost/api/projects/h6-project/assets/asset-1", {
+        headers: { range: "bytes=99-100" },
+      }),
+      context,
+    );
+    expect(invalid.status).toBe(416);
+    expect(invalid.headers.get("content-range")).toBe("bytes */6");
   });
 
-  it("creates render Jobs through the bounded render route",async()=>{
-    fakes.renderJobs.create.mockResolvedValue(job);
-    const response=await rendersRoute.POST(new Request("http://localhost/api/projects/h6-project/renders",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({mode:"final"})}),{params:Promise.resolve({projectId:"h6-project"})});
-    expect(response.status).toBe(201);
+  it("creates, queries, cancels and retries durable Jobs through route handlers", async () => {
+    fakes.jobRuntime.create.mockResolvedValue(job);
+    fakes.jobRuntime.get.mockResolvedValue(job);
+    fakes.jobRuntime.getArtifacts.mockResolvedValue([]);
+    fakes.jobRuntime.cancel.mockResolvedValue({ ...job, status: "cancelled" });
+    fakes.jobRuntime.retry.mockResolvedValue({ ...job, attempt: 2 });
+
+    const created = await jobsRoute.POST(
+      new Request("http://localhost/api/jobs", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "render-final", projectId: "h6-project", input: {} }),
+      }),
+    );
+    expect(created.status).toBe(202);
+
+    const context = { params: Promise.resolve({ jobId: job.id }) };
+    const queried = await jobRoute.GET(new Request(`http://localhost/api/jobs/${job.id}`), context);
+    expect(queried.status).toBe(200);
+    expect((await queried.json()).job.id).toBe(job.id);
+
+    const cancelled = await jobRoute.DELETE(
+      new Request(`http://localhost/api/jobs/${job.id}`, { method: "DELETE" }),
+      context,
+    );
+    expect(cancelled.status).toBe(200);
+
+    const retried = await retryRoute.POST(
+      new Request(`http://localhost/api/jobs/${job.id}/retry`, { method: "POST" }),
+      context,
+    );
+    expect(retried.status).toBe(202);
+    expect((await retried.json()).job.attempt).toBe(2);
+  });
+
+  it("creates render jobs with the trusted server asset origin instead of request Host", async () => {
+    const previousAssetBaseUrl = process.env.VIDEO_OS_ASSET_BASE_URL;
+    const previousRemoteOptIn = process.env.VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN;
+    const previousPort = process.env.PORT;
+    delete process.env.VIDEO_OS_ASSET_BASE_URL;
+    delete process.env.VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN;
+    delete process.env.PORT;
+
+    try {
+      fakes.renderJobs.create.mockResolvedValue({
+        id: job.id,
+        projectId: "h6-project",
+        mode: "final",
+      });
+      const response = await rendersRoute.POST(
+        new Request("http://attacker.example:3456/api/projects/h6-project/renders", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ mode: "final", profile: { quality: "draft", audio: "none" } }),
+        }),
+        { params: Promise.resolve({ projectId: "h6-project" }) },
+      );
+
+      expect(response.status).toBe(202);
+      expect(fakes.renderJobs.create).toHaveBeenCalledWith(
+        "h6-project",
+        "final",
+        "http://127.0.0.1:3000",
+        expect.objectContaining({ quality: "draft", audio: "none" }),
+      );
+    } finally {
+      if (previousAssetBaseUrl === undefined) delete process.env.VIDEO_OS_ASSET_BASE_URL;
+      else process.env.VIDEO_OS_ASSET_BASE_URL = previousAssetBaseUrl;
+      if (previousRemoteOptIn === undefined) delete process.env.VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN;
+      else process.env.VIDEO_OS_ALLOW_REMOTE_ASSET_ORIGIN = previousRemoteOptIn;
+      if (previousPort === undefined) delete process.env.PORT;
+      else process.env.PORT = previousPort;
+    }
   });
 });
