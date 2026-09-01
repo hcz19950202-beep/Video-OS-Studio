@@ -55,10 +55,10 @@ describe("V2.5 C6 production Context surfaces",()=>{
     expect(surface).not.toContain("applyQARepair");
   });
 
-  it("wires both frozen Context tabs to the same durable Production surface and removes the placeholder QA health view",()=>{
+  it("wires both frozen Context tabs to the same durable Production surface and preserves optional Mission handoff",()=>{
     const dock=read("components/studio/AgentNativeContextDock.tsx");
-    expect(dock).toContain('<ProductionContextSurface project={project} mode="mission"/>');
-    expect(dock).toContain('<ProductionContextSurface project={project} mode="qa"/>');
+    expect(dock).toContain('<ProductionContextSurface project={project} mode="mission" preferredMissionId={preferredMissionId}/>');
+    expect(dock).toContain('<ProductionContextSurface project={project} mode="qa" preferredMissionId={preferredMissionId}/>');
     expect(dock).not.toContain("ProductionMissionPanel");
     expect(dock).not.toContain("enabledClips");
     expect(dock).not.toContain("Project health view");
