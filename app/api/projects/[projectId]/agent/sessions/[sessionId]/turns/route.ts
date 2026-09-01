@@ -2,6 +2,7 @@ import {z} from "zod";
 import {AgentExecutionModeSchema,AgentSelectionSnapshotSchema,AgentSessionIdSchema,ContextReferenceListSchema,ContextReferenceValidationError,DEFAULT_AGENT_EXECUTION_MODE,type AgentProviderEvent} from "@/lib/ai";
 import {attemptAgentProposalAutoApply} from "@/lib/ai/proposal-approval-policy";
 import {agentProposalApplicationService,agentSessionRepository,createServerAgentSessionService,getAgentProviderRuntimeStatus} from "@/lib/server/agent-runtime";
+import {projectHistoryAttributions} from "@/lib/server/history-runtime";
 
 export const runtime="nodejs";
 type Context={params:Promise<{projectId:string;sessionId:string}>};
@@ -83,6 +84,10 @@ export async function POST(request:Request,{params}:Context){
               });
               settledSession=auto.session;
               if(auto.applied){
+                if(auto.transactionId){
+                  const kind=auto.session.providerId==="local-mcp"?"external-agent":"builtin-agent";
+                  await projectHistoryAttributions.record(projectId,auto.transactionId,{kind,sessionId,proposalId:proposal.id}).catch(()=>undefined);
+                }
                 send("proposal-auto-applied",{
                   id:proposal.id,
                   applyOperationId:auto.applyOperationId,
