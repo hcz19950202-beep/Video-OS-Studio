@@ -36,7 +36,15 @@ export const ProductionContextSurface=({project,mode,preferredMissionId}:Props)=
     void listProductionMissions(projectId).then(async next=>{
       if(!active)return;
       setMissions(next);
-      const missionId=(preferredMissionId&&next.some(item=>item.id===preferredMissionId)?preferredMissionId:next[0]?.id)??"";
+      if(preferredMissionId&&!next.some(item=>item.id===preferredMissionId)){
+        setSelectedMissionId("");
+        setWorkspace(null);
+        setError("Requested Campaign Mission is not available for this Project.");
+        setLoading(false);
+        setLoadedProjectId(projectId);
+        return;
+      }
+      const missionId=(preferredMissionId??next[0]?.id)??"";
       setSelectedMissionId(missionId);
       if(!missionId){
         setWorkspace(null);setError(null);setLoading(false);setLoadedProjectId(projectId);
