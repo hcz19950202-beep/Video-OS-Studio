@@ -80,7 +80,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   fakes.projectMutations.listHistory.mockResolvedValue([]);
   fakes.projectHistoryAttributions.list.mockResolvedValue([]);
-  fakes.projectHistoryAttributions.record.mockResolvedValue({operationId:"op-1",origin:{kind:"human"},recordedAt:"2026-09-01T00:00:00.000Z"});
+  fakes.projectHistoryAttributions.record.mockResolvedValue({
+    operationId: "op-1",
+    origin: { kind: "human" },
+    recordedAt: "2026-09-01T00:00:00.000Z",
+  });
 });
 
 afterEach(async () => {
@@ -190,7 +194,11 @@ describe("H6 route contracts", () => {
       "h6-project",
       expect.objectContaining({ transactionId: "tx-1", expectedRevision: 0 }),
     );
-    expect(fakes.projectHistoryAttributions.record).toHaveBeenCalledWith("h6-project","op-1",{kind:"human"});
+    expect(fakes.projectHistoryAttributions.record).toHaveBeenCalledWith(
+      "h6-project",
+      "op-1",
+      { kind: "human" },
+    );
   });
 
   it("streams raw media request bytes into a staged file before import", async () => {
