@@ -23,6 +23,7 @@ import {ProductionPlanRepository} from "@/lib/production/plan/repository";
 import {QAReportRepository} from "@/lib/production/qa/repository";
 import {ProductionQAService} from "@/lib/production/qa/service";
 import {ProductionWorkspaceService} from "@/lib/production/workspace/service";
+import {ProjectHistoryAttributionRepository} from "@/lib/project/history-attribution";
 import {ProjectMutationCoordinator} from "@/lib/project/mutation-coordinator";
 import {ProjectRepository} from "@/lib/project/repository";
 import {RenderJobManager} from "@/lib/render/render-jobs";
@@ -45,6 +46,7 @@ export const dataRoot=process.env.VIDEO_OS_DATA_ROOT||join(process.cwd(),".video
 export const fileSystem=new NodeFileSystemAdapter();
 export const projectRepository=new ProjectRepository(fileSystem,dataRoot);
 export const projectMutations=new ProjectMutationCoordinator(fileSystem,projectRepository);
+export const projectHistoryAttributions=getGlobalRuntime(`${dataRoot}:project-history-attributions`,()=>new ProjectHistoryAttributionRepository(fileSystem,projectRepository));
 
 export const ffmpegAdapter=new NodeFfmpegAdapter();
 export const remotionRenderAdapter=new NodeRemotionCliAdapter();
