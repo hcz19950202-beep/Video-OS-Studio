@@ -468,6 +468,30 @@ test("C7 external MCP reads Project truth, applies reviewable Timeline/Viewer ed
   expect(jobsAfterRestart[0]?.id).toBe(durableJobId);
   await expect(page.getByTestId("mcp-activity-log")).not.toContainText(token);
 
+  // The C7 browser gate owns this costly Job. After restart durability is proven,
+  // settle it before Playwright tears down the server so Remotion can run its
+  // normal temporary-props cleanup instead of being killed mid-render.
+  const terminalStatuses = new Set(["completed", "failed", "cancelled", "interrupted"]);
+  const restartedJob = jobsAfterRestart[0];
+  expect(restartedJob).toBeTruthy();
+  if (!terminalStatuses.has(restartedJob!.status)) {
+    const cancelResponse = await page.request.delete(
+      `/api/jobs/${encodeURIComponent(durableJobId)}`,
+    );
+    expect(cancelResponse.ok()).toBeTruthy();
+  }
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(`/api/jobs/${encodeURIComponent(durableJobId)}`);
+        expect(response.ok()).toBeTruthy();
+        const body = (await response.json()) as { job: { status: string } };
+        return terminalStatuses.has(body.job.status);
+      },
+      { timeout: 120_000 },
+    )
+    .toBe(true);
+
   await reopenedCenter.getByRole("button", { name: "Stop bridge", exact: true }).click();
   await expect(page.getByTestId("mcp-bridge-status")).toHaveText("stopped");
 });
