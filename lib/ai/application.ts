@@ -1,10 +1,17 @@
 import {createHash,randomUUID} from "node:crypto";
 import {z} from "zod";
+import {
+  AgentDurableJobProposalPayloadSchema,
+  buildAgentDurableJobCreateInput,
+  stableDurableJobId,
+  type AgentDurableJobPort,
+} from "@/lib/ai/durable-job-proposal";
 import {AgentProjectTransactionProposalPayloadSchema,AgentProposalIdSchema,AgentProposalSchema,AgentSessionIdSchema,type AgentProposal,type AgentProposedOperation} from "@/lib/ai/schema";
 import {AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";
 import type {AgentSessionRepository} from "@/lib/ai/session/repository";
 import {WorkflowActionProposalPayloadSchema,type WorkflowActionProposalPayload} from "@/lib/ai/tools/schema";
 import {AgentWorkflowActionExecutor,AgentWorkflowActionStaleError,type AgentWorkflowActionPreview} from "@/lib/ai/workflow-application";
+import type {JobType} from "@/lib/jobs/schema";
 import {ProjectRevisionConflictError,type ProjectMutationCoordinator} from "@/lib/project/mutation-coordinator";
 import type {ProjectRepository} from "@/lib/project/repository";
 import {VisualPlanSchema,type VisualPlanDiff} from "@/lib/visual-planner/schema";
@@ -44,6 +51,7 @@ export type AgentProposalOperationPreview={
   selectedChangeIds:string[];
   visualPlanDiff?:VisualPlanDiff;
   workflowAction?:AgentWorkflowActionPreview;
+  durableJobType?:JobType;
 };
 
 export type AgentProposalPreview={
@@ -66,6 +74,8 @@ export type AgentProposalApplyResult={
   alreadyApplied:boolean;
   workflow?:WorkflowRun;
   workflowAction?:WorkflowActionProposalPayload["action"];
+  jobId?:string;
+  jobType?:JobType;
 };
 
 export type AgentProposalApplicationDependencies={
@@ -74,6 +84,8 @@ export type AgentProposalApplicationDependencies={
   mutations:Pick<ProjectMutationCoordinator,"getOperation">&Partial<Pick<ProjectMutationCoordinator,"applyTransaction">>;
   visualPlans:Pick<VisualPlanService,"preview"|"apply">;
   workflowActions?:AgentWorkflowActionExecutor;
+  jobs?:AgentDurableJobPort;
+  trustedAssetBaseUrl?:string;
   now?:()=>string;
 };
 
@@ -108,6 +120,7 @@ const stableApplyOperationId=(proposalId:string,operationIds:string[],changeIds:
   const digest=createHash("sha256").update(JSON.stringify(fingerprint)).digest("hex").slice(0,16);
   return`agent-apply:${proposalId}:${digest}`;
 };
+const sha256Hex=(value:string)=>createHash("sha256").update(value,"utf8").digest("hex");
 const sleep=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
 export class AgentProposalApplicationService{
@@ -196,6 +209,21 @@ export class AgentProposalApplicationService{
     });
   }
 
+  private buildDurableJobInput(projectId:string,proposal:AgentProposal,applyOperationId:string,payload:z.infer<typeof AgentDurableJobProposalPayloadSchema>){
+    const jobId=stableDurableJobId(applyOperationId,sha256Hex);
+    return{
+      jobId,
+      createInput:buildAgentDurableJobCreateInput({
+        payload,
+        jobId,
+        projectId,
+        expectedRevision:proposal.baseProjectRevision,
+        applyOperationId,
+        trustedAssetBaseUrl:this.dependencies.trustedAssetBaseUrl,
+      }),
+    };
+  }
+
   async preview(input:{projectId:string;sessionId:string;proposalId:string;operationIds?:string[];changeIds?:string[]}):Promise<{preview:AgentProposalPreview;session:AgentSession}>{
     const sessionId=AgentSessionIdSchema.parse(input.sessionId);
     const proposalId=AgentProposalIdSchema.parse(input.proposalId);
@@ -223,6 +251,12 @@ export class AgentProposalApplicationService{
         if(input.changeIds?.length)throw new AgentProposalApplicationError("Project transactions do not accept visual change selections.");
         AgentProjectTransactionProposalPayloadSchema.parse(operation.payload);
         operations.push({operationId:operation.id,kind:operation.kind,summary:operation.summary,selectableChangeIds:[],selectedChangeIds:[]});
+        continue;
+      }
+      if(operation.kind==="durable-job"){
+        if(input.changeIds?.length)throw new AgentProposalApplicationError("Durable Jobs do not accept visual change selections.");
+        const payload=AgentDurableJobProposalPayloadSchema.parse(operation.payload);
+        operations.push({operationId:operation.id,kind:operation.kind,summary:operation.summary,selectableChangeIds:[],selectedChangeIds:[],durableJobType:payload.jobType});
         continue;
       }
       if(operation.kind==="workflow-action"){
@@ -282,16 +316,31 @@ export class AgentProposalApplicationService{
     const visualPayload=operation.kind==="visual-plan"?VisualPlanOperationPayloadSchema.parse(operation.payload):undefined;
     const workflowPayload=operation.kind==="workflow-action"?WorkflowActionProposalPayloadSchema.parse(operation.payload):undefined;
     const projectTransactionPayload=operation.kind==="project-transaction"?AgentProjectTransactionProposalPayloadSchema.parse(operation.payload):undefined;
+    const durableJobPayload=operation.kind==="durable-job"?AgentDurableJobProposalPayloadSchema.parse(operation.payload):undefined;
     const workflowActions=this.dependencies.workflowActions;
-    if(!visualPayload&&!workflowPayload&&!projectTransactionPayload)throw new AgentProposalApplicationError(`Proposal operation kind ${operation.kind} is not applyable in A5 yet.`);
+    if(!visualPayload&&!workflowPayload&&!projectTransactionPayload&&!durableJobPayload)throw new AgentProposalApplicationError(`Proposal operation kind ${operation.kind} is not applyable in A5 yet.`);
     if(workflowPayload&&input.changeIds?.length)throw new AgentProposalApplicationError("Workflow actions do not accept visual change selections.");
     if(projectTransactionPayload&&input.changeIds?.length)throw new AgentProposalApplicationError("Project transactions do not accept visual change selections.");
+    if(durableJobPayload&&input.changeIds?.length)throw new AgentProposalApplicationError("Durable Jobs do not accept visual change selections.");
     if(workflowPayload&&!workflowActions)throw new AgentProposalApplicationError("Workflow action application is not configured.");
     if(projectTransactionPayload&&!this.dependencies.mutations.applyTransaction)throw new AgentProposalApplicationError("Project transaction application is not configured.");
+    if(durableJobPayload&&!this.dependencies.jobs)throw new AgentProposalApplicationError("Durable Job application is not configured.");
     const selectedChangeIds=visualPayload?selectVisualChanges(visualPayload.selectedIds,input.changeIds):[];
     const applyOperationId=stableApplyOperationId(proposal.id,[operation.id],selectedChangeIds);
+    const durableJob=durableJobPayload?this.buildDurableJobInput(input.projectId,proposal,applyOperationId,durableJobPayload):undefined;
     const priorApproved=session.approvedOperations.find(item=>item.operationId===applyOperationId);
     if(priorApproved&&priorApproved.proposalId!==proposal.id)throw new AgentProposalApplicationError("Apply operation ID is already bound to another proposal.");
+
+    if(durableJob){
+      const existingJob=await this.dependencies.jobs!.get(durableJob.jobId);
+      if(existingJob){
+        const recovered=await this.dependencies.jobs!.create(durableJob.createInput);
+        const project=await this.dependencies.projects.load(input.projectId);
+        session=await this.markApplied(input.projectId,sessionId,proposal.id,applyOperationId);
+        return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:true,jobId:recovered.id,jobType:recovered.type};
+      }
+      if(priorApproved)throw new AgentProposalApplicationError("Proposal Apply was recorded but its durable Job could not be recovered.");
+    }
 
     if(workflowPayload&&priorApproved){
       const project=await this.dependencies.projects.load(input.projectId);
@@ -339,6 +388,11 @@ export class AgentProposalApplicationService{
     if(alreadyAppliedSession){
       const project=await this.dependencies.projects.load(input.projectId);
       session=alreadyAppliedSession;
+      if(durableJob){
+        const recovered=await this.dependencies.jobs!.get(durableJob.jobId);
+        if(!recovered)throw new AgentProposalApplicationError("Applied durable Job reference could not be recovered.");
+        return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:true,jobId:recovered.id,jobType:recovered.type};
+      }
       if(workflowPayload)return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:true,workflowAction:workflowPayload.action};
       return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:selectedChangeIds,transactionId:applyOperationId,alreadyApplied:true};
     }
@@ -355,6 +409,19 @@ export class AgentProposalApplicationService{
       externalCompleted=true;
       session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
       return{project:current,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:applied.alreadyApplied,workflow:applied.workflow,workflowAction:workflowPayload.action};
+    }
+
+    if(durableJob){
+      let jobCompleted=false;
+      try{
+        const job=await this.dependencies.jobs!.create(durableJob.createInput);
+        jobCompleted=true;
+        session=await this.markAppliedAfterExternalCompletion(input.projectId,sessionId,proposal.id,applyOperationId,claimToken);
+        return{project:current,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:false,jobId:job.id,jobType:job.type};
+      }catch(error){
+        if(!jobCompleted&&claimToken)await this.releaseApplyOperation(input.projectId,sessionId,applyOperationId,claimToken).catch(()=>undefined);
+        throw error;
+      }
     }
 
     if(projectTransactionPayload){

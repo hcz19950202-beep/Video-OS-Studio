@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {AgentDurableJobProposalPayloadSchema} from "@/lib/ai/durable-job-proposal";
 import {ProjectTransactionPayloadSchema} from "@/lib/project/mutation-contract";
 import {ProjectIdSchema} from "@/schemas/project";
 
@@ -96,7 +97,7 @@ export const AgentProjectTransactionProposalPayloadSchema=ProjectTransactionPayl
 });
 export type AgentProjectTransactionProposalPayload=z.infer<typeof AgentProjectTransactionProposalPayloadSchema>;
 
-export const AgentProposalOperationKindSchema=z.enum(["visual-plan","script-edit","scene-edit","brand-style","clip-changes","workflow-action","project-transaction"]);
+export const AgentProposalOperationKindSchema=z.enum(["visual-plan","script-edit","scene-edit","brand-style","clip-changes","workflow-action","project-transaction","durable-job"]);
 export type AgentProposalOperationKind=z.infer<typeof AgentProposalOperationKindSchema>;
 
 export const AgentProposedOperationSchema=z.object({
@@ -105,9 +106,15 @@ export const AgentProposedOperationSchema=z.object({
   summary:z.string().min(1).max(2_000),
   payload:JsonObjectSchema,
 }).strict().superRefine((operation,ctx)=>{
-  if(operation.kind!=="project-transaction")return;
-  const parsed=AgentProjectTransactionProposalPayloadSchema.safeParse(operation.payload);
-  if(!parsed.success)ctx.addIssue({code:"custom",path:["payload"],message:"project-transaction payload must be a bounded Project command transaction without snapshot replacement."});
+  if(operation.kind==="project-transaction"){
+    const parsed=AgentProjectTransactionProposalPayloadSchema.safeParse(operation.payload);
+    if(!parsed.success)ctx.addIssue({code:"custom",path:["payload"],message:"project-transaction payload must be a bounded Project command transaction without snapshot replacement."});
+    return;
+  }
+  if(operation.kind==="durable-job"){
+    const parsed=AgentDurableJobProposalPayloadSchema.safeParse(operation.payload);
+    if(!parsed.success)ctx.addIssue({code:"custom",path:["payload"],message:"durable-job payload must use a bounded supported Job schema without application-owned authority fields."});
+  }
 });
 export type AgentProposedOperation=z.infer<typeof AgentProposedOperationSchema>;
 

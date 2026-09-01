@@ -14,7 +14,7 @@ import {
 import {DeterministicA4MockProvider} from "@/lib/ai/a4-mock-provider";
 import {builtInVideoSkillRegistry} from "@/lib/production/skills";
 import {getGlobalRuntime} from "@/lib/server/global-runtime";
-import {assetIntelligenceService,dataRoot,fileSystem,productionMissionRepository,productionPlanRepository,productionQAService,projectMutations,projectRepository,qaReportRepository,visualPlanService,workflowService} from "@/lib/server/runtime";
+import {assetIntelligenceService,dataRoot,fileSystem,jobRuntime,productionMissionRepository,productionPlanRepository,productionQAService,projectMutations,projectRepository,qaReportRepository,visualPlanService,workflowService} from "@/lib/server/runtime";
 import {resolveTrustedAssetBaseUrl} from "@/lib/server/trusted-asset-origin";
 
 const sessions=getGlobalRuntime(`${dataRoot}:agent-sessions`,()=>new AgentSessionRepository(fileSystem,dataRoot));
@@ -41,8 +41,9 @@ const tools=getGlobalRuntime(`${dataRoot}:agent-tools`,()=>createA1AgentToolRegi
   qaReports:productionQAService,
   sharedToolRegistry:sharedTools,
 }));
-const workflowActions=getGlobalRuntime(`${dataRoot}:agent-workflow-actions`,()=>new AgentWorkflowActionExecutor(workflowService,{assetBaseUrl:resolveTrustedAssetBaseUrl()}));
-const applications=getGlobalRuntime(`${dataRoot}:agent-applications`,()=>new AgentProposalApplicationService({sessions,projects:projectRepository,mutations:projectMutations,visualPlans:visualPlanService,workflowActions}));
+const trustedAssetBaseUrl=resolveTrustedAssetBaseUrl();
+const workflowActions=getGlobalRuntime(`${dataRoot}:agent-workflow-actions`,()=>new AgentWorkflowActionExecutor(workflowService,{assetBaseUrl:trustedAssetBaseUrl}));
+const applications=getGlobalRuntime(`${dataRoot}:agent-applications`,()=>new AgentProposalApplicationService({sessions,projects:projectRepository,mutations:projectMutations,visualPlans:visualPlanService,workflowActions,jobs:jobRuntime,trustedAssetBaseUrl}));
 const mockProviderRequested=()=>process.env.VIDEO_OS_AGENT_PROVIDER?.trim()==="mock"&&process.env.NODE_ENV!=="production";
 
 export type AgentProviderRuntimeStatus={
