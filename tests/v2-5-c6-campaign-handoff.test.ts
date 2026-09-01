@@ -34,14 +34,17 @@ describe("V2.5 C6 Campaign navigation and Project handoff",()=>{
     expect(controller).not.toContain("setCampaign");
   });
 
-  it("opens the handed-off Mission context and clears ephemeral handoff when the user navigates elsewhere",()=>{
+  it("opens only the handed-off Mission context and fails closed instead of falling back to a different Mission",()=>{
     const shell=read("components/studio/ResizableWorkspaceShell.tsx");
     const surface=read("components/studio/ProductionContextSurface.tsx");
     expect(shell).toContain('effectiveContextTab=preferredMissionId?"mission":contextTab');
     expect(shell).toContain("clearHandoff");
     expect(shell).toContain("preferredMissionId={preferredMissionId??undefined}");
-    expect(surface).toContain("preferredMissionId&&next.some(item=>item.id===preferredMissionId)");
+    expect(surface).toContain("preferredMissionId&&!next.some(item=>item.id===preferredMissionId)");
+    expect(surface).toContain("Requested Campaign Mission is not available for this Project.");
+    expect(surface).toContain("preferredMissionId??next[0]?.id");
     expect(surface).toContain("getProductionWorkspace(projectId,missionId)");
+    expect(surface).not.toContain("preferredMissionId&&next.some(item=>item.id===preferredMissionId)?preferredMissionId:next[0]?.id");
   });
 
   it("does not weaken existing Campaign cancel/retry isolation contracts",()=>{
