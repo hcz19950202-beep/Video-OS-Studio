@@ -73,10 +73,17 @@ const operationLog=async(test:Awaited<ReturnType<typeof harness>>)=>{
 };
 
 describe("V2.5 C5 Proposal project-transaction Apply",()=>{
-  it("applies one reviewed bounded transaction through ProjectMutationCoordinator and makes retries idempotent",async()=>{
+  it("applies one reviewed bounded transaction through ProjectMutationCoordinator and makes retries and audit idempotent",async()=>{
     const test=await harness();
     const preview=await test.service.preview({projectId:PROJECT_ID,sessionId:SESSION_ID,proposalId:PROPOSAL_ID});
     expect(preview.preview.operations).toEqual([expect.objectContaining({operationId:OPERATION_ID,kind:"project-transaction",selectableChangeIds:[],selectedChangeIds:[]})]);
+    expect(preview.session.operationAudit).toEqual([expect.objectContaining({
+      id:`proposal-review:${PROPOSAL_ID}`,
+      source:"local-mcp",
+      action:"proposal-reviewed",
+      outcome:"success",
+      proposalId:PROPOSAL_ID,
+    })]);
     expect((await test.projects.load(PROJECT_ID)).project.revision).toBe(0);
 
     const applied=await test.service.apply({projectId:PROJECT_ID,sessionId:SESSION_ID,proposalId:PROPOSAL_ID,expectedRevision:0});
@@ -88,6 +95,17 @@ describe("V2.5 C5 Proposal project-transaction Apply",()=>{
     expect(applied.alreadyApplied).toBe(false);
     expect(applied.session.proposals[0]?.status).toBe("applied");
     expect(applied.session.approvedOperations).toHaveLength(1);
+    expect(applied.session.operationAudit).toEqual([
+      expect.objectContaining({id:`proposal-review:${PROPOSAL_ID}`,action:"proposal-reviewed"}),
+      expect.objectContaining({
+        id:`proposal-apply:${applied.applyOperationId}`,
+        source:"local-mcp",
+        action:"proposal-applied",
+        outcome:"success",
+        proposalId:PROPOSAL_ID,
+        operationId:applied.applyOperationId,
+      }),
+    ]);
 
     const records=(await operationLog(test)).trim().split(/\r?\n/u).filter(Boolean).map(line=>JSON.parse(line) as {operationId:string;kind:string;status:string});
     expect(records.filter(record=>record.operationId===applied.applyOperationId&&record.kind==="transaction"&&record.status==="applied")).toHaveLength(1);
@@ -97,9 +115,10 @@ describe("V2.5 C5 Proposal project-transaction Apply",()=>{
     expect((await test.projects.load(PROJECT_ID)).project.revision).toBe(1);
     const retriedRecords=(await operationLog(test)).trim().split(/\r?\n/u).filter(Boolean).map(line=>JSON.parse(line) as {operationId:string;status:string});
     expect(retriedRecords.filter(record=>record.operationId===applied.applyOperationId&&record.status==="applied")).toHaveLength(1);
+    expect(retried.session.operationAudit.filter(entry=>entry.id===`proposal-apply:${applied.applyOperationId}`)).toHaveLength(1);
   });
 
-  it("marks the Proposal stale and refuses Apply when baseProjectRevision no longer matches",async()=>{
+  it("marks the Proposal stale, audits the conflict, and refuses Apply when baseProjectRevision no longer matches",async()=>{
     const test=await harness();
     await test.mutations.applyCommand(PROJECT_ID,{expectedRevision:0,commandId:"concurrent-edit",command:{type:"rename-project",name:"Concurrent Edit"}});
 
@@ -112,9 +131,16 @@ describe("V2.5 C5 Proposal project-transaction Apply",()=>{
     expect(session.proposals[0]?.status).toBe("stale");
     expect(session.approvedOperations).toHaveLength(0);
     expect(session.operationClaims).toHaveLength(0);
+    expect(session.operationAudit).toEqual([expect.objectContaining({
+      id:`proposal-stale:${PROPOSAL_ID}:0`,
+      source:"local-mcp",
+      action:"proposal-stale",
+      outcome:"stale",
+      proposalId:PROPOSAL_ID,
+    })]);
   });
 
-  it("leaves zero partial Project mutation and releases the claim when any command in the transaction fails",async()=>{
+  it("leaves zero partial Project mutation, no false Apply audit, and releases the claim when any command fails",async()=>{
     const test=await harness({
       label:"Transaction that must fail atomically",
       commands:[
@@ -134,6 +160,24 @@ describe("V2.5 C5 Proposal project-transaction Apply",()=>{
     expect(session.proposals[0]?.status).toBe("reviewed");
     expect(session.approvedOperations).toHaveLength(0);
     expect(session.operationClaims).toHaveLength(0);
+    expect(session.operationAudit.map(entry=>entry.action)).toEqual(["proposal-reviewed"]);
+  });
+
+  it("audits an explicit Proposal rejection without mutating the Project",async()=>{
+    const test=await harness();
+    const before=await test.projects.load(PROJECT_ID);
+
+    const rejected=await test.service.reject({projectId:PROJECT_ID,sessionId:SESSION_ID,proposalId:PROPOSAL_ID});
+
+    expect(rejected.proposals[0]?.status).toBe("rejected");
+    expect(rejected.operationAudit).toEqual([expect.objectContaining({
+      id:`proposal-reject:${PROPOSAL_ID}`,
+      source:"local-mcp",
+      action:"proposal-rejected",
+      outcome:"rejected",
+      proposalId:PROPOSAL_ID,
+    })]);
+    expect(await test.projects.load(PROJECT_ID)).toEqual(before);
   });
 
   it("rejects whole-Project snapshot replacement at the Proposal schema boundary",async()=>{
