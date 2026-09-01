@@ -61,7 +61,10 @@ test("W4 real browser Generate First Draft review edit approve and final render"
     .toBeGreaterThan(0);
 
   await page.getByTitle("AI").click();
-  await page.getByRole("tab", { name: "Workflow", exact: true }).click();
+  await expect(page.getByTestId("unified-agent-conversation")).toBeVisible();
+  await page.getByText("Advanced", { exact: true }).click();
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
+  await expect(page.getByTestId("advanced-workflow-detail")).toBeVisible();
   const startResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" && response.url().endsWith("/api/workflows"),
@@ -139,7 +142,10 @@ test("W4 real browser Generate First Draft review edit approve and final render"
   await recent.click();
   await expect(page.locator(".v21-project-title")).toContainText(projectName);
   await page.getByTitle("AI").click();
-  await page.getByRole("tab", { name: "Workflow", exact: true }).click();
+  await expect(page.getByTestId("unified-agent-conversation")).toBeVisible();
+  await page.getByText("Advanced", { exact: true }).click();
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
+  await expect(page.getByTestId("advanced-workflow-detail")).toBeVisible();
   await expect(page.locator('.v22-workflow-panel[data-workflow-state="completed"]')).toBeVisible();
   await expect(page.locator(".v22-run-meta code")).toContainText(workflowId.slice(0, 8));
 
