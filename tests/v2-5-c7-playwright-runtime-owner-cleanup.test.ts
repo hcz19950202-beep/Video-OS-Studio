@@ -1,39 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-
-type CleanupResult = {
-  status: string;
-  lockPath: string;
-};
-
-type CleanupOptions = {
-  readText?: (path: string) => Promise<string>;
-  removeFile?: (path: string, options: { force: boolean }) => Promise<void>;
-  isOwnerAlive?: (identity: { pid: number; startedAt?: number }) => Promise<boolean>;
-  platform?: NodeJS.Platform;
-  allowInvalidOrphanRecovery?: boolean;
-  settleInvalidLock?: () => Promise<void>;
-};
-
-type EnvLike = Record<string, string | undefined>;
-
-type PlaywrightRunnerModule = {
-  RuntimeOwnerResidueError: new (message: string, lockPath: string) => Error & {
-    code: "RUNTIME_OWNER_RESIDUE";
-    lockPath: string;
-  };
-  isIsolatedE2EDataRoot: (dataRoot: string, env?: EnvLike) => boolean;
-  recoverDeadRuntimeOwnerLock: (
-    dataRoot: string,
-    options?: CleanupOptions,
-  ) => Promise<CleanupResult>;
-};
-
-const loadRunner = async () =>
-  (await import("../scripts/run-playwright-e2e.mjs")) as PlaywrightRunnerModule;
+import {
+  isIsolatedE2EDataRoot,
+  recoverDeadRuntimeOwnerLock,
+} from "../scripts/run-playwright-e2e.mjs";
 
 describe("V2.5 C7 Playwright runtime-owner cleanup", () => {
   it("keeps invalid runtime-owner residue fail-closed outside an isolated E2E root", async () => {
-    const { recoverDeadRuntimeOwnerLock } = await loadRunner();
     const removeFile = vi.fn(async () => undefined);
 
     await expect(
@@ -49,7 +21,6 @@ describe("V2.5 C7 Playwright runtime-owner cleanup", () => {
   });
 
   it("recovers only a stable invalid lock when isolated E2E recovery is explicit", async () => {
-    const { recoverDeadRuntimeOwnerLock } = await loadRunner();
     const removeFile = vi.fn(async () => undefined);
     const readText = vi.fn(async () => "partial-owner-record");
 
@@ -68,7 +39,6 @@ describe("V2.5 C7 Playwright runtime-owner cleanup", () => {
   });
 
   it("refuses to remove an invalid lock that changes while cleanup is settling", async () => {
-    const { recoverDeadRuntimeOwnerLock } = await loadRunner();
     const removeFile = vi.fn(async () => undefined);
     const readText = vi
       .fn<() => Promise<string>>()
@@ -88,8 +58,7 @@ describe("V2.5 C7 Playwright runtime-owner cleanup", () => {
     expect(removeFile).not.toHaveBeenCalled();
   });
 
-  it("allows CI recovery only below RUNNER_TEMP unless isolation is explicit", async () => {
-    const { isIsolatedE2EDataRoot } = await loadRunner();
+  it("allows CI recovery only below RUNNER_TEMP unless isolation is explicit", () => {
     const runnerTemp = "/runner/temp";
 
     expect(
