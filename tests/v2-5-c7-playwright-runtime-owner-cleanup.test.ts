@@ -27,7 +27,7 @@ type PlaywrightRunnerModule = {
 };
 
 const loadRunner = async () => {
-  // @ts-ignore The Playwright launcher is intentionally a runtime ESM JavaScript module.
+  // @ts-expect-error The Playwright launcher is intentionally a runtime ESM JavaScript module.
   return (await import("../scripts/run-playwright-e2e.mjs")) as PlaywrightRunnerModule;
 };
 
