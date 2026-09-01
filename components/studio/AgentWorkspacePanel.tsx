@@ -5,6 +5,7 @@ import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/exe
 import {attachContextSelection,contextReferenceKey,contextSelectionKey,type ContextSelectionTarget} from "@/lib/ai/context-selection";
 import type {AgentProposalPreview,AgentSelectionSnapshot,AgentSession,ContextReference} from "@/lib/ai";
 import {applyAgentProposal,createAgentSession,listAgentSessions,openAgentSession,rejectAgentProposal,reviewAgentProposal,runAgentTurn,type AgentProviderRuntimeStatus,type AgentTurnStreamEvent} from "@/lib/client/agent";
+import {loadStudioProject} from "@/lib/client/projects";
 import type {Project} from "@/schemas/project";
 import {useHistoryStore} from "@/store/history-store";
 import {useSelectionStore} from "@/store/selection-store";
@@ -141,7 +142,29 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
     try{
       let target=session;
       if(!target){target=await createAgentSession(project.project.id,selection);syncSession(target);}
-      syncSession(await runAgentTurn({projectId:project.project.id,sessionId:target.id,userContent:prompt,executionMode,selection,contextReferences:sentContextReferences,signal:controller.signal,onEvent:observe}));
+      let autoApplied=false;
+      const next=await runAgentTurn({
+        projectId:project.project.id,
+        sessionId:target.id,
+        userContent:prompt,
+        executionMode,
+        selection,
+        contextReferences:sentContextReferences,
+        signal:controller.signal,
+        onEvent:event=>{
+          observe(event);
+          if(event.event==="proposal-auto-applied")autoApplied=true;
+        },
+      });
+      syncSession(next);
+      if(autoApplied){
+        const before=structuredClone(project);
+        const appliedProject=await loadStudioProject(project.project.id);
+        if(appliedProject.project.revision!==before.project.revision){
+          onProjectChange(appliedProject);
+          pushHistory({projectId:project.project.id,label:"Agent Auto Apply · safe edit",before,after:appliedProject});
+        }
+      }
       const sentIds=new Set(sentContextReferences.map(reference=>reference.id));
       setDraftContextReferences(current=>current.filter(reference=>!sentIds.has(reference.id)));
       setStreamText("");
