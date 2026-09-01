@@ -76,7 +76,7 @@ export function CampaignDashboardClient({initialDashboard}:{initialDashboard:Pro
   const canArchive=campaign.status!=="running"&&campaign.status!=="queued"&&campaign.status!=="archived";
 
   return <main className={styles.page}><div className={styles.shell}>
-    <nav className={styles.nav}><Link href="/">← Video OS Studio</Link><Link href="/campaigns">All Campaigns</Link></nav>
+    <nav className={styles.nav}><Link href="/">← Projects</Link><Link href="/campaigns">Campaigns</Link></nav>
     <header className={styles.header}><div><div className={styles.eyebrow}>Production Campaign · revision {campaign.revision}</div><h1>{campaign.title}</h1><div className={styles.muted}>{campaign.brief??"Batch production across isolated Project truth."}</div></div><div className={styles.actions}>
       <button className={styles.button} disabled={Boolean(busy)} onClick={()=>void refresh().catch(()=>setError("Campaign dashboard refresh failed."))}>Refresh</button>
       {campaign.status==="draft"?<button className={styles.button} disabled={Boolean(busy)} onClick={()=>void runAction({action:"enqueue"})}>Enqueue</button>:null}
@@ -97,7 +97,8 @@ export function CampaignDashboardClient({initialDashboard}:{initialDashboard:Pro
       const live=item.live;
       const run=item.run;
       const cancellable=run.status==="pending"||run.status==="running"||run.status==="waiting-review"||run.status==="blocked";
-      return <article className={styles.card} key={`${run.projectId}:${run.missionId}`}><div className={styles.missionHeader}><div><div className={styles.eyebrow}>{run.projectId}</div><h2>{run.missionId}</h2></div><div className={styles.actions}><span className={styles.status} data-status={run.status}>{run.status}</span>{cancellable?<button className={`${styles.button} ${styles.danger}`} disabled={Boolean(busy)} onClick={()=>void runAction({action:"cancel-mission",projectId:run.projectId,missionId:run.missionId})}>Cancel Mission</button>:null}</div></div>
+      const projectHandoff={pathname:"/",query:{projectId:run.projectId,missionId:run.missionId}};
+      return <article className={styles.card} key={`${run.projectId}:${run.missionId}`}><div className={styles.missionHeader}><div><div className={styles.eyebrow}>{run.projectId}</div><h2>{run.missionId}</h2></div><div className={styles.actions}><Link className={styles.button} data-testid={`open-mission-project-${run.missionId}`} href={projectHandoff}>Open Mission Project</Link><span className={styles.status} data-status={run.status}>{run.status}</span>{cancellable?<button className={`${styles.button} ${styles.danger}`} disabled={Boolean(busy)} onClick={()=>void runAction({action:"cancel-mission",projectId:run.projectId,missionId:run.missionId})}>Cancel Mission</button>:null}</div></div>
         <div className={styles.missionMeta}><div className={styles.metaItem}><span>Live activity</span><strong>{live?.activity??"unavailable"}</strong></div><div className={styles.metaItem}><span>Progress</span><strong>{live?`${live.progressPercent}%`:"—"}</strong></div><div className={styles.metaItem}><span>QA</span><strong>{live?.qaState??"—"}</strong></div><div className={styles.metaItem}><span>Final readiness</span><strong>{live?.finalRenderReadiness??"—"}</strong></div><div className={styles.metaItem}><span>Project revision</span><strong>{live?.projectRevision??"—"}{live?.stale?" · stale":""}</strong></div></div>
         <div className={styles.progress}><span style={{width:`${live?.progressPercent??0}%`}}/></div>
         {run.currentStep?<div className={styles.message}>Current step: {run.currentStep}</div>:null}
