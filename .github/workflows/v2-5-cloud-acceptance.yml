@@ -61,3 +61,16 @@ jobs:
           tests/e2e/v2-5-c3-selection-context.spec.ts
           tests/e2e/v2-5-c4-connection-center.spec.ts
           tests/e2e/v2-5-c7-agent-mcp-acceptance.spec.ts
+      - name: C7 runtime residue audit
+        shell: bash
+        run: |
+          residue="$({
+            find "$VIDEO_OS_DATA_ROOT" -type f \( -name '*.props.json' -o -name '.runtime-owner.lock' \) -print
+            find "$VIDEO_OS_DATA_ROOT" -type d -name '.hf-work' -print
+          } | sort -u)"
+          if [ -n "$residue" ]; then
+            echo "C7 runtime residue detected:" >&2
+            echo "$residue" >&2
+            exit 1
+          fi
+          echo "C7 runtime residue audit passed."
