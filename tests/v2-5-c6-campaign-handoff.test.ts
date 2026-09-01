@@ -8,10 +8,12 @@ describe("V2.5 C6 Campaign navigation and Project handoff",()=>{
   it("keeps Campaign as a separate top-level surface while exposing it from the Studio command strip",()=>{
     const command=read("components/studio/AgentNativeCommandStrip.tsx");
     const campaigns=read("app/campaigns/page.tsx");
+    const campaignDetail=read("app/campaigns/[campaignId]/page.tsx");
     expect(command).toContain('data-testid="open-campaigns"');
     expect(command).toContain("onOpenCampaigns");
     expect(campaigns).toContain('href="/"');
-    expect(campaigns).toContain("CampaignDashboardClient");
+    expect(campaigns).toContain("productionCampaignService.list()");
+    expect(campaignDetail).toContain("CampaignDashboardClient");
   });
 
   it("hands a Campaign Mission to Studio using logical Project and Mission IDs only",()=>{
