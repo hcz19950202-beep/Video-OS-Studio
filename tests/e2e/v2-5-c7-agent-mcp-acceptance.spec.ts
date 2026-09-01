@@ -282,7 +282,9 @@ test("C7 external MCP reads Project truth, applies reviewable Timeline/Viewer ed
   await proposalCard.getByRole("button", { name: "Apply All", exact: true }).click();
 
   await expect(page.locator(`[data-clip-id="${CLIP_ID}"]`)).toBeVisible();
-  await expect(page.locator(".player-shell").getByText("External MCP approved", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".player-shell").getByText("External MCP approved", { exact: true }),
+  ).toBeVisible();
   await expect.poll(async () => (await readProject(page, projectId)).project.revision).toBe(1);
   const appliedProject = await readProject(page, projectId);
   expect(
@@ -317,7 +319,9 @@ test("C7 external MCP reads Project truth, applies reviewable Timeline/Viewer ed
   await page.reload();
   await openRecentProject(page, PROJECT_NAME);
   await expect(page.locator(`[data-clip-id="${CLIP_ID}"]`)).toBeVisible();
-  await expect(page.locator(".player-shell").getByText("External MCP approved", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".player-shell").getByText("External MCP approved", { exact: true }),
+  ).toBeVisible();
 
   await expect
     .poll(async () => {
@@ -352,9 +356,9 @@ test("C7 external MCP reads Project truth, applies reviewable Timeline/Viewer ed
   expect(timelineAfter.status).toBe(200);
   expect(timelineAfter.body.result?.isError).toBe(false);
   expect(timelineAfter.body.result?.structuredContent).toMatchObject({ projectId, revision: 1 });
-  expect(timelineAfter.body.result?.structuredContent.clips.some((clip) => clip.id === CLIP_ID)).toBe(
-    true,
-  );
+  expect(
+    timelineAfter.body.result?.structuredContent.clips.some((clip) => clip.id === CLIP_ID),
+  ).toBe(true);
 
   const beforeJobProposal = await readProject(page, projectId);
   const durableJobProposal = await mcpPost<{
@@ -406,7 +410,9 @@ test("C7 external MCP reads Project truth, applies reviewable Timeline/Viewer ed
   let durableJobId = "";
   await expect
     .poll(async () => {
-      const jobs = (await readJobs(page, projectId)).jobs.filter((job) => job.type === "render-final");
+      const jobs = (await readJobs(page, projectId)).jobs.filter(
+        (job) => job.type === "render-final",
+      );
       durableJobId = jobs[0]?.id ?? "";
       return jobs.length;
     })
@@ -420,9 +426,9 @@ test("C7 external MCP reads Project truth, applies reviewable Timeline/Viewer ed
     `/api/projects/${encodeURIComponent(projectId)}/transactions`,
   );
   expect(historyAfterJob.ok()).toBeTruthy();
-  expect(
-    ((await historyAfterJob.json()) as { transactions: unknown[] }).transactions,
-  ).toHaveLength(1);
+  expect(((await historyAfterJob.json()) as { transactions: unknown[] }).transactions).toHaveLength(
+    1,
+  );
 
   await page.getByTestId("open-connection-center").click();
   const reopenedCenter = page.getByTestId("connection-center");
