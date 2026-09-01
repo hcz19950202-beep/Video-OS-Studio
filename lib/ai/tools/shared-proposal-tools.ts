@@ -123,6 +123,7 @@ const emptySession=(input:{
   proposals:[],
   approvedOperations:[],
   operationClaims:[],
+  operationAudit:[],
 });
 
 const ensureSession=async(
@@ -171,6 +172,7 @@ export const createC5SharedProposalTools=(dependencies:C5SharedProposalToolDepen
       createdAt:now,
       status:"draft",
     });
+    const auditId=`proposal-create:${proposal.id}`;
 
     const session=await dependencies.sessions.mutate(context.projectId,sessionId,current=>{
       if(current.projectId!==context.projectId){
@@ -189,6 +191,17 @@ export const createC5SharedProposalTools=(dependencies:C5SharedProposalToolDepen
       return AgentSessionSchema.parse({
         ...current,
         proposals:[...current.proposals,proposal],
+        operationAudit:[...current.operationAudit,{
+          id:auditId,
+          source:context.transport==="mcp"?"local-mcp":"builtin-agent",
+          action:"proposal-created",
+          outcome:"success",
+          proposalId:proposal.id,
+          toolId:C5_CREATE_EDIT_PROPOSAL_TOOL_ID,
+          requestId:context.requestId,
+          providerId:current.providerId,
+          createdAt:now,
+        }],
         updatedAt:now,
       });
     });
