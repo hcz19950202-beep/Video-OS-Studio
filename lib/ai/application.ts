@@ -7,7 +7,7 @@ import {
   type AgentDurableJobPort,
 } from "@/lib/ai/durable-job-proposal";
 import {AgentProjectTransactionProposalPayloadSchema,AgentProposalIdSchema,AgentProposalSchema,AgentSessionIdSchema,type AgentProposal,type AgentProposedOperation} from "@/lib/ai/schema";
-import {AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";
+import {AgentOperationAuditEntrySchema,AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";
 import type {AgentSessionRepository} from "@/lib/ai/session/repository";
 import {WorkflowActionProposalPayloadSchema,type WorkflowActionProposalPayload} from "@/lib/ai/tools/schema";
 import {AgentWorkflowActionExecutor,AgentWorkflowActionStaleError,type AgentWorkflowActionPreview} from "@/lib/ai/workflow-application";
@@ -96,6 +96,27 @@ const replaceProposal=(session:AgentSession,proposal:AgentProposal)=>AgentSessio
 
 const proposalWithStatus=(proposal:AgentProposal,status:AgentProposal["status"])=>AgentProposalSchema.parse({...proposal,status});
 
+const proposalAuditSource=(session:AgentSession,proposalId:string)=>
+  session.operationAudit.find(item=>item.proposalId===proposalId&&item.action==="proposal-created")?.source??
+  (session.providerId==="local-mcp"?"local-mcp":"builtin-agent");
+
+const appendProposalAudit=(session:AgentSession,input:{
+  id:string;
+  proposalId:string;
+  action:"proposal-reviewed"|"proposal-applied"|"proposal-rejected"|"proposal-stale";
+  outcome:"success"|"rejected"|"stale";
+  operationId?:string;
+  createdAt:string;
+})=>{
+  if(session.operationAudit.some(item=>item.id===input.id))return session;
+  const entry=AgentOperationAuditEntrySchema.parse({
+    ...input,
+    source:proposalAuditSource(session,input.proposalId),
+    providerId:session.providerId,
+  });
+  return AgentSessionSchema.parse({...session,operationAudit:[...session.operationAudit,entry]});
+};
+
 const selectOperations=(proposal:AgentProposal,requestedIds?:string[])=>{
   const requested=requestedIds?.length?requestedIds:proposal.operations.map(item=>item.id);
   const unique=[...new Set(requested)];
@@ -131,7 +152,15 @@ export class AgentProposalApplicationService{
     const next=await this.dependencies.sessions.mutate(session.projectId,session.id,current=>{
       const latest=current.proposals.find(item=>item.id===proposal.id);
       const stale=latest&&(latest.status==="draft"||latest.status==="reviewed")?proposalWithStatus(latest,"stale"):latest??proposalWithStatus(proposal,"stale");
-      return AgentSessionSchema.parse({...replaceProposal(current,stale),updatedAt:this.now()});
+      const now=this.now();
+      const updated=AgentSessionSchema.parse({...replaceProposal(current,stale),updatedAt:now});
+      return appendProposalAudit(updated,{
+        id:`proposal-stale:${proposal.id}:${proposal.baseProjectRevision}`,
+        proposalId:proposal.id,
+        action:"proposal-stale",
+        outcome:"stale",
+        createdAt:now,
+      });
     });
     return{session:next,proposal:next.proposals.find(item=>item.id===proposal.id)??proposalWithStatus(proposal,"stale")};
   }
@@ -200,11 +229,20 @@ export class AgentProposalApplicationService{
       const claim=current.operationClaims.find(item=>item.operationId===operationId);
       if(claimToken&&claim&&claimToken!==claim.claimToken&&!existing)throw new AgentProposalApplicationError("Agent Apply operation claim is owned by another confirmation.");
       if(claimToken&&!claim&&!existing)throw new AgentProposalApplicationError("Agent Apply operation claim was lost before durable completion.");
-      return AgentSessionSchema.parse({
+      const now=this.now();
+      const updated=AgentSessionSchema.parse({
         ...replaceProposal(current,proposal.status==="applied"?proposal:proposalWithStatus(proposal,"applied")),
-        approvedOperations:existing?current.approvedOperations:[...current.approvedOperations,{operationId,proposalId,approvedAt:this.now()}],
+        approvedOperations:existing?current.approvedOperations:[...current.approvedOperations,{operationId,proposalId,approvedAt:now}],
         operationClaims:current.operationClaims.filter(item=>item.operationId!==operationId),
-        updatedAt:this.now(),
+        updatedAt:now,
+      });
+      return appendProposalAudit(updated,{
+        id:`proposal-apply:${operationId}`,
+        proposalId,
+        action:"proposal-applied",
+        outcome:"success",
+        operationId,
+        createdAt:now,
       });
     });
   }
@@ -280,7 +318,15 @@ export class AgentProposalApplicationService{
       session=await this.dependencies.sessions.mutate(input.projectId,sessionId,current=>{
         const latest=current.proposals.find(item=>item.id===proposalId);
         if(!latest||latest.status!=="draft")return current;
-        return AgentSessionSchema.parse({...replaceProposal(current,proposalWithStatus(latest,"reviewed")),updatedAt:this.now()});
+        const now=this.now();
+        const updated=AgentSessionSchema.parse({...replaceProposal(current,proposalWithStatus(latest,"reviewed")),updatedAt:now});
+        return appendProposalAudit(updated,{
+          id:`proposal-review:${proposalId}`,
+          proposalId,
+          action:"proposal-reviewed",
+          outcome:"success",
+          createdAt:now,
+        });
       });
       proposal=session.proposals.find(item=>item.id===proposalId)??proposalWithStatus(proposal,"reviewed");
     }
@@ -300,7 +346,15 @@ export class AgentProposalApplicationService{
       if(!latest)throw new AgentProposalNotFoundError();
       if(latest.status==="applied")throw new AgentProposalApplicationError("Applied proposals cannot be rejected.");
       if(latest.status==="rejected")return current;
-      return AgentSessionSchema.parse({...replaceProposal(current,proposalWithStatus(latest,"rejected")),updatedAt:this.now()});
+      const now=this.now();
+      const updated=AgentSessionSchema.parse({...replaceProposal(current,proposalWithStatus(latest,"rejected")),updatedAt:now});
+      return appendProposalAudit(updated,{
+        id:`proposal-reject:${proposalId}`,
+        proposalId,
+        action:"proposal-rejected",
+        outcome:"rejected",
+        createdAt:now,
+      });
     });
   }
 
