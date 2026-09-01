@@ -153,11 +153,31 @@ describe("V2.5 C5 Local MCP Proposal boundary",()=>{
     });
     expect(harness.sessions.values()).toHaveLength(1);
     expect(harness.sessions.values()[0]?.proposals).toHaveLength(1);
+    expect(harness.sessions.values()[0]?.operationAudit).toEqual([expect.objectContaining({
+      source:"local-mcp",
+      action:"proposal-created",
+      outcome:"success",
+      toolId:C5_CREATE_EDIT_PROPOSAL_TOOL_ID,
+    })]);
     expect(JSON.stringify(project)).toBe(before);
 
     const direct=await post(harness,"tools/call",{name:"direct_project_write_forbidden",arguments:{}},"direct_project_write_forbidden");
     expect(direct.status).toBe(400);
     expect(directWriteHandler).not.toHaveBeenCalled();
+    expect(JSON.stringify(project)).toBe(before);
+  });
+
+  it("keeps a warmed synchronous Proposal invocation below the C5 250ms control-plane budget",async()=>{
+    const before=JSON.stringify(project);
+    const harness=await createHarness();
+    expect((await post(harness,"tools/list")).status).toBe(200);
+
+    const startedAt=performance.now();
+    const created=await post(harness,"tools/call",{name:C5_CREATE_EDIT_PROPOSAL_TOOL_ID,arguments:proposalInput},C5_CREATE_EDIT_PROPOSAL_TOOL_ID);
+    const elapsedMs=performance.now()-startedAt;
+
+    expect(created.status).toBe(200);
+    expect(elapsedMs).toBeLessThan(250);
     expect(JSON.stringify(project)).toBe(before);
   });
 
