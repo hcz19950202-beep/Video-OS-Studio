@@ -72,13 +72,6 @@ const changed = [];
 for (const file of [...files].sort()) {
   const source = await readFile(file, "utf8");
   const formatted = await prettier.format(source, { ...config, filepath: file });
-  if (
-    !write &&
-    formatted !== source &&
-    relative(ROOT, file) === "tests/e2e/v2-5-c7-agent-mcp-acceptance.spec.ts"
-  ) {
-    console.error(`C7_FORMATTED_FILE_BEGIN\n${formatted}C7_FORMATTED_FILE_END`);
-  }
   if (formatted === source) continue;
   if (write) await writeFile(file, formatted, "utf8");
   else changed.push(relative(ROOT, file));
