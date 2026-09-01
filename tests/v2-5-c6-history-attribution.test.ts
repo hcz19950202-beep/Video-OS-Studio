@@ -27,14 +27,15 @@ describe("V2.5 C6 trusted History attribution",()=>{
     expect(log.trim().split(/\r?\n/u)).toHaveLength(1);
   });
 
-  it("keeps origin outside the public Project transaction mutation schema",()=>{
+  it("strips untrusted origin from the public Project transaction mutation payload",()=>{
     const base={
       expectedRevision:0,
       transactionId:"tx-1",
       transaction:{label:"Human edit",commands:[{type:"rename-project",name:"Renamed"}]},
     };
-    expect(ProjectTransactionMutationSchema.safeParse(base).success).toBe(true);
-    expect(ProjectTransactionMutationSchema.safeParse({...base,origin:{kind:"external-agent",sessionId,proposalId}}).success).toBe(false);
+    const parsed=ProjectTransactionMutationSchema.parse({...base,origin:{kind:"external-agent",sessionId,proposalId}});
+    expect(parsed).toEqual(base);
+    expect("origin" in parsed).toBe(false);
   });
 
   it("records Human, Built-in Agent, External Agent and Mission only at trusted server boundaries",()=>{
