@@ -92,7 +92,7 @@ const operationLog=async(test:Awaited<ReturnType<typeof harness>>)=>{
 };
 
 describe("V2.5 C5 application-owned Proposal auto approval",()=>{
-  it("auto-applies one safe bounded Project transaction in apply-safe-edits mode",async()=>{
+  it("auto-applies one safe bounded Project transaction with exactly one durable History transaction in apply-safe-edits mode",async()=>{
     const test=await harness([
       {type:"rename-project",name:"Auto Applied"},
       {type:"set-duration",durationInFrames:420},
@@ -116,6 +116,14 @@ describe("V2.5 C5 application-owned Proposal auto approval",()=>{
     expect(project.project.revision).toBe(1);
     expect(result.session.proposals.find(item=>item.id===PROPOSAL_ID)?.status).toBe("applied");
     expect(result.session.approvedOperations).toHaveLength(1);
+    const history=await test.mutations.listHistory(PROJECT_ID);
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      operationId:result.applyOperationId,
+      label:"C5 safe auto apply",
+      beforeRevision:0,
+      appliedRevision:1,
+    });
     const records=(await operationLog(test)).trim().split(/\r?\n/u).filter(Boolean).map(line=>JSON.parse(line) as {operationId:string;kind:string;status:string});
     expect(records.filter(record=>record.operationId===result.applyOperationId&&record.kind==="transaction"&&record.status==="applied")).toHaveLength(1);
   });
