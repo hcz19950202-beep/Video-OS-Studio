@@ -61,10 +61,6 @@ export const ProductionContextSurface=({project,mode}:{project:Project;mode:Prod
 
   const executionByStep=useMemo(()=>new Map(workspace?.execution?.steps.map(step=>[step.stepId,step])??[]),[workspace?.execution]);
   const sceneById=useMemo(()=>new Map(project.scenes.map(scene=>[scene.id,scene])),[project.scenes]);
-  const repairActionByFinding=useMemo(()=>{
-    const map=new Map<string,NonNullable<ProductionWorkspaceSnapshot["latestQA"]>["repairProposal"] extends infer T?T:never>();
-    return map;
-  },[]);
   const findingLocations=useMemo(()=>{
     const result=new Map<string,{sceneId:string;sceneName:string;startFrame:number}>();
     for(const action of workspace?.latestQA?.repairProposal?.actions??[]){
