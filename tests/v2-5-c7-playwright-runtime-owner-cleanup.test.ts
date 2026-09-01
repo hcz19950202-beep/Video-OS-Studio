@@ -14,22 +14,22 @@ type CleanupOptions = {
   settleInvalidLock?: () => Promise<void>;
 };
 
+type EnvLike = Record<string, string | undefined>;
+
 type PlaywrightRunnerModule = {
   RuntimeOwnerResidueError: new (message: string, lockPath: string) => Error & {
     code: "RUNTIME_OWNER_RESIDUE";
     lockPath: string;
   };
-  isIsolatedE2EDataRoot: (dataRoot: string, env?: NodeJS.ProcessEnv) => boolean;
+  isIsolatedE2EDataRoot: (dataRoot: string, env?: EnvLike) => boolean;
   recoverDeadRuntimeOwnerLock: (
     dataRoot: string,
     options?: CleanupOptions,
   ) => Promise<CleanupResult>;
 };
 
-const loadRunner = async () => {
-  // @ts-expect-error The Playwright launcher is intentionally a runtime ESM JavaScript module.
-  return (await import("../scripts/run-playwright-e2e.mjs")) as PlaywrightRunnerModule;
-};
+const loadRunner = async () =>
+  (await import("../scripts/run-playwright-e2e.mjs")) as PlaywrightRunnerModule;
 
 describe("V2.5 C7 Playwright runtime-owner cleanup", () => {
   it("keeps invalid runtime-owner residue fail-closed outside an isolated E2E root", async () => {
