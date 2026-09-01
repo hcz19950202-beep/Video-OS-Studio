@@ -1,0 +1,61 @@
+name: V2.5 Cloud Acceptance
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: v2-5-cloud-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  v2-5-cloud-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact tested SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact source SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_SHA" ]; then
+            echo "Exact-SHA checkout mismatch: expected $EXPECTED_SHA, got $actual" >&2
+            exit 1
+          fi
+          echo "V2_5_CLOUD_ACCEPTANCE_SHA=$actual" >> "$GITHUB_ENV"
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Configure isolated V2.5 cloud data root
+        shell: bash
+        run: |
+          echo "CI=true" >> "$GITHUB_ENV"
+          echo "VIDEO_OS_DATA_ROOT=$RUNNER_TEMP/video-os-v2-5-cloud" >> "$GITHUB_ENV"
+      - name: V2.5 protocol, authority, stale and history acceptance
+        run: >-
+          npm run test --
+          tests/v2-5-c7-shared-proposal-equivalence.test.ts
+          tests/v2-5-c4-local-mcp-http.test.ts
+          tests/v2-5-c5-local-mcp-proposal.test.ts
+          tests/v2-5-c5-proposal-transaction-apply.test.ts
+          tests/v2-5-c6-history-attribution.test.ts
+      - name: Install pinned Chromium
+        run: npx --no-install playwright install --with-deps chromium
+      - name: V2.5 Agent workspace and MCP browser acceptance
+        run: >-
+          npm run test:e2e --
+          tests/e2e/v2-5-c2-unified-conversation.spec.ts
+          tests/e2e/v2-5-c3-selection-context.spec.ts
+          tests/e2e/v2-5-c4-connection-center.spec.ts
+          tests/e2e/v2-5-c7-agent-mcp-acceptance.spec.ts
