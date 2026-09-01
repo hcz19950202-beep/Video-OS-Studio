@@ -1,6 +1,7 @@
 "use client";
 
 import {useCallback,useEffect,useMemo,useState} from "react";
+import {loadConnectionProjectActivity,type ConnectionProjectActivity} from "@/lib/client/connection-project-activity";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
 import {useProjectStore} from "@/store/project-store";
 import {useSelectionStore} from "@/store/selection-store";
@@ -80,6 +81,9 @@ const requestBridge=async(body?:Record<string,unknown>):Promise<BridgeResponse>=
   return payload;
 };
 
+const percent=(value:number)=>`${Math.round(Math.max(0,Math.min(1,value))*100)}%`;
+const shortId=(value:string)=>value.length>22?`${value.slice(0,8)}…${value.slice(-6)}`:value;
+
 export const ConnectionCenter=()=>{
   const{locale}=useStudioPreferences();
   const zh=locale==="zh-CN";
@@ -91,8 +95,11 @@ export const ConnectionCenter=()=>{
   const[bridge,setBridge]=useState<BridgeSnapshot>(emptyBridge);
   const[tools,setTools]=useState<ControlledTool[]>([]);
   const[credential,setCredential]=useState<OneTimeCredential|null>(null);
+  const[projectActivity,setProjectActivity]=useState<ConnectionProjectActivity|null>(null);
   const[busy,setBusy]=useState(false);
   const[error,setError]=useState<string|null>(null);
+  const projectId=project?.project.id;
+  const currentProjectActivity=projectActivity?.projectId===projectId?projectActivity:null;
 
   const selection=useMemo(()=>({
     selectedClipIds,
@@ -107,13 +114,18 @@ export const ConnectionCenter=()=>{
   },[]);
 
   const refresh=useCallback(async()=>{
-    try{
-      const payload=await requestBridge();
-      applyPayload(payload);
-      setError(null);
-    }catch(fetchError){
-      setError(fetchError instanceof Error?fetchError.message:"Connection Center unavailable.");
-    }
+    const requestedProjectId=useProjectStore.getState().project?.project.id;
+    const[bridgeResult,activityResult]=await Promise.allSettled([
+      requestBridge(),
+      requestedProjectId?loadConnectionProjectActivity(requestedProjectId):Promise.resolve(null),
+    ]);
+    const errors:string[]=[];
+    if(bridgeResult.status==="fulfilled")applyPayload(bridgeResult.value);
+    else errors.push(bridgeResult.reason instanceof Error?bridgeResult.reason.message:"Connection Center unavailable.");
+    if(activityResult.status==="fulfilled"){
+      if(useProjectStore.getState().project?.project.id===requestedProjectId)setProjectActivity(activityResult.value);
+    }else errors.push(activityResult.reason instanceof Error?activityResult.reason.message:"Project activity unavailable.");
+    setError(errors.length?errors.join(" "):null);
   },[applyPayload]);
 
   const runAction=useCallback(async(body:Record<string,unknown>)=>{
@@ -181,6 +193,7 @@ export const ConnectionCenter=()=>{
     ?(zh?"创建自动 · Apply 单独审批":"Create auto · Apply separately approved")
     :zh?"无需审批":"No approval";
   const live=bridge.status!=="stopped"&&bridge.status!=="error";
+  const activeJobs=currentProjectActivity?.jobs.filter(job=>!["completed","failed","cancelled","interrupted"].includes(job.status)).length??0;
 
   return <div className={styles.root}>
     <button
@@ -210,6 +223,8 @@ export const ConnectionCenter=()=>{
         <div className={styles.statusCard}><span className={styles.label}>MCP / Tool Contract</span><span className={styles.value}>{bridge.protocolVersion} / {bridge.toolContractVersion}</span></div>
         <div className={styles.statusCard}><span className={styles.label}>{zh?"当前 Project":"Active Project"}</span><span className={styles.value} data-testid="mcp-active-project">{bridge.activeProjectId??"—"}</span></div>
         <div className={styles.statusCard}><span className={styles.label}>{zh?"最近活动":"Last activity"}</span><span className={styles.value}>{bridge.lastActivityAt?new Date(bridge.lastActivityAt).toLocaleTimeString():"—"}</span></div>
+        <div className={styles.statusCard}><span className={styles.label}>{zh?"外部会话":"External sessions"}</span><span className={styles.value}>{currentProjectActivity?.externalSessionCount??0}</span></div>
+        <div className={styles.statusCard}><span className={styles.label}>{zh?"运行中 Jobs":"Active Jobs"}</span><span className={styles.value}>{activeJobs}</span></div>
       </div>
 
       <div className={styles.actions}>
@@ -237,6 +252,40 @@ export const ConnectionCenter=()=>{
           </div>)}
         </div>
         <p className={styles.empty}>{zh?"R1 只能生成 Proposal。Apply 由应用层独立处理，并继续受 revision、History 和原子事务约束。":"R1 may create Proposals only. Apply remains application-owned and is still governed by revision, History, and atomic transaction boundaries."}</p>
+      </section>
+
+      <section className={styles.section} data-testid="external-proposal-activity">
+        <h4>{zh?"外部 Proposal / 审批状态":"External Proposals / approvals"}</h4>
+        <div className={styles.list}>
+          {!currentProjectActivity?.proposals.length?<p className={styles.empty}>{zh?"当前 Project 暂无外部 Proposal。":"No external Proposals for the active Project."}</p>:currentProjectActivity.proposals.slice(0,12).map(proposal=><div className={styles.row} key={`${proposal.sessionId}:${proposal.proposalId}`}>
+            <div className={styles.rowMain}>
+              <span className={styles.rowTitle}>{proposal.title} · {proposal.status}</span>
+              <span className={styles.rowMeta}>rev {proposal.baseProjectRevision} · {proposal.operationCount} ops · {proposal.warningCount} warnings · {shortId(proposal.proposalId)}</span>
+            </div>
+          </div>)}
+        </div>
+        {currentProjectActivity?.approvals.length?<div className={styles.list} data-testid="external-approval-audit">
+          {currentProjectActivity.approvals.slice(0,20).map(item=><div className={styles.row} key={`${item.sessionId}:${item.id}`}>
+            <div className={styles.rowMain}>
+              <span className={styles.rowTitle}>{item.action} · {item.outcome}</span>
+              <span className={styles.rowMeta}>{shortId(item.proposalId)}{item.operationId?` · op ${shortId(item.operationId)}`:""}{item.toolId?` · ${item.toolId}`:""} · {new Date(item.createdAt).toLocaleTimeString()}</span>
+            </div>
+          </div>)}
+        </div>:null}
+      </section>
+
+      <section className={styles.section} data-testid="connection-durable-jobs">
+        <h4>{zh?"Durable Jobs":"Durable Jobs"}</h4>
+        <p className={styles.empty}>{zh?"Job 状态来自持久化 runtime；外部客户端断线后仍继续显示真实状态。":"Job status comes from the durable runtime and remains visible after the external client disconnects."}</p>
+        <div className={styles.list}>
+          {!currentProjectActivity?.jobs.length?<p className={styles.empty}>{zh?"当前 Project 暂无 Job。":"No Jobs for the active Project."}</p>:currentProjectActivity.jobs.slice(0,20).map(job=><div className={styles.row} key={job.id}>
+            <div className={styles.rowMain}>
+              <span className={styles.rowTitle}>{job.type} · {job.status} · {percent(job.progress)}</span>
+              <span className={styles.rowMeta}>{job.stage} · attempt {job.attempt} · {shortId(job.id)} · {new Date(job.updatedAt).toLocaleTimeString()}</span>
+              {job.error?<span className={`${styles.rowMeta} ${styles.activity}`}>{job.error.code} · {job.error.message}</span>:null}
+            </div>
+          </div>)}
+        </div>
       </section>
 
       <section className={styles.section}>
