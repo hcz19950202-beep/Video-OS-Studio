@@ -57,7 +57,10 @@ export class ProjectRepository {
 
   async load(projectId: string): Promise<Project> {
     const id=ProjectIdSchema.parse(projectId);
-    return this.withProjectFileLock(id,async()=>deserializeProject(await this.fs.readText(this.projectPath(id))));
+    return this.withProjectFileLock(id,async()=>{
+      const text = await this.fs.readText(this.projectPath(id));
+      return deserializeProject(text);
+    });
   }
 
   async save(project: Project): Promise<void> {
