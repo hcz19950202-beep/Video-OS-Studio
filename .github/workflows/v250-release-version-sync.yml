@@ -1,0 +1,105 @@
+name: V2.5.0 Release Version Sync
+
+on:
+  push:
+    branches:
+      - release/v2.5.0-finalization
+    paths:
+      - .github/workflows/v250-release-version-sync.yml
+
+permissions:
+  contents: write
+
+env:
+  BASE_SHA: 79867fa26d837fb4f36dc2c60dd07c15ee88c4fd
+
+jobs:
+  sync-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout finalization branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v2.5.0-finalization
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Verify one-shot provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$BASE_SHA" HEAD
+          mapfile -t changed < <(git diff --name-only "$BASE_SHA" HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = ".github/workflows/v250-release-version-sync.yml"
+          test "$(node -p "require('./package.json').version")" = "2.4.2"
+          test "$(node -p "require('./package-lock.json').version")" = "2.4.2"
+          test "$(node -p "require('./package-lock.json').packages[''].version")" = "2.4.2"
+
+      - name: Snapshot release metadata structure
+        shell: node {0}
+        run: |
+          const fs = require('node:fs');
+          const readJson = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
+          const pkg = readJson(process.cwd() + '/package.json');
+          const lock = readJson(process.cwd() + '/package-lock.json');
+          const stripped = (value) => JSON.parse(JSON.stringify(value));
+          const pkgShape = stripped(pkg);
+          delete pkgShape.version;
+          const lockShape = stripped(lock);
+          delete lockShape.version;
+          delete lockShape.packages[''].version;
+          fs.writeFileSync('/tmp/v250-package-shape.json', JSON.stringify(pkgShape));
+          fs.writeFileSync('/tmp/v250-lock-shape.json', JSON.stringify(lockShape));
+
+      - name: Synchronize package metadata
+        shell: bash
+        run: npm version 2.5.0 --no-git-tag-version
+
+      - name: Verify structural invariants
+        shell: node {0}
+        run: |
+          const fs = require('node:fs');
+          const readJson = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
+          const pkg = readJson(process.cwd() + '/package.json');
+          const lock = readJson(process.cwd() + '/package-lock.json');
+          if (pkg.version !== '2.5.0') throw new Error('package.json version mismatch');
+          if (lock.version !== '2.5.0') throw new Error('package-lock root version mismatch');
+          if (lock.packages[''].version !== '2.5.0') throw new Error('package-lock package root version mismatch');
+          const pkgShape = JSON.parse(JSON.stringify(pkg));
+          delete pkgShape.version;
+          const lockShape = JSON.parse(JSON.stringify(lock));
+          delete lockShape.version;
+          delete lockShape.packages[''].version;
+          if (JSON.stringify(pkgShape) !== fs.readFileSync('/tmp/v250-package-shape.json', 'utf8')) {
+            throw new Error('package.json structure drifted outside version');
+          }
+          if (JSON.stringify(lockShape) !== fs.readFileSync('/tmp/v250-lock-shape.json', 'utf8')) {
+            throw new Error('package-lock structure drifted outside allowed version fields');
+          }
+
+      - name: Verify bounded diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git diff --name-only | sort)
+          test "${#changed[@]}" -eq 2
+          test "${changed[0]}" = "package-lock.json"
+          test "${changed[1]}" = "package.json"
+
+      - name: Commit version sync and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/v250-release-version-sync.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json .github/workflows/v250-release-version-sync.yml
+          git diff --cached --check
+          git commit -m "release(v2.5.0): sync package metadata"
+          git push origin HEAD:release/v2.5.0-finalization
