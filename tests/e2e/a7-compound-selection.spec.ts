@@ -125,6 +125,7 @@ test("A7 normal Studio path retains Scene + Caption compound Agent context", asy
 
   await hookScene.click();
   await caption.click();
+  await expect(page.locator('[data-inspector-section="typography"]')).toBeVisible();
   await openAgent(page);
   const currentSelection = page.getByTestId("current-context-selection");
   await expect(currentSelection).toContainText(`Selection · Clip ${captionId}`);
