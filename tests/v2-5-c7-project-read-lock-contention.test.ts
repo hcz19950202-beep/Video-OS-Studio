@@ -1,13 +1,37 @@
-import {describe,expect,it,vi} from "vitest";
-import {InMemoryFileSystemAdapter} from "@/adapters/filesystem";
+import {open,rm,mkdtemp} from "node:fs/promises";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
+import {afterEach,describe,expect,it,vi} from "vitest";
+import {InMemoryFileSystemAdapter,NodeFileSystemAdapter} from "@/adapters/filesystem";
 import {ProjectMutationCoordinator} from "@/lib/project/mutation-coordinator";
 import {ProjectRepository} from "@/lib/project/repository";
+
+const roots:string[]=[];
+afterEach(async()=>{await Promise.all(roots.splice(0).map(root=>rm(root,{recursive:true,force:true})));});
 
 class LockTrackingFileSystem extends InMemoryFileSystemAdapter{
   readonly lockPaths:string[]=[];
   async withExclusiveLock<T>(lockPath:string,work:()=>Promise<T>):Promise<T>{
     this.lockPaths.push(lockPath.replaceAll("\\","/"));
     return work();
+  }
+}
+
+class HoldingProjectReadFileSystem extends NodeFileSystemAdapter{
+  private releaseRead!:()=>void;
+  private readonly releasePromise=new Promise<void>(resolve=>{this.releaseRead=resolve;});
+  private readOpenedResolve!:()=>void;
+  readonly readOpened=new Promise<void>(resolve=>{this.readOpenedResolve=resolve;});
+  release(){this.releaseRead();}
+  override async readText(path:string):Promise<string>{
+    if(!path.endsWith("project.json"))return super.readText(path);
+    const handle=await open(path,"r");
+    try{
+      const content=await handle.readFile({encoding:"utf8"});
+      this.readOpenedResolve();
+      await this.releasePromise;
+      return content;
+    }finally{await handle.close();}
   }
 }
 
@@ -45,5 +69,33 @@ describe("V2.5 C7 Project operation lookup lock hardening",()=>{
     expect(load).not.toHaveBeenCalled();
     expect(fs.lockPaths.filter(path=>path.endsWith("/project.json.lock"))).toEqual([]);
     expect(fs.lockPaths.filter(path=>path.endsWith("/operations.jsonl.lock"))).toHaveLength(2);
+  });
+
+  it("releases a missing operation lookup even while another repository instance holds the Project read lock",async()=>{
+    const root=await mkdtemp(join(tmpdir(),"video-os-v2-5-c7-project-read-lock-"));
+    roots.push(root);
+    const writerFs=new NodeFileSystemAdapter();
+    const readerFs=new HoldingProjectReadFileSystem();
+    const writerRepository=new ProjectRepository(writerFs,root);
+    const readerRepository=new ProjectRepository(readerFs,root);
+    const mutations=new ProjectMutationCoordinator(writerFs,writerRepository);
+    await writerRepository.create({id:"demo",name:"Demo",now:"2026-09-02T00:00:00.000Z",width:1920,height:1080,fps:30,durationInFrames:300});
+
+    const heldRead=readerRepository.load("demo");
+    await readerFs.readOpened;
+    const operationLockPath=writerRepository.resolveProjectFile("demo","operations.jsonl.lock");
+    const lookup=mutations.getOperation("demo","workflow:scene-detection:first-attempt");
+    try{
+      const outcome=await Promise.race([
+        lookup.then(value=>({kind:"result" as const,value})),
+        new Promise<{kind:"timeout"}>(resolve=>setTimeout(()=>resolve({kind:"timeout"}),1_000)),
+      ]);
+      expect(outcome).toEqual({kind:"result",value:null});
+      expect(await writerFs.exists(operationLockPath)).toBe(false);
+    }finally{
+      readerFs.release();
+      await heldRead;
+      await lookup;
+    }
   });
 });
