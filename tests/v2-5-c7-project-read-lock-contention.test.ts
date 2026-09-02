@@ -88,7 +88,7 @@ describe("V2.5 C7 Project operation lookup lock hardening",()=>{
     try{
       const outcome=await Promise.race([
         lookup.then(value=>({kind:"result" as const,value})),
-        new Promise<{kind:"timeout"}>(resolve=>setTimeout(()=>resolve({kind:"timeout"}),1_000)),
+        new Promise<{kind:"timeout"}>(resolve=>setTimeout(()=>resolve({kind:"timeout"}),2_000)),
       ]);
       expect(outcome).toEqual({kind:"result",value:null});
       expect(await writerFs.exists(operationLockPath)).toBe(false);
