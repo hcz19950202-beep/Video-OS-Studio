@@ -1,12 +1,13 @@
 "use client";
 
-import {useState,type CSSProperties,type KeyboardEvent as ReactKeyboardEvent,type PointerEvent as ReactPointerEvent,type ReactNode} from "react";
+import {useEffect,useRef,useState,type CSSProperties,type KeyboardEvent as ReactKeyboardEvent,type PointerEvent as ReactPointerEvent,type ReactNode} from "react";
 import {WORKSPACE_LIMITS,updateWorkspaceLayout,type WorkspaceLayout} from "@/lib/studio/workspace-layout";
 import {useWorkspaceLayout} from "@/components/studio/WorkspaceLayoutProvider";
 import {AgentNativeLeftPanel,type AgentNativeSurface} from "@/components/studio/AgentNativeLeftPanel";
 import {AgentNativeContextDock,type AgentNativeContextTab} from "@/components/studio/AgentNativeContextDock";
 import {AgentNativeCommandStrip} from "@/components/studio/AgentNativeCommandStrip";
 import {useWorkspaceHandoffStore} from "@/store/workspace-handoff-store";
+import {useSelectionStore} from "@/store/selection-store";
 
 type ResizeKind="left"|"inspector"|"timeline";
 type ResizeState={kind:ResizeKind;pointerId:number;startX:number;startY:number;startValue:number}|null;
@@ -15,8 +16,16 @@ type Props={topbar:ReactNode;rail:ReactNode;content:ReactNode;viewer:ReactNode;i
 export const ResizableWorkspaceShell=({topbar,rail,content,viewer,inspector,timeline,onOpenProjects}:Props)=>{
   const{layout,setLayout,toggleLeft,toggleInspector,toggleTimeline}=useWorkspaceLayout();
   const preferredMissionId=useWorkspaceHandoffStore(state=>state.preferredMissionId);
+  const selectionVersion=useSelectionStore(state=>state.contextSelectionVersion);
+  const selectionTargetKind=useSelectionStore(state=>state.selectedContextTarget?.kind??null);
+  const observedSelectionVersion=useRef(selectionVersion);
   const clearHandoff=()=>useWorkspaceHandoffStore.getState().setPreferredMissionId(null);
   const[drag,setDrag]=useState<ResizeState>(null);const[draft,setDraft]=useState<WorkspaceLayout|null>(null);const[leftSurface,setLeftSurface]=useState<AgentNativeSurface>("agent");const[contextTab,setContextTab]=useState<AgentNativeContextTab>("inspector");const effectiveContextTab=preferredMissionId?"mission":contextTab;const display=draft??layout;
+  useEffect(()=>{
+    const changed=selectionVersion!==observedSelectionVersion.current;
+    observedSelectionVersion.current=selectionVersion;
+    if(changed&&selectionTargetKind==="clip"&&layout.inspectorCollapsed)setLayout({inspectorCollapsed:false});
+  },[layout.inspectorCollapsed,selectionTargetKind,selectionVersion,setLayout]);
   const beginResize=(event:ReactPointerEvent<HTMLDivElement>,kind:ResizeKind,startValue:number)=>{setDrag({kind,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,startValue});setDraft(layout);event.currentTarget.setPointerCapture(event.pointerId);};
   const moveResize=(event:ReactPointerEvent<HTMLDivElement>)=>{if(!drag||drag.pointerId!==event.pointerId)return;let patch:Partial<WorkspaceLayout>={};if(drag.kind==="left")patch={leftWidth:drag.startValue+(event.clientX-drag.startX)};if(drag.kind==="inspector")patch={inspectorWidth:drag.startValue-(event.clientX-drag.startX)};if(drag.kind==="timeline")patch={timelineHeight:drag.startValue-(event.clientY-drag.startY)};setDraft(updateWorkspaceLayout(layout,patch));};
   const endResize=(event:ReactPointerEvent<HTMLDivElement>)=>{if(drag?.pointerId===event.pointerId&&draft)setLayout({leftWidth:draft.leftWidth,inspectorWidth:draft.inspectorWidth,timelineHeight:draft.timelineHeight});setDrag(null);setDraft(null);if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);};
