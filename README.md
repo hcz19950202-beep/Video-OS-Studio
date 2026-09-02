@@ -4,26 +4,42 @@ Video OS Studio is a local-first AI-native video production workspace.
 
 ## Current immutable release
 
-**Video OS Studio v2.4.2 is released.**
+**Video OS Studio v2.5.0 is released.**
 
 ```text
-Product version: 2.4.2
+Product version: 2.5.0
 Project Schema: 2.0.0
-Release commit: 79e48b068f701bba3f1c826710337a82f0a64760
-Release tag: v2.4.2 (annotated, verified)
-Tag object: 2c9b0ca2401f547066c6a51ff0ec60a641cfce35
+Release commit: df54e10e38ee2793e8fdf285ea2c216fe8c65478
+Release tag: v2.5.0 (annotated, verified)
+Tag object: bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
 ```
 
-The annotated `v2.4.2` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, and `v2.4.1` release tags remain immutable evidence and must never be moved or recreated.
+The annotated `v2.5.0` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, `v2.4.1`, and `v2.4.2` release tags remain immutable evidence and must never be moved or recreated.
 
 Release evidence is recorded in:
 
-[`docs/acceptance/V2_4_2_RELEASE_FINALIZATION.md`](docs/acceptance/V2_4_2_RELEASE_FINALIZATION.md)
+[`docs/acceptance/V2_5_0_RELEASE_FINALIZATION.md`](docs/acceptance/V2_5_0_RELEASE_FINALIZATION.md)
 
 The live repository source of truth is:
 
 [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
 
+## What V2.5 adds
+
+V2.5 turns Video OS Studio into an Agent-native local workspace while preserving the accepted V2.4 production/runtime foundations:
+
+```text
+Unified Agent Conversation
++ precise Selection / ContextReference
++ Agent | Viewer | Context | Timeline workspace
++ shared Tool Registry
++ authenticated loopback Local MCP
++ reviewable Proposal / explicit approval / revision-safe Apply
++ durable History / Job / reconnect truth
++ Mission / QA / Campaign production surfaces
+```
+
+External MCP clients do not receive generic shell, filesystem, Git, process, or computer authority. Project Schema remains `2.0.0`.
 ## What V2.4 adds
 
 V2.4 moves Video OS Studio from an AI Editing Agent toward a bounded autonomous video-production operating system:
@@ -87,6 +103,10 @@ Engineering Hardening / Durability + Security Patch
 
 V2.4.2
 Correctness / Liveness / HyperFrames Patch
+        ✅ RELEASED
+
+V2.5.0
+Agent-Native Workspace + Local MCP
         ✅ RELEASED
 ```
 
@@ -179,6 +199,24 @@ V2.4.2 Correctness / Liveness Patch             ✅ VERIFIED
 - **FFmpeg / ffprobe** behind adapters/services;
 - **Playwright 1.62.1** for browser acceptance.
 
+## V2.5.0 release verification
+
+Accepted C7 source SHA `58d303db9f39b24b5883a4d408d523d5f3617279` passed Dedicated source acceptance, Standard 7/7 CI, and Mandatory Local Windows S01–S16. PR #113 merged the exact accepted source with expected-head protection as engineering main `79867fa26d837fb4f36dc2c60dd07c15ee88c4fd`; exact-main Dedicated run `33670276121` and Standard run `33670276165` passed.
+
+Release PR #114 froze exact head `3d23c55de780b8b028b0665c14d99b0cc148f4fe`. Dedicated run `33671444645` and Standard run `33671444664` passed, and expected-head merge produced release commit `df54e10e38ee2793e8fdf285ea2c216fe8c65478`. Release exact-main Dedicated run `33672088362` and Standard run `33672088402` passed; Standard was 7/7 green.
+
+Isolated immutable-tag run `33673004195` created `v2.5.0`. Independent GitHub Git Data verification confirmed:
+
+```text
+tag ref:             refs/tags/v2.5.0
+tag object type:     tag
+tag object SHA:      bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
+tag target type:     commit
+dereferenced commit: df54e10e38ee2793e8fdf285ea2c216fe8c65478
+tag message:         Video OS Studio v2.5.0
+```
+
+`v2.4.0`, `v2.4.1`, and `v2.4.2` were independently reverified and remain unchanged.
 ## V2.4.2 release verification
 
 The accepted engineering exact SHA was `c3825fe42e77c4369ec6e03d89204161764667e9`. Mandatory Local Windows acceptance passed on that exact SHA, including targeted HyperFrames real-render recertification. Cloud CI #1089 / run `33329513152` and replacement merge CI #1090 / run `33332846468` both passed all seven gates.

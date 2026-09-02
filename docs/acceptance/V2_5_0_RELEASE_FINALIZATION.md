@@ -2,9 +2,9 @@
 
 ## Status
 
-`V2_5_0_RELEASE = FINALIZATION IN PROGRESS`
+`V2_5_0_RELEASE = COMPLETE`
 
-V2.5 product engineering, C7 cloud acceptance, mandatory Local Windows S01–S16 acceptance, engineering merge, and exact-main engineering acceptance are complete. Package release metadata is synchronized to `2.5.0` on the isolated release-finalization branch. The immutable annotated `v2.5.0` tag MUST NOT be created until this release-finalization PR and the resulting exact-main release CI both pass all seven Standard CI gates.
+V2.5 product engineering, C7 cloud acceptance, mandatory Local Windows S01–S16 acceptance, release-finalization CI, immutable annotated tag creation, and independent Git Data verification are complete. The released package version is `2.5.0`; Project Schema remains `2.0.0`.
 
 Project Schema remains `2.0.0`.
 
@@ -259,32 +259,62 @@ No dependency, devDependency, engine, package tree, lock integrity, Project Sche
 
 ---
 
-## Release-finalization gates still required
+## Release completion evidence
 
-Before creating `v2.5.0`, all of the following are mandatory:
+Release-finalization PR #114 froze exact head:
 
-1. This release-finalization PR exact-head Standard CI — all seven gates PASS.
-2. This release-finalization PR exact-head V2.5 Cloud Acceptance — PASS.
-3. Release-finalization PR merge using expected-head protection.
-4. Exact-main Standard CI on the resulting release commit — all seven gates PASS.
-5. Exact-main V2.5 Cloud Acceptance on the resulting release commit — PASS.
-6. Independent check that `v2.5.0` still does not exist and `main` still equals the exact release commit.
-7. Create an immutable **annotated** tag `v2.5.0` with exact message `Video OS Studio v2.5.0`, targeting the exact release commit.
-8. Independently verify through Git Data that `refs/tags/v2.5.0` points to object type `tag`, and that the tag object targets the exact release commit.
-9. Re-verify previous immutable V2.4 tags remain unchanged.
-10. Perform a docs-only post-release truth sync updating this document, `PROJECT_STATUS.md`, and `README.md` without moving the immutable release tag.
+`3d23c55de780b8b028b0665c14d99b0cc148f4fe`
 
----
+Dedicated V2.5 Cloud Acceptance #54 / run `33671444645` passed both jobs on that exact head. Standard CI #1384 / run `33671444664` passed all seven gates. PR #114 then merged with expected-head protection as release commit:
 
-## Release contract while finalization is in progress
+`df54e10e38ee2793e8fdf285ea2c216fe8c65478`
+
+Release exact-main Dedicated V2.5 Cloud Acceptance #55 / run `33672088362` passed both jobs. Release exact-main Standard run `33672088402` completed with all seven gates passing:
 
 ```text
-v2.5.0 tag:        MUST NOT EXIST
-release status:    FINALIZATION IN PROGRESS
-product work:      FROZEN
-package version:   2.5.0 on release-finalization branch only
-Project Schema:    2.0.0
+ubuntu-verify                    PASS
+windows-verify                   PASS
+browser-smoke                    PASS
+windows-media-smoke              PASS
+windows-b6-core-acceptance       PASS
+windows-b7-campaign-acceptance   PASS
+windows-hyperframes-smoke        PASS
+```
+
+Isolated tag creation run `33673004195` created `v2.5.0` only after proving `origin/main` still exactly equaled the release commit, package metadata was exactly `2.5.0`, the tag did not already exist locally or remotely, and immutable `v2.4.2` remained unchanged. The one-shot workflow then removed itself from the isolated tagging branch.
+
+Independent GitHub Git Data verification confirmed:
+
+```text
+ref:                 refs/tags/v2.5.0
+ref object type:     tag
+tag object SHA:      bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
+tag target type:     commit
+tag target commit:   df54e10e38ee2793e8fdf285ea2c216fe8c65478
+tag message:         Video OS Studio v2.5.0
+```
+
+Independent re-verification also confirmed:
+
+```text
+v2.4.2 tag object:   2c9b0ca2401f547066c6a51ff0ec60a641cfce35
+v2.4.2 target:       79e48b068f701bba3f1c826710337a82f0a64760
+v2.4.1 tag object:   9f3d06d8eabb114d6f1bcd907e98b4de3756a4a7
+v2.4.1 target:       4c105bad936479690711c03f3e349db36fbadaf5
+v2.4.0 tag object:   96ebdd67e2412ed4d25be36cc6120f1bba8a8734
+v2.4.0 target:       da22a5415cbf8ad2a9ce93b912b41b787b29a9b1
+```
+
+## Release contract
+
+```text
+v2.5.0 tag:        v2.5.0 / annotated / verified
+release commit:    df54e10e38ee2793e8fdf285ea2c216fe8c65478
+tag object:        bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
+release status:    COMPLETE
+product work:      UNFROZEN FOR A SEPARATELY APPROVED NEXT WORKSTREAM
+schema changes:    NONE
 local action:      NONE
 ```
 
-No additional Local Windows acceptance is required for this metadata/docs-only finalization unless product/runtime source is modified.
+This docs-only release-truth sync does not create, move, or recreate the release tag. The immutable `v2.5.0` tag remains on `df54e10e38ee2793e8fdf285ea2c216fe8c65478` even after `main` advances through documentation-only merge commits.
