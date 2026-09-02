@@ -40,6 +40,7 @@ Unified Agent Conversation
 ```
 
 External MCP clients do not receive generic shell, filesystem, Git, process, or computer authority. Project Schema remains `2.0.0`.
+
 ## What V2.4 adds
 
 V2.4 moves Video OS Studio from an AI Editing Agent toward a bounded autonomous video-production operating system:

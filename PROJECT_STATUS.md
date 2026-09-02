@@ -96,6 +96,7 @@ Authoritative release evidence:
 ## V2.5.0 accepted product truth
 
 V2.5.0 is the Agent-native Workspace + Local MCP release. It preserves `project.json` as editing truth and Project Schema `2.0.0`, while adding the unified Agent workspace, ContextReference/Selection semantics, shared Tool Registry, authenticated loopback MCP reads/proposals/approval path, durable external-agent audit/history/job truth, production-surface integration, and C7 workflow/lock/runtime hardening.
+
 ## Immutable V2.4.2 release truth
 
 Video OS Studio V2.4.2 is released at the independently verified annotated tag `v2.4.2`.
