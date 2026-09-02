@@ -177,8 +177,13 @@ export class ProjectMutationCoordinator{
   }
 
   private async reconciledRecords(projectId:string):Promise<ProjectOperationRecord[]>{
-    const current=await this.repository.load(projectId);
     let records=await this.readRecords(projectId);
+    const hasPending=[...this.latestRecords(records).values()].some(record=>record.status==="pending");
+    if(!hasPending)return records;
+    // Operation lookups are on the hot workflow path. A completed/applied log needs
+    // no Project read at all; only a genuinely pending record requires comparing
+    // durable Project revision to decide whether the interrupted mutation applied.
+    const current=await this.repository.load(projectId);
     await this.reconcilePending(projectId,current,records);
     records=await this.readRecords(projectId);
     return records;

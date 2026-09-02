@@ -23,7 +23,7 @@ export const InspectorRegistryShell=({project,children}:{project:Project;childre
   const{locale}=useStudioPreferences();const rootRef=useRef<HTMLDivElement>(null);const[chosen,setChosen]=useState<ActiveState>({context:"project",index:0});
   const ids=useSelectionStore(state=>state.selectedClipIds);const sceneId=useSelectionStore(state=>state.selectedSceneId);
   const clip=ids.length===1?project.tracks.flatMap(track=>track.clips).find(item=>item.id===ids[0]):undefined;
-  const context=ids.length>1?"multi":sceneId?"scene":clip?.type??"project";
+  const context=ids.length>1?"multi":clip?.type??(sceneId?"scene":"project");
   const tabs=registry[context]??registry.project;const zh=locale==="zh-CN";const active=chosen.context===context&&chosen.index<tabs.length?chosen.index:0;
   const go=(tab:Tab,index:number)=>{setChosen({context,index});const root=rootRef.current;if(!root)return;const target=tab.selector?root.querySelector<HTMLElement>(tab.selector):root.querySelectorAll<HTMLElement>(".inspector-section")[tab.sectionIndex??0];target?.scrollIntoView({block:"start",behavior:"smooth"});};
   return <div className="v21-inspector-shell"><nav className="v21-inspector-nav" aria-label={zh?"参数分类":"Inspector categories"}>{tabs.map((tab,index)=><button key={tab.id} className={active===index?"active":""} title={zh?tab.zh:tab.en} onClick={()=>go(tab,index)}><span>{tab.id.slice(0,2).toUpperCase()}</span><small>{zh?tab.zh:tab.en}</small></button>)}</nav><div className="v21-inspector-content" ref={rootRef}>{children}</div></div>;

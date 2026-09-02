@@ -1,4 +1,5 @@
 import {randomUUID} from "node:crypto";
+import {readFileSync,rmSync} from "node:fs";
 import {mkdir,open,readFile,rm,stat} from "node:fs/promises";
 import {dirname} from "node:path";
 import {withWindowsTransientRetry} from "@/lib/fs/atomic-replace";
@@ -38,6 +39,35 @@ export type ExclusiveFileLockOptions={
 };
 
 const sameObservedOwner=(expected:LockRecord,current:LockRecord|null)=>current!==null&&current.token===expected.token&&current.pid===expected.pid&&current.processStartedAt===expected.processStartedAt;
+const processOwnedLocks=new Map<string,LockRecord>();
+let processExitCleanupInstalled=false;
+
+export const cleanupExclusiveLocksForProcessExit=()=>{
+  for(const[lockPath,expected]of processOwnedLocks){
+    try{
+      const current=parseLockRecord(readFileSync(lockPath,"utf8"));
+      if(sameObservedOwner(expected,current))rmSync(lockPath,{force:true});
+    }catch(error){
+      if((error as NodeJS.ErrnoException).code!=="ENOENT"){
+        // Process exit cleanup is best-effort. Normal lock cleanup preserves and
+        // reports errors while the process is still able to handle them.
+      }
+    }
+  }
+  processOwnedLocks.clear();
+};
+
+const trackProcessOwnedLock=(lockPath:string,record:LockRecord)=>{
+  processOwnedLocks.set(lockPath,record);
+  if(processExitCleanupInstalled)return;
+  processExitCleanupInstalled=true;
+  process.once("exit",cleanupExclusiveLocksForProcessExit);
+};
+
+const untrackProcessOwnedLock=(lockPath:string,record:LockRecord)=>{
+  const tracked=processOwnedLocks.get(lockPath);
+  if(tracked&&sameObservedOwner(record,tracked))processOwnedLocks.delete(lockPath);
+};
 
 export const withExclusiveFileLock=async<T>(
   lockPath:string,
@@ -84,6 +114,12 @@ export const withExclusiveFileLock=async<T>(
       handle=await open(lockPath,"wx");
       await handle.writeFile(JSON.stringify(record)+"\n","utf8");
       await handle.sync();
+      // The lock is represented by the durable token file, not by an open OS file
+      // handle. Close the handle before running user work so synchronous process
+      // exit cleanup can remove an owned lock on Windows as well as POSIX.
+      await handle.close();
+      handle=undefined;
+      trackProcessOwnedLock(lockPath,record);
       break;
     }catch(error){
       await handle?.close().catch(()=>undefined);handle=undefined;
@@ -116,20 +152,14 @@ export const withExclusiveFileLock=async<T>(
   let workFailed=false;
   try{result=await work();}
   catch(error){workFailed=true;workError=error;}
-  let closeError:unknown;
-  try{await handle.close();}
-  catch(error){closeError=error;}
   let cleanupError:unknown;
   try{await removeOwnedLock(record);}
   catch(error){cleanupError=error;}
+  finally{untrackProcessOwnedLock(lockPath,record);}
   if(workFailed){
-    const cleanupErrors:unknown[]=[];
-    if(closeError!==undefined)cleanupErrors.push(closeError);
-    if(cleanupError!==undefined)cleanupErrors.push(cleanupError);
-    if(cleanupErrors.length)throw new AggregateError([workError,...cleanupErrors],"Exclusive file lock work failed and cleanup did not complete.");
+    if(cleanupError!==undefined)throw new AggregateError([workError,cleanupError],"Exclusive file lock work failed and cleanup did not complete.");
     throw workError;
   }
   if(cleanupError!==undefined)throw cleanupError;
-  if(closeError!==undefined)throw closeError;
   return result as T;
 };

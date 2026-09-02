@@ -159,6 +159,9 @@ test("A4 Agent selection → proposal → Review/Apply → reopen → stale guar
     .toBe(beforeProposal.project.revision + 1);
   expect(appliedMotionId).not.toBe("");
 
+  // The server revision can become visible before the browser finishes the apply response and
+  // pushes its local Undo entry. The apply control disappears only after that client-side path.
+  await expect(applySelected).toHaveCount(0);
   await page.locator(".timeline-actions button").filter({ hasText: "↶" }).click();
   await expect
     .poll(async () => motionClipIds(await readProject(page, projectId)).includes(appliedMotionId))

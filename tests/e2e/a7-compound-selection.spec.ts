@@ -48,6 +48,7 @@ test("A7 normal Studio path retains Scene + Caption compound Agent context", asy
   await page.addInitScript(() => {
     localStorage.setItem("video-os-studio-locale", "en-US");
     localStorage.setItem("video-os-studio-theme", "dark");
+    localStorage.removeItem("video-os-v2.1-workspace-layout");
   });
 
   const projectName = `A7 Compound Selection ${Date.now()}`;
@@ -124,8 +125,11 @@ test("A7 normal Studio path retains Scene + Caption compound Agent context", asy
   await expect(caption).toBeVisible();
 
   await hookScene.click();
-  await caption.click();
   await openAgent(page);
+  await expect(page.locator('[data-workspace-region="context"]')).toHaveCount(0);
+  await caption.click();
+  await expect(page.locator('[data-workspace-region="context"]')).toBeVisible();
+  await expect(page.locator('[data-inspector-section="typography"]')).toBeVisible();
   const currentSelection = page.getByTestId("current-context-selection");
   await expect(currentSelection).toContainText(`Selection · Clip ${captionId}`);
 

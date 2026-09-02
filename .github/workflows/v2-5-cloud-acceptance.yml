@@ -1,0 +1,152 @@
+name: V2.5 Cloud Acceptance
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: v2-5-cloud-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  v2-5-cloud-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact tested SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact source SHA
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_SHA" ]; then
+            echo "Exact-SHA checkout mismatch: expected $EXPECTED_SHA, got $actual" >&2
+            exit 1
+          fi
+          echo "V2_5_CLOUD_ACCEPTANCE_SHA=$actual" >> "$GITHUB_ENV"
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Configure isolated V2.5 cloud data root
+        shell: bash
+        run: |
+          echo "CI=true" >> "$GITHUB_ENV"
+          echo "VIDEO_OS_DATA_ROOT=$RUNNER_TEMP/video-os-v2-5-cloud" >> "$GITHUB_ENV"
+      - name: V2.5 protocol, authority, stale, history and lifecycle acceptance
+        run: >-
+          npm run test --
+          tests/v2-5-c7-shared-proposal-equivalence.test.ts
+          tests/v2-5-c7-playwright-runtime-owner-cleanup.test.ts
+          tests/v2-5-c7-durable-job-apply-idempotency.test.ts
+          tests/v2-5-c7-workflow-runner-startup-failure.test.ts
+          tests/v2-5-c7-project-read-lock-contention.test.ts
+          tests/v2-5-c7-exclusive-lock-exit-cleanup.test.ts
+          tests/project-repository-w5-concurrency.test.ts
+          tests/v2-5-c4-local-mcp-http.test.ts
+          tests/v2-5-c5-local-mcp-proposal.test.ts
+          tests/v2-5-c5-proposal-transaction-apply.test.ts
+          tests/v2-5-c6-history-attribution.test.ts
+      - name: Install pinned Chromium
+        run: npx --no-install playwright install --with-deps chromium
+      - name: V2.5 Agent workspace and MCP browser acceptance
+        run: >-
+          npm run test:e2e --
+          tests/e2e/a4-agent-workspace.spec.ts
+          tests/e2e/a7-compound-selection.spec.ts
+          tests/e2e/v2-5-c2-unified-conversation.spec.ts
+          tests/e2e/v2-5-c3-selection-context.spec.ts
+          tests/e2e/v2-5-c4-connection-center.spec.ts
+          tests/e2e/v2-5-c7-agent-mcp-acceptance.spec.ts
+      - name: C7 runtime residue audit
+        shell: bash
+        run: |
+          residue="$({
+            find "$VIDEO_OS_DATA_ROOT" -type f \( -name '*.props.json' -o -name '.runtime-owner.lock' -o -name '.workflow-run.lock' -o -name 'project.json.lock' -o -name 'operations.jsonl.lock' \) -print
+            find "$VIDEO_OS_DATA_ROOT" -type d -name '.hf-work' -print
+          } | sort -u)"
+          if [ -n "$residue" ]; then
+            echo "C7 runtime residue detected:" >&2
+            echo "$residue" >&2
+            exit 1
+          fi
+          echo "C7 runtime residue audit passed."
+
+  v2-5-windows-full-baseline:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact tested SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact source SHA
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_SHA) {
+            throw "Exact-SHA checkout mismatch: expected $env:EXPECTED_SHA, got $actual"
+          }
+          "V2_5_WINDOWS_BASELINE_SHA=$actual" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Configure isolated Windows roots
+        shell: pwsh
+        run: |
+          $dataRoot = Join-Path $env:RUNNER_TEMP "video-os-v2-5-windows-data"
+          $tempRoot = Join-Path $env:RUNNER_TEMP "video-os-v2-5-windows-temp"
+          New-Item -ItemType Directory -Force -Path $dataRoot, $tempRoot | Out-Null
+          "CI=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VIDEO_OS_DATA_ROOT=$dataRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TEMP=$tempRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TMP=$tempRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Format check
+        run: npm run format:check
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Full unit suite
+        run: npm run test
+      - name: Build
+        run: npm run build
+      - name: Windows C7 residue audit
+        if: always()
+        shell: pwsh
+        run: |
+          $roots = @($env:VIDEO_OS_DATA_ROOT, $env:TEMP) | Where-Object { $_ -and (Test-Path $_) }
+          $residue = @()
+          foreach ($root in $roots) {
+            $residue += Get-ChildItem -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue | Where-Object {
+              ($_.PSIsContainer -and $_.Name -eq ".hf-work") -or
+              (-not $_.PSIsContainer -and (
+                $_.Name -eq ".runtime-owner.lock" -or
+                $_.Name -eq ".workflow-run.lock" -or
+                $_.Name -eq "project.json.lock" -or
+                $_.Name -eq "operations.jsonl.lock" -or
+                $_.Name -like "*.props.json"
+              ))
+            } | Select-Object -ExpandProperty FullName
+          }
+          $residue = $residue | Sort-Object -Unique
+          if ($residue.Count -gt 0) {
+            Write-Error ("Windows C7 residue detected:`n" + ($residue -join "`n"))
+            exit 1
+          }
+          Write-Host "Windows C7 residue audit passed."

@@ -296,9 +296,10 @@ export class WorkflowRunner{
       const updated=await this.store.save(WorkflowRunSchema.parse({...current,stageExecutions:replaceExecution(current,running),currentStageId:stage.id,updatedAt:nowIso()}));
       return{run:updated,execution:running,previousJobIds};
     });
-    if(!started)return;await this.activity(run.id,"stage-started",{stageId:stage.id,data:{attempt:started.execution.attempt,attemptId,operationId,inputDigest:started.execution.inputDigest}});
-    const executor=this.stages.get(stage.executorKey);const context:WorkflowStageExecutionContext={run:started.run,definition,stage,execution:started.execution,attemptId,operationId,previousJobIds:started.previousJobIds};
+    if(!started)return;
     try{
+      await this.activity(run.id,"stage-started",{stageId:stage.id,data:{attempt:started.execution.attempt,attemptId,operationId,inputDigest:started.execution.inputDigest}});
+      const executor=this.stages.get(stage.executorKey);const context:WorkflowStageExecutionContext={run:started.run,definition,stage,execution:started.execution,attemptId,operationId,previousJobIds:started.previousJobIds};
       const result=await executor.start(context);
       if(result.kind==="completed"){await this.completeStage(run.id,stage.id,result);return;}
       const jobId=JobIdSchema.parse(result.jobId);const attached=await this.attachJob(run.id,stage.id,jobId);

@@ -388,10 +388,9 @@ export class AgentProposalApplicationService{
     if(durableJob){
       const existingJob=await this.dependencies.jobs!.get(durableJob.jobId);
       if(existingJob){
-        const recovered=await this.dependencies.jobs!.create(durableJob.createInput);
         const project=await this.dependencies.projects.load(input.projectId);
         session=await this.markApplied(input.projectId,sessionId,proposal.id,applyOperationId);
-        return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:true,jobId:recovered.id,jobType:recovered.type};
+        return{project,session,proposalId:proposal.id,applyOperationId,appliedOperationIds:[operation.id],appliedChangeIds:[],transactionId:null,alreadyApplied:true,jobId:existingJob.id,jobType:existingJob.type};
       }
       if(priorApproved)throw new AgentProposalApplicationError("Proposal Apply was recorded but its durable Job could not be recovered.");
     }
