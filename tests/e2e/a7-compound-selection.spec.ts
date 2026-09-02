@@ -48,6 +48,7 @@ test("A7 normal Studio path retains Scene + Caption compound Agent context", asy
   await page.addInitScript(() => {
     localStorage.setItem("video-os-studio-locale", "en-US");
     localStorage.setItem("video-os-studio-theme", "dark");
+    localStorage.removeItem("video-os-v2.1-workspace-layout");
   });
 
   const projectName = `A7 Compound Selection ${Date.now()}`;
