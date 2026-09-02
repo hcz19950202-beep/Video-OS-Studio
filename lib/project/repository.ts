@@ -57,10 +57,13 @@ export class ProjectRepository {
 
   async load(projectId: string): Promise<Project> {
     const id=ProjectIdSchema.parse(projectId);
-    return this.withProjectFileLock(id,async()=>{
-      const text = await this.fs.readText(this.projectPath(id));
-      return deserializeProject(text);
-    });
+    // Project writes are serialized and replace project.json atomically. Readers do
+    // not need to participate in the writer lock: they observe either the previous
+    // complete snapshot or the next complete snapshot. Keeping GET/read traffic out
+    // of the exclusive lock also prevents UI polling from blocking workflow
+    // mutations on Windows.
+    const text=await this.fs.readText(this.projectPath(id));
+    return deserializeProject(text);
   }
 
   async save(project: Project): Promise<void> {
