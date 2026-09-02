@@ -7,6 +7,7 @@ import {
   type LocalMcpCredentialPrincipal,
   LocalMcpBridgeController,
 } from "@/lib/mcp/bridge-controller";
+import {LOCAL_MCP_SERVER_INFO} from "@/lib/mcp/server-info";
 
 export const LOCAL_MCP_HOST="127.0.0.1" as const;
 export const LOCAL_MCP_PATH="/api/mcp" as const;
@@ -27,7 +28,7 @@ type JsonRpcRequest=z.infer<typeof JsonRpcRequestSchema>;
 
 type ClientInfo={name?:string;version?:string};
 
-const SERVER_INFO={name:"video-os-studio",version:"2.4.2"} as const;
+const SERVER_INFO=LOCAL_MCP_SERVER_INFO;
 const SERVER_META={"io.modelcontextprotocol/serverInfo":SERVER_INFO} as const;
 const FORBIDDEN_AUTHORITY_ARGUMENT_KEYS=new Set([
   "projectId",
