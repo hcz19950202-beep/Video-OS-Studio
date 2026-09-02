@@ -22,9 +22,9 @@ export const ResizableWorkspaceShell=({topbar,rail,content,viewer,inspector,time
   const clearHandoff=()=>useWorkspaceHandoffStore.getState().setPreferredMissionId(null);
   const[drag,setDrag]=useState<ResizeState>(null);const[draft,setDraft]=useState<WorkspaceLayout|null>(null);const[leftSurface,setLeftSurface]=useState<AgentNativeSurface>("agent");const[contextTab,setContextTab]=useState<AgentNativeContextTab>("inspector");const effectiveContextTab=preferredMissionId?"mission":contextTab;const display=draft??layout;
   useEffect(()=>{
-    const changed=selectionVersion!==observedSelectionVersion.current;
+    const previousVersion=observedSelectionVersion.current;
     observedSelectionVersion.current=selectionVersion;
-    if(changed&&selectionTargetKind==="clip"&&layout.inspectorCollapsed)setLayout({inspectorCollapsed:false});
+    if(selectionVersion!==previousVersion&&selectionTargetKind==="clip"&&layout.inspectorCollapsed)setLayout({inspectorCollapsed:false});
   },[layout.inspectorCollapsed,selectionTargetKind,selectionVersion,setLayout]);
   const beginResize=(event:ReactPointerEvent<HTMLDivElement>,kind:ResizeKind,startValue:number)=>{setDrag({kind,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,startValue});setDraft(layout);event.currentTarget.setPointerCapture(event.pointerId);};
   const moveResize=(event:ReactPointerEvent<HTMLDivElement>)=>{if(!drag||drag.pointerId!==event.pointerId)return;let patch:Partial<WorkspaceLayout>={};if(drag.kind==="left")patch={leftWidth:drag.startValue+(event.clientX-drag.startX)};if(drag.kind==="inspector")patch={inspectorWidth:drag.startValue-(event.clientX-drag.startX)};if(drag.kind==="timeline")patch={timelineHeight:drag.startValue-(event.clientY-drag.startY)};setDraft(updateWorkspaceLayout(layout,patch));};
