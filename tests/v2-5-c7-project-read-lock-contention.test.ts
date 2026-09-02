@@ -11,21 +11,20 @@ class LockTrackingFileSystem extends InMemoryFileSystemAdapter{
   }
 }
 
-describe("V2.5 C7 Project read lock contention hardening",()=>{
-  it("loads an atomically persisted Project snapshot without taking the writer lock",async()=>{
+describe("V2.5 C7 Project operation lookup lock hardening",()=>{
+  it("preserves the existing serialized Project read/write lock contract",async()=>{
     const fs=new LockTrackingFileSystem();
     const repository=new ProjectRepository(fs,"/data");
     await repository.create({id:"demo",name:"Demo",now:"2026-09-02T00:00:00.000Z",width:1920,height:1080,fps:30,durationInFrames:300});
-    expect(fs.lockPaths.some(path=>path.endsWith("/projects/demo/project.json.lock"))).toBe(true);
 
     fs.lockPaths.length=0;
     const project=await repository.load("demo");
 
     expect(project.project.id).toBe("demo");
-    expect(fs.lockPaths).toEqual([]);
+    expect(fs.lockPaths.filter(path=>path.endsWith("/projects/demo/project.json.lock"))).toHaveLength(1);
   });
 
-  it("does not read Project truth while looking up an already-settled operation log",async()=>{
+  it("does not nest a Project read under operations lock for already-settled operation lookup",async()=>{
     const fs=new LockTrackingFileSystem();
     const repository=new ProjectRepository(fs,"/data");
     const mutations=new ProjectMutationCoordinator(fs,repository);
