@@ -5,17 +5,17 @@
 ## Current checkpoint
 
 ```yaml
-released_product_version: 2.4.2
-released_tag: v2.4.2
-released_commit: 79e48b068f701bba3f1c826710337a82f0a64760
-released_tag_object_sha: 2c9b0ca2401f547066c6a51ff0ec60a641cfce35
+released_product_version: 2.5.0
+released_tag: v2.5.0
+released_commit: df54e10e38ee2793e8fdf285ea2c216fe8c65478
+released_tag_object_sha: bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
 project_schema: 2.0.0
 
-package_json_version: 2.4.2
-package_lock_version: 2.4.2
+package_json_version: 2.5.0
+package_lock_version: 2.5.0
 
 active_development_workstream: NONE
-active_stage: FINAL V2.4.x INDEPENDENT AUDIT COMPLETE
+active_stage: V2.5.0 RELEASE COMPLETE
 active_branch: NONE
 final_v2_4_audit_issue: Issue #94 / CLOSED
 final_v2_4_audit_pr: PR #96
@@ -42,14 +42,60 @@ release_pr_frozen_head: 6d72d70930f3571c84b9d3f250c140515dbbded3
 release_pr_ci: CI #1092 / run 33333581692 / PASS
 release_main_ci: CI #1093 / run 33333816771 / PASS
 release_tag_creation: run 33334882825 / PASS
+v2_5_engineering_audit_pr: PR #112 / CLOSED UNMERGED
+v2_5_engineering_merge_pr: PR #113
+v2_5_accepted_source_head: 58d303db9f39b24b5883a4d408d523d5f3617279
+v2_5_engineering_main: 79867fa26d837fb4f36dc2c60dd07c15ee88c4fd
+v2_5_engineering_main_dedicated_ci: run 33670276121 / PASS
+v2_5_engineering_main_standard_ci: run 33670276165 / PASS / 7 of 7
+v2_5_local_windows_gate: 58d303db9f39b24b5883a4d408d523d5f3617279 / S01-S16 PASS
+v2_5_release_metadata_sync: run 33671108580 / PASS
+v2_5_release_finalization_pr: PR #114
+v2_5_release_pr_frozen_head: 3d23c55de780b8b028b0665c14d99b0cc148f4fe
+v2_5_release_pr_dedicated_ci: run 33671444645 / PASS
+v2_5_release_pr_standard_ci: run 33671444664 / PASS / 7 of 7
+v2_5_release_commit: df54e10e38ee2793e8fdf285ea2c216fe8c65478
+v2_5_release_main_dedicated_ci: run 33672088362 / PASS
+v2_5_release_main_standard_ci: run 33672088402 / PASS / 7 of 7
+v2_5_release_tag_creation: run 33673004195 / PASS
 local_action_required: NO
-next_action: NONE — V2.4.x hardening is complete; future product work requires separate approval; V2.5 remains paused and unapproved
+next_action: NONE — V2.5.0 is released; future product work requires a separately approved next workstream
 v2_4_status: RELEASED
 v2_4_1_status: RELEASED
 v2_4_2_status: RELEASED
 post_v2_4_2_p3_hardening_status: COMPLETE
 final_v2_4_audit_status: COMPLETE
+v2_5_status: RELEASED
 ```
+
+## Immutable V2.5.0 release truth
+
+Video OS Studio V2.5.0 is released at the independently verified annotated tag `v2.5.0`.
+
+```text
+release commit:      df54e10e38ee2793e8fdf285ea2c216fe8c65478
+annotated tag:       v2.5.0
+tag object SHA:      bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
+tag target type:     commit
+dereferenced target: df54e10e38ee2793e8fdf285ea2c216fe8c65478
+tag message:         Video OS Studio v2.5.0
+```
+
+Accepted C7 source SHA `58d303db9f39b24b5883a4d408d523d5f3617279` passed source cloud acceptance and Mandatory Local Windows S01–S16. PR #113 merged that exact source to engineering main `79867fa26d837fb4f36dc2c60dd07c15ee88c4fd`; engineering exact-main Dedicated run `33670276121` and Standard run `33670276165` passed.
+
+Release-finalization PR #114 froze exact head `3d23c55de780b8b028b0665c14d99b0cc148f4fe`. Its Dedicated run `33671444645` and Standard run `33671444664` passed, then expected-head merge produced release commit `df54e10e38ee2793e8fdf285ea2c216fe8c65478`. Release exact-main Dedicated run `33672088362` and Standard run `33672088402` passed, with Standard 7/7 green.
+
+Isolated immutable-tag run `33673004195` created `v2.5.0` only after proving `origin/main` still exactly equaled the release commit, package metadata was exactly `2.5.0`, the new tag did not already exist, and immutable `v2.4.2` remained unchanged. Independent GitHub Git Data verification proved `refs/tags/v2.5.0` points to object type `tag`, tag object `bff4bf67edc95dbf4cc78019f6795c94a4e59ea5`, which targets `df54e10e38ee2793e8fdf285ea2c216fe8c65478` with message `Video OS Studio v2.5.0`.
+
+Immutable `v2.4.0`, `v2.4.1`, and `v2.4.2` were independently reverified and remain unchanged.
+
+Authoritative release evidence:
+
+`docs/acceptance/V2_5_0_RELEASE_FINALIZATION.md`
+
+## V2.5.0 accepted product truth
+
+V2.5.0 is the Agent-native Workspace + Local MCP release. It preserves `project.json` as editing truth and Project Schema `2.0.0`, while adding the unified Agent workspace, ContextReference/Selection semantics, shared Tool Registry, authenticated loopback MCP reads/proposals/approval path, durable external-agent audit/history/job truth, production-surface integration, and C7 workflow/lock/runtime hardening.
 
 ## Immutable V2.4.2 release truth
 
@@ -266,6 +312,8 @@ V2.4.2 PATCH / PR #87 audit + PR #88 accepted merge / Local Windows PASS
 V2.4.2 RELEASE / PR #89 / release commit 79e48b068f701bba3f1c826710337a82f0a64760 / CI #1093 PASS / annotated tag verified
 POST-V2.4.2 P3 HARDENING / Issue #83 CLOSED / PR #91 / main c528e2ce0fc1a64006f2fc76c5708cb808b37575 / CI #1097 PASS
 FINAL V2.4.x INDEPENDENT AUDIT / Issue #94 CLOSED / PR #96 / exact head 09f06c63968e888411bd0b94d495374f396ad95d / main 3b8c6c61894d4b8437aafa1d48fd32f8b858c808 / CI #1117 PASS attempt 3
+V2.5 C7 FINAL ACCEPTANCE / PR #112 audit + PR #113 accepted merge / source 58d303db9f39b24b5883a4d408d523d5f3617279 / Local Windows S01-S16 PASS
+V2.5.0 RELEASE / PR #114 / release commit df54e10e38ee2793e8fdf285ea2c216fe8c65478 / Standard exact-main 7 of 7 PASS / annotated tag verified
 ```
 
 ## Frozen technical invariants
