@@ -49,6 +49,7 @@ jobs:
           tests/v2-5-c7-playwright-runtime-owner-cleanup.test.ts
           tests/v2-5-c7-durable-job-apply-idempotency.test.ts
           tests/v2-5-c7-workflow-runner-startup-failure.test.ts
+          tests/v2-5-c7-project-read-lock-contention.test.ts
           tests/v2-5-c4-local-mcp-http.test.ts
           tests/v2-5-c5-local-mcp-proposal.test.ts
           tests/v2-5-c5-proposal-transaction-apply.test.ts
