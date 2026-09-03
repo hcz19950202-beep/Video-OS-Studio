@@ -4,13 +4,23 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
 import {attachContextSelection,contextReferenceKey,contextSelectionKey,type ContextSelectionTarget} from "@/lib/ai/context-selection";
 import type {AgentProposalPreview,AgentSelectionSnapshot,AgentSession,ContextReference} from "@/lib/ai";
-import {applyAgentProposal,createAgentSession,listAgentSessions,openAgentSession,rejectAgentProposal,reviewAgentProposal,runAgentTurn,type AgentProviderRuntimeStatus,type AgentTurnStreamEvent} from "@/lib/client/agent";
+import {applyAgentProposal,createAgentSession,listAgentSessions,openAgentSession,rejectAgentProposal,reviewAgentProposal,runAgentTurn,type AgentProviderRuntimeStatus,type AgentSessionListResult,type AgentTurnStreamEvent} from "@/lib/client/agent";
 import {loadStudioProject} from "@/lib/client/projects";
 import type {Project} from "@/schemas/project";
 import {useHistoryStore} from "@/store/history-store";
 import {useSelectionStore} from "@/store/selection-store";
 import {useStudioPreferences} from "@/components/i18n/StudioPreferences";
 import {AgentConversationSurface,type AgentConversationActivity} from "@/components/studio/AgentConversationSurface";
+
+const unavailableSessionProvider=(session:AgentSession):AgentProviderRuntimeStatus=>({
+  providerId:session.providerId,
+  label:session.providerId,
+  model:session.model??"unknown-model",
+  models:session.model?[session.model]:[],
+  configured:false,
+  selectable:false,
+  isDefault:false,
+});
 
 export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{project:Project;onProjectChange:(project:Project)=>void;onOpenMission?:()=>void})=>{
   const{locale}=useStudioPreferences();
@@ -31,7 +41,10 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
 
   const[sessions,setSessions]=useState<AgentSession[]>([]);
   const[session,setSession]=useState<AgentSession|null>(null);
-  const[provider,setProvider]=useState<AgentProviderRuntimeStatus|null>(null);
+  const[defaultProvider,setDefaultProvider]=useState<AgentProviderRuntimeStatus|null>(null);
+  const[providers,setProviders]=useState<AgentProviderRuntimeStatus[]>([]);
+  const[newSessionProviderId,setNewSessionProviderId]=useState("");
+  const[newSessionModel,setNewSessionModel]=useState("");
   const[input,setInput]=useState("");
   const[executionMode,setExecutionMode]=useState<AgentExecutionMode>(DEFAULT_AGENT_EXECUTION_MODE);
   const[busy,setBusy]=useState(false);
@@ -47,6 +60,24 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const abortRef=useRef<AbortController|null>(null);
 
   const syncSession=(next:AgentSession)=>{setSession(next);setSessions(current=>[next,...current.filter(item=>item.id!==next.id)]);};
+
+  const applyProviderCatalog=(data:AgentSessionListResult)=>{
+    setDefaultProvider(data.provider);
+    setProviders(data.providers);
+    const preferred=data.providers.find(item=>item.providerId===data.provider.providerId&&item.configured&&item.selectable)
+      ??data.providers.find(item=>item.configured&&item.selectable)
+      ??data.provider;
+    setNewSessionProviderId(preferred.providerId);
+    setNewSessionModel(preferred.model);
+  };
+
+  const selectedNewSessionProvider=providers.find(item=>item.providerId===newSessionProviderId)??defaultProvider;
+  const sessionProvider=session
+    ?providers.find(item=>item.providerId===session.providerId)??unavailableSessionProvider(session)
+    :null;
+  const effectiveProvider=session
+    ?sessionProvider?{...sessionProvider,model:session.model??sessionProvider.model}:null
+    :selectedNewSessionProvider?{...selectedNewSessionProvider,model:newSessionModel||selectedNewSessionProvider.model}:null;
 
   const attachTarget=(target:ContextSelectionTarget)=>setDraftContextReferences(current=>{
     const scoped=current.filter(reference=>reference.projectId===project.project.id);
@@ -84,30 +115,43 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
 
   const refresh=async()=>{
     const data=await listAgentSessions(project.project.id);
-    setProvider(data.provider);
+    applyProviderCatalog(data);
     setSessions(data.sessions);
     if(data.sessions.length===0){setSession(null);return;}
     const current=session&&data.sessions.some(item=>item.id===session.id)?session.id:data.sessions[0].id;
-    if(data.provider.configured)setSession(await openAgentSession(project.project.id,current));
-    else setSession(data.sessions.find(item=>item.id===current)??data.sessions[0]);
+    try{setSession(await openAgentSession(project.project.id,current));}
+    catch{setSession(data.sessions.find(item=>item.id===current)??data.sessions[0]);}
   };
 
   useEffect(()=>{
     let active=true;
     void listAgentSessions(project.project.id).then(async data=>{
       if(!active)return;
-      setProvider(data.provider);setSessions(data.sessions);
+      applyProviderCatalog(data);
+      setSessions(data.sessions);
       if(data.sessions.length===0){setSession(null);return;}
-      if(data.provider.configured){
-        try{const opened=await openAgentSession(project.project.id,data.sessions[0].id);if(active)setSession(opened);}catch{if(active)setSession(data.sessions[0]);}
-      }else setSession(data.sessions[0]);
+      try{const opened=await openAgentSession(project.project.id,data.sessions[0].id);if(active)setSession(opened);}
+      catch{if(active)setSession(data.sessions[0]);}
     }).catch(caught=>{if(active)setError(caught instanceof Error?caught.message:String(caught));});
     return()=>{active=false;abortRef.current?.abort();};
   },[project.project.id]);
 
+  const changeNewSessionProvider=(providerId:string)=>{
+    const next=providers.find(item=>item.providerId===providerId);
+    if(!next)return;
+    setNewSessionProviderId(next.providerId);
+    setNewSessionModel(next.model);
+  };
+
   const createSession=async()=>{
+    const selected=providers.find(item=>item.providerId===newSessionProviderId)??defaultProvider;
+    if(!selected||!selected.configured||!selected.selectable){
+      setError(zh?"请选择一个已配置的内置 Agent Provider。":"Choose a configured built-in Agent provider.");
+      return;
+    }
+    const model=newSessionModel||selected.model;
     setBusy(true);setError(null);setActivity([]);setStreamText("");setPreviews({});setChangeSelections({});
-    try{syncSession(await createAgentSession(project.project.id,selection));}
+    try{syncSession(await createAgentSession(project.project.id,{selection,providerId:selected.providerId,model}));}
     catch(caught){setError(caught instanceof Error?caught.message:String(caught));}
     finally{setBusy(false);}
   };
@@ -116,7 +160,10 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
     if(id===session?.id)return;
     setBusy(true);setError(null);setActivity([]);setStreamText("");setPreviews({});setChangeSelections({});
     try{syncSession(await openAgentSession(project.project.id,id));}
-    catch(caught){setError(caught instanceof Error?caught.message:String(caught));}
+    catch(caught){
+      setSession(sessions.find(item=>item.id===id)??session);
+      setError(caught instanceof Error?caught.message:String(caught));
+    }
     finally{setBusy(false);}
   };
 
@@ -135,13 +182,18 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   };
 
   const send=async(prompt=input.trim()||lastPrompt)=>{
-    if(!prompt||busy||proposalBusy||provider?.configured===false)return;
+    if(!prompt||busy||proposalBusy||effectiveProvider?.configured!==true||effectiveProvider.selectable!==true)return;
     const sentContextReferences=draftContextReferences.filter(reference=>reference.projectId===project.project.id);
     setBusy(true);setError(null);setStreamText("");setActivity([]);setLastPrompt(prompt);setInput("");setPreviews({});setChangeSelections({});setPendingContextReferences(sentContextReferences);
     const controller=new AbortController();abortRef.current=controller;
     try{
       let target=session;
-      if(!target){target=await createAgentSession(project.project.id,selection);syncSession(target);}
+      if(!target){
+        const selected=providers.find(item=>item.providerId===newSessionProviderId)??defaultProvider;
+        if(!selected||!selected.configured||!selected.selectable)throw new Error(zh?"请选择一个已配置的内置 Agent Provider。":"Choose a configured built-in Agent provider.");
+        target=await createAgentSession(project.project.id,{selection,providerId:selected.providerId,model:newSessionModel||selected.model});
+        syncSession(target);
+      }
       let autoApplied=false;
       const next=await runAgentTurn({
         projectId:project.project.id,
@@ -249,7 +301,10 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
     contextSelectionMode={contextSelectionMode}
     draftContextReferences={visibleDraftContextReferences}
     pendingContextReferences={visiblePendingContextReferences}
-    provider={provider}
+    provider={effectiveProvider}
+    providers={providers}
+    newSessionProviderId={newSessionProviderId}
+    newSessionModel={newSessionModel}
     sessions={sessions}
     sessionId={session?.id??null}
     executionMode={executionMode}
@@ -267,6 +322,8 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
     input={input}
     onSelectSession={id=>void selectSession(id)}
     onCreateSession={()=>void createSession()}
+    onNewSessionProviderChange={changeNewSessionProvider}
+    onNewSessionModelChange={setNewSessionModel}
     onExecutionModeChange={setExecutionMode}
     onReviewProposal={proposalId=>void reviewProposal(proposalId)}
     onRejectProposal={proposalId=>void rejectProposal(proposalId)}

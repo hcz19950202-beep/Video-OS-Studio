@@ -20,6 +20,9 @@ type Props={
   draftContextReferences:ContextReference[];
   pendingContextReferences:ContextReference[];
   provider:AgentProviderRuntimeStatus|null;
+  providers:AgentProviderRuntimeStatus[];
+  newSessionProviderId:string;
+  newSessionModel:string;
   sessions:AgentSession[];
   sessionId:string|null;
   executionMode:AgentExecutionMode;
@@ -37,6 +40,8 @@ type Props={
   input:string;
   onSelectSession:(id:string)=>void;
   onCreateSession:()=>void;
+  onNewSessionProviderChange:(providerId:string)=>void;
+  onNewSessionModelChange:(model:string)=>void;
   onExecutionModeChange:(mode:AgentExecutionMode)=>void;
   onReviewProposal:(proposalId:string)=>void;
   onRejectProposal:(proposalId:string)=>void;
@@ -60,16 +65,19 @@ const AgentContextChip=({reference,currentProjectRevision,removable,onRemove}:{r
   </span>;
 };
 
-const AgentSessionSelector=({zh,provider,sessions,sessionId,busy,proposalBusy,onSelectSession,onCreateSession}:Pick<Props,"zh"|"provider"|"sessions"|"sessionId"|"busy"|"proposalBusy"|"onSelectSession"|"onCreateSession">)=>
-  <section className="a4-agent-toolbar">
+const AgentSessionSelector=({zh,providers,newSessionProviderId,newSessionModel,sessions,sessionId,busy,proposalBusy,onSelectSession,onCreateSession}:Pick<Props,"zh"|"providers"|"newSessionProviderId"|"newSessionModel"|"sessions"|"sessionId"|"busy"|"proposalBusy"|"onSelectSession"|"onCreateSession">)=>{
+  const nextProvider=providers.find(item=>item.providerId===newSessionProviderId);
+  const canCreate=nextProvider?.configured===true&&nextProvider.selectable===true&&Boolean(newSessionModel);
+  return <section className="a4-agent-toolbar">
     <div><small>UNIFIED AGENT · CONVERSATION</small><strong>{zh?"Agent 对话":"Agent Conversation"}</strong></div>
     <div className="a4-agent-toolbar-actions">
       <select aria-label={zh?"Agent 会话":"Agent session"} value={sessionId??""} disabled={busy||Boolean(proposalBusy)||sessions.length===0} onChange={event=>onSelectSession(event.target.value)}>
         {sessions.length===0?<option value="">{zh?"暂无会话":"No sessions"}</option>:sessions.map(item=><option key={item.id} value={item.id}>{compactTime(item.updatedAt)} · {item.messages.find(message=>message.role==="user")?.content.slice(0,28)||item.id.slice(0,8)}</option>)}
       </select>
-      <button type="button" className="button small" disabled={busy||Boolean(proposalBusy)||provider?.configured===false} onClick={onCreateSession}>{zh?"新会话":"New session"}</button>
+      <button type="button" className="button small" disabled={busy||Boolean(proposalBusy)||!canCreate} onClick={onCreateSession} title={nextProvider?`${nextProvider.label} · ${newSessionModel}`:undefined}>{zh?"新会话":"New session"}</button>
     </div>
   </section>;
+};
 
 const AgentConversationMessages=({zh,messages,turns,busy,lastPrompt,streamText,currentProjectRevision,pendingContextReferences}:Pick<Props,"zh"|"messages"|"turns"|"busy"|"lastPrompt"|"streamText"|"currentProjectRevision"|"pendingContextReferences">)=>{
   const turnByUserMessage=new Map(turns.map(turn=>[turn.userMessageId,turn]));
@@ -120,8 +128,19 @@ const executionModeHelp=(mode:AgentExecutionMode,zh:boolean)=>{
   return zh?"默认模式：读取、分析、规划和提案可自动进行；持久化修改仍先审查。":"Default: reads, analysis, planning and proposals may run automatically; durable mutations still require review.";
 };
 
-const AgentComposer=({zh,input,executionMode,busy,proposalBusy,provider,selectedContextTarget,contextSelectionMode,draftContextReferences,currentProjectRevision,onInputChange,onExecutionModeChange,onSend,onCancel,onToggleContextSelectionMode,onAddCurrentContext,onRemoveContext}:Pick<Props,"zh"|"input"|"executionMode"|"busy"|"proposalBusy"|"provider"|"selectedContextTarget"|"contextSelectionMode"|"draftContextReferences"|"currentProjectRevision"|"onInputChange"|"onExecutionModeChange"|"onSend"|"onCancel"|"onToggleContextSelectionMode"|"onAddCurrentContext"|"onRemoveContext">)=>
-  <section className="a4-agent-composer">
+const AgentComposer=({zh,input,executionMode,busy,proposalBusy,provider,providers,newSessionProviderId,newSessionModel,sessionId,selectedContextTarget,contextSelectionMode,draftContextReferences,currentProjectRevision,onInputChange,onNewSessionProviderChange,onNewSessionModelChange,onExecutionModeChange,onSend,onCancel,onToggleContextSelectionMode,onAddCurrentContext,onRemoveContext}:Pick<Props,"zh"|"input"|"executionMode"|"busy"|"proposalBusy"|"provider"|"providers"|"newSessionProviderId"|"newSessionModel"|"sessionId"|"selectedContextTarget"|"contextSelectionMode"|"draftContextReferences"|"currentProjectRevision"|"onInputChange"|"onNewSessionProviderChange"|"onNewSessionModelChange"|"onExecutionModeChange"|"onSend"|"onCancel"|"onToggleContextSelectionMode"|"onAddCurrentContext"|"onRemoveContext">)=>{
+  const selectedNewProvider=providers.find(item=>item.providerId===newSessionProviderId);
+  const providerReady=provider?.configured===true&&provider.selectable===true;
+  return <section className="a4-agent-composer">
+    <div className="a4-agent-execution-mode" data-testid="agent-provider-model">
+      <label>{sessionId?(zh?"下一新会话 Provider":"Next session provider"):(zh?"内置 Agent Provider":"Built-in Agent provider")}<select aria-label={zh?"内置 Agent Provider":"Built-in Agent provider"} value={newSessionProviderId} disabled={busy||Boolean(proposalBusy)||providers.length===0} onChange={event=>onNewSessionProviderChange(event.target.value)}>{providers.map(item=><option key={item.providerId} value={item.providerId} disabled={!item.configured||!item.selectable}>{item.label}{item.isDefault?" · default":""}{!item.configured?zh?" · 未配置":" · not configured":""}</option>)}</select></label>
+      <label>{sessionId?(zh?"下一新会话模型":"Next session model"):(zh?"模型":"Model")}<select aria-label={zh?"Agent 模型":"Agent model"} value={newSessionModel} disabled={busy||Boolean(proposalBusy)||selectedNewProvider?.configured!==true||selectedNewProvider.selectable!==true} onChange={event=>onNewSessionModelChange(event.target.value)}>{selectedNewProvider?.models.map(model=><option key={model} value={model}>{model}</option>)}</select></label>
+      <small>{sessionId
+        ?provider
+          ?zh?`当前会话已锁定：${provider.label} · ${provider.model}。这里的选择只用于“新会话”。`:`Current session is pinned to ${provider.label} · ${provider.model}. These controls apply only to New session.`
+          :zh?"当前会话身份不可修改。这里的选择只用于新会话。":"Current session identity is immutable. These controls apply only to New session."
+        :zh?"首次发送或点击“新会话”时，会把 Provider 与 Model 固定到该会话。":"Provider and model are pinned when the new session is created."}</small>
+    </div>
     <div className="a4-agent-execution-mode" data-testid="agent-execution-mode">
       <label>{zh?"执行模式":"Execution mode"}<select aria-label={zh?"执行模式":"Execution mode"} value={executionMode} disabled={busy||Boolean(proposalBusy)} onChange={event=>onExecutionModeChange(event.target.value as AgentExecutionMode)}><option value="review-first">{zh?"先审查":"Review First"}</option><option value="apply-safe-edits">{zh?"应用安全编辑":"Apply Safe Edits"}</option><option value="plan-only">{zh?"仅规划":"Plan Only"}</option></select></label>
       <small>{executionModeHelp(executionMode,zh)}</small>
@@ -132,9 +151,10 @@ const AgentComposer=({zh,input,executionMode,busy,proposalBusy,provider,selected
       <small>{selectedContextTarget?(zh?`当前选择：${selectedContextTarget.label}`:`Selected: ${selectedContextTarget.label}`):(zh?"未选择对象时添加 Project":"Adds Project when nothing is selected")}</small>
     </div>
     {draftContextReferences.length?<div className="a5-agent-context-chips" data-testid="agent-context-chips">{draftContextReferences.map(reference=><AgentContextChip key={reference.id} reference={reference} currentProjectRevision={currentProjectRevision} removable onRemove={onRemoveContext}/>)}</div>:null}
-    <textarea value={input} disabled={busy||Boolean(proposalBusy)||provider?.configured===false} onChange={event=>onInputChange(event.target.value)} onKeyDown={event=>{if((event.key==="Backspace"||event.key==="Delete")&&!input&&draftContextReferences.length){event.preventDefault();onRemoveContext(draftContextReferences.at(-1)!.id);return;}if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();onSend();}}} placeholder={zh?"告诉 Agent 你想完成什么。用 Selection Mode 或 @ 添加精确上下文。":"Tell the Agent what outcome you want. Use Selection Mode or @ Add context for precise grounding."}/>
-    <div><small>{zh?"Enter 发送 · Shift+Enter 换行 · 空输入 Backspace 删除最后芯片":"Enter to send · Shift+Enter for newline · Backspace removes last chip when empty"}</small>{busy?<button type="button" className="button secondary small" onClick={onCancel}>{zh?"取消":"Cancel"}</button>:<button type="button" className="button small" disabled={!input.trim()||Boolean(proposalBusy)||provider?.configured===false} onClick={()=>onSend()}>{zh?"发送":"Send"}</button>}</div>
+    <textarea value={input} disabled={busy||Boolean(proposalBusy)||!providerReady} onChange={event=>onInputChange(event.target.value)} onKeyDown={event=>{if((event.key==="Backspace"||event.key==="Delete")&&!input&&draftContextReferences.length){event.preventDefault();onRemoveContext(draftContextReferences.at(-1)!.id);return;}if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();onSend();}}} placeholder={zh?"告诉 Agent 你想完成什么。用 Selection Mode 或 @ 添加精确上下文。":"Tell the Agent what outcome you want. Use Selection Mode or @ Add context for precise grounding."}/>
+    <div><small>{zh?"Enter 发送 · Shift+Enter 换行 · 空输入 Backspace 删除最后芯片":"Enter to send · Shift+Enter for newline · Backspace removes last chip when empty"}</small>{busy?<button type="button" className="button secondary small" onClick={onCancel}>{zh?"取消":"Cancel"}</button>:<button type="button" className="button small" disabled={!input.trim()||Boolean(proposalBusy)||!providerReady} onClick={()=>onSend()}>{zh?"发送":"Send"}</button>}</div>
   </section>;
+};
 
 export const AgentConversationSurface=(props:Props)=>{
   const{zh,projectId,projectName,currentProjectRevision,selectedSceneId,selectedClipId,selectedScriptRange,selectedContextTarget,provider,sessions,sessionId,executionMode,busy,proposalBusy,messages,turns,lastPrompt,streamText,activity,proposals,previews,changeSelections,error,input}=props;
@@ -143,14 +163,14 @@ export const AgentConversationSurface=(props:Props)=>{
     <section className="a4-agent-context">
       <span>Project · {projectName}</span>
       {selectedContextTarget?<span data-testid="current-context-selection">{zh?"当前选择":"Selection"} · {selectedContextTarget.label}</span>:selectedSceneId?<span>{zh?"场景":"Scene"} · {selectedSceneId}</span>:selectedClipId?<span>Clip · {selectedClipId}</span>:selectedScriptRange?<span>Transcript · {selectedScriptRange.startWordId} → {selectedScriptRange.endWordId}</span>:null}
-      <em>{provider?.configured?`${provider.providerId} · ${provider.model}`:zh?"Agent Plan 未配置":"Agent Plan not configured"}</em>
+      <em>{provider?.configured?`${provider.label} · ${provider.model}`:provider?`${provider.label} · ${zh?"不可用":"unavailable"}`:zh?"Agent Provider 未就绪":"Agent provider unavailable"}</em>
     </section>
     <AgentConversationProductionCards projectId={projectId} zh={zh} onOpenMission={props.onOpenMission}/>
-    {provider&&provider.configured===false?<section className="a4-agent-empty"><strong>{zh?"Agent Provider 未配置":"Agent provider is not configured"}</strong><p>{zh?"高级 Composer 与 Workflow 仍可使用。配置本机 Volcengine Agent Plan 后再启动 Agent 会话。":"Advanced Composer and Workflow remain available. Configure the local Volcengine Agent Plan runtime to use Agent sessions."}</p></section>:null}
+    {provider&&(provider.configured===false||provider.selectable===false)?<section className="a4-agent-empty"><strong>{zh?"当前 Agent Provider 不可用":"Current Agent provider is unavailable"}</strong><p>{zh?"这个会话的 Provider/Model 身份不会被自动替换。请选择一个已配置的 Provider 并创建新会话，或恢复当前 Provider 的本机配置。":"This session's provider/model identity will not be silently replaced. Choose a configured provider and create a new session, or restore the current provider configuration."}</p></section>:null}
     <AgentConversationMessages zh={zh} messages={messages} turns={turns} busy={busy} lastPrompt={lastPrompt} streamText={streamText} currentProjectRevision={currentProjectRevision} pendingContextReferences={props.pendingContextReferences}/>
     <AgentToolActivity zh={zh} busy={busy} activity={activity}/>
     {proposals.map(proposal=><AgentProposalItem key={proposal.id} zh={zh} proposal={proposal} preview={previews[proposal.id]} selectedChanges={changeSelections[proposal.id]??new Set(previews[proposal.id]?.operations.flatMap(operation=>operation.selectableChangeIds)??[])} proposalBusy={proposalBusy} busy={busy} onReviewProposal={props.onReviewProposal} onRejectProposal={props.onRejectProposal} onApplyProposal={props.onApplyProposal} onToggleChange={props.onToggleChange} onSend={props.onSend}/>)}
     <AgentErrorState zh={zh} error={error} lastPrompt={lastPrompt} busy={busy} proposalBusy={proposalBusy} onSend={props.onSend}/>
-    <AgentComposer zh={zh} input={input} executionMode={executionMode} busy={busy} proposalBusy={proposalBusy} provider={provider} selectedContextTarget={selectedContextTarget} contextSelectionMode={props.contextSelectionMode} draftContextReferences={props.draftContextReferences} currentProjectRevision={currentProjectRevision} onInputChange={props.onInputChange} onExecutionModeChange={props.onExecutionModeChange} onSend={props.onSend} onCancel={props.onCancel} onToggleContextSelectionMode={props.onToggleContextSelectionMode} onAddCurrentContext={props.onAddCurrentContext} onRemoveContext={props.onRemoveContext}/>
+    <AgentComposer zh={zh} input={input} executionMode={executionMode} busy={busy} proposalBusy={proposalBusy} provider={provider} providers={props.providers} newSessionProviderId={props.newSessionProviderId} newSessionModel={props.newSessionModel} sessionId={sessionId} selectedContextTarget={selectedContextTarget} contextSelectionMode={props.contextSelectionMode} draftContextReferences={props.draftContextReferences} currentProjectRevision={currentProjectRevision} onInputChange={props.onInputChange} onNewSessionProviderChange={props.onNewSessionProviderChange} onNewSessionModelChange={props.onNewSessionModelChange} onExecutionModeChange={props.onExecutionModeChange} onSend={props.onSend} onCancel={props.onCancel} onToggleContextSelectionMode={props.onToggleContextSelectionMode} onAddCurrentContext={props.onAddCurrentContext} onRemoveContext={props.onRemoveContext}/>
   </div>;
 };

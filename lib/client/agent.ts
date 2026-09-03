@@ -2,7 +2,17 @@ import type {AgentProposalApplyResult,AgentProposalPreview} from "@/lib/ai/appli
 import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
 import type {AgentSelectionSnapshot,AgentSession,ContextReference} from "@/lib/ai";
 
-export type AgentProviderRuntimeStatus={providerId:string;model:string;configured:boolean};
+export type AgentProviderRuntimeStatus={
+  providerId:string;
+  label:string;
+  model:string;
+  models:string[];
+  configured:boolean;
+  selectable:boolean;
+  isDefault:boolean;
+};
+export type AgentSessionListResult={sessions:AgentSession[];provider:AgentProviderRuntimeStatus;providers:AgentProviderRuntimeStatus[]};
+export type CreateAgentSessionOptions={selection?:Partial<AgentSelectionSnapshot>;providerId?:string;model?:string};
 export type AgentTurnStreamEvent={event:string;data:Record<string,unknown>};
 
 const agentBase=(projectId:string)=>`/api/projects/${encodeURIComponent(projectId)}/agent`;
@@ -22,14 +32,18 @@ export async function getAgentProviderStatus(projectId:string):Promise<AgentProv
   return((await response.json()) as {provider:AgentProviderRuntimeStatus}).provider;
 }
 
-export async function listAgentSessions(projectId:string):Promise<{sessions:AgentSession[];provider:AgentProviderRuntimeStatus}>{
+export async function listAgentSessions(projectId:string):Promise<AgentSessionListResult>{
   const response=await fetch(`${agentBase(projectId)}/sessions`,{cache:"no-store"});
   if(!response.ok)throw new Error(await readError(response));
-  return response.json() as Promise<{sessions:AgentSession[];provider:AgentProviderRuntimeStatus}>;
+  return response.json() as Promise<AgentSessionListResult>;
 }
 
-export async function createAgentSession(projectId:string,selection?:Partial<AgentSelectionSnapshot>):Promise<AgentSession>{
-  const response=await fetch(`${agentBase(projectId)}/sessions`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({selection})});
+export async function createAgentSession(projectId:string,options:CreateAgentSessionOptions={}):Promise<AgentSession>{
+  const response=await fetch(`${agentBase(projectId)}/sessions`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(options),
+  });
   if(!response.ok)throw new Error(await readError(response));
   return((await response.json()) as {session:AgentSession}).session;
 }
