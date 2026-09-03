@@ -20,6 +20,12 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
       - name: Verify helper is running on the intended branch tip
         shell: bash
         run: |
@@ -86,7 +92,7 @@ jobs:
           rm .github/workflows/v2-5-1-runtime-owner-lazy-fix.yml
           git diff --check
           changed="$(git status --short | awk '{print $2}' | sort)"
-          expected="$(printf '%s\n' lib/jobs/runtime.ts tests/durable-jobs-h3.test.ts | sort)"
+          expected="$(printf '%s\n' .github/workflows/v2-5-1-runtime-owner-lazy-fix.yml lib/jobs/runtime.ts tests/durable-jobs-h3.test.ts | sort)"
           test "$changed" = "$expected"
 
       - name: Commit and push exact patch
