@@ -3,6 +3,7 @@
 import type {AgentExecutionMode,AgentProposalPreview,AgentSession,ContextReference} from "@/lib/ai";
 import type {ContextSelectionTarget} from "@/lib/ai/context-selection";
 import type {AgentProviderRuntimeStatus} from "@/lib/client/agent";
+import type {VideoSkill} from "@/lib/production/skills/schema";
 import {AgentConversationProductionCards} from "@/components/studio/AgentConversationProductionCards";
 
 export type AgentConversationActivity={id:string;label:string;status:"running"|"success"|"error"};
@@ -23,6 +24,8 @@ type Props={
   providers:AgentProviderRuntimeStatus[];
   newSessionProviderId:string;
   newSessionModel:string;
+  skills:VideoSkill[];
+  selectedSkillId:string;
   sessions:AgentSession[];
   sessionId:string|null;
   executionMode:AgentExecutionMode;
@@ -42,6 +45,7 @@ type Props={
   onCreateSession:()=>void;
   onNewSessionProviderChange:(providerId:string)=>void;
   onNewSessionModelChange:(model:string)=>void;
+  onSkillChange:(skillId:string)=>void;
   onExecutionModeChange:(mode:AgentExecutionMode)=>void;
   onReviewProposal:(proposalId:string)=>void;
   onRejectProposal:(proposalId:string)=>void;
@@ -57,6 +61,7 @@ type Props={
 };
 
 const compactTime=(value:string)=>{const date=new Date(value);return Number.isNaN(date.getTime())?value:date.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});};
+const skillEvidenceId=(skill:Pick<VideoSkill,"id"|"version">)=>`${skill.id}@${skill.version}`;
 
 const AgentContextChip=({reference,currentProjectRevision,removable,onRemove}:{reference:ContextReference;currentProjectRevision:number;removable?:boolean;onRemove?:(referenceId:string)=>void})=>{
   const stale=reference.baseProjectRevision!==currentProjectRevision;
@@ -83,7 +88,11 @@ const AgentConversationMessages=({zh,messages,turns,busy,lastPrompt,streamText,c
   const turnByUserMessage=new Map(turns.map(turn=>[turn.userMessageId,turn]));
   return <section className="a4-agent-conversation" aria-live="polite" data-testid="agent-conversation-list">
     {messages.length===0&&!busy?<div className="a4-agent-empty"><strong>{zh?"直接告诉 Agent 你想完成什么":"Tell the Agent what outcome you want"}</strong><p>{zh?"无需先选择 Mission、Agent、Composer 或 Workflow。需要的能力会在同一对话中呈现为工具活动、方案和生产状态。":"You do not need to choose Mission, Agent, Composer, or Workflow first. The conversation exposes tools, proposals, and production state as needed."}</p></div>:null}
-    {messages.map(message=>{const refs=message.role==="user"?(turnByUserMessage.get(message.id)?.contextReferences??[]):[];return <article key={message.id} className={`a4-agent-message ${message.role}`}><header><strong>{message.role==="user"?(zh?"你":"You"):(zh?"Agent":"Agent")}</strong><small>{compactTime(message.createdAt)}</small></header><p>{message.content}</p>{refs.length?<div className="a5-agent-message-context" data-testid="agent-message-context">{refs.map(reference=><AgentContextChip key={reference.id} reference={reference} currentProjectRevision={currentProjectRevision}/>)}</div>:null}</article>;})}
+    {messages.map(message=>{
+      const turn=message.role==="user"?turnByUserMessage.get(message.id):undefined;
+      const refs=turn?.contextReferences??[];
+      return <article key={message.id} className={`a4-agent-message ${message.role}`}><header><strong>{message.role==="user"?(zh?"你":"You"):(zh?"Agent":"Agent")}</strong><small>{compactTime(message.createdAt)}</small></header><p>{message.content}</p>{turn&&(refs.length||turn.skill)?<div className="a5-agent-message-context" data-testid="agent-message-context">{turn.skill?<span className="a5-agent-context-chip" data-kind="skill" data-status="attached" title={zh?"本轮显式绑定的视频技能":"Video Skill explicitly bound to this turn"}><b>Skill</b><span>{turn.skill.id}@{turn.skill.version}</span></span>:null}{refs.map(reference=><AgentContextChip key={reference.id} reference={reference} currentProjectRevision={currentProjectRevision}/>)}</div>:null}</article>;
+    })}
     {busy&&lastPrompt?<article className="a4-agent-message user pending"><header><strong>{zh?"你":"You"}</strong><small>{zh?"发送中":"sending"}</small></header><p>{lastPrompt}</p>{pendingContextReferences.length?<div className="a5-agent-message-context">{pendingContextReferences.map(reference=><AgentContextChip key={reference.id} reference={reference} currentProjectRevision={currentProjectRevision}/>)}</div>:null}</article>:null}
     {streamText?<article className="a4-agent-message assistant streaming"><header><strong>Agent</strong><small>{zh?"生成中":"streaming"}</small></header><p>{streamText}</p></article>:null}
   </section>;
@@ -128,8 +137,9 @@ const executionModeHelp=(mode:AgentExecutionMode,zh:boolean)=>{
   return zh?"默认模式：读取、分析、规划和提案可自动进行；持久化修改仍先审查。":"Default: reads, analysis, planning and proposals may run automatically; durable mutations still require review.";
 };
 
-const AgentComposer=({zh,input,executionMode,busy,proposalBusy,provider,providers,newSessionProviderId,newSessionModel,sessionId,selectedContextTarget,contextSelectionMode,draftContextReferences,currentProjectRevision,onInputChange,onNewSessionProviderChange,onNewSessionModelChange,onExecutionModeChange,onSend,onCancel,onToggleContextSelectionMode,onAddCurrentContext,onRemoveContext}:Pick<Props,"zh"|"input"|"executionMode"|"busy"|"proposalBusy"|"provider"|"providers"|"newSessionProviderId"|"newSessionModel"|"sessionId"|"selectedContextTarget"|"contextSelectionMode"|"draftContextReferences"|"currentProjectRevision"|"onInputChange"|"onNewSessionProviderChange"|"onNewSessionModelChange"|"onExecutionModeChange"|"onSend"|"onCancel"|"onToggleContextSelectionMode"|"onAddCurrentContext"|"onRemoveContext">)=>{
+const AgentComposer=({zh,input,executionMode,busy,proposalBusy,provider,providers,newSessionProviderId,newSessionModel,skills,selectedSkillId,sessionId,selectedContextTarget,contextSelectionMode,draftContextReferences,currentProjectRevision,onInputChange,onNewSessionProviderChange,onNewSessionModelChange,onSkillChange,onExecutionModeChange,onSend,onCancel,onToggleContextSelectionMode,onAddCurrentContext,onRemoveContext}:Pick<Props,"zh"|"input"|"executionMode"|"busy"|"proposalBusy"|"provider"|"providers"|"newSessionProviderId"|"newSessionModel"|"skills"|"selectedSkillId"|"sessionId"|"selectedContextTarget"|"contextSelectionMode"|"draftContextReferences"|"currentProjectRevision"|"onInputChange"|"onNewSessionProviderChange"|"onNewSessionModelChange"|"onSkillChange"|"onExecutionModeChange"|"onSend"|"onCancel"|"onToggleContextSelectionMode"|"onAddCurrentContext"|"onRemoveContext">)=>{
   const selectedNewProvider=providers.find(item=>item.providerId===newSessionProviderId);
+  const selectedSkill=skills.find(item=>skillEvidenceId(item)===selectedSkillId);
   const providerReady=provider?.configured===true&&provider.selectable===true;
   return <section className="a4-agent-composer">
     <div className="a4-agent-execution-mode" data-testid="agent-provider-model">
@@ -140,6 +150,12 @@ const AgentComposer=({zh,input,executionMode,busy,proposalBusy,provider,provider
           ?zh?`当前会话已锁定：${provider.label} · ${provider.model}。这里的选择只用于“新会话”。`:`Current session is pinned to ${provider.label} · ${provider.model}. These controls apply only to New session.`
           :zh?"当前会话身份不可修改。这里的选择只用于新会话。":"Current session identity is immutable. These controls apply only to New session."
         :zh?"首次发送或点击“新会话”时，会把 Provider 与 Model 固定到该会话。":"Provider and model are pinned when the new session is created."}</small>
+    </div>
+    <div className="a4-agent-execution-mode" data-testid="agent-skill-selector">
+      <label>{zh?"技能":"Skill"}<select aria-label={zh?"Agent 技能":"Agent Skill"} value={selectedSkillId} disabled={busy||Boolean(proposalBusy)||skills.length===0} onChange={event=>onSkillChange(event.target.value)}><option value="">{zh?"自动 · Agent 选择":"Auto · Agent chooses"}</option>{skills.map(item=><option key={skillEvidenceId(item)} value={skillEvidenceId(item)}>{item.title}</option>)}</select></label>
+      <small>{selectedSkill
+        ?zh?`${selectedSkill.title} · ${selectedSkill.riskPolicy.reviewRequired?"本技能强制人工审查；不会自动 Apply":"仍服从现有审批策略"}。每次发送都可切换。`:`${selectedSkill.title} · ${selectedSkill.riskPolicy.reviewRequired?"this Skill requires review and will not auto-apply":"existing approval policy still applies"}. You can switch it per turn.`
+        :zh?"不显式绑定技能；Agent 可按现有工具自行分析。Skill 只会收窄能力，不会扩大权限。":"No explicit Skill is bound. The Agent may use the existing tool surface normally. Skills can only narrow capability, never expand authority."}</small>
     </div>
     <div className="a4-agent-execution-mode" data-testid="agent-execution-mode">
       <label>{zh?"执行模式":"Execution mode"}<select aria-label={zh?"执行模式":"Execution mode"} value={executionMode} disabled={busy||Boolean(proposalBusy)} onChange={event=>onExecutionModeChange(event.target.value as AgentExecutionMode)}><option value="review-first">{zh?"先审查":"Review First"}</option><option value="apply-safe-edits">{zh?"应用安全编辑":"Apply Safe Edits"}</option><option value="plan-only">{zh?"仅规划":"Plan Only"}</option></select></label>
@@ -171,6 +187,6 @@ export const AgentConversationSurface=(props:Props)=>{
     <AgentToolActivity zh={zh} busy={busy} activity={activity}/>
     {proposals.map(proposal=><AgentProposalItem key={proposal.id} zh={zh} proposal={proposal} preview={previews[proposal.id]} selectedChanges={changeSelections[proposal.id]??new Set(previews[proposal.id]?.operations.flatMap(operation=>operation.selectableChangeIds)??[])} proposalBusy={proposalBusy} busy={busy} onReviewProposal={props.onReviewProposal} onRejectProposal={props.onRejectProposal} onApplyProposal={props.onApplyProposal} onToggleChange={props.onToggleChange} onSend={props.onSend}/>)}
     <AgentErrorState zh={zh} error={error} lastPrompt={lastPrompt} busy={busy} proposalBusy={proposalBusy} onSend={props.onSend}/>
-    <AgentComposer zh={zh} input={input} executionMode={executionMode} busy={busy} proposalBusy={proposalBusy} provider={provider} providers={props.providers} newSessionProviderId={props.newSessionProviderId} newSessionModel={props.newSessionModel} sessionId={sessionId} selectedContextTarget={selectedContextTarget} contextSelectionMode={props.contextSelectionMode} draftContextReferences={props.draftContextReferences} currentProjectRevision={currentProjectRevision} onInputChange={props.onInputChange} onNewSessionProviderChange={props.onNewSessionProviderChange} onNewSessionModelChange={props.onNewSessionModelChange} onExecutionModeChange={props.onExecutionModeChange} onSend={props.onSend} onCancel={props.onCancel} onToggleContextSelectionMode={props.onToggleContextSelectionMode} onAddCurrentContext={props.onAddCurrentContext} onRemoveContext={props.onRemoveContext}/>
+    <AgentComposer zh={zh} input={input} executionMode={executionMode} busy={busy} proposalBusy={proposalBusy} provider={provider} providers={props.providers} newSessionProviderId={props.newSessionProviderId} newSessionModel={props.newSessionModel} skills={props.skills} selectedSkillId={props.selectedSkillId} sessionId={sessionId} selectedContextTarget={selectedContextTarget} contextSelectionMode={props.contextSelectionMode} draftContextReferences={props.draftContextReferences} currentProjectRevision={currentProjectRevision} onInputChange={props.onInputChange} onNewSessionProviderChange={props.onNewSessionProviderChange} onNewSessionModelChange={props.onNewSessionModelChange} onSkillChange={props.onSkillChange} onExecutionModeChange={props.onExecutionModeChange} onSend={props.onSend} onCancel={props.onCancel} onToggleContextSelectionMode={props.onToggleContextSelectionMode} onAddCurrentContext={props.onAddCurrentContext} onRemoveContext={props.onRemoveContext}/>
   </div>;
 };
