@@ -6,6 +6,8 @@ import {
   getDefaultAgentProviderId,
   listAgentProviderRuntimeStatuses,
   resolveAgentProviderId,
+  resolveAgentProviderModel,
+  validateAgentProviderRuntimeModel,
   type AgentProviderEnvironment,
 } from "@/lib/server/agent-provider-runtime";
 
@@ -19,6 +21,7 @@ describe("Agent provider runtime routing",()=>{
     expect(status).toMatchObject({
       providerId:"volcengine-agent-plan",
       model:"ark-code-latest",
+      models:["ark-code-latest"],
       configured:false,
       isDefault:true,
     });
@@ -33,20 +36,34 @@ describe("Agent provider runtime routing",()=>{
     expect(getDefaultAgentProviderId(env({VIDEO_OS_AGENT_PROVIDER:"legacy-unknown-value"}))).toBe("volcengine-agent-plan");
   });
 
-  it("discovers configured OpenAI and DeepSeek providers without exposing secrets",()=>{
+  it("keeps explicit session provider resolution independent from the current server default",()=>{
+    const runtime=env({
+      VIDEO_OS_AGENT_PROVIDER:"openai",
+      OPENAI_API_KEY:"openai-key",
+      DEEPSEEK_API_KEY:"deepseek-key",
+    });
+    expect(getAgentProviderRuntimeStatus(undefined,runtime).providerId).toBe("openai-responses");
+    expect(getAgentProviderRuntimeStatus("deepseek-chat",runtime)).toMatchObject({
+      providerId:"deepseek-chat",
+      model:"deepseek-v4-flash",
+      configured:true,
+    });
+  });
+
+  it("discovers configured providers with normalized default models without exposing secrets",()=>{
     const runtime=env({
       VIDEO_OS_AGENT_PROVIDER:"openai",
       OPENAI_API_KEY:"openai-secret-value",
-      OPENAI_MODEL:"gpt-5.6",
       DEEPSEEK_API_KEY:"deepseek-secret-value",
-      DEEPSEEK_MODEL:"deepseek-v4-flash",
     });
     const statuses=listAgentProviderRuntimeStatuses(runtime);
-    expect(statuses.find(item=>item.providerId==="openai-responses")).toMatchObject({configured:true,isDefault:true,model:"gpt-5.6"});
-    expect(statuses.find(item=>item.providerId==="deepseek-chat")).toMatchObject({configured:true,isDefault:false,model:"deepseek-v4-flash"});
+    expect(statuses.find(item=>item.providerId==="openai-responses")).toMatchObject({configured:true,isDefault:true,model:"gpt-5.6",models:["gpt-5.6"]});
+    expect(statuses.find(item=>item.providerId==="deepseek-chat")).toMatchObject({configured:true,isDefault:false,model:"deepseek-v4-flash",models:["deepseek-v4-flash","deepseek-v4-pro"]});
     const serialized=JSON.stringify(statuses);
     expect(serialized).not.toContain("openai-secret-value");
     expect(serialized).not.toContain("deepseek-secret-value");
+    expect(createAgentProviderForRuntime("openai",runtime).id).toBe("openai-responses");
+    expect(createAgentProviderForRuntime("deepseek",runtime).id).toBe("deepseek-chat");
   });
 
   it("marks invalid provider model configuration unavailable",()=>{
@@ -59,6 +76,15 @@ describe("Agent provider runtime routing",()=>{
     expect(getAgentProviderRuntimeStatus("openai",runtime).configured).toBe(false);
     expect(getAgentProviderRuntimeStatus("deepseek",runtime).configured).toBe(false);
     expect(()=>createAgentProviderForRuntime("openai",runtime)).toThrow(AgentProviderRuntimeError);
+  });
+
+  it("limits new-session model selection to advertised models but preserves compatible durable models",()=>{
+    const runtime=env({OPENAI_API_KEY:"key",OPENAI_MODEL:"gpt-5.6-sol"});
+    expect(resolveAgentProviderModel("openai","gpt-5.6-sol",runtime)).toBe("gpt-5.6-sol");
+    expect(()=>resolveAgentProviderModel("openai","gpt-5.6-luna",runtime)).toThrow(AgentProviderRuntimeError);
+    expect(validateAgentProviderRuntimeModel("openai","gpt-5.6-luna")).toBe("gpt-5.6-luna");
+    expect(createAgentProviderForRuntime("openai",runtime,"gpt-5.6-luna").id).toBe("openai-responses");
+    expect(()=>validateAgentProviderRuntimeModel("openai","gpt-4o")).toThrow(AgentProviderRuntimeError);
   });
 
   it("constructs each configured provider without performing a network request",()=>{

@@ -27,16 +27,21 @@ export async function GET(_request:Request,{params}:Context){
   try{
     const provider=getAgentProviderRuntimeStatus(persisted.providerId);
     const providers=listAgentProviderRuntimeStatuses();
-    if(!provider.configured||!provider.selectable)return Response.json({session:persisted,provider,providers});
-    const session=await createServerAgentSessionService(undefined,provider.providerId).open(projectId,sessionId);
-    return Response.json({session,provider,providers});
+    const sessionProvider={...provider,model:persisted.model??provider.model};
+    if(!provider.configured||!provider.selectable)return Response.json({session:persisted,provider:sessionProvider,providers});
+    const session=await createServerAgentSessionService(undefined,provider.providerId,persisted.model).open(projectId,sessionId);
+    return Response.json({session,provider:sessionProvider,providers});
   }catch(error){
     if(error instanceof AgentProviderRuntimeError){
       return Response.json({
         code:"AGENT_SESSION_PROVIDER_UNAVAILABLE",
-        message:"The provider recorded by this Agent session is unavailable in the current runtime.",
+        message:error.code==="unsupported_model"
+          ?"The model recorded by this Agent session is no longer compatible with its provider."
+          :"The provider recorded by this Agent session is unavailable in the current runtime.",
         retryable:false,
-        action:"Open another built-in Agent session or restore support for the recorded provider.",
+        action:error.code==="unsupported_model"
+          ?"Start a new built-in Agent session with a supported model."
+          :"Open another built-in Agent session or restore support for the recorded provider.",
       },{status:409});
     }
     return Response.json({code:"AGENT_SESSION_NOT_FOUND",message:"Agent session could not be reopened.",retryable:true,action:"Refresh the session list or start a new session."},{status:404});

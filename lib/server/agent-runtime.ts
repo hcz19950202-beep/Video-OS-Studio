@@ -21,6 +21,8 @@ export {
   getAgentProviderRuntimeStatus,
   listAgentProviderRuntimeStatuses,
   resolveAgentProviderId,
+  resolveAgentProviderModel,
+  validateAgentProviderRuntimeModel,
 } from "@/lib/server/agent-provider-runtime";
 export type {AgentProviderId,AgentProviderRuntimeStatus} from "@/lib/server/agent-provider-runtime";
 
@@ -52,8 +54,8 @@ const trustedAssetBaseUrl=resolveTrustedAssetBaseUrl();
 const workflowActions=getGlobalRuntime(`${dataRoot}:agent-workflow-actions`,()=>new AgentWorkflowActionExecutor(workflowService,{assetBaseUrl:trustedAssetBaseUrl}));
 const applications=getGlobalRuntime(`${dataRoot}:agent-applications`,()=>new AgentProposalApplicationService({sessions,projects:projectRepository,mutations:projectMutations,visualPlans:visualPlanService,workflowActions,jobs:jobRuntime,trustedAssetBaseUrl}));
 
-export const createServerAgentSessionService=(observer?:AgentProviderProgressObserver,providerId?:string)=>{
-  const baseProvider=createAgentProviderForRuntime(providerId);
+export const createServerAgentSessionService=(observer?:AgentProviderProgressObserver,providerId?:string,model?:string)=>{
+  const baseProvider=createAgentProviderForRuntime(providerId,process.env,model);
   const provider=observer?observeAIProvider(baseProvider,observer):baseProvider;
   return new AgentSessionService({provider,context,contextReferences,tools,sessions});
 };

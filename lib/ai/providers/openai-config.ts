@@ -1,6 +1,6 @@
 import {z} from "zod";
 
-const OpenAIA3ModelSchema=z.string()
+export const OpenAIA3ModelSchema=z.string()
   .trim()
   .min(1,"OPENAI_MODEL is required")
   .max(256)
