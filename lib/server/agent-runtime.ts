@@ -10,7 +10,9 @@ import {
   observeAIProvider,
   type AgentProviderProgressObserver,
 } from "@/lib/ai";
+import {bindVideoSkillToProvider} from "@/lib/ai/skill-runtime";
 import {builtInVideoSkillRegistry} from "@/lib/production/skills";
+import type {VideoSkill} from "@/lib/production/skills/schema";
 import {createAgentProviderForRuntime} from "@/lib/server/agent-provider-runtime";
 import {getGlobalRuntime} from "@/lib/server/global-runtime";
 import {assetIntelligenceService,dataRoot,fileSystem,jobRuntime,productionMissionRepository,productionPlanRepository,productionQAService,projectMutations,projectRepository,qaReportRepository,visualPlanService,workflowService} from "@/lib/server/runtime";
@@ -54,9 +56,10 @@ const trustedAssetBaseUrl=resolveTrustedAssetBaseUrl();
 const workflowActions=getGlobalRuntime(`${dataRoot}:agent-workflow-actions`,()=>new AgentWorkflowActionExecutor(workflowService,{assetBaseUrl:trustedAssetBaseUrl}));
 const applications=getGlobalRuntime(`${dataRoot}:agent-applications`,()=>new AgentProposalApplicationService({sessions,projects:projectRepository,mutations:projectMutations,visualPlans:visualPlanService,workflowActions,jobs:jobRuntime,trustedAssetBaseUrl}));
 
-export const createServerAgentSessionService=(observer?:AgentProviderProgressObserver,providerId?:string,model?:string)=>{
+export const createServerAgentSessionService=(observer?:AgentProviderProgressObserver,providerId?:string,model?:string,skill?:VideoSkill)=>{
   const baseProvider=createAgentProviderForRuntime(providerId,process.env,model);
-  const provider=observer?observeAIProvider(baseProvider,observer):baseProvider;
+  const skillBoundProvider=skill?bindVideoSkillToProvider(baseProvider,skill):baseProvider;
+  const provider=observer?observeAIProvider(skillBoundProvider,observer):skillBoundProvider;
   return new AgentSessionService({provider,context,contextReferences,tools,sessions});
 };
 
