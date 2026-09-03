@@ -1,0 +1,82 @@
+name: V2.5.1 Immutable Tag Creation
+
+on:
+  push:
+    branches:
+      - release/v2.5.1-tagging
+    paths:
+      - .github/workflows/v2-5-1-immutable-tag.yml
+
+permissions:
+  contents: write
+
+jobs:
+  create-immutable-tag:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_COMMIT: b6f30c08c1c85bb80c43385827baa3317c1efbb5
+      PREVIOUS_RELEASE_COMMIT: df54e10e38ee2793e8fdf285ea2c216fe8c65478
+      TAG_NAME: v2.5.1
+    steps:
+      - name: Checkout isolated tagging branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/v2.5.1-tagging
+          fetch-depth: 0
+
+      - name: Verify immutable release boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags
+          test "$(git rev-parse origin/main)" = "$RELEASE_COMMIT"
+          test "$(git rev-parse HEAD^)" = "$RELEASE_COMMIT"
+          test "$(git rev-parse 'v2.5.0^{}')" = "$PREVIOUS_RELEASE_COMMIT"
+          test "$(node -p "require('./package.json').version")" = "2.5.1"
+          test "$(node -p "require('./package-lock.json').version")" = "2.5.1"
+          test "$(node -p "require('./package-lock.json').packages[''].version")" = "2.5.1"
+          if git show-ref --verify --quiet "refs/tags/$TAG_NAME"; then
+            echo "$TAG_NAME already exists locally; refusing to recreate or move it." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG_NAME" >/dev/null 2>&1; then
+            echo "$TAG_NAME already exists remotely; refusing to recreate or move it." >&2
+            exit 1
+          fi
+
+      - name: Create and push annotated immutable tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG_NAME" "$RELEASE_COMMIT" -m "Video OS Studio v2.5.1"
+          test "$(git cat-file -t "$TAG_NAME")" = "tag"
+          test "$(git rev-parse "$TAG_NAME^{}")" = "$RELEASE_COMMIT"
+          TAG_OBJECT_SHA="$(git rev-parse "$TAG_NAME")"
+          echo "local_tag_object_sha=$TAG_OBJECT_SHA"
+          git push origin "refs/tags/$TAG_NAME"
+
+      - name: Verify remote annotated object and dereference
+        shell: bash
+        run: |
+          set -euo pipefail
+          REMOTE_TAG_OBJECT="$(git ls-remote origin "refs/tags/$TAG_NAME" | awk '{print $1}')"
+          REMOTE_DEREF="$(git ls-remote origin "refs/tags/$TAG_NAME^{}" | awk '{print $1}')"
+          test -n "$REMOTE_TAG_OBJECT"
+          test "$REMOTE_DEREF" = "$RELEASE_COMMIT"
+          git fetch origin "refs/tags/$TAG_NAME:refs/tags/$TAG_NAME"
+          test "$(git cat-file -t "$REMOTE_TAG_OBJECT")" = "tag"
+          echo "remote_tag_object_sha=$REMOTE_TAG_OBJECT"
+          echo "remote_dereferenced_commit=$REMOTE_DEREF"
+          test "$(git rev-parse 'v2.5.0^{}')" = "$PREVIOUS_RELEASE_COMMIT"
+
+      - name: Remove one-shot workflow from tagging branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/v2-5-1-immutable-tag.yml
+          git commit -m "chore(v2.5.1): remove one-shot immutable tag gate"
+          git push origin HEAD:release/v2.5.1-tagging
