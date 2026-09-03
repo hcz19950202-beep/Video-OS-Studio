@@ -1,0 +1,64 @@
+name: V2.5.2 Immutable Tag
+
+on:
+  push:
+    branches:
+      - release/v2.5.2-tagging
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tagging helper
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify immutable release boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_SHA="6b268629dc1fbce9c80a66384cc663be6692eb65"
+          git fetch origin main --no-tags
+          MAIN_SHA="$(git rev-parse origin/main)"
+          test "$MAIN_SHA" = "$RELEASE_SHA"
+          PARENT_SHA="$(git rev-parse HEAD^)"
+          test "$PARENT_SHA" = "$RELEASE_SHA"
+          if [ -n "$(git ls-remote --tags origin refs/tags/v2.5.2)" ]; then
+            echo "refs/tags/v2.5.2 already exists" >&2
+            exit 1
+          fi
+
+      - name: Create immutable annotated tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_SHA="6b268629dc1fbce9c80a66384cc663be6692eb65"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a v2.5.2 "$RELEASE_SHA" -m "Video OS Studio v2.5.2"
+          git push origin refs/tags/v2.5.2
+
+      - name: Verify remote annotated tag target
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_SHA="6b268629dc1fbce9c80a66384cc663be6692eb65"
+          TAG_OBJECT_SHA="$(git ls-remote origin refs/tags/v2.5.2 | awk '{print $1}')"
+          PEELED_SHA="$(git ls-remote origin 'refs/tags/v2.5.2^{}' | awk '{print $1}')"
+          test -n "$TAG_OBJECT_SHA"
+          test "$TAG_OBJECT_SHA" != "$RELEASE_SHA"
+          test "$PEELED_SHA" = "$RELEASE_SHA"
+          echo "tag_object_sha=$TAG_OBJECT_SHA"
+          echo "peeled_release_sha=$PEELED_SHA"
+
+      - name: Remove one-shot helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/v2-5-2-immutable-tag.yml
+          git commit -m "chore(v2.5.2): remove one-shot tagging helper"
+          git push origin HEAD:release/v2.5.2-tagging
