@@ -1,0 +1,73 @@
+name: V2.5.2 Post-Release Truth Sync
+
+on:
+  push:
+    branches:
+      - docs/v2.5.2-release-truth-sync-v2
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout truth-sync helpers
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify immutable release boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_SHA="6b268629dc1fbce9c80a66384cc663be6692eb65"
+          TAG_OBJECT_SHA="700a4dfbd2dfdee9253b28302b219129227858f9"
+          git fetch origin main --no-tags
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
+          test "$(git ls-remote origin refs/tags/v2.5.2 | awk '{print $1}')" = "$TAG_OBJECT_SHA"
+          test "$(git ls-remote origin 'refs/tags/v2.5.2^{}' | awk '{print $1}')" = "$RELEASE_SHA"
+
+      - name: Verify staged helper scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_SHA="6b268629dc1fbce9c80a66384cc663be6692eb65"
+          mapfile -t files < <(git diff --name-only "$RELEASE_SHA" HEAD | sort)
+          expected=(
+            ".github/workflows/v2-5-2-truth-sync.yml"
+            "scripts/v2-5-2-truth-sync.py"
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${#files[@]}" -eq 2
+          test "$(printf '%s\n' "${files[@]}")" = "$(printf '%s\n' "${expected_sorted[@]}")"
+
+      - name: Synchronize immutable release truth documents
+        shell: bash
+        run: python scripts/v2-5-2-truth-sync.py
+
+      - name: Remove helpers and prove docs-only net scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_SHA="6b268629dc1fbce9c80a66384cc663be6692eb65"
+          git rm .github/workflows/v2-5-2-truth-sync.yml scripts/v2-5-2-truth-sync.py
+          mapfile -t files < <(git diff --name-only "$RELEASE_SHA" | sort)
+          expected=(
+            "PROJECT_STATUS.md"
+            "README.md"
+            "docs/acceptance/V2_5_2_RELEASE_FINALIZATION.md"
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${#files[@]}" -eq 3
+          test "$(printf '%s\n' "${files[@]}")" = "$(printf '%s\n' "${expected_sorted[@]}")"
+
+      - name: Commit post-release truth synchronization
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PROJECT_STATUS.md README.md docs/acceptance/V2_5_2_RELEASE_FINALIZATION.md .github/workflows/v2-5-2-truth-sync.yml scripts/v2-5-2-truth-sync.py
+          git commit -m "docs(v2.5.2): synchronize immutable release truth"
+          git push origin HEAD:docs/v2.5.2-release-truth-sync-v2
