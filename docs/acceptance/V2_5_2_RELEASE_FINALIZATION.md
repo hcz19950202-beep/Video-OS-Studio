@@ -1,6 +1,6 @@
 # Video OS Studio V2.5.2 Release Finalization
 
-`V2_5_2_RELEASE = FINALIZATION_IN_PROGRESS`
+`V2_5_2_RELEASE = COMPLETE`
 
 ## 1. Release identity
 
@@ -290,17 +290,27 @@ Required net release-finalization scope relative to accepted engineering main:
 
 No product/runtime/test/workflow source change is permitted in this release-finalization phase.
 
-Release-finalization PR exact head: **PENDING**
+Release-finalization PR: **PR #122**
 
-Release-finalization PR Standard CI: **PENDING**
+Release-finalization PR exact head:
 
-Release-finalization PR V2.5 Cloud Acceptance: **PENDING**
+`c2bd12ff0ac1dd58f481465f120a45f9b4b7445a`
 
-Release merge commit: **PENDING**
+Release-finalization PR Standard CI #1435 / run `33757699946`: **7 / 7 PASS**
 
-Release exact-main Standard CI: **PENDING**
+Release-finalization PR V2.5 Cloud Acceptance #105 / run `33757700000`: **2 / 2 PASS**
 
-Release exact-main V2.5 Cloud Acceptance: **PENDING**
+PR #122 was merged only after exact-head gates were green, using expected-head protection.
+
+Release merge commit:
+
+`6b268629dc1fbce9c80a66384cc663be6692eb65`
+
+The release merge commit is GitHub-signature verified.
+
+Release exact-main Standard CI #1436 / run `33758451245`: **7 / 7 PASS**
+
+Release exact-main V2.5 Cloud Acceptance #106 / run `33758451201`: **2 / 2 PASS**
 
 ## 9. Immutable release tag boundary
 
@@ -322,27 +332,30 @@ with tag message:
 
 The release record must independently verify the tag ref, tag object SHA, target type, exact target commit and tag message. An unsigned annotated tag must be described as an **annotated, independently verified immutable tag**, not as cryptographically signed.
 
-Current tag state at version-finalization start:
+Before immutable tag creation, `main` was independently rechecked to still equal release commit `6b268629dc1fbce9c80a66384cc663be6692eb65`, and `refs/tags/v2.5.2` was independently confirmed absent.
 
-`refs/tags/v2.5.2 = ABSENT`
+Isolated one-shot immutable-tag run `33759152930`: **PASS**. The workflow verified the immutable boundary, created the annotated tag, independently verified the remote peeled target, and self-deleted from `release/v2.5.2-tagging`.
 
-Immutable tag creation: **PENDING**
+Independent GitHub Git Data verification confirmed:
 
-Tag object SHA: **PENDING**
+```text
+ref:                 refs/tags/v2.5.2
+ref object type:     tag
+tag object SHA:      700a4dfbd2dfdee9253b28302b219129227858f9
+tag target type:     commit
+tag target commit:   6b268629dc1fbce9c80a66384cc663be6692eb65
+tag message:         Video OS Studio v2.5.2
+```
 
-Tag target release commit: **PENDING**
+The tag object is unsigned. It is therefore recorded as an **annotated, independently verified immutable tag**, not as cryptographically signed.
 
 ## 10. Post-release truth synchronization
 
 After immutable tag creation, a separate documentation-only truth-sync PR must update the repository's current status/reference documents without moving, recreating or retargeting `v2.5.2`.
 
-Post-release truth-sync PR: **PENDING**
+This post-release truth synchronization is documentation-only. It updates `PROJECT_STATUS.md`, `README.md`, and this authoritative release record. It does not create, move, recreate or retarget `v2.5.2`; the immutable tag remains on the release commit even after `main` later advances through documentation-only merge commits.
 
-Truth-synced main: **PENDING**
-
-Post-truth-main gates: **PENDING**
-
-Post-truth tag re-verification: **PENDING**
+The truth-sync change set must itself pass fresh PR gates before merge, and the resulting documentation-only `main` must pass the normal post-merge gates. The immutable tag must then be re-read from Git Data to prove it remains unchanged.
 
 ## 11. Local Windows rule after engineering acceptance
 
@@ -359,9 +372,10 @@ accepted source:      c93fee31a54c045c9da5fefd5de14cd8437847f3
 accepted source tree: 28859a3a549158bd7db43d81d2f1a2a6d1a9227d
 engineering main:     dfb5c0b271742c499a62a5d273fe0df08bc1afda
 version-sync commit:  9f3658723c47b4263a811db406d0dc67ba001757
-release commit:       PENDING
-v2.5.2 tag:           PENDING
-release status:       FINALIZATION_IN_PROGRESS
+release commit:       6b268629dc1fbce9c80a66384cc663be6692eb65
+v2.5.2 tag:           v2.5.2 / annotated / independently verified
+tag object:           700a4dfbd2dfdee9253b28302b219129227858f9
+release status:       COMPLETE
 schema changes:       NONE
 additional local gate:NONE
 ```
