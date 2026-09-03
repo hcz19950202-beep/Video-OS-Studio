@@ -5,17 +5,17 @@
 ## Current checkpoint
 
 ```yaml
-released_product_version: 2.5.2
-released_tag: v2.5.2
-released_commit: 6b268629dc1fbce9c80a66384cc663be6692eb65
-released_tag_object_sha: 700a4dfbd2dfdee9253b28302b219129227858f9
+released_product_version: 2.5.3
+released_tag: v2.5.3
+released_commit: c05bf836362ccf19c81bf2023f0838d560808ab4
+released_tag_object_sha: 66c43b7bd861d74f0abe046e063181c948981409
 project_schema: 2.0.0
 
-package_json_version: 2.5.2
-package_lock_version: 2.5.2
+package_json_version: 2.5.3
+package_lock_version: 2.5.3
 
 active_development_workstream: NONE
-active_stage: V2.5.2 RELEASE COMPLETE
+active_stage: V2.5.3 RELEASE COMPLETE
 active_branch: NONE
 final_v2_4_audit_issue: Issue #94 / CLOSED
 final_v2_4_audit_pr: PR #96
@@ -92,8 +92,33 @@ v2_5_2_release_main_dedicated_ci: run 33758451201 / PASS / 2 of 2
 v2_5_2_release_main_standard_ci: run 33758451245 / PASS / 7 of 7
 v2_5_2_release_tag_creation: run 33759152930 / PASS
 v2_5_2_release_tag_object: 700a4dfbd2dfdee9253b28302b219129227858f9
+v2_5_3_engineering_pr: PR #124
+v2_5_3_accepted_source_head: b8b0d8e177257b617e1969fc9a1e9ceeae16d5f9
+v2_5_3_accepted_source_tree: a81f64ab4b1edc94f859f0b8285f34dfdf74531e
+v2_5_3_engineering_main: 6d1f5c855b73997a8147e63f240a93b560990ba0
+v2_5_3_engineering_main_standard_ci: CI #1457 / run 33768538110 / PASS / 7 of 7
+v2_5_3_engineering_main_dedicated_ci: run 33768538291 / PASS / 2 of 2
+v2_5_3_local_windows_gate: b8b0d8e177257b617e1969fc9a1e9ceeae16d5f9 / PASS
+v2_5_3_release_metadata_sync: run 33769352419 / PASS
+v2_5_3_release_finalization_pr: PR #125
+v2_5_3_release_pr_frozen_head: eba15a1abdefbac99b8380af2e3eb14e1b29128b
+v2_5_3_release_pr_standard_ci: CI #1458 / run 33769529452 / PASS / 7 of 7
+v2_5_3_release_pr_dedicated_ci: run 33769529426 / PASS / 2 of 2
+v2_5_3_pre_hotfix_release_main: 76bf4edb97f7272cf720b6b2e6c9aec8b1bf0c10
+v2_5_3_pre_hotfix_release_main_dedicated_ci: run 33770332176 / PASS / 2 of 2
+v2_5_3_pre_hotfix_release_main_standard_ci: CI #1459 / run 33770332085 / Windows runtime-owner timeout recorded twice
+v2_5_3_hotfix_pr: PR #126
+v2_5_3_hotfix_head: 62cbb9aeebce7efa95ce317c5cc83fb7ad107950
+v2_5_3_hotfix_standard_ci: CI #1460 / run 33771329475 / PASS / 7 of 7
+v2_5_3_hotfix_dedicated_ci: run 33771329184 / PASS / 2 of 2
+v2_5_3_hotfix_local_windows_gate: 62cbb9aeebce7efa95ce317c5cc83fb7ad107950 / PASS
+v2_5_3_release_commit: c05bf836362ccf19c81bf2023f0838d560808ab4
+v2_5_3_release_main_standard_ci: CI #1461 / run 33778097197 / PASS / 7 of 7
+v2_5_3_release_main_dedicated_ci: run 33778097081 / PASS / 2 of 2
+v2_5_3_release_tag_creation: run 33778792113 / PASS
+v2_5_3_release_tag_object: 66c43b7bd861d74f0abe046e063181c948981409
 local_action_required: NO
-next_action: NONE — V2.5.2 is released; future product work requires a separately approved next workstream
+next_action: NONE — V2.5.3 is released; future product work requires a separately approved next workstream
 v2_4_status: RELEASED
 v2_4_1_status: RELEASED
 v2_4_2_status: RELEASED
@@ -102,7 +127,39 @@ final_v2_4_audit_status: COMPLETE
 v2_5_status: RELEASED
 v2_5_1_status: RELEASED
 v2_5_2_status: RELEASED
+v2_5_3_status: RELEASED
 ```
+
+## Immutable V2.5.3 release truth
+
+Video OS Studio V2.5.3 is released at the independently verified annotated tag `v2.5.3`.
+
+```text
+release commit:      c05bf836362ccf19c81bf2023f0838d560808ab4
+annotated tag:       v2.5.3
+tag object SHA:      66c43b7bd861d74f0abe046e063181c948981409
+tag target type:     commit
+dereferenced target: c05bf836362ccf19c81bf2023f0838d560808ab4
+tag message:         Video OS Studio v2.5.3
+```
+
+V2.5.3 engineering source `b8b0d8e177257b617e1969fc9a1e9ceeae16d5f9` / tree `a81f64ab4b1edc94f859f0b8285f34dfdf74531e` passed frozen-source Standard #1456 (7/7), Dedicated #126 (2/2), and Mandatory Local Windows acceptance. PR #124 merged with expected-head protection as engineering main `6d1f5c855b73997a8147e63f240a93b560990ba0`; exact-main Standard #1457 / run `33768538110` passed 7/7 and Dedicated #127 / run `33768538291` passed 2/2.
+
+Release-finalization PR #125 froze `eba15a1abdefbac99b8380af2e3eb14e1b29128b` after guarded version synchronization run `33769352419`; Standard #1458 / run `33769529452` passed 7/7 and Dedicated #128 / run `33769529426` passed 2/2. Its merge produced pre-hotfix release-main `76bf4edb97f7272cf720b6b2e6c9aec8b1bf0c10`. Dedicated #129 / run `33770332176` passed 2/2, while Standard #1459 / run `33770332085` preserved two Windows-only 5-second timeout failures in the existing 32-concurrent runtime-owner test. The assertions did not fail, but the repeated timing failure was treated as a release blocker rather than waived.
+
+PR #126 changed exactly one test file and only replaced the inherited 5000ms timeout with an explicit 15000ms budget; concurrency and all behavioral/cleanup assertions remained unchanged. Exact hotfix `62cbb9aeebce7efa95ce317c5cc83fb7ad107950` passed Standard #1460 / run `33771329475` (7/7), Dedicated #130 / run `33771329184` (2/2), and Mandatory Local Windows VERIFY ONLY. The local focused 32-claim test completed in 1852ms with no timeout, lock residue, temp residue, ENOTEMPTY cleanup error, source modification, or commit.
+
+Expected-head merge of PR #126 produced GitHub-signature-verified formal release commit `c05bf836362ccf19c81bf2023f0838d560808ab4`. Fresh exact-main Standard #1461 / run `33778097197` passed 7/7, and Dedicated #131 / run `33778097081` passed 2/2, including Windows full unit/build/residue and Browser/Media/HyperFrames/B6/B7 acceptance.
+
+Immutable-tag run `33778792113` created `v2.5.3` only after proving `main` still exactly equaled the release commit and the tag did not exist. Independent GitHub Git Data verification proved `refs/tags/v2.5.3` points to object type `tag`, tag object `66c43b7bd861d74f0abe046e063181c948981409`, which targets the exact release commit with message `Video OS Studio v2.5.3`. The tag object is unsigned; the correct language is **annotated, independently verified immutable tag**.
+
+Authoritative release evidence:
+
+`docs/acceptance/V2_5_3_RELEASE_FINALIZATION.md`
+
+## V2.5.3 accepted product truth
+
+V2.5.3 productizes the built-in Video Skill registry as explicit Agent Composer control. Skill selection is turn-scoped rather than part of durable Provider/Model Session identity; explicit Skills may narrow but never expand the existing Agent tool surface; `reviewRequired=true` can block auto-apply but cannot weaken application approval policy. Provider/Model binding, Project Schema `2.0.0`, and Project mutation authority remain unchanged. The late PR #126 change was test-only timing hardening and did not alter product/runtime behavior.
 
 ## Immutable V2.5.2 release truth
 

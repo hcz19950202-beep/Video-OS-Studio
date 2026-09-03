@@ -1,6 +1,6 @@
 # Video OS Studio V2.5.3 Release Finalization
 
-`V2_5_3_RELEASE = FINALIZATION_IN_PROGRESS`
+`V2_5_3_RELEASE = COMPLETE`
 
 ## 1. Release identity
 
@@ -313,3 +313,67 @@ After release-finalization merge:
 10. run fresh post-truth Standard + Dedicated acceptance.
 
 If the annotated tag object is unsigned, it must be described as an **annotated, independently verified immutable tag**, not as a cryptographically signed tag.
+
+
+## 10. Final release acceptance, hotfix, and immutable tag
+
+Release-finalization PR #125 exact head `eba15a1abdefbac99b8380af2e3eb14e1b29128b` passed Standard CI #1458 / run `33769529452` **7 / 7 PASS** and V2.5 Cloud Acceptance #128 / run `33769529426` **2 / 2 PASS**. Expected-head merge produced pre-hotfix release-main `76bf4edb97f7272cf720b6b2e6c9aec8b1bf0c10`.
+
+On that exact pre-hotfix main, Dedicated #129 / run `33770332176` passed **2 / 2**. Standard CI #1459 / run `33770332085` preserved a real release-gate stability defect: the existing test `serializes 32 concurrent claims into one runtime epoch` exceeded Vitest's inherited 5000ms timeout twice on Windows, first at roughly 5245ms and again on a targeted identical-SHA rerun at roughly 5142ms. Its behavioral assertions did not fail and the remaining 834 tests passed, but the repeated timeout was not waived. Immutable tag creation remained blocked.
+
+PR #126 `test(v2.5.3): harden runtime-owner Windows timeout` changed exactly one file, `tests/runtime-owner-concurrency.test.ts`, with +1 / -1. It preserved all 32 concurrent claims and all runtimeId, runtimeEpoch, isNewRuntime, owner-file, lock-cleanup and temp-cleanup assertions; the only semantic change was an explicit `15_000ms` timeout instead of Vitest's inherited 5000ms default. No product/runtime, package, dependency, Project Schema, mutation-authority, or assertion change was made.
+
+Exact hotfix SHA `62cbb9aeebce7efa95ce317c5cc83fb7ad107950` passed:
+
+- Standard CI #1460 / run `33771329475`: **7 / 7 PASS**;
+- V2.5 Cloud Acceptance #130 / run `33771329184`: **2 / 2 PASS**;
+- Mandatory Local Windows VERIFY ONLY: **PASS**.
+
+The hotfix Local Windows gate used Node `v24.20.0` / npm `11.19.0`, passed npm ci, format, lint (0 errors / 15 warnings), typecheck, 835 passed / 9 skipped / 0 failed unit tests, build, Skill regressions, Chromium C2, real Media, HyperFrames, B6 and B7. The focused 32-claim test completed in **1852ms**, with one runtimeId, one runtimeEpoch, exactly one new runtime, no timeout, no lock/temp residue, no ENOTEMPTY cleanup error, clean final tree, no modified files and no commits.
+
+PR #126 merged with `expected_head_sha=62cbb9aeebce7efa95ce317c5cc83fb7ad107950` as GitHub-signature-verified formal release commit:
+
+`c05bf836362ccf19c81bf2023f0838d560808ab4`
+
+Fresh exact-main acceptance on that release commit:
+
+- Standard CI #1461 / run `33778097197`: **7 / 7 PASS**;
+- V2.5 Cloud Acceptance #131 / run `33778097081`: **2 / 2 PASS**.
+
+These gates included Windows full unit/build/residue, Browser, real Media, HyperFrames, B6 and B7 acceptance. No additional source change followed the accepted hotfix.
+
+Immutable-tag workflow `V2.5.3 Immutable Tag Hotfix` run `33778792113`: **PASS**. It proved `main` still exactly equaled `c05bf836362ccf19c81bf2023f0838d560808ab4`, proved `refs/tags/v2.5.3` did not exist, created an annotated tag with message exactly `Video OS Studio v2.5.3`, and independently verified remote tag object and peeled target.
+
+Independent GitHub Git Data verification:
+
+```text
+tag ref:             refs/tags/v2.5.3
+tag object type:     tag
+tag object SHA:      66c43b7bd861d74f0abe046e063181c948981409
+tag target type:     commit
+dereferenced target: c05bf836362ccf19c81bf2023f0838d560808ab4
+tag message:         Video OS Studio v2.5.3
+verification:        unsigned
+```
+
+The correct release language is **annotated, independently verified immutable tag**. The tag must never be moved, recreated, or retargeted.
+
+## 11. Final release contract
+
+`V2_5_3_RELEASE = COMPLETE`
+
+Formal product/source release commit:
+
+`c05bf836362ccf19c81bf2023f0838d560808ab4`
+
+Immutable annotated tag:
+
+`v2.5.3`
+
+Tag object:
+
+`66c43b7bd861d74f0abe046e063181c948981409`
+
+V2.5.3 adds turn-scoped Agent Skill presets and Composer control while preserving durable Provider/Model Session identity, Project Schema `2.0.0`, and the existing Project mutation authority. PR #126 is test-only Windows timing hardening and does not alter accepted product/runtime behavior.
+
+Post-release repository truth synchronization is documentation-only. It may update `PROJECT_STATUS.md`, `README.md`, and this evidence file, but it must not move `v2.5.3` away from `c05bf836362ccf19c81bf2023f0838d560808ab4` and requires no additional Local Windows gate.

@@ -4,25 +4,41 @@ Video OS Studio is a local-first AI-native video production workspace.
 
 ## Current immutable release
 
-**Video OS Studio v2.5.2 is released.**
+**Video OS Studio v2.5.3 is released.**
 
 ```text
-Product version: 2.5.2
+Product version: 2.5.3
 Project Schema: 2.0.0
-Release commit: 6b268629dc1fbce9c80a66384cc663be6692eb65
-Release tag: v2.5.2 (annotated, independently verified)
-Tag object: 700a4dfbd2dfdee9253b28302b219129227858f9
+Release commit: c05bf836362ccf19c81bf2023f0838d560808ab4
+Release tag: v2.5.3 (annotated, independently verified)
+Tag object: 66c43b7bd861d74f0abe046e063181c948981409
 ```
 
-The annotated `v2.5.2` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, `v2.4.1`, `v2.4.2`, `v2.5.0`, and `v2.5.1` release tags remain immutable evidence and must never be moved or recreated.
+The annotated `v2.5.3` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, `v2.4.1`, `v2.4.2`, `v2.5.0`, `v2.5.1`, and `v2.5.2` release tags remain immutable evidence and must never be moved or recreated.
 
 Release evidence is recorded in:
 
-[`docs/acceptance/V2_5_2_RELEASE_FINALIZATION.md`](docs/acceptance/V2_5_2_RELEASE_FINALIZATION.md)
+[`docs/acceptance/V2_5_3_RELEASE_FINALIZATION.md`](docs/acceptance/V2_5_3_RELEASE_FINALIZATION.md)
 
 The live repository source of truth is:
 
 [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
+
+## What V2.5.3 adds
+
+V2.5.3 productizes the existing built-in Video Skill registry as turn-scoped Agent Composer control while preserving V2.5.2 durable Provider/Model identity:
+
+```text
+Auto · Agent chooses
+or explicit Video Skill
+→ validated turn-scoped VideoSkillRef
+→ Skill-aware provider context and narrowed tool surface
+→ durable per-Turn skill attribution
+→ reviewRequired can block auto-apply
+→ Provider/Model Session identity unchanged
+```
+
+Explicit Skills can narrow the existing Agent tool surface but cannot grant new tools or bypass application approval, revision, idempotency, execution-mode, or mutation safeguards. Project Schema stays `2.0.0`, and Project mutation authority is unchanged.
 
 ## What V2.5.2 adds
 
@@ -133,6 +149,10 @@ Runtime Correctness + Release Metadata Patch
 V2.5.2
 Durable Agent Provider/Model Routing + Composer Control
         ✅ RELEASED
+
+V2.5.3
+Agent Skill Presets + Turn-Scoped Composer Control
+        ✅ RELEASED
 ```
 
 ## V2.4 delivery sequence
@@ -223,6 +243,27 @@ V2.4.2 Correctness / Liveness Patch             ✅ VERIFIED
 - **Remotion 4.0.513** as Player/master composition/final renderer;
 - **FFmpeg / ffprobe** behind adapters/services;
 - **Playwright 1.62.1** for browser acceptance.
+
+## V2.5.3 release verification
+
+Accepted engineering source `b8b0d8e177257b617e1969fc9a1e9ceeae16d5f9` / tree `a81f64ab4b1edc94f859f0b8285f34dfdf74531e` passed Standard #1456 (7/7), Dedicated #126 (2/2), and Mandatory Local Windows acceptance. PR #124 merged with expected-head protection as engineering main `6d1f5c855b73997a8147e63f240a93b560990ba0`; exact-main Standard #1457 / run `33768538110` passed 7/7 and Dedicated #127 / run `33768538291` passed 2/2.
+
+Release-finalization PR #125 froze `eba15a1abdefbac99b8380af2e3eb14e1b29128b` after version-sync run `33769352419`. Standard #1458 / run `33769529452` passed 7/7 and Dedicated #128 / run `33769529426` passed 2/2. The resulting pre-hotfix release-main `76bf4edb97f7272cf720b6b2e6c9aec8b1bf0c10` passed Dedicated #129 / run `33770332176` 2/2, but Standard #1459 / run `33770332085` recorded the same Windows-only default-5-second timeout twice in the existing 32-concurrent runtime-owner test. The release was blocked rather than waiving the repeated timing failure.
+
+PR #126 kept the same 32 concurrent claims and all assertions, changing only that test's timeout budget to 15000ms. Exact hotfix `62cbb9aeebce7efa95ce317c5cc83fb7ad107950` passed Standard #1460 / run `33771329475` 7/7, Dedicated #130 / run `33771329184` 2/2, and Mandatory Local Windows VERIFY ONLY; its focused local run completed in 1852ms with clean residue and no tracked changes.
+
+Expected-head merge produced formal release commit `c05bf836362ccf19c81bf2023f0838d560808ab4`. Fresh exact-main Standard #1461 / run `33778097197` passed 7/7 and Dedicated #131 / run `33778097081` passed 2/2. Immutable-tag run `33778792113` then created `v2.5.3`. Independent GitHub Git Data verification confirmed:
+
+```text
+tag ref:             refs/tags/v2.5.3
+tag object type:     tag
+tag object SHA:      66c43b7bd861d74f0abe046e063181c948981409
+tag target type:     commit
+dereferenced commit: c05bf836362ccf19c81bf2023f0838d560808ab4
+tag message:         Video OS Studio v2.5.3
+```
+
+The tag object is unsigned; it is an annotated, independently verified immutable tag.
 
 ## V2.5.2 release verification
 
