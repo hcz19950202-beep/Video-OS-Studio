@@ -11,6 +11,7 @@ import {
 } from "@/lib/ai/schema";
 import {AgentSelectionSnapshotSchema} from "@/lib/ai/context";
 import {ContextReferenceListSchema} from "@/lib/ai/context-reference";
+import {VideoSkillRefSchema} from "@/lib/production/skills/schema";
 import {ProjectIdSchema} from "@/schemas/project";
 
 const StableRuntimeIdSchema=z.string().min(1).max(160).regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]*$/,"ID contains unsupported characters");
@@ -55,6 +56,7 @@ export const AgentTurnSchema=z.object({
   userMessageId:StableRuntimeIdSchema,
   assistantMessageId:StableRuntimeIdSchema.optional(),
   contextReferences:ContextReferenceListSchema.optional(),
+  skill:VideoSkillRefSchema.optional(),
   startedAt:z.string().datetime(),
   completedAt:z.string().datetime().optional(),
   status:AgentTurnStatusSchema,

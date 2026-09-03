@@ -9,6 +9,7 @@ import type {AgentTurnBudgetInput} from "@/lib/ai/budget";
 import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
 import {AgentSessionRepository} from "@/lib/ai/session/repository";
 import {AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";
+import type {VideoSkillRef} from "@/lib/production/skills/schema";
 
 export type AgentServiceDependencies={
   provider:AIProvider;
@@ -34,6 +35,7 @@ export type RunAgentTurnInput={
   executionMode?:AgentExecutionMode;
   selection?:Partial<AgentSelectionSnapshot>;
   contextReferences?:ReadonlyArray<ContextReference>;
+  skill?:VideoSkillRef;
   budget?:AgentTurnBudgetInput;
   signal?:AbortSignal;
 };

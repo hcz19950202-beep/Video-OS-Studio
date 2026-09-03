@@ -1,6 +1,7 @@
 import type {AgentProposalApplyResult,AgentProposalPreview} from "@/lib/ai/application";
 import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
 import type {AgentSelectionSnapshot,AgentSession,ContextReference} from "@/lib/ai";
+import type {VideoSkill,VideoSkillRef} from "@/lib/production/skills/schema";
 
 export type AgentProviderRuntimeStatus={
   providerId:string;
@@ -11,7 +12,7 @@ export type AgentProviderRuntimeStatus={
   selectable:boolean;
   isDefault:boolean;
 };
-export type AgentSessionListResult={sessions:AgentSession[];provider:AgentProviderRuntimeStatus;providers:AgentProviderRuntimeStatus[]};
+export type AgentSessionListResult={sessions:AgentSession[];provider:AgentProviderRuntimeStatus;providers:AgentProviderRuntimeStatus[];skills:VideoSkill[]};
 export type CreateAgentSessionOptions={selection?:Partial<AgentSelectionSnapshot>;providerId?:string;model?:string};
 export type AgentTurnStreamEvent={event:string;data:Record<string,unknown>};
 
@@ -85,13 +86,14 @@ export async function runAgentTurn(input:{
   executionMode?:AgentExecutionMode;
   selection?:Partial<AgentSelectionSnapshot>;
   contextReferences?:ReadonlyArray<ContextReference>;
+  skill?:VideoSkillRef;
   signal?:AbortSignal;
   onEvent?:(event:AgentTurnStreamEvent)=>void;
 }):Promise<AgentSession>{
   const response=await fetch(`${sessionBase(input.projectId,input.sessionId)}/turns`,{
     method:"POST",
     headers:{"Content-Type":"application/json","Accept":"text/event-stream"},
-    body:JSON.stringify({userContent:input.userContent,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE,selection:input.selection,contextReferences:input.contextReferences}),
+    body:JSON.stringify({userContent:input.userContent,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE,selection:input.selection,contextReferences:input.contextReferences,skill:input.skill}),
     signal:input.signal,
   });
   if(!response.ok)throw new Error(await readError(response));

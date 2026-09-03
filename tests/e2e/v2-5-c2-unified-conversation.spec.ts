@@ -42,6 +42,19 @@ test("C2 uses one unified Agent conversation", async ({ page }) => {
     "Provider and model are pinned",
   );
 
+  const skill = page.getByRole("combobox", { name: "Agent Skill", exact: true });
+  await expect(skill).toHaveValue("");
+  await expect(page.getByTestId("agent-skill-selector")).toContainText(
+    "Skills can only narrow capability",
+  );
+  await skill.selectOption("b2b-proof-card@1.0.0");
+  await expect(skill).toHaveValue("b2b-proof-card@1.0.0");
+  await expect(page.getByTestId("agent-skill-selector")).toContainText(
+    "requires review and will not auto-apply",
+  );
+  await skill.selectOption("");
+  await expect(skill).toHaveValue("");
+
   const executionMode = page.getByRole("combobox", { name: "Execution mode", exact: true });
   await expect(executionMode).toHaveValue("review-first");
   await executionMode.selectOption("plan-only");

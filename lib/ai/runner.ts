@@ -34,6 +34,7 @@ import {
   type AgentSession,
   type AgentTurn,
 } from "@/lib/ai/session/schema";
+import type {VideoSkillRef} from "@/lib/production/skills/schema";
 
 export type AgentRunnerInput={
   projectId:string;
@@ -42,6 +43,7 @@ export type AgentRunnerInput={
   executionMode:AgentExecutionMode;
   selection?:Partial<AgentSelectionSnapshot>;
   contextReferences?:ReadonlyArray<ContextReference>;
+  skill?:VideoSkillRef;
   budget?:AgentTurnBudgetInput;
   signal?:AbortSignal;
 };
@@ -229,6 +231,7 @@ export class AgentRunner{
       baseProjectRevision:context.baseProjectRevision,
       userMessageId,
       contextReferences,
+      ...(input.skill?{skill:input.skill}:{}),
       startedAt,
       status:"running",
       providerRoundTrips:0,

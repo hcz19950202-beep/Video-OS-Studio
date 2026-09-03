@@ -1,5 +1,6 @@
 import {z} from "zod";
 import {AgentSelectionSnapshotSchema} from "@/lib/ai";
+import {builtInVideoSkillRegistry} from "@/lib/production/skills";
 import {
   AgentProviderRuntimeError,
   agentSessionRepository,
@@ -52,6 +53,7 @@ export async function GET(_request:Request,{params}:Context){
       sessions:await agentSessionRepository.list(projectId),
       provider:getAgentProviderRuntimeStatus(),
       providers:listAgentProviderRuntimeStatuses(),
+      skills:builtInVideoSkillRegistry.list(),
     });
   }catch(error){return errorResponse(error);}
 }
