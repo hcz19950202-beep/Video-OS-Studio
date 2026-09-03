@@ -1,6 +1,8 @@
 import {z} from "zod";
 import {AgentExecutionModeSchema,AgentSelectionSnapshotSchema,AgentSessionIdSchema,ContextReferenceListSchema,ContextReferenceValidationError,DEFAULT_AGENT_EXECUTION_MODE,type AgentProviderEvent,type AgentSession} from "@/lib/ai";
 import {attemptAgentProposalAutoApply} from "@/lib/ai/proposal-approval-policy";
+import {builtInVideoSkillRegistry} from "@/lib/production/skills";
+import {VideoSkillRefSchema} from "@/lib/production/skills/schema";
 import {AgentProviderRuntimeError,agentProposalApplicationService,agentSessionRepository,createServerAgentSessionService,getAgentProviderRuntimeStatus,validateAgentProviderRuntimeModel} from "@/lib/server/agent-runtime";
 import {projectHistoryAttributions} from "@/lib/server/history-runtime";
 
@@ -12,6 +14,7 @@ const RunTurnRequestSchema=z.object({
   executionMode:AgentExecutionModeSchema.default(DEFAULT_AGENT_EXECUTION_MODE),
   selection:AgentSelectionSnapshotSchema.partial().optional(),
   contextReferences:ContextReferenceListSchema.optional(),
+  skill:VideoSkillRefSchema.optional(),
 }).strict();
 
 const encoder=new TextEncoder();
@@ -32,6 +35,11 @@ export async function POST(request:Request,{params}:Context){
   let persisted:AgentSession;
   try{persisted=await agentSessionRepository.require(projectId,sessionId);}
   catch{return Response.json({code:"AGENT_SESSION_NOT_FOUND",message:"Agent session could not be loaded for this turn.",retryable:true,action:"Refresh the session list or start a new session."},{status:404});}
+
+  const skill=input.skill?builtInVideoSkillRegistry.get(input.skill.id,input.skill.version):undefined;
+  if(input.skill&&!skill){
+    return Response.json({code:"AGENT_SKILL_UNAVAILABLE",message:"The selected Video Skill is not available in the built-in registry.",retryable:false,action:"Choose an available Video Skill and retry."},{status:400});
+  }
 
   let provider:ReturnType<typeof getAgentProviderRuntimeStatus>;
   let model:string;
@@ -82,9 +90,16 @@ export async function POST(request:Request,{params}:Context){
         else if(event.type==="error")send("provider-error",{code:event.error.code,retryable:event.error.retryable});
       };
 
-      send("turn-started",{sessionId,providerId:provider.providerId,model,executionMode:input.executionMode,contextReferenceCount:input.contextReferences?.length??0});
-      const service=createServerAgentSessionService(observe,provider.providerId,model);
-      void service.runTurn({projectId,sessionId,userContent:input.userContent,executionMode:input.executionMode,selection:input.selection,contextReferences:input.contextReferences,signal:abortController.signal}).then(async session=>{
+      send("turn-started",{
+        sessionId,
+        providerId:provider.providerId,
+        model,
+        executionMode:input.executionMode,
+        contextReferenceCount:input.contextReferences?.length??0,
+        ...(skill?{skill:{id:skill.id,version:skill.version}}:{}),
+      });
+      const service=createServerAgentSessionService(observe,provider.providerId,model,skill);
+      void service.runTurn({projectId,sessionId,userContent:input.userContent,executionMode:input.executionMode,selection:input.selection,contextReferences:input.contextReferences,skill:input.skill,signal:abortController.signal}).then(async session=>{
         let settledSession=session;
         const turn=session.turns.at(-1);
         if(!turn){
@@ -96,37 +111,46 @@ export async function POST(request:Request,{params}:Context){
         if(turn.proposalIds.length===1){
           const proposal=session.proposals.find(item=>item.id===turn.proposalIds[0]);
           if(proposal){
-            try{
-              const auto=await attemptAgentProposalAutoApply({
-                projectId,
-                session,
-                sourceTurn:turn,
-                proposal,
-                executionMode:input.executionMode,
-                application:agentProposalApplicationService,
+            if(skill?.riskPolicy.reviewRequired&&input.executionMode==="apply-safe-edits"){
+              send("proposal-auto-apply-deferred",{
+                id:proposal.id,
+                reason:"skill-requires-review",
+                skill:{id:skill.id,version:skill.version},
+                protectedCommandTypes:[],
               });
-              settledSession=auto.session;
-              if(auto.applied){
-                if(auto.transactionId){
-                  const kind=auto.session.providerId==="local-mcp"?"external-agent":"builtin-agent";
-                  await projectHistoryAttributions.record(projectId,auto.transactionId,{kind,sessionId,proposalId:proposal.id}).catch(()=>undefined);
+            }else{
+              try{
+                const auto=await attemptAgentProposalAutoApply({
+                  projectId,
+                  session,
+                  sourceTurn:turn,
+                  proposal,
+                  executionMode:input.executionMode,
+                  application:agentProposalApplicationService,
+                });
+                settledSession=auto.session;
+                if(auto.applied){
+                  if(auto.transactionId){
+                    const kind=auto.session.providerId==="local-mcp"?"external-agent":"builtin-agent";
+                    await projectHistoryAttributions.record(projectId,auto.transactionId,{kind,sessionId,proposalId:proposal.id}).catch(()=>undefined);
+                  }
+                  send("proposal-auto-applied",{
+                    id:proposal.id,
+                    applyOperationId:auto.applyOperationId,
+                    projectRevision:auto.project.project.revision,
+                    transactionId:auto.transactionId,
+                  });
+                }else if(input.executionMode==="apply-safe-edits"){
+                  send("proposal-auto-apply-deferred",{
+                    id:proposal.id,
+                    reason:auto.decision.reason,
+                    protectedCommandTypes:auto.decision.protectedCommandTypes,
+                  });
                 }
-                send("proposal-auto-applied",{
-                  id:proposal.id,
-                  applyOperationId:auto.applyOperationId,
-                  projectRevision:auto.project.project.revision,
-                  transactionId:auto.transactionId,
-                });
-              }else if(input.executionMode==="apply-safe-edits"){
-                send("proposal-auto-apply-deferred",{
-                  id:proposal.id,
-                  reason:auto.decision.reason,
-                  protectedCommandTypes:auto.decision.protectedCommandTypes,
-                });
+              }catch{
+                settledSession=await agentSessionRepository.require(projectId,sessionId);
+                if(input.executionMode==="apply-safe-edits")send("proposal-auto-apply-deferred",{id:proposal.id,reason:"apply-failed"});
               }
-            }catch{
-              settledSession=await agentSessionRepository.require(projectId,sessionId);
-              if(input.executionMode==="apply-safe-edits")send("proposal-auto-apply-deferred",{id:proposal.id,reason:"apply-failed"});
             }
           }
         }else if(input.executionMode==="apply-safe-edits"&&turn.proposalIds.length>1){
