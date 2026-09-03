@@ -1,29 +1,47 @@
 import {z} from "zod";
 import {AgentSelectionSnapshotSchema} from "@/lib/ai";
-import {agentSessionRepository,createServerAgentSessionService,getAgentProviderRuntimeStatus} from "@/lib/server/agent-runtime";
+import {
+  AgentProviderRuntimeError,
+  agentSessionRepository,
+  createServerAgentSessionService,
+  getAgentProviderRuntimeStatus,
+  listAgentProviderRuntimeStatuses,
+} from "@/lib/server/agent-runtime";
 
 export const runtime="nodejs";
 type Context={params:Promise<{projectId:string}>};
 
 const CreateSessionRequestSchema=z.object({
   selection:AgentSelectionSnapshotSchema.partial().optional(),
+  providerId:z.string().trim().min(1).max(120).optional(),
 }).strict();
 
 const errorResponse=(error:unknown)=>{
-  const message=error instanceof Error?error.message:"Agent request failed.";
-  const providerMissing=message.includes("VOLCENGINE_AGENT_API_KEY")||message.includes("VOLCENGINE_AGENT_MODEL");
+  if(error instanceof AgentProviderRuntimeError){
+    const unsupported=error.code==="unsupported_provider";
+    return Response.json({
+      code:unsupported?"AGENT_PROVIDER_UNSUPPORTED":"AGENT_PROVIDER_NOT_CONFIGURED",
+      message:unsupported?"Requested Agent provider is not supported.":"Requested Agent provider is not configured for the server runtime.",
+      retryable:!unsupported,
+      action:unsupported?"Choose a supported built-in Agent provider.":"Configure the selected provider locally and retry.",
+    },{status:unsupported?400:503});
+  }
   return Response.json({
-    code:providerMissing?"AGENT_PROVIDER_NOT_CONFIGURED":"AGENT_SESSION_ERROR",
-    message:providerMissing?"Volcengine Agent Plan is not configured for the server runtime.":"Agent session request failed.",
+    code:"AGENT_SESSION_ERROR",
+    message:"Agent session request failed.",
     retryable:true,
-    action:providerMissing?"Configure the local Agent Plan runtime and retry.":"Reload the Project and retry.",
-  },{status:providerMissing?503:400});
+    action:"Reload the Project and retry.",
+  },{status:400});
 };
 
 export async function GET(_request:Request,{params}:Context){
   try{
     const{projectId}=await params;
-    return Response.json({sessions:await agentSessionRepository.list(projectId),provider:getAgentProviderRuntimeStatus()});
+    return Response.json({
+      sessions:await agentSessionRepository.list(projectId),
+      provider:getAgentProviderRuntimeStatus(),
+      providers:listAgentProviderRuntimeStatuses(),
+    });
   }catch(error){return errorResponse(error);}
 }
 
@@ -31,10 +49,10 @@ export async function POST(request:Request,{params}:Context){
   try{
     const{projectId}=await params;
     const input=CreateSessionRequestSchema.parse(await request.json());
-    const provider=getAgentProviderRuntimeStatus();
-    if(!provider.configured)return errorResponse(new Error("VOLCENGINE_AGENT_API_KEY is required"));
-    const service=createServerAgentSessionService();
+    const provider=getAgentProviderRuntimeStatus(input.providerId);
+    if(!provider.configured||!provider.selectable)throw new AgentProviderRuntimeError("provider_not_configured",provider.providerId);
+    const service=createServerAgentSessionService(undefined,provider.providerId);
     const session=await service.create({projectId,model:provider.model,selection:input.selection});
-    return Response.json({session,provider},{status:201});
+    return Response.json({session,provider,providers:listAgentProviderRuntimeStatuses()},{status:201});
   }catch(error){return errorResponse(error);}
 }
