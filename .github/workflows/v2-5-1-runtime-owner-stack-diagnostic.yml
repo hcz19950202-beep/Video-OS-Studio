@@ -22,15 +22,15 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-      - name: Instrument ensureReady locally only
+      - name: Instrument runtime owner claim locally only
         shell: pwsh
         run: |
           @'
           from pathlib import Path
-          p=Path("lib/jobs/runtime.ts")
+          p=Path("lib/runtime/runtime-owner.ts")
           s=p.read_text(encoding="utf-8")
-          old='  private ensureReady(){return this.ready??=this.initialize();}'
-          new='  private ensureReady(){console.error("RUNTIME_ENSURE_READY_STACK\\n"+(new Error().stack??"no-stack"));return this.ready??=this.initialize();}'
+          old='  async claimRuntimeOwner(ownerPid=process.ppid):Promise<RuntimeOwnerClaim>{\n    if(!Number.isInteger(ownerPid)||ownerPid<0)throw new Error("Runtime owner pid is invalid.");'
+          new='  async claimRuntimeOwner(ownerPid=process.ppid):Promise<RuntimeOwnerClaim>{\n    console.error("RUNTIME_OWNER_CLAIM_STACK\\n"+(new Error().stack??"no-stack"));\n    if(!Number.isInteger(ownerPid)||ownerPid<0)throw new Error("Runtime owner pid is invalid.");'
           assert s.count(old)==1
           p.write_text(s.replace(old,new,1),encoding="utf-8")
           '@ | python -
