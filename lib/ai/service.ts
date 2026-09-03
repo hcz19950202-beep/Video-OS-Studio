@@ -8,7 +8,7 @@ import {AgentRunner,reconcileStaleProposals} from "@/lib/ai/runner";
 import type {AgentTurnBudgetInput} from "@/lib/ai/budget";
 import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
 import {AgentSessionRepository} from "@/lib/ai/session/repository";
-import {AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";
+import {AgentSessionSchema,AgentTurnSchema,type AgentSession} from "@/lib/ai/session/schema";
 import type {VideoSkillRef} from "@/lib/production/skills/schema";
 
 export type AgentServiceDependencies={
@@ -111,7 +111,7 @@ export class AgentSessionService{
     if(!turn)return session;
     return this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>AgentSessionSchema.parse({
       ...current,
-      turns:current.turns.map(item=>item.id===turn.id?AgentSessionSchema.shape.turns.element.parse({...item,skill:input.skill}):item),
+      turns:current.turns.map(item=>item.id===turn.id?AgentTurnSchema.parse({...item,skill:input.skill}):item),
       updatedAt:this.now(),
     }));
   }
