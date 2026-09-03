@@ -105,13 +105,14 @@ export class AgentSessionService{
   }
 
   async runTurn(input:RunAgentTurnInput):Promise<AgentSession>{
-    const session=await this.runner.runTurn({...input,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE});
-    if(!input.skill)return session;
+    const{skill,...runnerInput}=input;
+    const session=await this.runner.runTurn({...runnerInput,executionMode:runnerInput.executionMode??DEFAULT_AGENT_EXECUTION_MODE});
+    if(!skill)return session;
     const turn=session.turns.at(-1);
     if(!turn)return session;
     return this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>AgentSessionSchema.parse({
       ...current,
-      turns:current.turns.map(item=>item.id===turn.id?AgentTurnSchema.parse({...item,skill:input.skill}):item),
+      turns:current.turns.map(item=>item.id===turn.id?AgentTurnSchema.parse({...item,skill}):item),
       updatedAt:this.now(),
     }));
   }
