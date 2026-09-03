@@ -16,10 +16,12 @@ const remotionTimeoutMs =
 const parsedFinalRenderAcceptanceTimeoutMs = Number(
   process.env.W4_FINAL_RENDER_ACCEPTANCE_TIMEOUT_MS,
 );
-const finalRenderAcceptanceTimeoutMs =
+const finalRenderAcceptanceTimeoutMs = Math.max(
+  remotionTimeoutMs + 2 * 60_000,
   Number.isFinite(parsedFinalRenderAcceptanceTimeoutMs) && parsedFinalRenderAcceptanceTimeoutMs > 0
     ? Math.round(parsedFinalRenderAcceptanceTimeoutMs)
-    : remotionTimeoutMs + 2 * 60_000;
+    : 0,
+);
 const w4TestTimeoutMs = Math.max(15 * 60_000, finalRenderAcceptanceTimeoutMs + 7 * 60_000);
 
 test.skip(
