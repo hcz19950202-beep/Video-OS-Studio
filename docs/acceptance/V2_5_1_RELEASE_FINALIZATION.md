@@ -1,6 +1,6 @@
 # Video OS Studio V2.5.1 Release Finalization
 
-`V2_5_1_RELEASE = FINALIZATION IN PROGRESS`
+`V2_5_1_RELEASE = COMPLETE`
 
 ## 1. Release identity
 
@@ -250,25 +250,89 @@ Net compare accepted engineering main → version-sync commit:
 
 No helper workflow remains in the net diff.
 
-## 8. Release gates still required
+## 8. Release completion evidence
 
-Do not create tag `v2.5.1` yet.
+Release-finalization PR #118 froze exact head:
 
-The following remain mandatory:
+`85e347f4830d3476ed31206134610ef3f515fbf5`
 
-1. formal non-Draft release PR from `release/v2.5.1-finalization`;
-2. release PR exact-head Standard CI 7 / 7 PASS;
-3. release PR exact-head V2.5 Cloud Acceptance 2 / 2 PASS;
-4. release PR head and main exact-SHA drift audit;
-5. expected-head merge;
-6. release commit exact-main Standard CI 7 / 7 PASS;
-7. release commit exact-main V2.5 Cloud Acceptance 2 / 2 PASS;
-8. prove main remains exact release commit;
-9. prove `v2.5.1` tag does not yet exist;
-10. create annotated immutable tag `v2.5.1` with message exactly `Video OS Studio v2.5.1`;
-11. independently verify tag ref object type `tag`, tag target type `commit`, exact release commit target, and exact message;
-12. perform docs-only post-release truth sync without moving the immutable tag.
+### Release PR exact-head gates
 
+V2.5 Cloud Acceptance #89 / run `33743958297`: **2 / 2 PASS**.
+
+Standard CI #1419 / run `33743958288`: **7 / 7 PASS at attempt 2**.
+
+The first Standard attempt preserved two fixed Windows unit timeouts: W2 at 15 seconds and runtime-owner concurrency at 5 seconds. The identical exact release head passed those same tests in Dedicated Windows in approximately 1.8 seconds and 2.5 seconds, and Dedicated completed the full 195-file / 814-test suite, build and residue audit successfully. No source or test patch was made. A single controlled rerun on the identical release head passed `windows-verify`, after which Browser, Media, HyperFrames, B6 and B7 all completed successfully. The initial timing failure remains part of the audit record rather than being erased.
+
+PR #118 was merged only after exact-head gates were green, using expected-head protection.
+
+Release commit:
+
+`b6f30c08c1c85bb80c43385827baa3317c1efbb5`
+
+The merge commit is GitHub-signature verified.
+
+### Release exact-main gates
+
+V2.5 Cloud Acceptance #90 / run `33745650176`: **2 / 2 PASS**.
+
+- V2.5 cloud/browser acceptance PASS
+- Windows full baseline PASS
+- full unit suite PASS
+- build PASS
+- Windows C7 residue audit PASS
+
+Standard CI #1420 / run `33745650175`: **7 / 7 PASS**.
+
+```text
+ubuntu-verify                    PASS
+windows-verify                   PASS
+browser-smoke                    PASS
+windows-media-smoke              PASS
+windows-hyperframes-smoke        PASS
+windows-b6-core-acceptance       PASS
+windows-b7-campaign-acceptance   PASS
+```
+
+The release exact-main Windows unit gate passed directly; the PR-head timing flake did not reproduce.
+
+### Immutable annotated tag
+
+After exact-main acceptance, `main` was independently rechecked to still equal release commit `b6f30c08c1c85bb80c43385827baa3317c1efbb5`, and `refs/tags/v2.5.1` was confirmed absent.
+
+Isolated one-shot tag run `33746191919` then passed every immutable-boundary check and created `v2.5.1`. The workflow self-deleted from `release/v2.5.1-tagging` after remote verification.
+
+Independent GitHub Git Data verification confirmed:
+
+```text
+ref:                 refs/tags/v2.5.1
+ref object type:     tag
+tag object SHA:      d73595ad3a51d010d61df1c096bead911f4a31b5
+tag target type:     commit
+tag target commit:   b6f30c08c1c85bb80c43385827baa3317c1efbb5
+tag message:         Video OS Studio v2.5.1
+```
+
+Previous immutable V2.5.0 remains unchanged:
+
+```text
+v2.5.0 tag object:   bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
+v2.5.0 target:       df54e10e38ee2793e8fdf285ea2c216fe8c65478
+```
+
+### Release contract
+
+```text
+v2.5.1 tag:        v2.5.1 / annotated / independently verified
+release commit:    b6f30c08c1c85bb80c43385827baa3317c1efbb5
+tag object:        d73595ad3a51d010d61df1c096bead911f4a31b5
+release status:    COMPLETE
+product work:      UNFROZEN FOR A SEPARATELY APPROVED NEXT WORKSTREAM
+schema changes:    NONE
+local action:      NONE
+```
+
+This post-release truth sync is documentation-only. It does not create, move, recreate or retarget `v2.5.1`; the immutable tag remains on the release commit even after `main` later advances through documentation-only merge commits.
 ## 9. Local Windows rule after engineering acceptance
 
 No additional Local Windows gate is required for version metadata / release evidence / post-release truth-sync changes, provided product/runtime/source files are not changed after accepted engineering main.

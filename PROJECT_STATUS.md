@@ -5,17 +5,17 @@
 ## Current checkpoint
 
 ```yaml
-released_product_version: 2.5.0
-released_tag: v2.5.0
-released_commit: df54e10e38ee2793e8fdf285ea2c216fe8c65478
-released_tag_object_sha: bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
+released_product_version: 2.5.1
+released_tag: v2.5.1
+released_commit: b6f30c08c1c85bb80c43385827baa3317c1efbb5
+released_tag_object_sha: d73595ad3a51d010d61df1c096bead911f4a31b5
 project_schema: 2.0.0
 
-package_json_version: 2.5.0
-package_lock_version: 2.5.0
+package_json_version: 2.5.1
+package_lock_version: 2.5.1
 
 active_development_workstream: NONE
-active_stage: V2.5.0 RELEASE COMPLETE
+active_stage: V2.5.1 RELEASE COMPLETE
 active_branch: NONE
 final_v2_4_audit_issue: Issue #94 / CLOSED
 final_v2_4_audit_pr: PR #96
@@ -58,16 +58,63 @@ v2_5_release_commit: df54e10e38ee2793e8fdf285ea2c216fe8c65478
 v2_5_release_main_dedicated_ci: run 33672088362 / PASS
 v2_5_release_main_standard_ci: run 33672088402 / PASS / 7 of 7
 v2_5_release_tag_creation: run 33673004195 / PASS
+v2_5_1_engineering_audit_pr: PR #116 / CLOSED UNMERGED
+v2_5_1_engineering_merge_pr: PR #117
+v2_5_1_accepted_source_head: d6c2f0ae1a7a7d71623731a79e3c3c3759069c38
+v2_5_1_engineering_main: d74da28c1548c8aec7e9dd3d62f3b7fcd06d1b9b
+v2_5_1_engineering_main_dedicated_ci: run 33743200284 / PASS / 2 of 2
+v2_5_1_engineering_main_standard_ci: run 33743200058 / PASS / 7 of 7
+v2_5_1_local_windows_gate: d6c2f0ae1a7a7d71623731a79e3c3c3759069c38 / S01-S16 PASS
+v2_5_1_release_metadata_sync: run 33743797484 / PASS
+v2_5_1_release_finalization_pr: PR #118
+v2_5_1_release_pr_frozen_head: 85e347f4830d3476ed31206134610ef3f515fbf5
+v2_5_1_release_pr_dedicated_ci: run 33743958297 / PASS / 2 of 2
+v2_5_1_release_pr_standard_ci: run 33743958288 / PASS / attempt 2 / 7 of 7
+v2_5_1_release_commit: b6f30c08c1c85bb80c43385827baa3317c1efbb5
+v2_5_1_release_main_dedicated_ci: run 33745650176 / PASS / 2 of 2
+v2_5_1_release_main_standard_ci: run 33745650175 / PASS / 7 of 7
+v2_5_1_release_tag_creation: run 33746191919 / PASS
 local_action_required: NO
-next_action: NONE — V2.5.0 is released; future product work requires a separately approved next workstream
+next_action: NONE — V2.5.1 is released; future product work requires a separately approved next workstream
 v2_4_status: RELEASED
 v2_4_1_status: RELEASED
 v2_4_2_status: RELEASED
 post_v2_4_2_p3_hardening_status: COMPLETE
 final_v2_4_audit_status: COMPLETE
 v2_5_status: RELEASED
+v2_5_1_status: RELEASED
 ```
 
+## Immutable V2.5.1 release truth
+
+Video OS Studio V2.5.1 is released at the independently verified annotated tag `v2.5.1`.
+
+```text
+release commit:      b6f30c08c1c85bb80c43385827baa3317c1efbb5
+annotated tag:       v2.5.1
+tag object SHA:      d73595ad3a51d010d61df1c096bead911f4a31b5
+tag target type:     commit
+dereferenced target: b6f30c08c1c85bb80c43385827baa3317c1efbb5
+tag message:         Video OS Studio v2.5.1
+```
+
+Accepted V2.5.1 source SHA `d6c2f0ae1a7a7d71623731a79e3c3c3759069c38` passed source cloud gates and Mandatory Local Windows S01–S16. PR #117 merged that exact source with expected-head protection as engineering main `d74da28c1548c8aec7e9dd3d62f3b7fcd06d1b9b`; engineering exact-main Dedicated run `33743200284` passed 2/2 and Standard run `33743200058` passed 7/7.
+
+Release-finalization PR #118 froze exact head `85e347f4830d3476ed31206134610ef3f515fbf5`. Dedicated run `33743958297` passed 2/2. Standard run `33743958288` completed 7/7 PASS at attempt 2 after the initial Windows unit job recorded two fixed timeout failures under runner contention; the identical exact release head passed those same tests in Dedicated Windows and then passed the controlled Standard rerun. No source or test change was made for the rerun.
+
+PR #118 then merged with expected-head protection as release commit `b6f30c08c1c85bb80c43385827baa3317c1efbb5`. Release exact-main Dedicated run `33745650176` passed 2/2 and Standard run `33745650175` passed 7/7, including real Media, HyperFrames, B6 and B7 Windows gates.
+
+Isolated immutable-tag run `33746191919` created `v2.5.1` only after proving `origin/main` still exactly equaled the release commit, package metadata was exactly `2.5.1`, `v2.5.1` did not already exist, and immutable `v2.5.0` remained unchanged. Independent GitHub Git Data verification proved `refs/tags/v2.5.1` points to object type `tag`, tag object `d73595ad3a51d010d61df1c096bead911f4a31b5`, which targets the exact release commit with message `Video OS Studio v2.5.1`.
+
+Immutable `v2.5.0` remains tag object `bff4bf67edc95dbf4cc78019f6795c94a4e59ea5`, targeting `df54e10e38ee2793e8fdf285ea2c216fe8c65478`.
+
+Authoritative release evidence:
+
+`docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md`
+
+## V2.5.1 accepted patch truth
+
+V2.5.1 is a bounded correctness and runtime-ownership patch over V2.5.0. It keeps Project Schema unchanged while aligning MCP product metadata, removing constructor-time runtime ownership side effects, making Job/Workflow recovery lazy and shared, correcting Windows ownership/residue acceptance semantics, preserving production render timeouts, and proving restart reconciliation cannot leave FINAL_RENDER permanently running.
 ## Immutable V2.5.0 release truth
 
 Video OS Studio V2.5.0 is released at the independently verified annotated tag `v2.5.0`.
@@ -314,6 +361,7 @@ POST-V2.4.2 P3 HARDENING / Issue #83 CLOSED / PR #91 / main c528e2ce0fc1a64006f2
 FINAL V2.4.x INDEPENDENT AUDIT / Issue #94 CLOSED / PR #96 / exact head 09f06c63968e888411bd0b94d495374f396ad95d / main 3b8c6c61894d4b8437aafa1d48fd32f8b858c808 / CI #1117 PASS attempt 3
 V2.5 C7 FINAL ACCEPTANCE / PR #112 audit + PR #113 accepted merge / source 58d303db9f39b24b5883a4d408d523d5f3617279 / Local Windows S01-S16 PASS
 V2.5.0 RELEASE / PR #114 / release commit df54e10e38ee2793e8fdf285ea2c216fe8c65478 / Standard exact-main 7 of 7 PASS / annotated tag verified
+V2.5.1 RELEASE / PR #118 / release commit b6f30c08c1c85bb80c43385827baa3317c1efbb5 / Standard exact-main 7 of 7 PASS / Dedicated exact-main 2 of 2 PASS / annotated tag verified
 ```
 
 ## Frozen technical invariants
