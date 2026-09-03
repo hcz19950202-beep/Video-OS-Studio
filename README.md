@@ -4,21 +4,21 @@ Video OS Studio is a local-first AI-native video production workspace.
 
 ## Current immutable release
 
-**Video OS Studio v2.5.0 is released.**
+**Video OS Studio v2.5.1 is released.**
 
 ```text
-Product version: 2.5.0
+Product version: 2.5.1
 Project Schema: 2.0.0
-Release commit: df54e10e38ee2793e8fdf285ea2c216fe8c65478
-Release tag: v2.5.0 (annotated, verified)
-Tag object: bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
+Release commit: b6f30c08c1c85bb80c43385827baa3317c1efbb5
+Release tag: v2.5.1 (annotated, verified)
+Tag object: d73595ad3a51d010d61df1c096bead911f4a31b5
 ```
 
-The annotated `v2.5.0` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, `v2.4.1`, and `v2.4.2` release tags remain immutable evidence and must never be moved or recreated.
+The annotated `v2.5.1` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, `v2.4.1`, `v2.4.2`, and `v2.5.0` release tags remain immutable evidence and must never be moved or recreated.
 
 Release evidence is recorded in:
 
-[`docs/acceptance/V2_5_0_RELEASE_FINALIZATION.md`](docs/acceptance/V2_5_0_RELEASE_FINALIZATION.md)
+[`docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md`](docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md)
 
 The live repository source of truth is:
 
@@ -108,6 +108,10 @@ Correctness / Liveness / HyperFrames Patch
 
 V2.5.0
 Agent-Native Workspace + Local MCP
+        ✅ RELEASED
+
+V2.5.1
+Runtime Correctness + Release Metadata Patch
         ✅ RELEASED
 ```
 
@@ -200,6 +204,26 @@ V2.4.2 Correctness / Liveness Patch             ✅ VERIFIED
 - **FFmpeg / ffprobe** behind adapters/services;
 - **Playwright 1.62.1** for browser acceptance.
 
+## V2.5.1 release verification
+
+Accepted source SHA `d6c2f0ae1a7a7d71623731a79e3c3c3759069c38` passed Standard source CI 7/7, Dedicated V2.5 Cloud Acceptance 2/2, and Mandatory Local Windows S01–S16. PR #117 merged that exact source with expected-head protection as engineering main `d74da28c1548c8aec7e9dd3d62f3b7fcd06d1b9b`; exact-main Dedicated run `33743200284` passed 2/2 and Standard run `33743200058` passed 7/7.
+
+Release PR #118 froze exact head `85e347f4830d3476ed31206134610ef3f515fbf5`. Dedicated run `33743958297` passed 2/2. Standard CI #1419 / run `33743958288` finished 7/7 PASS at attempt 2 after preserving an initial Windows runner-contention timing failure; no source or test change was made. Expected-head merge produced release commit `b6f30c08c1c85bb80c43385827baa3317c1efbb5`.
+
+Release exact-main Dedicated #90 / run `33745650176` passed 2/2. Standard CI #1420 / run `33745650175` passed all seven gates, including Browser, real Media, HyperFrames, B6 and B7 Windows acceptance.
+
+Isolated immutable-tag run `33746191919` created `v2.5.1`. Independent GitHub Git Data verification confirmed:
+
+```text
+tag ref:             refs/tags/v2.5.1
+tag object type:     tag
+tag object SHA:      d73595ad3a51d010d61df1c096bead911f4a31b5
+tag target type:     commit
+dereferenced commit: b6f30c08c1c85bb80c43385827baa3317c1efbb5
+tag message:         Video OS Studio v2.5.1
+```
+
+`v2.5.0` was independently reverified and remains unchanged.
 ## V2.5.0 release verification
 
 Accepted C7 source SHA `58d303db9f39b24b5883a4d408d523d5f3617279` passed Dedicated source acceptance, Standard 7/7 CI, and Mandatory Local Windows S01–S16. PR #113 merged the exact accepted source with expected-head protection as engineering main `79867fa26d837fb4f36dc2c60dd07c15ee88c4fd`; exact-main Dedicated run `33670276121` and Standard run `33670276165` passed.
