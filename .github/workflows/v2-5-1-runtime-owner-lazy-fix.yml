@@ -1,0 +1,100 @@
+name: V2.5.1 Runtime Owner Lazy Fix
+
+on:
+  push:
+    branches:
+      - release/v2.5.1-mcp-correctness
+    paths:
+      - .github/workflows/v2-5-1-runtime-owner-lazy-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout helper commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify helper is running on the intended branch tip
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse origin/release/v2.5.1-mcp-correctness)" = "${GITHUB_SHA}"
+
+      - name: Apply lazy runtime initialization and regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          runtime_path = Path("lib/jobs/runtime.ts")
+          text = runtime_path.read_text(encoding="utf-8")
+
+          old = "  private readonly ready:Promise<void>;\n"
+          new = "  private ready:Promise<void>|undefined;\n"
+          assert text.count(old) == 1, "unexpected ready field shape"
+          text = text.replace(old, new, 1)
+
+          old = "    this.limits={...DEFAULT_LIMITS,...limits};\n    this.ready=this.initialize();\n  }\n\n  register(type:JobType,executor:JobExecutor){this.executors.set(type,executor);}\n"
+          new = "    this.limits={...DEFAULT_LIMITS,...limits};\n  }\n\n  register(type:JobType,executor:JobExecutor){this.executors.set(type,executor);}\n\n  private ensureReady(){return this.ready??=this.initialize();}\n"
+          assert text.count(old) == 1, "unexpected constructor/register shape"
+          text = text.replace(old, new, 1)
+
+          ready_waits = text.count("await this.ready;")
+          assert ready_waits >= 6, f"unexpected ready wait count: {ready_waits}"
+          text = text.replace("await this.ready;", "await this.ensureReady();")
+
+          old = "  async waitForIdle(jobId:string){for(;;){const execution=this.activeExecutions.get(jobId);if(!execution)return;await execution;}}\n"
+          new = "  async waitForIdle(jobId:string){await this.ensureReady();for(;;){const execution=this.activeExecutions.get(jobId);if(!execution)return;await execution;}}\n"
+          assert text.count(old) == 1, "unexpected waitForIdle shape"
+          text = text.replace(old, new, 1)
+
+          assert "this.ready=this.initialize()" not in text
+          assert "await this.ready;" not in text
+          runtime_path.write_text(text, encoding="utf-8")
+
+          test_path = Path("tests/durable-jobs-h3.test.ts")
+          tests = test_path.read_text(encoding="utf-8")
+          marker = 'describe("H3 durable job runtime",()=>{\n'
+          assert tests.count(marker) == 1, "unexpected durable jobs describe marker"
+          regression = '''  it("keeps construction side-effect free until the runtime is first used",async()=>{\n    const{root,store}=await makeStore();\n    const runtime=new DurableJobRuntime(store);\n    await new Promise(resolve=>setTimeout(resolve,100));\n    await expect(access(join(root,".runtime-owner.json"))).rejects.toMatchObject({code:"ENOENT"});\n    await expect(access(join(root,".runtime-owner.lock"))).rejects.toMatchObject({code:"ENOENT"});\n    await runtime.waitUntilReady();\n    expect(JSON.parse(await readFile(join(root,".runtime-owner.json"),"utf8"))).toMatchObject({runtimeId:expect.any(String),ownerPid:expect.any(Number)});\n    await expect(access(join(root,".runtime-owner.lock"))).rejects.toMatchObject({code:"ENOENT"});\n  });\n\n'''
+          assert "keeps construction side-effect free until the runtime is first used" not in tests
+          tests = tests.replace(marker, marker + regression, 1)
+          test_path.write_text(tests, encoding="utf-8")
+          PY
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Target durable runtime regression
+        run: npx vitest run tests/durable-jobs-h3.test.ts
+
+      - name: Remove one-shot helper and validate bounded diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/v2-5-1-runtime-owner-lazy-fix.yml
+          git diff --check
+          changed="$(git status --short | awk '{print $2}' | sort)"
+          expected="$(printf '%s\n' lib/jobs/runtime.ts tests/durable-jobs-h3.test.ts | sort)"
+          test "$changed" = "$expected"
+
+      - name: Commit and push exact patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/jobs/runtime.ts tests/durable-jobs-h3.test.ts .github/workflows/v2-5-1-runtime-owner-lazy-fix.yml
+          git commit -m "fix(v2.5.1): defer durable runtime ownership until use"
+          git push --force-with-lease=refs/heads/release/v2.5.1-mcp-correctness:${GITHUB_SHA} origin HEAD:refs/heads/release/v2.5.1-mcp-correctness
