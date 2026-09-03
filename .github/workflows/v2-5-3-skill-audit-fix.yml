@@ -1,0 +1,99 @@
+name: V2.5.3 Skill Audit Patch
+
+on:
+  push:
+    branches:
+      - feature/v2.5.3-agent-skills
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'chore(v2.5.3): run skill audit patch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/v2.5.3-agent-skills
+          fetch-depth: 2
+      - name: Guard and patch crash-safe Skill audit
+        shell: python
+        run: |
+          from pathlib import Path
+
+          runner = Path('lib/ai/runner.ts')
+          service = Path('lib/ai/service.ts')
+          helper = Path('.github/workflows/v2-5-3-skill-audit-fix.yml')
+
+          runner_text = runner.read_text(encoding='utf-8')
+          service_text = service.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  'runner import',
+                  '} from "@/lib/ai/session/schema";\n\nexport type AgentRunnerInput={',
+                  '} from "@/lib/ai/session/schema";\nimport type {VideoSkillRef} from "@/lib/production/skills/schema";\n\nexport type AgentRunnerInput={',
+              ),
+              (
+                  'runner input',
+                  '  contextReferences?:ReadonlyArray<ContextReference>;\n  budget?:AgentTurnBudgetInput;',
+                  '  contextReferences?:ReadonlyArray<ContextReference>;\n  skill?:VideoSkillRef;\n  budget?:AgentTurnBudgetInput;',
+              ),
+              (
+                  'turn audit',
+                  '      contextReferences,\n      startedAt,',
+                  '      contextReferences,\n      ...(input.skill?{skill:input.skill}:{}),\n      startedAt,',
+              ),
+          ]
+          for label, old, new in replacements:
+              count = runner_text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, got {count}')
+              runner_text = runner_text.replace(old, new, 1)
+
+          old_import = 'import {AgentSessionSchema,AgentTurnSchema,type AgentSession} from "@/lib/ai/session/schema";'
+          new_import = 'import {AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";'
+          if service_text.count(old_import) != 1:
+              raise SystemExit('service import guard failed')
+          service_text = service_text.replace(old_import, new_import, 1)
+
+          old_run = '''  async runTurn(input:RunAgentTurnInput):Promise<AgentSession>{
+            const{skill,...runnerInput}=input;
+            const session=await this.runner.runTurn({...runnerInput,executionMode:runnerInput.executionMode??DEFAULT_AGENT_EXECUTION_MODE});
+            if(!skill)return session;
+            const turn=session.turns.at(-1);
+            if(!turn)return session;
+            return this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>AgentSessionSchema.parse({
+              ...current,
+              turns:current.turns.map(item=>item.id===turn.id?AgentTurnSchema.parse({...item,skill}):item),
+              updatedAt:this.now(),
+            }));
+          }'''.replace('            ', '    ')
+          new_run = '''  async runTurn(input:RunAgentTurnInput):Promise<AgentSession>{
+            return this.runner.runTurn({...input,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE});
+          }'''.replace('            ', '    ')
+          if service_text.count(old_run) != 1:
+              raise SystemExit('service runTurn guard failed')
+          service_text = service_text.replace(old_run, new_run, 1)
+
+          runner.write_text(runner_text, encoding='utf-8')
+          service.write_text(service_text, encoding='utf-8')
+          helper.unlink()
+      - name: Verify bounded patch scope
+        run: |
+          git diff --check
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' '.github/workflows/v2-5-3-skill-audit-fix.yml' 'lib/ai/runner.ts' 'lib/ai/service.ts' | sort)"
+          test "$changed" = "$expected"
+          grep -F 'skill?:VideoSkillRef;' lib/ai/runner.ts
+          grep -F '...(input.skill?{skill:input.skill}:{}),' lib/ai/runner.ts
+          grep -F 'input.executionMode??DEFAULT_AGENT_EXECUTION_MODE' lib/ai/service.ts
+          test ! -e .github/workflows/v2-5-3-skill-audit-fix.yml
+      - name: Commit source correction and self-delete helper
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/ai/runner.ts lib/ai/service.ts .github/workflows/v2-5-3-skill-audit-fix.yml
+          git commit -m "fix(v2.5.3): persist skill binding at turn start"
+          git push origin HEAD:feature/v2.5.3-agent-skills
