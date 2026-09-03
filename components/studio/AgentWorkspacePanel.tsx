@@ -6,6 +6,7 @@ import {attachContextSelection,contextReferenceKey,contextSelectionKey,type Cont
 import type {AgentProposalPreview,AgentSelectionSnapshot,AgentSession,ContextReference} from "@/lib/ai";
 import {applyAgentProposal,createAgentSession,listAgentSessions,openAgentSession,rejectAgentProposal,reviewAgentProposal,runAgentTurn,type AgentProviderRuntimeStatus,type AgentSessionListResult,type AgentTurnStreamEvent} from "@/lib/client/agent";
 import {loadStudioProject} from "@/lib/client/projects";
+import type {VideoSkill} from "@/lib/production/skills/schema";
 import type {Project} from "@/schemas/project";
 import {useHistoryStore} from "@/store/history-store";
 import {useSelectionStore} from "@/store/selection-store";
@@ -21,6 +22,8 @@ const unavailableSessionProvider=(session:AgentSession):AgentProviderRuntimeStat
   selectable:false,
   isDefault:false,
 });
+
+const skillEvidenceId=(skill:Pick<VideoSkill,"id"|"version">)=>`${skill.id}@${skill.version}`;
 
 export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{project:Project;onProjectChange:(project:Project)=>void;onOpenMission?:()=>void})=>{
   const{locale}=useStudioPreferences();
@@ -45,6 +48,8 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const[providers,setProviders]=useState<AgentProviderRuntimeStatus[]>([]);
   const[newSessionProviderId,setNewSessionProviderId]=useState("");
   const[newSessionModel,setNewSessionModel]=useState("");
+  const[skills,setSkills]=useState<VideoSkill[]>([]);
+  const[selectedSkillId,setSelectedSkillId]=useState("");
   const[input,setInput]=useState("");
   const[executionMode,setExecutionMode]=useState<AgentExecutionMode>(DEFAULT_AGENT_EXECUTION_MODE);
   const[busy,setBusy]=useState(false);
@@ -64,6 +69,8 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const applyProviderCatalog=(data:AgentSessionListResult)=>{
     setDefaultProvider(data.provider);
     setProviders(data.providers);
+    setSkills(data.skills??[]);
+    setSelectedSkillId(current=>current&&(data.skills??[]).some(item=>skillEvidenceId(item)===current)?current:"");
     const preferred=data.providers.find(item=>item.providerId===data.provider.providerId&&item.configured&&item.selectable)
       ??data.providers.find(item=>item.configured&&item.selectable)
       ??data.provider;
@@ -78,6 +85,7 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const effectiveProvider=session
     ?sessionProvider?{...sessionProvider,model:session.model??sessionProvider.model}:null
     :selectedNewSessionProvider?{...selectedNewSessionProvider,model:newSessionModel||selectedNewSessionProvider.model}:null;
+  const selectedSkill=skills.find(item=>skillEvidenceId(item)===selectedSkillId);
 
   const attachTarget=(target:ContextSelectionTarget)=>setDraftContextReferences(current=>{
     const scoped=current.filter(reference=>reference.projectId===project.project.id);
@@ -184,6 +192,7 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
   const send=async(prompt=input.trim()||lastPrompt)=>{
     if(!prompt||busy||proposalBusy||effectiveProvider?.configured!==true||effectiveProvider.selectable!==true)return;
     const sentContextReferences=draftContextReferences.filter(reference=>reference.projectId===project.project.id);
+    const sentSkill=selectedSkill?{id:selectedSkill.id,version:selectedSkill.version}:undefined;
     setBusy(true);setError(null);setStreamText("");setActivity([]);setLastPrompt(prompt);setInput("");setPreviews({});setChangeSelections({});setPendingContextReferences(sentContextReferences);
     const controller=new AbortController();abortRef.current=controller;
     try{
@@ -202,6 +211,7 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
         executionMode,
         selection,
         contextReferences:sentContextReferences,
+        skill:sentSkill,
         signal:controller.signal,
         onEvent:event=>{
           observe(event);
@@ -305,6 +315,8 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
     providers={providers}
     newSessionProviderId={newSessionProviderId}
     newSessionModel={newSessionModel}
+    skills={skills}
+    selectedSkillId={selectedSkillId}
     sessions={sessions}
     sessionId={session?.id??null}
     executionMode={executionMode}
@@ -324,6 +336,7 @@ export const AgentWorkspacePanel=({project,onProjectChange,onOpenMission}:{proje
     onCreateSession={()=>void createSession()}
     onNewSessionProviderChange={changeNewSessionProvider}
     onNewSessionModelChange={setNewSessionModel}
+    onSkillChange={setSelectedSkillId}
     onExecutionModeChange={setExecutionMode}
     onReviewProposal={proposalId=>void reviewProposal(proposalId)}
     onRejectProposal={proposalId=>void rejectProposal(proposalId)}
