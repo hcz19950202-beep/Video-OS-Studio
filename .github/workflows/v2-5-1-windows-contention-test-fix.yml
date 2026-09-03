@@ -1,0 +1,91 @@
+name: V2.5.1 Windows Contention Test Fix
+
+on:
+  push:
+    branches:
+      - release/v2.5.1-mcp-correctness
+    paths:
+      - .github/workflows/v2-5-1-windows-contention-test-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-tests:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout helper commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Verify exact helper branch tip
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -ne $env:GITHUB_SHA) { throw 'helper HEAD mismatch' }
+          if ((git rev-parse origin/release/v2.5.1-mcp-correctness).Trim() -ne $env:GITHUB_SHA) { throw 'branch tip mismatch' }
+
+      - name: Make Windows contention tests deterministic
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @'
+          from pathlib import Path
+
+          h3 = Path("tests/durable-jobs-h3.test.ts")
+          text = h3.read_text(encoding="utf-8")
+          old = '    const completed=await waitFor(()=>runtime.get(created.id),job=>job?.status==="completed");\n'
+          new = '    await runtime.waitForIdle(created.id);const completed=await runtime.get(created.id);\n'
+          assert text.count(old) == 1, "unexpected H3 completion wait shape"
+          text = text.replace(old, new, 1)
+          h3.write_text(text, encoding="utf-8")
+
+          w5 = Path("tests/workflow-w5-hardening.test.ts")
+          text = w5.read_text(encoding="utf-8")
+          old = 'expect(done?.stageExecutions[0].attempt).toBe(1);\n  });\n\n  it("refreshes the latest Project revision before retrying a failed stage"'
+          new = 'expect(done?.stageExecutions[0].attempt).toBe(1);\n  },15_000);\n\n  it("refreshes the latest Project revision before retrying a failed stage"'
+          assert text.count(old) == 1, "unexpected W5 cross-runner test ending"
+          text = text.replace(old, new, 1)
+          w5.write_text(text, encoding="utf-8")
+          '@ | python -
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Windows exact targeted contention regression
+        run: npx vitest run tests/durable-jobs-h3.test.ts tests/workflow-w5-hardening.test.ts --maxWorkers=2
+
+      - name: Remove helper and verify bounded diff
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Remove-Item .github/workflows/v2-5-1-windows-contention-test-fix.yml
+          git diff --check
+          $changed = (git status --short | ForEach-Object { ($_ -split '\s+', 3)[1] } | Sort-Object) -join "`n"
+          $expected = @(
+            '.github/workflows/v2-5-1-windows-contention-test-fix.yml',
+            'tests/durable-jobs-h3.test.ts',
+            'tests/workflow-w5-hardening.test.ts'
+          ) | Sort-Object
+          if ($changed -ne ($expected -join "`n")) { throw "Unexpected helper diff:`n$changed" }
+
+      - name: Commit and push exact test hardening
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/durable-jobs-h3.test.ts tests/workflow-w5-hardening.test.ts .github/workflows/v2-5-1-windows-contention-test-fix.yml
+          git commit -m "test(v2.5.1): harden Windows contention waits"
+          git push --force-with-lease=refs/heads/release/v2.5.1-mcp-correctness:$env:GITHUB_SHA origin HEAD:refs/heads/release/v2.5.1-mcp-correctness
