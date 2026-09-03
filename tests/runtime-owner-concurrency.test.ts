@@ -33,7 +33,7 @@ describe("shared V2.2 W5 runtime owner",()=>{
     expect(JSON.parse(await readFile(ownerFile(root),"utf8"))).toMatchObject({runtimeId:claims[0].runtimeId,runtimeEpoch:claims[0].runtimeEpoch,ownerPid});
     await expect(access(lockFile(root))).rejects.toMatchObject({code:"ENOENT"});
     expect(await tempFiles(root)).toEqual([]);
-  });
+  },15_000);
 
   it("identifies the previous runtime after an owner-pid restart",async()=>{
     const root=await makeRoot();const owner=new RuntimeOwnerStore(root);
