@@ -42,15 +42,16 @@ export class DurableJobRuntime{
   private readonly stateLocks=new Map<string,Promise<void>>();
   private readonly limits:Record<JobConcurrencyGroup,number>;
   private runtimeExecutorPid=process.pid;
-  private readonly ready:Promise<void>;
+  private ready:Promise<void>|undefined;
 
   constructor(readonly store:FileJobStore,executors:Partial<Record<JobType,JobExecutor>>={},limits:Partial<Record<JobConcurrencyGroup,number>>={}){
     for(const[type,executor]of Object.entries(executors))if(executor)this.executors.set(type as JobType,executor);
     this.limits={...DEFAULT_LIMITS,...limits};
-    this.ready=this.initialize();
   }
 
   register(type:JobType,executor:JobExecutor){this.executors.set(type,executor);}
+
+  private ensureReady(){return this.ready??=this.initialize();}
 
   private async withJobLock<T>(jobId:string,fn:()=>Promise<T>):Promise<T>{
     const previous=this.stateLocks.get(jobId)??Promise.resolve();
@@ -84,11 +85,11 @@ export class DurableJobRuntime{
     for(const group of this.queues.keys())this.pump(group);
   }
 
-  async waitUntilReady(){await this.ready;}
-  async waitForIdle(jobId:string){for(;;){const execution=this.activeExecutions.get(jobId);if(!execution)return;await execution;}}
+  async waitUntilReady(){await this.ensureReady();}
+  async waitForIdle(jobId:string){await this.ensureReady();for(;;){const execution=this.activeExecutions.get(jobId);if(!execution)return;await execution;}}
 
   async create(input:CreateJobInput){
-    await this.ready;
+    await this.ensureReady();
     const parsed=CreateJobSchema.parse(input);
     const createNew=async(jobId:string)=>{
       if(!this.executors.has(parsed.type))throw new Error(`No executor is registered for job type ${parsed.type}.`);
@@ -110,10 +111,10 @@ export class DurableJobRuntime{
     });
   }
 
-  async get(jobId:string){await this.ready;return this.store.get(jobId);}
-  async list(){await this.ready;return this.store.list();}
-  async getArtifacts(jobId:string){await this.ready;return this.store.getArtifacts(jobId);}
-  async readLog(jobId:string,stream:JobLogStream){await this.ready;return this.store.readLog(jobId,stream);}
+  async get(jobId:string){await this.ensureReady();return this.store.get(jobId);}
+  async list(){await this.ensureReady();return this.store.list();}
+  async getArtifacts(jobId:string){await this.ensureReady();return this.store.getArtifacts(jobId);}
+  async readLog(jobId:string,stream:JobLogStream){await this.ensureReady();return this.store.readLog(jobId,stream);}
 
   private enqueue(job:JobRecord){if(this.queuedIds.has(job.id))return;const group=jobConcurrencyGroup(job.type);this.queues.get(group)?.push(job.id);this.queuedIds.add(job.id);}
   private removeQueued(jobId:string){this.queuedIds.delete(jobId);for(const[group,queue]of this.queues)this.queues.set(group,queue.filter(id=>id!==jobId));}
@@ -204,7 +205,7 @@ export class DurableJobRuntime{
   }
 
   async retry(jobId:string){
-    await this.ready;
+    await this.ensureReady();
     const retried=await this.withJobLock(jobId,async()=>{
       const job=await this.store.get(jobId);if(!job)throw new JobNotFoundError(jobId);
       if(!["failed","cancelled","interrupted"].includes(job.status))throw new JobStateError(`Job ${jobId} cannot be retried from status ${job.status}.`,job.status);
@@ -220,7 +221,7 @@ export class DurableJobRuntime{
   }
 
   async cancel(jobId:string){
-    await this.ready;
+    await this.ensureReady();
     const requestedAt=nowIso();
     const next=await this.withJobLock(jobId,async()=>{
       const existing=await this.store.get(jobId);if(!existing)throw new JobNotFoundError(jobId);
