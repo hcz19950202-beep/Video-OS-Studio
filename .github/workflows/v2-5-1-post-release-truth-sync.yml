@@ -1,0 +1,307 @@
+name: V2.5.1 Post-Release Truth Sync
+
+on:
+  push:
+    branches:
+      - docs/v2.5.1-release-truth
+    paths:
+      - .github/workflows/v2-5-1-post-release-truth-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync-release-truth:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_COMMIT: b6f30c08c1c85bb80c43385827baa3317c1efbb5
+      TAG_NAME: v2.5.1
+      TAG_OBJECT: d73595ad3a51d010d61df1c096bead911f4a31b5
+      PREVIOUS_RELEASE_COMMIT: df54e10e38ee2793e8fdf285ea2c216fe8c65478
+      PREVIOUS_TAG_OBJECT: bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
+    steps:
+      - name: Checkout isolated docs branch
+        uses: actions/checkout@v4
+        with:
+          ref: docs/v2.5.1-release-truth
+          fetch-depth: 0
+
+      - name: Verify immutable release boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags
+          test "$(git rev-parse origin/main)" = "$RELEASE_COMMIT"
+          test "$(git rev-parse HEAD^)" = "$RELEASE_COMMIT"
+          test "$(git cat-file -t "$TAG_NAME")" = "tag"
+          test "$(git rev-parse "$TAG_NAME")" = "$TAG_OBJECT"
+          test "$(git rev-parse "$TAG_NAME^{}")" = "$RELEASE_COMMIT"
+          test "$(git cat-file -t v2.5.0)" = "tag"
+          test "$(git rev-parse v2.5.0)" = "$PREVIOUS_TAG_OBJECT"
+          test "$(git rev-parse 'v2.5.0^{}')" = "$PREVIOUS_RELEASE_COMMIT"
+          test "$(node -p "require('./package.json').version")" = "2.5.1"
+          test "$(node -p "require('./package-lock.json').version")" = "2.5.1"
+          test "$(node -p "require('./package-lock.json').packages[''].version")" = "2.5.1"
+
+      - name: Record V2.5.1 immutable release truth
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          RELEASE_COMMIT = "b6f30c08c1c85bb80c43385827baa3317c1efbb5"
+          TAG_OBJECT = "d73595ad3a51d010d61df1c096bead911f4a31b5"
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one match, found {count}: {old!r}")
+              return text.replace(old, new, 1)
+
+          # PROJECT_STATUS.md
+          p = Path("PROJECT_STATUS.md")
+          text = p.read_text(encoding="utf-8")
+          replacements = [
+              ("released_product_version: 2.5.0", "released_product_version: 2.5.1"),
+              ("released_tag: v2.5.0", "released_tag: v2.5.1"),
+              ("released_commit: df54e10e38ee2793e8fdf285ea2c216fe8c65478", f"released_commit: {RELEASE_COMMIT}"),
+              ("released_tag_object_sha: bff4bf67edc95dbf4cc78019f6795c94a4e59ea5", f"released_tag_object_sha: {TAG_OBJECT}"),
+              ("package_json_version: 2.5.0", "package_json_version: 2.5.1"),
+              ("package_lock_version: 2.5.0", "package_lock_version: 2.5.1"),
+              ("active_stage: V2.5.0 RELEASE COMPLETE", "active_stage: V2.5.1 RELEASE COMPLETE"),
+              ("next_action: NONE — V2.5.0 is released; future product work requires a separately approved next workstream", "next_action: NONE — V2.5.1 is released; future product work requires a separately approved next workstream"),
+          ]
+          for old, new in replacements:
+              text = replace_once(text, old, new, "PROJECT_STATUS.md")
+
+          status_fields_marker = "v2_5_release_tag_creation: run 33673004195 / PASS\nlocal_action_required: NO"
+          status_fields = """v2_5_release_tag_creation: run 33673004195 / PASS
+v2_5_1_engineering_audit_pr: PR #116 / CLOSED UNMERGED
+v2_5_1_engineering_merge_pr: PR #117
+v2_5_1_accepted_source_head: d6c2f0ae1a7a7d71623731a79e3c3c3759069c38
+v2_5_1_engineering_main: d74da28c1548c8aec7e9dd3d62f3b7fcd06d1b9b
+v2_5_1_engineering_main_dedicated_ci: run 33743200284 / PASS / 2 of 2
+v2_5_1_engineering_main_standard_ci: run 33743200058 / PASS / 7 of 7
+v2_5_1_local_windows_gate: d6c2f0ae1a7a7d71623731a79e3c3c3759069c38 / S01-S16 PASS
+v2_5_1_release_metadata_sync: run 33743797484 / PASS
+v2_5_1_release_finalization_pr: PR #118
+v2_5_1_release_pr_frozen_head: 85e347f4830d3476ed31206134610ef3f515fbf5
+v2_5_1_release_pr_dedicated_ci: run 33743958297 / PASS / 2 of 2
+v2_5_1_release_pr_standard_ci: run 33743958288 / PASS / attempt 2 / 7 of 7
+v2_5_1_release_commit: b6f30c08c1c85bb80c43385827baa3317c1efbb5
+v2_5_1_release_main_dedicated_ci: run 33745650176 / PASS / 2 of 2
+v2_5_1_release_main_standard_ci: run 33745650175 / PASS / 7 of 7
+v2_5_1_release_tag_creation: run 33746191919 / PASS
+local_action_required: NO"""
+          text = replace_once(text, status_fields_marker, status_fields, "PROJECT_STATUS.md fields")
+          text = replace_once(text, "v2_5_status: RELEASED\n```", "v2_5_status: RELEASED\nv2_5_1_status: RELEASED\n```", "PROJECT_STATUS.md release status")
+
+          new_status_section = """## Immutable V2.5.1 release truth
+
+Video OS Studio V2.5.1 is released at the independently verified annotated tag `v2.5.1`.
+
+```text
+release commit:      b6f30c08c1c85bb80c43385827baa3317c1efbb5
+annotated tag:       v2.5.1
+tag object SHA:      d73595ad3a51d010d61df1c096bead911f4a31b5
+tag target type:     commit
+dereferenced target: b6f30c08c1c85bb80c43385827baa3317c1efbb5
+tag message:         Video OS Studio v2.5.1
+```
+
+Accepted V2.5.1 source SHA `d6c2f0ae1a7a7d71623731a79e3c3c3759069c38` passed source cloud gates and Mandatory Local Windows S01–S16. PR #117 merged that exact source with expected-head protection as engineering main `d74da28c1548c8aec7e9dd3d62f3b7fcd06d1b9b`; engineering exact-main Dedicated run `33743200284` passed 2/2 and Standard run `33743200058` passed 7/7.
+
+Release-finalization PR #118 froze exact head `85e347f4830d3476ed31206134610ef3f515fbf5`. Dedicated run `33743958297` passed 2/2. Standard run `33743958288` completed 7/7 PASS at attempt 2 after the initial Windows unit job recorded two fixed timeout failures under runner contention; the identical exact release head passed those same tests in Dedicated Windows and then passed the controlled Standard rerun. No source or test change was made for the rerun.
+
+PR #118 then merged with expected-head protection as release commit `b6f30c08c1c85bb80c43385827baa3317c1efbb5`. Release exact-main Dedicated run `33745650176` passed 2/2 and Standard run `33745650175` passed 7/7, including real Media, HyperFrames, B6 and B7 Windows gates.
+
+Isolated immutable-tag run `33746191919` created `v2.5.1` only after proving `origin/main` still exactly equaled the release commit, package metadata was exactly `2.5.1`, `v2.5.1` did not already exist, and immutable `v2.5.0` remained unchanged. Independent GitHub Git Data verification proved `refs/tags/v2.5.1` points to object type `tag`, tag object `d73595ad3a51d010d61df1c096bead911f4a31b5`, which targets the exact release commit with message `Video OS Studio v2.5.1`.
+
+Immutable `v2.5.0` remains tag object `bff4bf67edc95dbf4cc78019f6795c94a4e59ea5`, targeting `df54e10e38ee2793e8fdf285ea2c216fe8c65478`.
+
+Authoritative release evidence:
+
+`docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md`
+
+## V2.5.1 accepted patch truth
+
+V2.5.1 is a bounded correctness and runtime-ownership patch over V2.5.0. It keeps Project Schema unchanged while aligning MCP product metadata, removing constructor-time runtime ownership side effects, making Job/Workflow recovery lazy and shared, correcting Windows ownership/residue acceptance semantics, preserving production render timeouts, and proving restart reconciliation cannot leave FINAL_RENDER permanently running.
+
+"""
+          text = replace_once(text, "## Immutable V2.5.0 release truth\n", new_status_section + "## Immutable V2.5.0 release truth\n", "PROJECT_STATUS.md section")
+
+          timeline = "V2.5.0 RELEASE / PR #114 / release commit df54e10e38ee2793e8fdf285ea2c216fe8c65478 / Standard exact-main 7 of 7 PASS / annotated tag verified\n"
+          timeline_new = timeline + "V2.5.1 RELEASE / PR #118 / release commit b6f30c08c1c85bb80c43385827baa3317c1efbb5 / Standard exact-main 7 of 7 PASS / Dedicated exact-main 2 of 2 PASS / annotated tag verified\n"
+          text = replace_once(text, timeline, timeline_new, "PROJECT_STATUS.md timeline")
+          p.write_text(text, encoding="utf-8")
+
+          # README.md
+          p = Path("README.md")
+          text = p.read_text(encoding="utf-8")
+          readme_replacements = [
+              ("**Video OS Studio v2.5.0 is released.**", "**Video OS Studio v2.5.1 is released.**"),
+              ("Product version: 2.5.0", "Product version: 2.5.1"),
+              ("Release commit: df54e10e38ee2793e8fdf285ea2c216fe8c65478", "Release commit: b6f30c08c1c85bb80c43385827baa3317c1efbb5"),
+              ("Release tag: v2.5.0 (annotated, verified)", "Release tag: v2.5.1 (annotated, verified)"),
+              ("Tag object: bff4bf67edc95dbf4cc78019f6795c94a4e59ea5", "Tag object: d73595ad3a51d010d61df1c096bead911f4a31b5"),
+              ("[`docs/acceptance/V2_5_0_RELEASE_FINALIZATION.md`](docs/acceptance/V2_5_0_RELEASE_FINALIZATION.md)", "[`docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md`](docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md)"),
+          ]
+          for old, new in readme_replacements:
+              text = replace_once(text, old, new, "README.md")
+          old_boundary = "The annotated `v2.5.0` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, `v2.4.1`, and `v2.4.2` release tags remain immutable evidence and must never be moved or recreated."
+          new_boundary = "The annotated `v2.5.1` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, `v2.4.1`, `v2.4.2`, and `v2.5.0` release tags remain immutable evidence and must never be moved or recreated."
+          text = replace_once(text, old_boundary, new_boundary, "README.md boundary")
+
+          roadmap = """V2.5.0
+Agent-Native Workspace + Local MCP
+        ✅ RELEASED
+"""
+          roadmap_new = roadmap + """
+V2.5.1
+Runtime Correctness + Release Metadata Patch
+        ✅ RELEASED
+"""
+          text = replace_once(text, roadmap, roadmap_new, "README.md roadmap")
+
+          verification_section = """## V2.5.1 release verification
+
+Accepted source SHA `d6c2f0ae1a7a7d71623731a79e3c3c3759069c38` passed Standard source CI 7/7, Dedicated V2.5 Cloud Acceptance 2/2, and Mandatory Local Windows S01–S16. PR #117 merged that exact source with expected-head protection as engineering main `d74da28c1548c8aec7e9dd3d62f3b7fcd06d1b9b`; exact-main Dedicated run `33743200284` passed 2/2 and Standard run `33743200058` passed 7/7.
+
+Release PR #118 froze exact head `85e347f4830d3476ed31206134610ef3f515fbf5`. Dedicated run `33743958297` passed 2/2. Standard CI #1419 / run `33743958288` finished 7/7 PASS at attempt 2 after preserving an initial Windows runner-contention timing failure; no source or test change was made. Expected-head merge produced release commit `b6f30c08c1c85bb80c43385827baa3317c1efbb5`.
+
+Release exact-main Dedicated #90 / run `33745650176` passed 2/2. Standard CI #1420 / run `33745650175` passed all seven gates, including Browser, real Media, HyperFrames, B6 and B7 Windows acceptance.
+
+Isolated immutable-tag run `33746191919` created `v2.5.1`. Independent GitHub Git Data verification confirmed:
+
+```text
+tag ref:             refs/tags/v2.5.1
+tag object type:     tag
+tag object SHA:      d73595ad3a51d010d61df1c096bead911f4a31b5
+tag target type:     commit
+dereferenced commit: b6f30c08c1c85bb80c43385827baa3317c1efbb5
+tag message:         Video OS Studio v2.5.1
+```
+
+`v2.5.0` was independently reverified and remains unchanged.
+
+"""
+          text = replace_once(text, "## V2.5.0 release verification\n", verification_section + "## V2.5.0 release verification\n", "README.md verification section")
+          p.write_text(text, encoding="utf-8")
+
+          # V2.5.1 release finalization evidence
+          p = Path("docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md")
+          text = p.read_text(encoding="utf-8")
+          text = replace_once(text, "`V2_5_1_RELEASE = FINALIZATION IN PROGRESS`", "`V2_5_1_RELEASE = COMPLETE`", "release evidence status")
+          start_marker = "## 8. Release gates still required\n"
+          end_marker = "## 9. Local Windows rule after engineering acceptance\n"
+          if text.count(start_marker) != 1 or text.count(end_marker) != 1:
+              raise SystemExit("release evidence section markers are not unique")
+          start = text.index(start_marker)
+          end = text.index(end_marker)
+          completion = """## 8. Release completion evidence
+
+Release-finalization PR #118 froze exact head:
+
+`85e347f4830d3476ed31206134610ef3f515fbf5`
+
+### Release PR exact-head gates
+
+V2.5 Cloud Acceptance #89 / run `33743958297`: **2 / 2 PASS**.
+
+Standard CI #1419 / run `33743958288`: **7 / 7 PASS at attempt 2**.
+
+The first Standard attempt preserved two fixed Windows unit timeouts: W2 at 15 seconds and runtime-owner concurrency at 5 seconds. The identical exact release head passed those same tests in Dedicated Windows in approximately 1.8 seconds and 2.5 seconds, and Dedicated completed the full 195-file / 814-test suite, build and residue audit successfully. No source or test patch was made. A single controlled rerun on the identical release head passed `windows-verify`, after which Browser, Media, HyperFrames, B6 and B7 all completed successfully. The initial timing failure remains part of the audit record rather than being erased.
+
+PR #118 was merged only after exact-head gates were green, using expected-head protection.
+
+Release commit:
+
+`b6f30c08c1c85bb80c43385827baa3317c1efbb5`
+
+The merge commit is GitHub-signature verified.
+
+### Release exact-main gates
+
+V2.5 Cloud Acceptance #90 / run `33745650176`: **2 / 2 PASS**.
+
+- V2.5 cloud/browser acceptance PASS
+- Windows full baseline PASS
+- full unit suite PASS
+- build PASS
+- Windows C7 residue audit PASS
+
+Standard CI #1420 / run `33745650175`: **7 / 7 PASS**.
+
+```text
+ubuntu-verify                    PASS
+windows-verify                   PASS
+browser-smoke                    PASS
+windows-media-smoke              PASS
+windows-hyperframes-smoke        PASS
+windows-b6-core-acceptance       PASS
+windows-b7-campaign-acceptance   PASS
+```
+
+The release exact-main Windows unit gate passed directly; the PR-head timing flake did not reproduce.
+
+### Immutable annotated tag
+
+After exact-main acceptance, `main` was independently rechecked to still equal release commit `b6f30c08c1c85bb80c43385827baa3317c1efbb5`, and `refs/tags/v2.5.1` was confirmed absent.
+
+Isolated one-shot tag run `33746191919` then passed every immutable-boundary check and created `v2.5.1`. The workflow self-deleted from `release/v2.5.1-tagging` after remote verification.
+
+Independent GitHub Git Data verification confirmed:
+
+```text
+ref:                 refs/tags/v2.5.1
+ref object type:     tag
+tag object SHA:      d73595ad3a51d010d61df1c096bead911f4a31b5
+tag target type:     commit
+tag target commit:   b6f30c08c1c85bb80c43385827baa3317c1efbb5
+tag message:         Video OS Studio v2.5.1
+```
+
+Previous immutable V2.5.0 remains unchanged:
+
+```text
+v2.5.0 tag object:   bff4bf67edc95dbf4cc78019f6795c94a4e59ea5
+v2.5.0 target:       df54e10e38ee2793e8fdf285ea2c216fe8c65478
+```
+
+### Release contract
+
+```text
+v2.5.1 tag:        v2.5.1 / annotated / independently verified
+release commit:    b6f30c08c1c85bb80c43385827baa3317c1efbb5
+tag object:        d73595ad3a51d010d61df1c096bead911f4a31b5
+release status:    COMPLETE
+product work:      UNFROZEN FOR A SEPARATELY APPROVED NEXT WORKSTREAM
+schema changes:    NONE
+local action:      NONE
+```
+
+This post-release truth sync is documentation-only. It does not create, move, recreate or retarget `v2.5.1`; the immutable tag remains on the release commit even after `main` later advances through documentation-only merge commits.
+
+"""
+          text = text[:start] + completion + text[end:]
+          p.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Commit bounded docs-only truth sync and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PROJECT_STATUS.md README.md docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md
+          git rm .github/workflows/v2-5-1-post-release-truth-sync.yml
+          ACTUAL="$(git diff --cached --name-only | sort)"
+          EXPECTED="$(printf '%s\n' '.github/workflows/v2-5-1-post-release-truth-sync.yml' 'PROJECT_STATUS.md' 'README.md' 'docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md' | sort)"
+          test "$ACTUAL" = "$EXPECTED"
+          git commit -m "docs(v2.5.1): record immutable release truth"
+          NET="$(git diff --name-only "$RELEASE_COMMIT"...HEAD | sort)"
+          NET_EXPECTED="$(printf '%s\n' 'PROJECT_STATUS.md' 'README.md' 'docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md' | sort)"
+          test "$NET" = "$NET_EXPECTED"
+          git diff --exit-code "$RELEASE_COMMIT"...HEAD -- package.json package-lock.json
+          git push origin HEAD:docs/v2.5.1-release-truth
