@@ -1,20 +1,49 @@
 import {AgentSessionIdSchema} from "@/lib/ai";
-import {createServerAgentSessionService,getAgentProviderRuntimeStatus} from "@/lib/server/agent-runtime";
+import {
+  AgentProviderRuntimeError,
+  agentSessionRepository,
+  createServerAgentSessionService,
+  getAgentProviderRuntimeStatus,
+  listAgentProviderRuntimeStatuses,
+} from "@/lib/server/agent-runtime";
 
 export const runtime="nodejs";
 type Context={params:Promise<{projectId:string;sessionId:string}>};
 
 export async function GET(_request:Request,{params}:Context){
+  let projectId:string;
+  let sessionId:string;
   try{
-    const{projectId,sessionId:rawSessionId}=await params;
-    const sessionId=AgentSessionIdSchema.parse(rawSessionId);
-    const provider=getAgentProviderRuntimeStatus();
-    if(!provider.configured){
-      return Response.json({code:"AGENT_PROVIDER_NOT_CONFIGURED",message:"Volcengine Agent Plan is not configured for the server runtime.",retryable:true,action:"Configure the local Agent Plan runtime and retry."},{status:503});
-    }
-    const session=await createServerAgentSessionService().open(projectId,sessionId);
-    return Response.json({session,provider});
+    ({projectId,sessionId}=await params);
+    sessionId=AgentSessionIdSchema.parse(sessionId);
   }catch{
+    return Response.json({code:"AGENT_SESSION_NOT_FOUND",message:"Agent session could not be reopened.",retryable:true,action:"Refresh the session list or start a new session."},{status:404});
+  }
+
+  let persisted;
+  try{persisted=await agentSessionRepository.require(projectId,sessionId);}
+  catch{return Response.json({code:"AGENT_SESSION_NOT_FOUND",message:"Agent session could not be reopened.",retryable:true,action:"Refresh the session list or start a new session."},{status:404});}
+
+  try{
+    const provider=getAgentProviderRuntimeStatus(persisted.providerId);
+    const providers=listAgentProviderRuntimeStatuses();
+    const sessionProvider={...provider,model:persisted.model??provider.model};
+    if(!provider.configured||!provider.selectable)return Response.json({session:persisted,provider:sessionProvider,providers});
+    const session=await createServerAgentSessionService(undefined,provider.providerId,persisted.model).open(projectId,sessionId);
+    return Response.json({session,provider:sessionProvider,providers});
+  }catch(error){
+    if(error instanceof AgentProviderRuntimeError){
+      return Response.json({
+        code:"AGENT_SESSION_PROVIDER_UNAVAILABLE",
+        message:error.code==="unsupported_model"
+          ?"The model recorded by this Agent session is no longer compatible with its provider."
+          :"The provider recorded by this Agent session is unavailable in the current runtime.",
+        retryable:false,
+        action:error.code==="unsupported_model"
+          ?"Start a new built-in Agent session with a supported model."
+          :"Open another built-in Agent session or restore support for the recorded provider.",
+      },{status:409});
+    }
     return Response.json({code:"AGENT_SESSION_NOT_FOUND",message:"Agent session could not be reopened.",retryable:true,action:"Refresh the session list or start a new session."},{status:404});
   }
 }

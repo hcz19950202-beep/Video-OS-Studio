@@ -1,7 +1,7 @@
 import {z} from "zod";
-import {AgentExecutionModeSchema,AgentSelectionSnapshotSchema,AgentSessionIdSchema,ContextReferenceListSchema,ContextReferenceValidationError,DEFAULT_AGENT_EXECUTION_MODE,type AgentProviderEvent} from "@/lib/ai";
+import {AgentExecutionModeSchema,AgentSelectionSnapshotSchema,AgentSessionIdSchema,ContextReferenceListSchema,ContextReferenceValidationError,DEFAULT_AGENT_EXECUTION_MODE,type AgentProviderEvent,type AgentSession} from "@/lib/ai";
 import {attemptAgentProposalAutoApply} from "@/lib/ai/proposal-approval-policy";
-import {agentProposalApplicationService,agentSessionRepository,createServerAgentSessionService,getAgentProviderRuntimeStatus} from "@/lib/server/agent-runtime";
+import {AgentProviderRuntimeError,agentProposalApplicationService,agentSessionRepository,createServerAgentSessionService,getAgentProviderRuntimeStatus,validateAgentProviderRuntimeModel} from "@/lib/server/agent-runtime";
 import {projectHistoryAttributions} from "@/lib/server/history-runtime";
 
 export const runtime="nodejs";
@@ -29,9 +29,32 @@ export async function POST(request:Request,{params}:Context){
     return Response.json({code:"INVALID_AGENT_TURN",message:"Agent turn input is invalid.",retryable:false,action:"Enter a non-empty editing goal and retry."},{status:400});
   }
 
-  const provider=getAgentProviderRuntimeStatus();
-  if(!provider.configured){
-    return Response.json({code:"AGENT_PROVIDER_NOT_CONFIGURED",message:"Volcengine Agent Plan is not configured for the server runtime.",retryable:true,action:"Configure the local Agent Plan runtime and retry."},{status:503});
+  let persisted:AgentSession;
+  try{persisted=await agentSessionRepository.require(projectId,sessionId);}
+  catch{return Response.json({code:"AGENT_SESSION_NOT_FOUND",message:"Agent session could not be loaded for this turn.",retryable:true,action:"Refresh the session list or start a new session."},{status:404});}
+
+  let provider:ReturnType<typeof getAgentProviderRuntimeStatus>;
+  let model:string;
+  try{
+    provider=getAgentProviderRuntimeStatus(persisted.providerId);
+    model=validateAgentProviderRuntimeModel(provider.providerId,persisted.model??provider.model);
+  }catch(error){
+    if(error instanceof AgentProviderRuntimeError){
+      return Response.json({
+        code:"AGENT_SESSION_PROVIDER_UNAVAILABLE",
+        message:error.code==="unsupported_model"
+          ?"The model recorded by this Agent session is no longer compatible with its provider."
+          :"The provider recorded by this Agent session is unavailable in the current runtime.",
+        retryable:false,
+        action:error.code==="unsupported_model"
+          ?"Start a new built-in Agent session with a supported model."
+          :"Open another built-in Agent session or restore support for the recorded provider.",
+      },{status:409});
+    }
+    throw error;
+  }
+  if(!provider.configured||!provider.selectable){
+    return Response.json({code:"AGENT_PROVIDER_NOT_CONFIGURED",message:"The provider recorded by this Agent session is not configured for the server runtime.",retryable:true,action:"Configure the recorded provider locally and retry."},{status:503});
   }
 
   const abortController=new AbortController();
@@ -59,8 +82,8 @@ export async function POST(request:Request,{params}:Context){
         else if(event.type==="error")send("provider-error",{code:event.error.code,retryable:event.error.retryable});
       };
 
-      send("turn-started",{sessionId,providerId:provider.providerId,model:provider.model,executionMode:input.executionMode,contextReferenceCount:input.contextReferences?.length??0});
-      const service=createServerAgentSessionService(observe);
+      send("turn-started",{sessionId,providerId:provider.providerId,model,executionMode:input.executionMode,contextReferenceCount:input.contextReferences?.length??0});
+      const service=createServerAgentSessionService(observe,provider.providerId,model);
       void service.runTurn({projectId,sessionId,userContent:input.userContent,executionMode:input.executionMode,selection:input.selection,contextReferences:input.contextReferences,signal:abortController.signal}).then(async session=>{
         let settledSession=session;
         const turn=session.turns.at(-1);
