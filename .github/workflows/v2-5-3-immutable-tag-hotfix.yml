@@ -1,0 +1,70 @@
+name: V2.5.3 Immutable Tag Hotfix
+
+on:
+  push:
+    branches:
+      - release/v2.5.3-tagging-hotfix
+
+permissions:
+  contents: write
+
+jobs:
+  tag-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout accepted release main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify immutable release boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="c05bf836362ccf19c81bf2023f0838d560808ab4"
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$expected" ]; then
+            echo "origin/main drifted: expected $expected, got $actual" >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v2.5.3" >/dev/null 2>&1; then
+            echo "refs/tags/v2.5.3 already exists" >&2
+            exit 1
+          fi
+
+      - name: Create and independently verify annotated tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="c05bf836362ccf19c81bf2023f0838d560808ab4"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a v2.5.3 "$expected" -m "Video OS Studio v2.5.3"
+          local_object="$(git rev-parse refs/tags/v2.5.3)"
+          local_target="$(git rev-parse 'refs/tags/v2.5.3^{}')"
+          if [ "$local_object" = "$local_target" ]; then
+            echo "tag is not annotated" >&2
+            exit 1
+          fi
+          if [ "$local_target" != "$expected" ]; then
+            echo "local tag target mismatch" >&2
+            exit 1
+          fi
+          git push origin refs/tags/v2.5.3
+          remote_object="$(git ls-remote --tags origin 'refs/tags/v2.5.3' | awk '{print $1}')"
+          remote_target="$(git ls-remote --tags origin 'refs/tags/v2.5.3^{}' | awk '{print $1}')"
+          if [ -z "$remote_object" ] || [ -z "$remote_target" ]; then
+            echo "remote annotated tag verification incomplete" >&2
+            exit 1
+          fi
+          if [ "$remote_object" = "$remote_target" ]; then
+            echo "remote tag is not annotated" >&2
+            exit 1
+          fi
+          if [ "$remote_target" != "$expected" ]; then
+            echo "remote tag target mismatch" >&2
+            exit 1
+          fi
+          echo "TAG_OBJECT=$remote_object"
+          echo "TAG_TARGET=$remote_target"
