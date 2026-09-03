@@ -8,7 +8,7 @@ import {AgentRunner,reconcileStaleProposals} from "@/lib/ai/runner";
 import type {AgentTurnBudgetInput} from "@/lib/ai/budget";
 import {DEFAULT_AGENT_EXECUTION_MODE,type AgentExecutionMode} from "@/lib/ai/execution-mode";
 import {AgentSessionRepository} from "@/lib/ai/session/repository";
-import {AgentSessionSchema,AgentTurnSchema,type AgentSession} from "@/lib/ai/session/schema";
+import {AgentSessionSchema,type AgentSession} from "@/lib/ai/session/schema";
 import type {VideoSkillRef} from "@/lib/production/skills/schema";
 
 export type AgentServiceDependencies={
@@ -105,16 +105,7 @@ export class AgentSessionService{
   }
 
   async runTurn(input:RunAgentTurnInput):Promise<AgentSession>{
-    const{skill,...runnerInput}=input;
-    const session=await this.runner.runTurn({...runnerInput,executionMode:runnerInput.executionMode??DEFAULT_AGENT_EXECUTION_MODE});
-    if(!skill)return session;
-    const turn=session.turns.at(-1);
-    if(!turn)return session;
-    return this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>AgentSessionSchema.parse({
-      ...current,
-      turns:current.turns.map(item=>item.id===turn.id?AgentTurnSchema.parse({...item,skill}):item),
-      updatedAt:this.now(),
-    }));
+    return this.runner.runTurn({...input,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE});
   }
 
   async list(projectId:string):Promise<AgentSession[]>{
