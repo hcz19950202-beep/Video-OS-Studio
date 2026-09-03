@@ -68,6 +68,6 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add PROJECT_STATUS.md README.md docs/acceptance/V2_5_2_RELEASE_FINALIZATION.md .github/workflows/v2-5-2-truth-sync.yml scripts/v2-5-2-truth-sync.py
+          git add -A
           git commit -m "docs(v2.5.2): synchronize immutable release truth"
           git push origin HEAD:docs/v2.5.2-release-truth-sync-v2
