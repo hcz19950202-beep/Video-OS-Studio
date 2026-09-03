@@ -31,11 +31,16 @@ test("C2 uses one unified Agent conversation", async ({ page }) => {
   await expect(page.getByTestId("agent-mission-card")).toBeVisible();
   await expect(page.getByTestId("agent-qa-card")).toBeVisible();
 
-  const provider = page.getByRole("combobox", { name: "Built-in Agent provider", exact: true });
+  const provider = page.getByRole("combobox", {
+    name: "Built-in Agent provider",
+    exact: true,
+  });
   const model = page.getByRole("combobox", { name: "Agent model", exact: true });
   await expect(provider).toHaveValue("volcengine-agent-plan");
   await expect(model).toHaveValue("ark-code-latest");
-  await expect(page.getByTestId("agent-provider-model")).toContainText("Provider and model are pinned");
+  await expect(page.getByTestId("agent-provider-model")).toContainText(
+    "Provider and model are pinned",
+  );
 
   const executionMode = page.getByRole("combobox", { name: "Execution mode", exact: true });
   await expect(executionMode).toHaveValue("review-first");
