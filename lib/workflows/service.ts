@@ -45,18 +45,16 @@ const nowIso=()=>new Date().toISOString();
 const sameStrings=(left:string[],right:string[])=>left.length===right.length&&[...left].sort().every((item,index)=>item===[...right].sort()[index]);
 
 export class WorkflowService{
-  private readonly startupRecovery:Promise<void>;
+  private startupRecovery:Promise<void>|undefined;
 
   constructor(
     readonly projects:WorkflowProjectReader,
     readonly store:FileWorkflowStore,
     readonly definitions:WorkflowDefinitionRegistry,
     readonly runner:WorkflowRunner,
-  ){
-    this.startupRecovery=this.runner.recover();
-  }
+  ){}
 
-  private ready(){return this.startupRecovery;}
+  private ready(){return this.startupRecovery??=this.runner.recover();}
 
   async create(input:CreateWorkflowRunInput):Promise<WorkflowRun>{
     await this.ready();

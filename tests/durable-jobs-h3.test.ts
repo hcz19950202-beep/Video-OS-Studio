@@ -14,12 +14,23 @@ const waitFor=async<T>(read:()=>Promise<T>,predicate:(value:T)=>boolean,timeoutM
 afterEach(async()=>{await Promise.all(roots.splice(0).map(root=>rm(root,{recursive:true,force:true})));});
 
 describe("H3 durable job runtime",()=>{
+  it("keeps construction side-effect free until the runtime is first used",async()=>{
+    const{root,store}=await makeStore();
+    const runtime=new DurableJobRuntime(store);
+    await new Promise(resolve=>setTimeout(resolve,100));
+    await expect(access(join(root,".runtime-owner.json"))).rejects.toMatchObject({code:"ENOENT"});
+    await expect(access(join(root,".runtime-owner.lock"))).rejects.toMatchObject({code:"ENOENT"});
+    await runtime.waitUntilReady();
+    expect(JSON.parse(await readFile(join(root,".runtime-owner.json"),"utf8"))).toMatchObject({runtimeId:expect.any(String),ownerPid:expect.any(Number)});
+    await expect(access(join(root,".runtime-owner.lock"))).rejects.toMatchObject({code:"ENOENT"});
+  });
+
   it("persists job state, flushed tool logs and artifacts on disk",async()=>{
     const{root,store}=await makeStore();
     const executor:JobExecutor=async(_job,ctx)=>{await ctx.update("rendering",.5);ctx.onToolLog({tool:"fixture",stream:"stdout",chunk:"tool-log\n"});await ctx.log("stdout","hello\n");await ctx.addArtifact({id:"output",kind:"render",label:"output",relativePath:"render/out.mp4",mimeType:"video/mp4"});return{outputRelativePath:"render/out.mp4"};};
     const runtime=new DurableJobRuntime(store,{"render-final":executor});
     const created=await runtime.create({type:"render-final",projectId:"demo",input:{}});
-    const completed=await waitFor(()=>runtime.get(created.id),job=>job?.status==="completed");
+    await runtime.waitForIdle(created.id);const completed=await runtime.get(created.id);
     expect(completed).toMatchObject({status:"completed",stage:"completed",progress:1,attempt:1,output:{outputRelativePath:"render/out.mp4"}});
     const log=await store.readLog(created.id,"stdout");expect(log).toContain("tool-log");expect(log).toContain("hello");
     expect(await store.getArtifacts(created.id)).toEqual([expect.objectContaining({id:"output",relativePath:"render/out.mp4"})]);

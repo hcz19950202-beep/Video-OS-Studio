@@ -7,6 +7,22 @@ import type { WorkflowRun } from "@/lib/workflows/schema";
 const execFileAsync = promisify(execFile);
 const enabled =
   process.env.W4_WINDOWS_WORKFLOW_UI_SMOKE === "1" && Boolean(process.env.W4_SOURCE_VIDEO);
+const DEFAULT_REMOTION_TIMEOUT_MS = 30 * 60_000;
+const parsedRemotionTimeoutMs = Number(process.env.REMOTION_RENDER_TIMEOUT_MS);
+const remotionTimeoutMs =
+  Number.isFinite(parsedRemotionTimeoutMs) && parsedRemotionTimeoutMs > 0
+    ? Math.round(parsedRemotionTimeoutMs)
+    : DEFAULT_REMOTION_TIMEOUT_MS;
+const parsedFinalRenderAcceptanceTimeoutMs = Number(
+  process.env.W4_FINAL_RENDER_ACCEPTANCE_TIMEOUT_MS,
+);
+const finalRenderAcceptanceTimeoutMs = Math.max(
+  remotionTimeoutMs + 2 * 60_000,
+  Number.isFinite(parsedFinalRenderAcceptanceTimeoutMs) && parsedFinalRenderAcceptanceTimeoutMs > 0
+    ? Math.round(parsedFinalRenderAcceptanceTimeoutMs)
+    : 0,
+);
+const w4TestTimeoutMs = Math.max(15 * 60_000, finalRenderAcceptanceTimeoutMs + 7 * 60_000);
 
 test.skip(
   !enabled,
@@ -16,7 +32,7 @@ test.skip(
 test("W4 real browser Generate First Draft review edit approve and final render", async ({
   page,
 }, testInfo) => {
-  test.setTimeout(15 * 60_000);
+  test.setTimeout(w4TestTimeoutMs);
   const source = process.env.W4_SOURCE_VIDEO!;
   const projectName = `W4 Real ${Date.now()}`;
   await page.setViewportSize({ width: 1600, height: 1000 });
@@ -114,8 +130,10 @@ test("W4 real browser Generate First Draft review edit approve and final render"
     timeout: 6 * 60_000,
   });
   await page.getByRole("button", { name: "Approve & Continue", exact: true }).click();
+  // The product render backend allows up to REMOTION_RENDER_TIMEOUT_MS (30 minutes by default).
+  // The real-video acceptance must not kill a legitimate render earlier than the product itself.
   await expect(page.locator('.v22-workflow-panel[data-workflow-state="completed"]')).toBeVisible({
-    timeout: 8 * 60_000,
+    timeout: finalRenderAcceptanceTimeoutMs,
   });
 
   const finalRun = await page.evaluate(async (id) => {
@@ -201,6 +219,7 @@ test("W4 real browser Generate First Draft review edit approve and final render"
         finalJobId,
         finalArtifact: finalRun.artifacts.find((item) => item.stageId === "FINAL_RENDER")
           ?.relativePath,
+        finalRenderAcceptanceTimeoutMs,
         reopenDurability: "PASS",
         probe,
       },

@@ -94,6 +94,7 @@ describe("V2.4 final audit durable Job ownership",()=>{
     const executorB:JobExecutor=async()=>{callsB+=1;executorBEntered();await executorGate;return{runtime:"b"};};
 
     const runtimeA=new DurableJobRuntime(storeA,{"render-final":executorA});
+    await runtimeA.waitUntilReady();
     await preparingReached;
     const runtimeB=new DurableJobRuntime(storeB,{"render-final":executorB});
     await runtimeB.waitUntilReady();
