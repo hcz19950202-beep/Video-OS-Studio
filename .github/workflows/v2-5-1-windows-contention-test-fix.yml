@@ -72,7 +72,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           Remove-Item .github/workflows/v2-5-1-windows-contention-test-fix.yml
           git diff --check
-          $changed = (git status --short | ForEach-Object { ($_ -split '\s+', 3)[1] } | Sort-Object) -join "`n"
+          $changed = (git diff --name-only HEAD | Sort-Object) -join "`n"
           $expected = @(
             '.github/workflows/v2-5-1-windows-contention-test-fix.yml',
             'tests/durable-jobs-h3.test.ts',
