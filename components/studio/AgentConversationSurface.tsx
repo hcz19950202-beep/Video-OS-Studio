@@ -163,7 +163,7 @@ export const AgentConversationSurface=(props:Props)=>{
     <section className="a4-agent-context">
       <span>Project · {projectName}</span>
       {selectedContextTarget?<span data-testid="current-context-selection">{zh?"当前选择":"Selection"} · {selectedContextTarget.label}</span>:selectedSceneId?<span>{zh?"场景":"Scene"} · {selectedSceneId}</span>:selectedClipId?<span>Clip · {selectedClipId}</span>:selectedScriptRange?<span>Transcript · {selectedScriptRange.startWordId} → {selectedScriptRange.endWordId}</span>:null}
-      <em>{provider?.configured?`${provider.label} · ${provider.model}`:provider?`${provider.label} · ${zh?"不可用":"unavailable"}`:zh?"Agent Provider 未就绪":"Agent provider unavailable"}</em>
+      <em>{provider?.configured?`${provider.providerId} · ${provider.model}`:provider?`${provider.providerId} · ${zh?"不可用":"unavailable"}`:zh?"Agent Provider 未就绪":"Agent provider unavailable"}</em>
     </section>
     <AgentConversationProductionCards projectId={projectId} zh={zh} onOpenMission={props.onOpenMission}/>
     {provider&&(provider.configured===false||provider.selectable===false)?<section className="a4-agent-empty"><strong>{zh?"当前 Agent Provider 不可用":"Current Agent provider is unavailable"}</strong><p>{zh?"这个会话的 Provider/Model 身份不会被自动替换。请选择一个已配置的 Provider 并创建新会话，或恢复当前 Provider 的本机配置。":"This session's provider/model identity will not be silently replaced. Choose a configured provider and create a new session, or restore the current provider configuration."}</p></section>:null}
