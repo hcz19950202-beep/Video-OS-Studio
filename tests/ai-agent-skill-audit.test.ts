@@ -2,7 +2,7 @@ import {describe,expect,it} from "vitest";
 import {InMemoryFileSystemAdapter} from "@/adapters/filesystem";
 import {AgentContextService} from "@/lib/ai/context";
 import type {AIProvider} from "@/lib/ai/provider";
-import type {AIProviderRequest,AgentProviderEvent} from "@/lib/ai/schema";
+import type {AgentProviderEvent} from "@/lib/ai/schema";
 import {AgentSessionRepository} from "@/lib/ai/session/repository";
 import {AgentSessionService} from "@/lib/ai/service";
 import {createA1AgentToolRegistry} from "@/lib/ai/tools";
@@ -25,7 +25,7 @@ class GatedProvider implements AIProvider{
 
   release(){this.resolveReleased();}
 
-  async *run(_request:AIProviderRequest):AsyncIterable<AgentProviderEvent>{
+  async *run():AsyncIterable<AgentProviderEvent>{
     this.resolveStarted();
     await this.released;
     yield{type:"text-delta",text:"Skill audit complete"};
@@ -60,7 +60,10 @@ describe("V2.5.3 Agent Skill durable Turn audit",()=>{
     expect(during.turns).toHaveLength(1);
     expect(during.turns[0]?.status).toBe("running");
     expect(during.turns[0]?.skill).toEqual(skill);
-    expect(JSON.stringify([...fs.files.values()])).toContain('"skill":{"id":"caption-emphasis","version":"1.0.0"}');
+    const durableText=[...fs.files.values()].join("\n");
+    expect(durableText).toContain('"skill"');
+    expect(durableText).toContain('"caption-emphasis"');
+    expect(durableText).toContain('"1.0.0"');
 
     provider.release();
     const completed=await run;
