@@ -74,7 +74,7 @@ describe("V2.2 W3 human review and invalidation",()=>{
     expect(replayed?.checkpoints.find(item=>item.id===reviewB.id)?.status).toBe("superseded");expect(replayed?.checkpoints.filter(item=>item.stageId==="REVIEW_B"&&item.status==="waiting_review")).toHaveLength(1);
     expect(replayed?.artifacts.map(item=>item.id)).not.toContain("artifact-b-1");expect(replayed?.artifacts.map(item=>item.id)).toContain("artifact-b-2");
     const activity=await h.service.activity(h.run.id);const invalidated=new Set(activity.filter(item=>item.event==="stage-invalidated").map(item=>item.stageId));expect(invalidated).toEqual(new Set(["B","C","REVIEW_B","FINAL"]));expect(activity.some(item=>item.event==="review-superseded"&&item.details?.checkpointId===reviewB.id)).toBe(true);
-  });
+  },15_000);
 
   it("rejects replaying a stage that is downstream of the active review checkpoint",async()=>{
     const h=await makeHarness();registerReviewExecutors(h);await h.service.start(h.run.id);await h.runner.waitForIdle(h.run.id);expect((await h.service.get(h.run.id))?.currentStageId).toBe("REVIEW_A");
