@@ -58,24 +58,18 @@ jobs:
               raise SystemExit('service import guard failed')
           service_text = service_text.replace(old_import, new_import, 1)
 
-          old_run = '''  async runTurn(input:RunAgentTurnInput):Promise<AgentSession>{
-            const{skill,...runnerInput}=input;
-            const session=await this.runner.runTurn({...runnerInput,executionMode:runnerInput.executionMode??DEFAULT_AGENT_EXECUTION_MODE});
-            if(!skill)return session;
-            const turn=session.turns.at(-1);
-            if(!turn)return session;
-            return this.dependencies.sessions.mutate(input.projectId,input.sessionId,current=>AgentSessionSchema.parse({
-              ...current,
-              turns:current.turns.map(item=>item.id===turn.id?AgentTurnSchema.parse({...item,skill}):item),
-              updatedAt:this.now(),
-            }));
-          }'''.replace('            ', '    ')
-          new_run = '''  async runTurn(input:RunAgentTurnInput):Promise<AgentSession>{
-            return this.runner.runTurn({...input,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE});
-          }'''.replace('            ', '    ')
-          if service_text.count(old_run) != 1:
-              raise SystemExit('service runTurn guard failed')
-          service_text = service_text.replace(old_run, new_run, 1)
+          start_marker = '  async runTurn(input:RunAgentTurnInput):Promise<AgentSession>{\n'
+          end_marker = '\n\n  async list(projectId:string):Promise<AgentSession[]>{'
+          if service_text.count(start_marker) != 1 or service_text.count(end_marker) != 1:
+              raise SystemExit('service runTurn anchor guard failed')
+          start = service_text.index(start_marker)
+          end = service_text.index(end_marker, start)
+          replacement = (
+              '  async runTurn(input:RunAgentTurnInput):Promise<AgentSession>{\n'
+              '    return this.runner.runTurn({...input,executionMode:input.executionMode??DEFAULT_AGENT_EXECUTION_MODE});\n'
+              '  }'
+          )
+          service_text = service_text[:start] + replacement + service_text[end:]
 
           runner.write_text(runner_text, encoding='utf-8')
           service.write_text(service_text, encoding='utf-8')
