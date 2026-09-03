@@ -5,17 +5,17 @@
 ## Current checkpoint
 
 ```yaml
-released_product_version: 2.5.1
-released_tag: v2.5.1
-released_commit: b6f30c08c1c85bb80c43385827baa3317c1efbb5
-released_tag_object_sha: d73595ad3a51d010d61df1c096bead911f4a31b5
+released_product_version: 2.5.2
+released_tag: v2.5.2
+released_commit: 6b268629dc1fbce9c80a66384cc663be6692eb65
+released_tag_object_sha: 700a4dfbd2dfdee9253b28302b219129227858f9
 project_schema: 2.0.0
 
-package_json_version: 2.5.1
-package_lock_version: 2.5.1
+package_json_version: 2.5.2
+package_lock_version: 2.5.2
 
 active_development_workstream: NONE
-active_stage: V2.5.1 RELEASE COMPLETE
+active_stage: V2.5.2 RELEASE COMPLETE
 active_branch: NONE
 final_v2_4_audit_issue: Issue #94 / CLOSED
 final_v2_4_audit_pr: PR #96
@@ -74,8 +74,26 @@ v2_5_1_release_commit: b6f30c08c1c85bb80c43385827baa3317c1efbb5
 v2_5_1_release_main_dedicated_ci: run 33745650176 / PASS / 2 of 2
 v2_5_1_release_main_standard_ci: run 33745650175 / PASS / 7 of 7
 v2_5_1_release_tag_creation: run 33746191919 / PASS
+v2_5_2_engineering_audit_pr: PR #120 / CLOSED UNMERGED
+v2_5_2_engineering_merge_pr: PR #121
+v2_5_2_accepted_source_head: c93fee31a54c045c9da5fefd5de14cd8437847f3
+v2_5_2_accepted_source_tree: 28859a3a549158bd7db43d81d2f1a2a6d1a9227d
+v2_5_2_engineering_main: dfb5c0b271742c499a62a5d273fe0df08bc1afda
+v2_5_2_engineering_main_dedicated_ci: run 33756286459 / PASS / 2 of 2
+v2_5_2_engineering_main_standard_ci: run 33756286475 / PASS / attempt 2 / 7 of 7
+v2_5_2_local_windows_gate: c93fee31a54c045c9da5fefd5de14cd8437847f3 / PASS
+v2_5_2_release_metadata_sync: run 33757369315 / PASS
+v2_5_2_release_finalization_pr: PR #122
+v2_5_2_release_pr_frozen_head: c2bd12ff0ac1dd58f481465f120a45f9b4b7445a
+v2_5_2_release_pr_dedicated_ci: run 33757700000 / PASS / 2 of 2
+v2_5_2_release_pr_standard_ci: run 33757699946 / PASS / 7 of 7
+v2_5_2_release_commit: 6b268629dc1fbce9c80a66384cc663be6692eb65
+v2_5_2_release_main_dedicated_ci: run 33758451201 / PASS / 2 of 2
+v2_5_2_release_main_standard_ci: run 33758451245 / PASS / 7 of 7
+v2_5_2_release_tag_creation: run 33759152930 / PASS
+v2_5_2_release_tag_object: 700a4dfbd2dfdee9253b28302b219129227858f9
 local_action_required: NO
-next_action: NONE — V2.5.1 is released; future product work requires a separately approved next workstream
+next_action: NONE — V2.5.2 is released; future product work requires a separately approved next workstream
 v2_4_status: RELEASED
 v2_4_1_status: RELEASED
 v2_4_2_status: RELEASED
@@ -83,7 +101,39 @@ post_v2_4_2_p3_hardening_status: COMPLETE
 final_v2_4_audit_status: COMPLETE
 v2_5_status: RELEASED
 v2_5_1_status: RELEASED
+v2_5_2_status: RELEASED
 ```
+
+## Immutable V2.5.2 release truth
+
+Video OS Studio V2.5.2 is released at the independently verified annotated tag `v2.5.2`.
+
+```text
+release commit:      6b268629dc1fbce9c80a66384cc663be6692eb65
+annotated tag:       v2.5.2
+tag object SHA:      700a4dfbd2dfdee9253b28302b219129227858f9
+tag target type:     commit
+dereferenced target: 6b268629dc1fbce9c80a66384cc663be6692eb65
+tag message:         Video OS Studio v2.5.2
+```
+
+Accepted V2.5.2 source SHA `c93fee31a54c045c9da5fefd5de14cd8437847f3` and tree `28859a3a549158bd7db43d81d2f1a2a6d1a9227d` passed exact-head Standard #1432 (7/7), Dedicated #102 (2/2), and Mandatory Local Windows acceptance. Draft PR #120 was closed unmerged; replacement PR #121 merged the identical accepted source with expected-head protection as engineering main `dfb5c0b271742c499a62a5d273fe0df08bc1afda`.
+
+Engineering exact-main Dedicated #104 / run `33756286459` passed 2/2. Standard #1434 / run `33756286475` finished 7/7 PASS at attempt 2. Its first browser attempt exposed the existing C7 startup-test race where the status assertion could accept `disconnected` before the bridge address was published, yielding `Not running`; the identical main already passed C7 in Dedicated #104 and a single controlled identical-SHA browser rerun passed. No source or test patch was made.
+
+Release version-sync run `33757369315` bounded metadata changes to the three package version fields. Release-finalization PR #122 froze head `c2bd12ff0ac1dd58f481465f120a45f9b4b7445a`; Standard #1435 / run `33757699946` passed 7/7 and Dedicated #105 / run `33757700000` passed 2/2. Expected-head merge produced GitHub-signature-verified release commit `6b268629dc1fbce9c80a66384cc663be6692eb65`.
+
+Release exact-main Standard #1436 / run `33758451245` passed 7/7 and Dedicated #106 / run `33758451201` passed 2/2, including browser, real Media, HyperFrames, B6 and B7 gates. Isolated immutable-tag run `33759152930` then created `v2.5.2` only after proving `origin/main` still exactly equaled the release commit and the tag did not already exist. Independent GitHub Git Data verification proved `refs/tags/v2.5.2` points to object type `tag`, tag object `700a4dfbd2dfdee9253b28302b219129227858f9`, targeting the exact release commit with message `Video OS Studio v2.5.2`.
+
+The tag object is unsigned; the correct release language is **annotated, independently verified immutable tag**.
+
+Authoritative release evidence:
+
+`docs/acceptance/V2_5_2_RELEASE_FINALIZATION.md`
+
+## V2.5.2 accepted product truth
+
+V2.5.2 adds durable built-in Agent provider/model routing and Composer control without changing Project Schema or Project mutation authority. New Sessions can select a configured provider/model; existing Sessions pin their durable `providerId + model`, reopen with the same identity, and execute Turns from persisted identity rather than current server defaults. Unsupported/unconfigured provider/model states fail explicitly, client Turn requests cannot override current Session identity, and provider secrets are not exposed in the runtime catalog or UI.
 
 ## Immutable V2.5.1 release truth
 
@@ -362,6 +412,7 @@ FINAL V2.4.x INDEPENDENT AUDIT / Issue #94 CLOSED / PR #96 / exact head 09f06c63
 V2.5 C7 FINAL ACCEPTANCE / PR #112 audit + PR #113 accepted merge / source 58d303db9f39b24b5883a4d408d523d5f3617279 / Local Windows S01-S16 PASS
 V2.5.0 RELEASE / PR #114 / release commit df54e10e38ee2793e8fdf285ea2c216fe8c65478 / Standard exact-main 7 of 7 PASS / annotated tag verified
 V2.5.1 RELEASE / PR #118 / release commit b6f30c08c1c85bb80c43385827baa3317c1efbb5 / Standard exact-main 7 of 7 PASS / Dedicated exact-main 2 of 2 PASS / annotated tag verified
+V2.5.2 RELEASE / PR #122 / release commit 6b268629dc1fbce9c80a66384cc663be6692eb65 / Standard exact-main 7 of 7 PASS / Dedicated exact-main 2 of 2 PASS / annotated tag verified
 ```
 
 ## Frozen technical invariants

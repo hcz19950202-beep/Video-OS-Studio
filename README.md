@@ -4,25 +4,41 @@ Video OS Studio is a local-first AI-native video production workspace.
 
 ## Current immutable release
 
-**Video OS Studio v2.5.1 is released.**
+**Video OS Studio v2.5.2 is released.**
 
 ```text
-Product version: 2.5.1
+Product version: 2.5.2
 Project Schema: 2.0.0
-Release commit: b6f30c08c1c85bb80c43385827baa3317c1efbb5
-Release tag: v2.5.1 (annotated, verified)
-Tag object: d73595ad3a51d010d61df1c096bead911f4a31b5
+Release commit: 6b268629dc1fbce9c80a66384cc663be6692eb65
+Release tag: v2.5.2 (annotated, independently verified)
+Tag object: 700a4dfbd2dfdee9253b28302b219129227858f9
 ```
 
-The annotated `v2.5.1` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, `v2.4.1`, `v2.4.2`, and `v2.5.0` release tags remain immutable evidence and must never be moved or recreated.
+The annotated `v2.5.2` tag is the immutable current release boundary. Previous `v2.3.0`, `v2.3.1`, `v2.4.0`, `v2.4.1`, `v2.4.2`, `v2.5.0`, and `v2.5.1` release tags remain immutable evidence and must never be moved or recreated.
 
 Release evidence is recorded in:
 
-[`docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md`](docs/acceptance/V2_5_1_RELEASE_FINALIZATION.md)
+[`docs/acceptance/V2_5_2_RELEASE_FINALIZATION.md`](docs/acceptance/V2_5_2_RELEASE_FINALIZATION.md)
 
 The live repository source of truth is:
 
 [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
+
+## What V2.5.2 adds
+
+V2.5.2 productizes durable built-in Agent provider/model routing while preserving the accepted V2.5 Agent workspace and mutation boundaries:
+
+```text
+configured Provider/Model catalog
+→ New Session provider/model selection
+→ durable Session providerId + model identity
+→ reopen with pinned identity
+→ Turn execution from persisted identity
+→ explicit fail-closed unsupported/unconfigured states
+→ no client override of current Session provider/model
+```
+
+Volcengine Agent Plan, OpenAI Responses, and DeepSeek Chat are routed through the built-in provider runtime. The Composer exposes Provider/Model controls for the next/new Session, while the current Session identity remains pinned. Project Schema stays `2.0.0`, and Project mutation authority is unchanged.
 
 ## What V2.5 adds
 
@@ -112,6 +128,10 @@ Agent-Native Workspace + Local MCP
 
 V2.5.1
 Runtime Correctness + Release Metadata Patch
+        ✅ RELEASED
+
+V2.5.2
+Durable Agent Provider/Model Routing + Composer Control
         ✅ RELEASED
 ```
 
@@ -203,6 +223,27 @@ V2.4.2 Correctness / Liveness Patch             ✅ VERIFIED
 - **Remotion 4.0.513** as Player/master composition/final renderer;
 - **FFmpeg / ffprobe** behind adapters/services;
 - **Playwright 1.62.1** for browser acceptance.
+
+## V2.5.2 release verification
+
+Accepted source SHA `c93fee31a54c045c9da5fefd5de14cd8437847f3` and source tree `28859a3a549158bd7db43d81d2f1a2a6d1a9227d` passed Standard #1432 (7/7), Dedicated #102 (2/2), and Mandatory Local Windows acceptance. Replacement PR #121 merged the identical accepted source with expected-head protection as engineering main `dfb5c0b271742c499a62a5d273fe0df08bc1afda`.
+
+Engineering exact-main Dedicated #104 / run `33756286459` passed 2/2. Standard #1434 / run `33756286475` finished 7/7 PASS at attempt 2 after preserving one C7 bridge-startup test race; the identical SHA passed C7 in Dedicated and in the controlled browser rerun, with no source/test patch.
+
+Release-finalization PR #122 froze exact head `c2bd12ff0ac1dd58f481465f120a45f9b4b7445a`. Standard #1435 / run `33757699946` passed 7/7 and Dedicated #105 / run `33757700000` passed 2/2. Expected-head merge produced GitHub-signature-verified release commit `6b268629dc1fbce9c80a66384cc663be6692eb65`. Release exact-main Standard #1436 / run `33758451245` passed 7/7 and Dedicated #106 / run `33758451201` passed 2/2.
+
+Isolated immutable-tag run `33759152930` created `v2.5.2`. Independent GitHub Git Data verification confirmed:
+
+```text
+tag ref:             refs/tags/v2.5.2
+tag object type:     tag
+tag object SHA:      700a4dfbd2dfdee9253b28302b219129227858f9
+tag target type:     commit
+dereferenced commit: 6b268629dc1fbce9c80a66384cc663be6692eb65
+tag message:         Video OS Studio v2.5.2
+```
+
+The tag object is unsigned; it is an annotated, independently verified immutable tag.
 
 ## V2.5.1 release verification
 
