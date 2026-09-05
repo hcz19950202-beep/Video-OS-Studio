@@ -10,6 +10,12 @@ describe("V2.4.2 Studio Project publication boundary",()=>{
     expect(source).toContain("const publishProjectChange=useCallback");
     expect(source).toContain("()=>useProjectStore.getState().project");
     expect(source).not.toContain("onProjectChange={setProject}");
-    expect(source.match(/onProjectChange=\{publishProjectChange\}/g)).toHaveLength(7);
+
+    const childPublisherBindings=source.match(/onProjectChange=\{[^}]+\}/g)??[];
+    expect(childPublisherBindings.length).toBeGreaterThan(0);
+    expect(new Set(childPublisherBindings)).toEqual(new Set(["onProjectChange={publishProjectChange}"]));
+
+    expect(source).toContain("<CreativeAssetLibrary/>");
+    expect(source).not.toMatch(/<CreativeAssetLibrary[^>]*onProjectChange=/);
   });
 });
