@@ -122,7 +122,9 @@ export const runV26C2CreativeAssetLibraryBrowserAcceptance = async (page: Page) 
   });
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Library", exact: true }).click();
+  const mediaTabs = page.locator(".v21-panel-tabs button");
+  await expect(mediaTabs).toHaveCount(3);
+  await mediaTabs.nth(2).click();
   const library = page.getByTestId("creative-asset-library");
   await expect(library).toBeVisible();
   await expect(page.getByTestId("creative-asset-card-c2-price-highlight")).toBeVisible();
