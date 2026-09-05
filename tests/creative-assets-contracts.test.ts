@@ -62,7 +62,7 @@ describe("V2.6 C0 Creative Asset contracts",()=>{
   it("validates clone lineage and preserves accepted versions as immutable snapshots",()=>{
     expect(()=>CreativeAssetVersionSchema.parse({...readyVersion,id:"version-2",state:"DRAFT",acceptedAt:undefined,versionFingerprint:undefined,artifacts:[],lineage:{origin:"cloned"}})).toThrow();
     expect(()=>CreativeAssetVersionSchema.parse({...readyVersion,id:"version-2",state:"DRAFT",acceptedAt:undefined,versionFingerprint:undefined,artifacts:[],lineage:{origin:"cloned",parentVersionId:"version-2"}})).toThrow();
-    expect(()=>assertCreativeAssetVersionTransition(readyVersion,{...readyVersion,parameterValues:{text:"$59,900"}})).toThrow(/immutable/i);
+    expect(()=>assertCreativeAssetVersionTransition(readyVersion,{...readyVersion,parameterValues:{text:"$59,900"}})).toThrow(/cannot change after acceptance/i);
     expect(assertCreativeAssetVersionTransition(readyVersion,{...readyVersion}).id).toBe("version-1");
   });
 
