@@ -28,11 +28,11 @@ export async function GET(request:Request){
     return Response.json(buildCreativeAssetLibraryResponse(filtered),{
       headers:{"Cache-Control":"no-store"},
     });
-  }catch(error){
+  }catch{
     return Response.json(
       {
         error:"creative_asset_library_unavailable",
-        message:error instanceof Error?error.message:"Creative Asset Library is unavailable.",
+        message:"Creative Asset Library is unavailable.",
         retryable:true,
       },
       {status:500,headers:{"Cache-Control":"no-store"}},
