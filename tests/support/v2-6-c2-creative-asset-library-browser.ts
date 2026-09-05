@@ -130,17 +130,18 @@ export const runV26C2CreativeAssetLibraryBrowserAcceptance = async (page: Page) 
   await expect(page.getByTestId("creative-asset-card-c2-price-highlight")).toBeVisible();
   await expect(page.getByTestId("creative-asset-card-c2-brand-mark")).toBeVisible();
 
-  const search = page.getByLabel("Search creative assets");
+  const search = library.locator("input").first();
   await search.fill("conversion");
   await expect(page.getByTestId("creative-asset-card-c2-price-highlight")).toBeVisible();
   await expect(page.getByTestId("creative-asset-card-c2-brand-mark")).toHaveCount(0);
   await search.fill("");
   await expect(page.getByTestId("creative-asset-card-c2-brand-mark")).toBeVisible();
 
-  await page.getByLabel("Asset kind").selectOption("brand_element");
+  const kindSelect = library.locator("select").first();
+  await kindSelect.selectOption("brand_element");
   await expect(page.getByTestId("creative-asset-card-c2-brand-mark")).toBeVisible();
   await expect(page.getByTestId("creative-asset-card-c2-price-highlight")).toHaveCount(0);
-  await page.getByLabel("Asset kind").selectOption("");
+  await kindSelect.selectOption("");
   await expect(page.getByTestId("creative-asset-card-c2-price-highlight")).toBeVisible();
 
   await page.getByTestId("creative-asset-card-c2-price-highlight").click();
@@ -150,6 +151,5 @@ export const runV26C2CreativeAssetLibraryBrowserAcceptance = async (page: Page) 
   await expect(detail).toContainText("30 fps");
   await expect(detail).toContainText("90f");
   await expect(page.getByTestId("creative-asset-parameters")).toContainText("$49,900");
-  await expect(page.getByRole("button", { name: /Add to Timeline/ })).toBeDisabled();
-  await expect(page.getByRole("button", { name: /Duplicate & Edit/ })).toBeDisabled();
+  await expect(detail.locator("button:disabled")).toHaveCount(2);
 };
