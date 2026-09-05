@@ -40,17 +40,17 @@ export const validateCreativeAssetParameterValues=(schemaInput:CreativeAssetPara
       continue;
     }
     if(parameter.type==="string"){
-      if(typeof value!=="string")failParameter(`Parameter ${parameter.key} must be a string.`);
-      if(parameter.minLength!==undefined&&value.length<parameter.minLength)failParameter(`Parameter ${parameter.key} is shorter than minLength.`);
-      if(parameter.maxLength!==undefined&&value.length>parameter.maxLength)failParameter(`Parameter ${parameter.key} exceeds maxLength.`);
+      const stringValue=typeof value==="string"?value:failParameter(`Parameter ${parameter.key} must be a string.`);
+      if(parameter.minLength!==undefined&&stringValue.length<parameter.minLength)failParameter(`Parameter ${parameter.key} is shorter than minLength.`);
+      if(parameter.maxLength!==undefined&&stringValue.length>parameter.maxLength)failParameter(`Parameter ${parameter.key} exceeds maxLength.`);
     }else if(parameter.type==="number"){
-      if(typeof value!=="number")failParameter(`Parameter ${parameter.key} must be a number.`);
-      if(parameter.integer&&!Number.isInteger(value))failParameter(`Parameter ${parameter.key} must be an integer.`);
-      if(parameter.min!==undefined&&value<parameter.min)failParameter(`Parameter ${parameter.key} is below min.`);
-      if(parameter.max!==undefined&&value>parameter.max)failParameter(`Parameter ${parameter.key} exceeds max.`);
+      const numberValue=typeof value==="number"?value:failParameter(`Parameter ${parameter.key} must be a number.`);
+      if(parameter.integer&&!Number.isInteger(numberValue))failParameter(`Parameter ${parameter.key} must be an integer.`);
+      if(parameter.min!==undefined&&numberValue<parameter.min)failParameter(`Parameter ${parameter.key} is below min.`);
+      if(parameter.max!==undefined&&numberValue>parameter.max)failParameter(`Parameter ${parameter.key} exceeds max.`);
       if(parameter.step!==undefined){
         const base=parameter.min??0;
-        const steps=(value-base)/parameter.step;
+        const steps=(numberValue-base)/parameter.step;
         if(Math.abs(steps-Math.round(steps))>1e-9)failParameter(`Parameter ${parameter.key} does not align with step.`);
       }
     }else if(parameter.type==="boolean"){
