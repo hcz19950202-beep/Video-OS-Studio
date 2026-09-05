@@ -54,36 +54,40 @@ export const CreativeAssetLibrary=()=>{
   const[retryToken,setRetryToken]=useState(0);
   const[data,setData]=useState<ReturnType<typeof CreativeAssetLibraryResponseSchema.parse>|null>(null);
   const[error,setError]=useState("");
-  const[loading,setLoading]=useState(true);
+  const[settledRequestKey,setSettledRequestKey]=useState("");
   const[selectedId,setSelectedId]=useState("");
   const[selectedVersionId,setSelectedVersionId]=useState("");
-
-  useEffect(()=>{
-    const controller=new AbortController();
+  const requestUrl=useMemo(()=>{
     const params=new URLSearchParams();
     if(query.trim())params.set("q",query.trim());
     if(kind)params.set("kind",kind);
     if(tag)params.set("tag",tag);
-    setLoading(true);
-    setError("");
-    void fetch(`/api/creative-assets${params.size?`?${params.toString()}`:""}`,{
+    return `/api/creative-assets${params.size?`?${params.toString()}`:""}`;
+  },[query,kind,tag]);
+  const requestKey=`${requestUrl}#${retryToken}`;
+  const loading=settledRequestKey!==requestKey;
+
+  useEffect(()=>{
+    const controller=new AbortController();
+    void fetch(requestUrl,{
       cache:"no-store",
       signal:controller.signal,
     }).then(async response=>{
       const payload=await response.json();
       if(!response.ok)throw new Error(payload?.message||payload?.error||`HTTP ${response.status}`);
       setData(CreativeAssetLibraryResponseSchema.parse(payload));
+      setError("");
     }).catch(fetchError=>{
       if(fetchError instanceof DOMException&&fetchError.name==="AbortError")return;
       setData(null);
       setError(fetchError instanceof Error?fetchError.message:String(fetchError));
     }).finally(()=>{
-      if(!controller.signal.aborted)setLoading(false);
+      if(!controller.signal.aborted)setSettledRequestKey(requestKey);
     });
     return()=>controller.abort();
-  },[query,kind,tag,retryToken]);
+  },[requestKey,requestUrl]);
 
-  const items=data?.items??[];
+  const items=useMemo(()=>data?.items??[],[data]);
   const selected=useMemo(
     ()=>items.find(item=>item.id===selectedId)??items[0],
     [items,selectedId],
