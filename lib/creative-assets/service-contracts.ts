@@ -1,7 +1,6 @@
 import {CreativeAssetContractError} from "@/lib/creative-assets/errors";
 import {stableCreativeAssetSerialize} from "@/lib/creative-assets/fingerprints";
 import {
-  CreativeAssetLogicalIdSchema,
   CreativeAssetParameterSchema,
   CreativeAssetParameterValuesSchema,
   CreativeAssetVersionSchema,
@@ -49,8 +48,9 @@ export const validateCreativeAssetParameterValues=(schemaInput:CreativeAssetPara
       if(parameter.integer&&!Number.isInteger(value))failParameter(`Parameter ${parameter.key} must be an integer.`);
       if(parameter.min!==undefined&&value<parameter.min)failParameter(`Parameter ${parameter.key} is below min.`);
       if(parameter.max!==undefined&&value>parameter.max)failParameter(`Parameter ${parameter.key} exceeds max.`);
-      if(parameter.step!==undefined&&parameter.min!==undefined){
-        const steps=(value-parameter.min)/parameter.step;
+      if(parameter.step!==undefined){
+        const base=parameter.min??0;
+        const steps=(value-base)/parameter.step;
         if(Math.abs(steps-Math.round(steps))>1e-9)failParameter(`Parameter ${parameter.key} does not align with step.`);
       }
     }else if(parameter.type==="boolean"){
@@ -74,5 +74,3 @@ export interface CreativeAssetVersionLifecycleService extends CreativeAssetContr
   cloneDraft(creativeAssetId:string,sourceVersionId:string,newVersionId:string):Promise<CreativeAssetVersion>;
   acceptVersion(creativeAssetId:string,versionId:string,expectedFingerprint:string):Promise<CreativeAssetVersion>;
 }
-
-export const CreativeAssetCloneRequestSchema=CreativeAssetLogicalIdSchema.transform(newVersionId=>({newVersionId}));
