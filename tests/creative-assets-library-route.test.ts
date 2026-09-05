@@ -117,15 +117,17 @@ describe("V2.6 C2 Creative Asset Library route",()=>{
     expect(body.items.map((item:{id:string})=>item.id)).toEqual(["asset-brand"]);
   });
 
-  it("returns a stable retryable 500 contract when repository access fails",async()=>{
-    repositoryMocks.listAssets.mockRejectedValueOnce(new Error("disk unavailable"));
+  it("returns a stable path-safe retryable 500 contract when repository access fails",async()=>{
+    repositoryMocks.listAssets.mockRejectedValueOnce(new Error("C:\\Users\\private\\creative-assets\\manifest.json unavailable"));
     const response=await GET(new Request("http://localhost/api/creative-assets"));
     expect(response.status).toBe(500);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    await expect(response.json()).resolves.toMatchObject({
+    const body=await response.json();
+    expect(body).toMatchObject({
       error:"creative_asset_library_unavailable",
-      message:"disk unavailable",
+      message:"Creative Asset Library is unavailable.",
       retryable:true,
     });
+    expect(JSON.stringify(body)).not.toContain("C:\\Users\\private");
   });
 });
