@@ -90,7 +90,7 @@ const prepareAcceptableVersion=async(
   versionId="version-2",
 ):Promise<CreativeAssetVersion>=>{
   const draft=await repository.createDraftChildVersion(assetId,childDraft(assetId,versionId));
-  const rendering=await repository.updateMutableVersion(assetId,{...draft,state:"FINAL_RENDERING"});
+  await repository.updateMutableVersion(assetId,{...draft,state:"FINAL_RENDERING"});
   return repository.attachArtifactMetadata(assetId,versionId,readyArtifact(assetId,versionId,`${versionId}-final`));
 };
 
@@ -151,7 +151,8 @@ describe("V2.6 C1 durable Creative Asset repository",()=>{
     const recovered=await restarted.requireManifest("asset-1");
     expect(recovered.versions.map(version=>version.id)).toEqual(["version-1"]);
     expect(await fs.readText(paths.manifestBackup)).toBe(backupBefore);
-    expect(()=>JSON.parse(await fs.readText(paths.manifest))).not.toThrow;
+    const repairedPrimary=await fs.readText(paths.manifest);
+    expect(()=>JSON.parse(repairedPrimary)).not.toThrow();
   });
 
   it("recovers backup-only assets for direct reads and list/search discovery",async()=>{
